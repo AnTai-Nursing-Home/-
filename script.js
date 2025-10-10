@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
             step2.classList.add('d-none');
             step1.classList.remove('d-none');
             bookingForm.reset();
+            bookingForm.classList.remove('was-validated');
             residentNameInput.classList.remove('is-valid', 'is-invalid');
             bedNumberInput.value = '';
         });
@@ -134,6 +135,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         bookingForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            bookingForm.classList.add('was-validated');
+            if (!bookingForm.checkValidity()) {
+                return;
+            }
             const residentName = residentNameInput.value.trim();
             if (!residentDatabase[residentName]) {
                 alert('住民姓名不正確，無法提交預約！');
@@ -159,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!bookings[selectedDate]) bookings[selectedDate] = {};
             if (!bookings[selectedDate][selectedTime]) bookings[selectedDate][selectedTime] = [];
             bookings[selectedDate][selectedTime].push(pendingBookingData);
-            localStorage.setItem('bookings', JSON.stringify(bookings));
+localStorage.setItem('bookings', JSON.stringify(bookings));
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
         });
