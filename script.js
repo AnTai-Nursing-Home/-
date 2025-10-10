@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // ===============================================================
+    // ==== 住民資料庫 ====
+    // ===============================================================
     const residentDatabase = {
         "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1",
         "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1",
@@ -23,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
+        
+        // --- 統一把所有元件宣告放在最前面 ---
         const visitDateInput = document.getElementById('visitDate');
         const timeSlotsContainer = document.getElementById('time-slots');
         const bookingNotice = document.getElementById('booking-notice');
@@ -37,16 +42,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmationModalElement = document.getElementById('confirmationModal');
         const confirmationModal = new bootstrap.Modal(confirmationModalElement);
         const finalSubmitButton = document.getElementById('final-submit-button');
+
+        // --- 所有變數 ---
         let pendingBookingData = {};
         const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
         const maxBookingsPerSlot = 4;
         let selectedDate = '';
         let selectedTime = '';
         let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+        
+        // --- 初始化頁面 ---
         const today = new Date().toISOString().split('T')[0];
         visitDateInput.setAttribute('min', today);
         visitDateInput.value = today;
         selectedDate = today;
+
+        // --- 函式定義 ---
         function renderTimeSlots() {
             timeSlotsContainer.innerHTML = '';
             bookingNotice.classList.add('d-none');
@@ -85,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 timeSlotsContainer.appendChild(button);
             });
         }
+
         function displaySuccessMessage(bookingData) {
             document.getElementById('confirmDate').textContent = selectedDate;
             document.getElementById('confirmTime').textContent = selectedTime;
@@ -97,10 +109,13 @@ document.addEventListener('DOMContentLoaded', function() {
             step2.classList.add('d-none');
             successMessage.classList.remove('d-none');
         }
+
+        // --- 事件監聽器 ---
         visitDateInput.addEventListener('change', (e) => {
             selectedDate = e.target.value;
             renderTimeSlots();
         });
+
         timeSlotsContainer.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
                 selectedTime = e.target.dataset.time;
@@ -109,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 step2.classList.remove('d-none');
             }
         });
+
         backButton.addEventListener('click', () => {
             step2.classList.add('d-none');
             step1.classList.remove('d-none');
@@ -117,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
             residentNameInput.classList.remove('is-valid', 'is-invalid');
             bedNumberInput.value = '';
         });
+
         residentNameInput.addEventListener('input', function() {
             const name = this.value.trim();
             if (residentDatabase[name]) {
@@ -133,18 +150,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 nameFeedback.className = 'invalid-feedback';
             }
         });
+
         bookingForm.addEventListener('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
+
             bookingForm.classList.add('was-validated');
+
             if (!bookingForm.checkValidity()) {
                 return;
             }
+
             const residentName = residentNameInput.value.trim();
             if (!residentDatabase[residentName]) {
-                alert('住民姓名不正確，無法提交預約！');
+                bookingForm.classList.remove('was-validated');
+                residentNameInput.classList.add('is-invalid');
+                nameFeedback.textContent = '查無此住民姓名，請確認輸入是否正確。';
+                nameFeedback.style.display = 'block';
                 return;
             }
+
             pendingBookingData = {
                 residentName,
                 bedNumber: bedNumberInput.value,
@@ -153,22 +178,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 visitorPhone: document.getElementById('visitorPhone').value,
                 timestamp: new Date().toISOString()
             };
+
             document.getElementById('modal-confirm-date').textContent = selectedDate;
             document.getElementById('modal-confirm-time').textContent = selectedTime;
             document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
             document.getElementById('modal-confirm-visitorName').textContent = pendingBookingData.visitorName;
             document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
             document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
+            
             confirmationModal.show();
         });
+
         finalSubmitButton.addEventListener('click', function() {
             if (!bookings[selectedDate]) bookings[selectedDate] = {};
             if (!bookings[selectedDate][selectedTime]) bookings[selectedDate][selectedTime] = [];
             bookings[selectedDate][selectedTime].push(pendingBookingData);
-localStorage.setItem('bookings', JSON.stringify(bookings));
+            localStorage.setItem('bookings', JSON.stringify(bookings));
+            
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
         });
+
+        // --- 初始渲染 ---
         renderTimeSlots();
     }
 });
