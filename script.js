@@ -24,14 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
         "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試用戶": "501-1"
     };
 
-    // 透過尋找一個只在 booking.html 存在的獨特元件，來判斷我們是否在預約頁面
+    // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
-
-    // 如果找到了 bookingForm (代表我們在 booking.html)，才執行裡面的程式碼
     if (bookingForm) {
         
-        // --- 以下是只會在 booking.html 頁面執行的程式碼 ---
-
+        // --- 宣告所有 booking.html 頁面會用到的元件 ---
         const visitDateInput = document.getElementById('visitDate');
         const timeSlotsContainer = document.getElementById('time-slots');
         const bookingNotice = document.getElementById('booking-notice'); 
@@ -46,25 +43,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const queryPhoneInput = document.getElementById('queryPhoneInput');
         const searchButton = document.getElementById('searchButton');
         const queryResultsContainer = document.getElementById('queryResults');
-
         const confirmationModalElement = document.getElementById('confirmationModal');
         const confirmationModal = new bootstrap.Modal(confirmationModalElement);
         const finalSubmitButton = document.getElementById('final-submit-button');
 
+        // --- 宣告預約相關的變數 ---
         let pendingBookingData = {};
-
         const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
         const maxBookingsPerSlot = 4;
         let selectedDate = '';
         let selectedTime = '';
         let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+        
+        // --- 初始化頁面狀態 ---
         const today = new Date().toISOString().split('T')[0];
         visitDateInput.setAttribute('min', today);
         visitDateInput.value = today;
         selectedDate = today;
 
+        // --- 所有函式定義 ---
         function renderTimeSlots() {
-            // 先清空上次的結果並隱藏提示
             timeSlotsContainer.innerHTML = '';
             bookingNotice.classList.add('d-none');
             
@@ -72,11 +70,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const now = new Date();
             const todayString = now.toISOString().split('T')[0];
 
-            // 檢查是否為今日且已過中午12點
             if (selectedDate === todayString && now.getHours() >= 12) {
                 bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
                 bookingNotice.classList.remove('d-none');
-                return; // 結束函式，不渲染任何時段按鈕
+                return;
             }
 
             availableTimes.forEach(time => {
@@ -88,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (selectedDate === todayString) {
                     const [slotHour, slotMinute] = time.split(':').map(Number);
                     const slotTime = new Date();
-                    slotTime.setHours(slotHour, slotMinute, 0, 0); // 設定時段的今天時間點
+                    slotTime.setHours(slotHour, slotMinute, 0, 0);
                     if (now > slotTime) {
                         isPast = true;
                     }
@@ -111,6 +108,45 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        function displaySuccessMessage(bookingData) {
+            document.getElementById('confirmDate').textContent = selectedDate;
+            document.getElementById('confirmTime').textContent = selectedTime;
+            document.getElementById('confirmResidentName').textContent = bookingData.residentName;
+            document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
+            document.getElementById('confirmVisitorName').textContent = bookingData.visitorName;
+            document.getElementById('confirmVisitorPhone').textContent = bookingData.visitorPhone;
+            step1.classList.add('d-none');
+            step2.classList.add('d-none');
+            successMessage.classList.remove('d-none');
+        }
+
+        function displaySearchResults(results) {
+            if (results.length === 0) {
+                queryResultsContainer.innerHTML = '<p class="text-center text-muted">查無相關預約紀錄。</p>';
+                return;
+            }
+            let html = '<ul class="list-group">';
+            results.forEach(b => {
+                html += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${b.date} ${b.time}</strong><br>
+                            <small>住民: ${b.residentName} / 家屬: ${b.visitorName}</small>
+                        </div>
+                        <button class="btn btn-danger btn-sm btn-cancel" 
+                                data-date="${b.date}" 
+                                data-time="${b.time}" 
+                                data-timestamp="${b.timestamp}">
+                            取消預約
+                        </button>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            queryResultsContainer.innerHTML = html;
+        }
+
+        // --- 綁定所有事件監聽器 ---
         visitDateInput.addEventListener('change', (e) => {
             selectedDate = e.target.value;
             renderTimeSlots();
@@ -181,18 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
             displaySuccessMessage(pendingBookingData);
         });
 
-        function displaySuccessMessage(bookingData) {
-            document.getElementById('confirmDate').textContent = selectedDate;
-            document.getElementById('confirmTime').textContent = selectedTime;
-            document.getElementById('confirmResidentName').textContent = bookingData.residentName;
-            document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
-            document.getElementById('confirmVisitorName').textContent = bookingData.visitorName;
-            document.getElementById('confirmVisitorPhone').textContent = bookingData.visitorPhone;
-            step1.classList.add('d-none');
-            step2.classList.add('d-none');
-            successMessage.classList.remove('d-none');
-        }
-
         searchButton.addEventListener('click', function() {
             const phone = queryPhoneInput.value.trim();
             if (!phone) {
@@ -214,32 +238,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             displaySearchResults(foundBookings);
         });
-
-        function displaySearchResults(results) {
-            if (results.length === 0) {
-                queryResultsContainer.innerHTML = '<p class="text-center text-muted">查無相關預約紀錄。</p>';
-                return;
-            }
-            let html = '<ul class="list-group">';
-            results.forEach(b => {
-                html += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>${b.date} ${b.time}</strong><br>
-                            <small>住民: ${b.residentName} / 家屬: ${b.visitorName}</small>
-                        </div>
-                        <button class="btn btn-danger btn-sm btn-cancel" 
-                                data-date="${b.date}" 
-                                data-time="${b.time}" 
-                                data-timestamp="${b.timestamp}">
-                            取消預約
-                        </button>
-                    </li>
-                `;
-            });
-            html += '</ul>';
-            queryResultsContainer.innerHTML = html;
-        }
 
         queryResultsContainer.addEventListener('click', function(e) {
             if (e.target.classList.contains('btn-cancel')) {
@@ -264,6 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // --- 頁面載入後執行的初始操作 ---
         renderTimeSlots();
 
         const urlParams = new URLSearchParams(window.location.search);
