@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理者後台</title>
+    <title>員工登入</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container my-5">
@@ -12,22 +14,36 @@
             <div class="col-lg-10">
                 <div class="card shadow">
                     <div class="card-header text-center bg-dark text-white">
-                        <h2>預約名單管理後台</h2>
+                        <h2>員工系統</h2>
                     </div>
                     <div class="card-body">
                         <div id="password-section">
-                            <h5 class="card-title">請輸入管理密碼</h5>
+                            <h5 class="card-title">請輸入員工密碼</h5>
                             <div class="input-group mb-3">
                                 <input type="password" id="passwordInput" class="form-control" placeholder="請輸入密碼">
-                                <button id="loginButton" class="btn btn-primary">登入查看</button>
+                                <button id="loginButton" class="btn btn-primary">登入</button>
                             </div>
                             <div id="errorMessage" class="text-danger d-none">密碼錯誤，請重試！</div>
+                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3">返回首頁</a>
                         </div>
 
-                        <div id="results-section" class="d-none">
+                        <div id="dashboard-section" class="d-none">
+                            <div class="menu-grid admin-menu-grid">
+                                <a href="#" id="show-bookings-btn" class="menu-item">
+                                    <i class="fas fa-list-alt fa-3x"></i>
+                                    <span class="menu-item-text">預約名單查詢</span>
+                                </a>
+                                <a href="#" id="show-supplies-btn" class="menu-item">
+                                    <i class="fas fa-boxes-stacked fa-3x"></i>
+                                    <span class="menu-item-text">衛材點班</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div id="results-section" class="d-none mt-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h3>所有預約紀錄</h3>
-                                <a href="booking.html" class="btn btn-secondary">返回預約系統</a>
+                                <button id="back-to-dashboard-btn" class="btn btn-secondary">返回儀表板</button>
                             </div>
                             <div id="booking-list" class="table-responsive">
                                 </div>
@@ -37,7 +53,7 @@
             </div>
         </div>
     </div>
-
+    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
     <script src="admin.js"></script>
 </body>
 </html>
