@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // ... (衛材項目定義不變) ...
-    const inventoryData = [ /* ... 內容省略 ... */ ];
+    const inventoryData = [
+        { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
+        { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] },
+        { category: '三、清潔與消毒', items: [ { name: '消毒錠', threshold: '＜1盒=缺' }, { name: '酒精棉片', threshold: '＜1盒=缺' }, { name: '生理沖洗瓶', threshold: '＜10瓶=缺' }, { name: '沖洗棉棒', threshold: '＜2大袋=缺' }, { name: '普通棉棒', threshold: '＜2大袋=缺' }, { name: '口腔棉棒', threshold: '＜2大袋=缺' }, { name: '2*2紗布', threshold: '＜10包=缺' }, { name: '3*3紗布', threshold: '＜10包=缺' }, { name: '4*4紗布', threshold: '＜10包=缺' }, { name: '平紗', threshold: '＜5包=缺' }, ] },
+        { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
+    ];
 
     const tableBody = document.getElementById('inventory-table-body');
     const resetButton = document.getElementById('reset-button');
@@ -13,15 +17,46 @@ document.addEventListener('DOMContentLoaded', function () {
     const headerStorageKey = 'inventoryHeader';
 
     function renderTable() {
-        // ... (渲染表格的邏輯不變，但不再監聽 change 事件) ...
+        const inventoryStatus = JSON.parse(localStorage.getItem(itemsStorageKey)) || {};
+        tableBody.innerHTML = '';
+        inventoryData.forEach(categoryData => {
+            const categoryRow = document.createElement('tr');
+            categoryRow.innerHTML = `<td colspan="3" class="table-category">${categoryData.category}</td>`;
+            tableBody.appendChild(categoryRow);
+
+            categoryData.items.forEach(item => {
+                const itemRow = document.createElement('tr');
+                itemRow.dataset.itemName = item.name;
+
+                const status = inventoryStatus[item.name]?.status || '-';
+                const restocker = inventoryStatus[item.name]?.restocker || '';
+
+                if (status === '缺項') {
+                    itemRow.classList.add('table-danger');
+                } else if (status === '無缺項') {
+                    itemRow.classList.add('table-success');
+                }
+
+                itemRow.innerHTML = `
+                    <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
+                    <td>
+                        <select class="form-select" data-field="status">
+                            <option value="-" ${status === '-' ? 'selected' : ''}>-</option>
+                            <option value="缺項" ${status === '缺項' ? 'selected' : ''}>缺項</option>
+                            <option value="無缺項" ${status === '無缺項' ? 'selected' : ''}>無缺項</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control" data-field="restocker" value="${restocker}" placeholder="簽名"></td>
+                `;
+                tableBody.appendChild(itemRow);
+            });
+        });
     }
 
-    // 儲存所有資料到 LocalStorage
     function saveAllData() {
         let allValid = true;
         const newStatus = {};
         
-        // 移除所有舊的錯誤提示樣式
         tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => {
             row.classList.remove('table-row-invalid');
         });
@@ -30,16 +65,12 @@ document.addEventListener('DOMContentLoaded', function () {
             categoryData.items.forEach(item => {
                 const row = tableBody.querySelector(`tr[data-item-name="${item.name}"]`);
                 if (!row) return;
-
                 const statusSelect = row.querySelector('select[data-field="status"]');
                 const restockerInput = row.querySelector('input[data-field="restocker"]');
-
-                // 驗證護理師欄位是否已填
                 if (statusSelect.value === '-') {
                     allValid = false;
-                    row.classList.add('table-row-invalid'); // 標示錯誤的行
+                    row.classList.add('table-row-invalid');
                 }
-
                 newStatus[item.name] = {
                     status: statusSelect.value,
                     restocker: restockerInput.value
@@ -48,28 +79,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (!allValid) {
-            alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 \"-\"）。');
-            return; // 中斷儲存
+            alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 "-"）。');
+            return;
         }
 
-        // 儲存表頭資料
-        const headerData = {
-            date: dateInput.value,
-            nurse: nurseInput.value,
-            restocker: restockerInput.value,
-        };
+        const headerData = { date: dateInput.value, nurse: nurseInput.value, restocker: restockerInput.value };
         localStorage.setItem(headerStorageKey, JSON.stringify(headerData));
-
-        // 儲存品項資料
         localStorage.setItem(itemsStorageKey, JSON.stringify(newStatus));
-
         alert('盤點紀錄已成功儲存！');
-        
-        // 為了讓行顏色即時更新，儲存後重新渲染一次
         renderTable();
     }
     
-    // 頁面載入時，載入並設定表頭
     function loadHeaderData() {
         const savedHeader = JSON.parse(localStorage.getItem(headerStorageKey));
         if (savedHeader) {
@@ -77,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function () {
             nurseInput.value = savedHeader.nurse;
             restockerInput.value = savedHeader.restocker;
         } else {
-            // 如果沒有儲存的資料，預設為今天
             dateInput.value = new Date().toISOString().split('T')[0];
         }
     }
@@ -85,15 +104,15 @@ document.addEventListener('DOMContentLoaded', function () {
     saveButton.addEventListener('click', saveAllData);
 
     resetButton.addEventListener('click', function() {
-        if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？')) {
+        if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？此操作將無法復原。')) {
             localStorage.removeItem(itemsStorageKey);
             localStorage.removeItem(headerStorageKey);
-            renderTable(); // 會自動載入空狀態
-            loadHeaderData(); // 會自動設定回今天
+            renderTable();
+            loadHeaderData();
             alert('所有紀錄已清空。');
         }
     });
 
     loadHeaderData();
-    renderTable(); // 初始渲染
+    renderTable();
 });
