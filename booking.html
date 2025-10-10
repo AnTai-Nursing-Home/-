@@ -22,7 +22,15 @@
                                 <i class="fas fa-arrow-left me-2"></i>返回首頁選單
                             </a>
                         </div>
-                        <div id="step1"></div>
+                        <div id="step1">
+                            <h4 class="mb-3">步驟一：選擇探視日期與時段</h4>
+                            <div class="mb-3">
+                                <label for="visitDate" class="form-label">選擇日期</label>
+                                <input type="date" id="visitDate" class="form-control">
+                            </div>
+                            <div id="booking-notice" class="alert alert-warning d-none" role="alert"></div>
+                            <div id="time-slots" class="d-flex flex-wrap gap-2"></div>
+                        </div>
                         <div id="step2" class="d-none mt-4">
                             <h4 class="mb-3">步驟二：填寫預約資料</h4>
                             <p>您選擇的時段：<strong id="selected-time-display"></strong></p>
