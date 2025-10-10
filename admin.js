@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 前端不再儲存任何密碼！
-
+    
     const passwordSection = document.getElementById('password-section');
     const resultsSection = document.getElementById('results-section');
     const passwordInput = document.getElementById('passwordInput');
@@ -46,25 +46,61 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     loginButton.addEventListener('click', handleLogin);
-
+    
     passwordInput.addEventListener('keyup', function(event) {
         if (event.key === 'Enter') {
             handleLogin();
         }
     });
 
-    // displayBookings 函式維持不變...
+    // 清理並顯示預約資料的函式
     function displayBookings() {
-        const bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+        let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+
+        // ===============================================================
+        // ==== START: 新增 - 過期預約自動清理邏輯 ====
+        // ===============================================================
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 將時間標準化為今日凌晨0點
+
+        const datesToDelete = [];
+        const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000; // 30天的毫秒數
+
+        // 找出所有超過30天的預約日期
+        Object.keys(bookings).forEach(date => {
+            const bookingDate = new Date(date);
+            const timeDifference = today.getTime() - bookingDate.getTime();
+
+            // 如果預約日期比今天早，且差距超過30天
+            if (timeDifference > thirtyDaysInMs) {
+                datesToDelete.push(date);
+            }
+        });
+
+        // 如果有需要刪除的日期，就執行刪除並更新儲存
+        if (datesToDelete.length > 0) {
+            console.log('正在清理過期預約:', datesToDelete);
+            datesToDelete.forEach(date => {
+                delete bookings[date];
+            });
+            localStorage.setItem('bookings', JSON.stringify(bookings));
+        }
+        // ===============================================================
+        // ==== END: 過期預約自動清理邏輯 ====
+        // ===============================================================
+
         const dates = Object.keys(bookings).sort();
         if (dates.length === 0) {
             bookingListContainer.innerHTML = '<p class="text-center">目前沒有任何預約紀錄。</p>';
             return;
         }
+
         let html = '';
+        // 我們只顯示今天及未來的預約，但過期的資料已在上方被清理
         dates.forEach(date => {
-            const today = new Date().toISOString().split('T')[0];
-            if (date < today) return;
+            const currentDate = new Date().toISOString().split('T')[0];
+            if (date < currentDate) return; // 僅顯示今天及未來的預約
+
             html += `<h4>${date}</h4>`;
             html += `<table class="table table-bordered table-striped table-hover"><thead class="table-light"><tr><th>時段</th><th>住民姓名</th><th>床號</th><th>家屬姓名</th><th>聯絡電話</th></tr></thead><tbody>`;
             const times = Object.keys(bookings[date]).sort();
@@ -75,6 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             html += `</tbody></table>`;
         });
+
         if (html === '') {
              bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
         } else {
