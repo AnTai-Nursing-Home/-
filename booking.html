@@ -6,7 +6,7 @@
     <title>預約探視 - 安泰護理之家</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-</head>
+    </head>
 <body>
     <div class="container my-5">
         <div class="row justify-content-center">
@@ -71,27 +71,33 @@
                             <a href="index.html" class="btn btn-primary mt-3">返回首頁選單</a>
                         </div>
                     </div>
-                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="modal fade" id="queryModal" tabindex="-1" aria-labelledby="queryModalLabel" aria-hidden="true">
+        </div>
+
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="queryModalLabel">查詢 / 取消預約</h5>
+                    <h5 class="modal-title" id="confirmationModalLabel">請確認您的預約資訊</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>請輸入您預約時使用的電話號碼：</p>
-                    <div class="input-group">
-                        <input type="tel" id="queryPhoneInput" class="form-control" placeholder="例如：0912345678">
-                        <button id="searchButton" class="btn btn-primary">開始查詢</button>
-                    </div>
-                    <hr>
-                    <div id="queryResults">
-                        </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>探視日期:</strong> <span id="modal-confirm-date"></span></li>
+                        <li class="list-group-item"><strong>探視時段:</strong> <span id="modal-confirm-time"></span></li>
+                        <li class="list-group-item"><strong>住民姓名:</strong> <span id="modal-confirm-residentName"></span></li>
+                        <li class="list-group-item"><strong>家屬姓名:</strong> <span id="modal-confirm-visitorName"></span></li>
+                        <li class="list-group-item"><strong>聯絡電話:</strong> <span id="modal-confirm-visitorPhone"></span></li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回修改</button>
+                    <button type="button" id="final-submit-button" class="btn btn-primary">確認送出</button>
                 </div>
             </div>
         </div>
