@@ -37,11 +37,10 @@ body {
 }
 .menu-grid {
     display: grid;
-    /* ==== 修改：恢復為三欄式佈局 ==== */
+    /* 確保是三欄式佈局 */
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     width: 100%;
-    /* ==== 修改：調整最大寬度以適應三欄 ==== */
     max-width: 800px; 
 }
 .menu-item {
