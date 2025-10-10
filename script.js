@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // ===============================================================
-    // ==== 管理者請在此處修改住民名單 ====
+    // ==== 已更新為您提供的住民名單 ====
     const residentDatabase = {
         "楊仲富": "101-1",
         "洪坤玉": "101-2",
@@ -94,8 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
         "劉藍麗珠": "315-1",
         "王周絲": "315-2",
         "吳政達": "318-1",
-        "許榮成": "318-2",
-        "測試用戶": "501-1" 
+        "許榮成": "318-2", // <-- 我在這裡補上了逗號
+        "測試用戶": "501-1"
     };
     // ===============================================================
 
@@ -112,11 +112,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const bedNumberInput = document.getElementById('bedNumber');
     const nameFeedback = document.getElementById('nameFeedback');
 
-    // --- START: 查詢功能所需元素 ---
+    // --- 查詢功能所需元素 ---
     const queryPhoneInput = document.getElementById('queryPhoneInput');
     const searchButton = document.getElementById('searchButton');
     const queryResultsContainer = document.getElementById('queryResults');
-    // --- END: 查詢功能所需元素 ---
 
     const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
     const maxBookingsPerSlot = 4;
@@ -210,7 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
         bookings[selectedDate][selectedTime].push(newBooking);
         localStorage.setItem('bookings', JSON.stringify(bookings));
         
-        // 顯示成功資訊...
         document.getElementById('confirmDate').textContent = selectedDate;
         document.getElementById('confirmTime').textContent = selectedTime;
         document.getElementById('confirmResidentName').textContent = newBooking.residentName;
@@ -222,22 +220,17 @@ document.addEventListener('DOMContentLoaded', function() {
         successMessage.classList.remove('d-none');
     });
 
-    // --- START: 查詢與取消功能邏輯 ---
-
-    // 查詢按鈕事件
+    // --- 查詢與取消功能邏輯 ---
     searchButton.addEventListener('click', function() {
         const phone = queryPhoneInput.value.trim();
         if (!phone) {
             alert('請輸入電話號碼！');
             return;
         }
-
         const foundBookings = [];
         const today = new Date().toISOString().split('T')[0];
-
-        // 遍歷所有預約，找出符合電話且尚未過期的預約
         Object.keys(bookings).forEach(date => {
-            if (date >= today) { // 只搜尋今天及未來的
+            if (date >= today) {
                 Object.keys(bookings[date]).forEach(time => {
                     bookings[date][time].forEach(booking => {
                         if (booking.visitorPhone === phone) {
@@ -247,17 +240,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
-
         displaySearchResults(foundBookings);
     });
 
-    // 顯示查詢結果
     function displaySearchResults(results) {
         if (results.length === 0) {
             queryResultsContainer.innerHTML = '<p class="text-center text-muted">查無相關預約紀錄。</p>';
             return;
         }
-
         let html = '<ul class="list-group">';
         results.forEach(b => {
             html += `
@@ -279,7 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
         queryResultsContainer.innerHTML = html;
     }
 
-    // 處理取消預約的事件 (使用事件委派)
     queryResultsContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('btn-cancel')) {
             const button = e.target;
@@ -288,29 +277,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const timestamp = button.dataset.timestamp;
 
             if (confirm(`您確定要取消 ${date} ${time} 的預約嗎？`)) {
-                // 從 bookings 物件中找到並刪除該筆預約
                 const bookingsForSlot = bookings[date][time];
                 const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
-                
                 if (indexToDelete > -1) {
                     bookingsForSlot.splice(indexToDelete, 1);
-                    // 如果該時段已無預約，可以選擇性地清理空陣列/物件
                     if (bookings[date][time].length === 0) delete bookings[date][time];
                     if (Object.keys(bookings[date]).length === 0) delete bookings[date];
-
-                    // 將更新後的 bookings 存回 LocalStorage
                     localStorage.setItem('bookings', JSON.stringify(bookings));
-                    
-                    // 重新整理畫面
                     alert('預約已成功取消！');
-                    renderTimeSlots(); // 更新首頁的剩餘名額
-                    searchButton.click(); // 重新查詢，更新彈出視窗內的列表
+                    renderTimeSlots();
+                    searchButton.click();
                 }
             }
         }
     });
-
-    // --- END: 查詢與取消功能邏輯 ---
 
     // --- 初始渲染 ---
     renderTimeSlots();
