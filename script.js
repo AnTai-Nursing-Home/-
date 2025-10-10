@@ -1,4 +1,3 @@
-// (此處貼上我上一則回覆中提供的完整、已修正的 script.js 程式碼)
 document.addEventListener('DOMContentLoaded', function() {
     // ===============================================================
     // ==== 住民資料庫 ====
@@ -22,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         "張梅心": "311-1", "許陳菊季": "311-2", "林黃金枝": "311-3", "陳林金枝": "311-5", "邱桂英": "312-1",
         "潘郁豐": "312-2", "宋進興": "312-3", "賴盈賢": "312-5", "林泰安": "312-6", "林文立": "313-1",
         "張元平": "313-2", "林安允": "313-3", "林楊智": "313-5", "林昌輝": "313-6", "劉藍麗珠": "315-1",
-        "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試住民": "501-1"
+        "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試用戶": "501-1"
     };
 
     const bookingForm = document.getElementById('bookingForm');
@@ -257,15 +256,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        renderTimeSlots();
-
+        // ==== 修改：頁面載入後的初始操作邏輯 ====
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('action') === 'query') {
+            // 如果是從「查詢」按鈕進來的，直接打開查詢視窗
             const queryModalElement = document.getElementById('queryModal');
-            if (typeof bootstrap !== 'undefined') {
+            if (typeof bootstrap !== 'undefined' && queryModalElement) {
                 const queryModal = new bootstrap.Modal(queryModalElement);
                 queryModal.show();
             }
+        } else {
+            // 如果是正常進入預約頁面，才執行初始的時段渲染
+            renderTimeSlots();
         }
     }
 });
