@@ -124,3 +124,16 @@ body {
 .card-footer a:hover {
     color: #4CAF50;
 }
+
+/* --- 查詢結果列表樣式 --- */
+#queryResults .list-group-item {
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #dee2e6;
+}
+#queryResults .list-group-item strong {
+    color: #343a40;
+}
+#queryResults .list-group-item small {
+    color: #6c757d;
+}
