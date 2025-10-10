@@ -115,6 +115,7 @@ body {
 .card-header h2 {
     font-weight: 700;
     letter-spacing: 2px;
+    color: #fff; /* 確保標題文字是白色 */
 }
 
 .card-body {
@@ -220,11 +221,11 @@ body {
 /* 員工儀表板選單樣式 */
 .admin-menu-grid {
     max-width: 500px;
-    margin: 2rem auto; /* 上下留白並置中 */
+    margin: 2rem auto;
 }
 @media (max-width: 768px) {
     .admin-menu-grid {
-        grid-template-columns: 1fr; /* 手機上變為單欄 */
+        grid-template-columns: 1fr;
         max-width: 300px;
     }
 }
