@@ -23,20 +23,22 @@
                             </a>
                             <button id="reset-button" class="btn btn-outline-danger">清空本次紀錄</button>
                         </div>
+
                         <div class="row g-3 mb-4 p-3 border rounded bg-light">
                             <div class="col-md-4">
                                 <label for="inventory-date" class="form-label">盤點日期</label>
                                 <input type="date" class="form-control" id="inventory-date">
                             </div>
                             <div class="col-md-4">
-                                <label for="inventory-nurse" class="form-label">盤點護理師</label>
-                                <input type="text" class="form-control" id="inventory-nurse" placeholder="請簽名">
+                                <label for="inventory-nurse" class="form-label">盤點護理師 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="inventory-nurse" placeholder="請簽名" required>
                             </div>
                             <div class="col-md-4">
                                 <label for="inventory-restocker" class="form-label">補齊者</label>
                                 <input type="text" class="form-control" id="inventory-restocker" placeholder="請簽名">
                             </div>
                         </div>
+
                         <div class="table-responsive">
                             <table class="table table-bordered align-middle">
                                 <thead class="table-light">
@@ -50,6 +52,7 @@
                                     </tbody>
                             </table>
                         </div>
+
                         <div class="mt-4 text-center">
                             <button id="save-button" class="btn btn-primary btn-lg">儲存盤點紀錄</button>
                         </div>
