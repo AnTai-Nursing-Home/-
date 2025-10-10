@@ -23,36 +23,20 @@ document.addEventListener('DOMContentLoaded', function () {
             const categoryRow = document.createElement('tr');
             categoryRow.innerHTML = `<td colspan="3" class="table-category">${categoryData.category}</td>`;
             tableBody.appendChild(categoryRow);
-
             categoryData.items.forEach(item => {
                 const itemRow = document.createElement('tr');
                 itemRow.dataset.itemName = item.name;
-
                 const status = inventoryStatus[item.name]?.status || '-';
                 const restockStatus = inventoryStatus[item.name]?.restockStatus || '-';
-
                 if (status === '缺項') {
                     itemRow.classList.add('table-danger');
                 } else if (status === '無缺項') {
                     itemRow.classList.add('table-success');
                 }
-
                 itemRow.innerHTML = `
                     <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
-                    <td>
-                        <select class="form-select" data-field="status">
-                            <option value="-" ${status === '-' ? 'selected' : ''}>-</option>
-                            <option value="缺項" ${status === '缺項' ? 'selected' : ''}>缺項</option>
-                            <option value="無缺項" ${status === '無缺項' ? 'selected' : ''}>無缺項</option>
-                        </select>
-                    </td>
-                    <td>
-                        <select class="form-select" data-field="restockStatus">
-                            <option value="-" ${restockStatus === '-' ? 'selected' : ''}>-</option>
-                            <option value="已補齊" ${restockStatus === '已補齊' ? 'selected' : ''}>已補齊</option>
-                            <option value="缺貨" ${restockStatus === '缺貨' ? 'selected' : ''}>缺貨</option>
-                        </select>
-                    </td>
+                    <td><select class="form-select" data-field="status"><option value="-" ${status === '-' ? 'selected' : ''}>-</option><option value="缺項" ${status === '缺項' ? 'selected' : ''}>缺項</option><option value="無缺項" ${status === '無缺項' ? 'selected' : ''}>無缺項</option></select></td>
+                    <td><select class="form-select" data-field="restockStatus"><option value="-" ${restockStatus === '-' ? 'selected' : ''}>-</option><option value="已補齊" ${restockStatus === '已補齊' ? 'selected' : ''}>已補齊</option><option value="缺貨" ${restockStatus === '缺貨' ? 'selected' : ''}>缺貨</option></select></td>
                 `;
                 tableBody.appendChild(itemRow);
             });
@@ -60,6 +44,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveAllData() {
+        nurseInput.classList.remove('is-invalid');
+        if (!nurseInput.value.trim()) {
+            alert('錯誤：請填寫「盤點護理師」姓名！');
+            nurseInput.classList.add('is-invalid');
+            return;
+        }
+        
         let allValid = true;
         const newStatus = {};
         
@@ -71,15 +62,12 @@ document.addEventListener('DOMContentLoaded', function () {
             categoryData.items.forEach(item => {
                 const row = tableBody.querySelector(`tr[data-item-name="${item.name}"]`);
                 if (!row) return;
-
                 const statusSelect = row.querySelector('select[data-field="status"]');
                 const restockSelect = row.querySelector('select[data-field="restockStatus"]');
-
                 if (statusSelect.value === '-') {
                     allValid = false;
                     row.classList.add('table-row-invalid');
                 }
-
                 newStatus[item.name] = {
                     status: statusSelect.value,
                     restockStatus: restockSelect.value
@@ -116,17 +104,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？此操作將無法復原。')) {
             localStorage.removeItem(itemsStorageKey);
             localStorage.removeItem(headerStorageKey);
-            
-            // 清空後重新渲染
-            renderTable(); 
-            
-            // 清空後重新載入表頭，會恢復預設值
+            renderTable();
             dateInput.value = '';
             nurseInput.value = '';
             restockerInput.value = '';
             loadHeaderData();
-
             alert('所有紀錄已清空。');
+        }
+    });
+
+    nurseInput.addEventListener('input', function() {
+        if (nurseInput.classList.contains('is-invalid')) {
+            nurseInput.classList.remove('is-invalid');
         }
     });
 
