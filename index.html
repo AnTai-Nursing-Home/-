@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>護理之家家屬探視預約系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h2>護理之家家屬探視預約系統</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="step1">
+                            <h4 class="mb-3">步驟一：選擇探視日期與時段</h4>
+                            <div class="mb-3">
+                                <label for="visitDate" class="form-label">選擇日期</label>
+                                <input type="date" id="visitDate" class="form-control">
+                            </div>
+                            <div id="time-slots" class="d-flex flex-wrap gap-2">
+                                </div>
+                        </div>
+
+                        <div id="step2" class="d-none mt-4">
+                            <h4 class="mb-3">步驟二：填寫預約資料</h4>
+                            <p>您選擇的時段：<strong id="selected-time-display"></strong></p>
+                            <form id="bookingForm" novalidate>
+                                <div class="mb-3">
+                                    <label for="residentName" class="form-label">住民姓名</label>
+                                    <input type="text" class="form-control" id="residentName" required placeholder="請輸入完整的住民姓名">
+                                    <div id="nameFeedback" class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="bedNumber" class="form-label">床號</label>
+                                    <input type="text" class="form-control" id="bedNumber" readonly style="background-color: #e9ecef;">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="visitorName" class="form-label">家屬姓名</label>
+                                    <input type="text" class="form-control" id="visitorName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="visitorPhone" class="form-label">聯絡電話</label>
+                                    <input type="tel" class="form-control" id="visitorPhone" required placeholder="例如：0912345678">
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">確認預約</button>
+                                <button type="button" id="backButton" class="btn btn-secondary w-100 mt-2">返回選擇時段</button>
+                            </form>
+                        </div>
+
+                        <div id="successMessage" class="d-none text-center mt-4 p-4 border rounded bg-light">
+                            <h3 class="text-success">✔ 預約成功！</h3>
+                            <p>感謝您的預約，以下是您的預約資訊：</p>
+                            <ul class="list-unstyled text-start">
+                                <li><strong>日期：</strong> <span id="confirmDate"></span></li>
+                                <li><strong>時間：</strong> <span id="confirmTime"></span></li>
+                                <li><strong>住民姓名：</strong> <span id="confirmResidentName"></span></li>
+                                <li><strong>床號：</strong> <span id="confirmBedNumber"></span></li>
+                                <li><strong>家屬姓名：</strong> <span id="confirmVisitorName"></span></li>
+                                <li><strong>聯絡電話：</strong> <span id="confirmVisitorPhone"></span></li>
+                            </ul>
+                            <hr>
+                            <p class="fw-bold text-danger">重要提醒：未來若需查詢或取消預約，請使用您的「電話號碼」作為憑證。</p>
+                            <button onclick="window.location.reload()" class="btn btn-primary mt-3">返回預約首頁</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
