@@ -4,21 +4,98 @@
 /* --- 整體頁面風格 --- */
 body {
     font-family: 'Noto Sans TC', sans-serif;
-    background: linear-gradient(to top, #f2f4f6, #ffffff); /* 柔和的漸層背景 */
+    background: #f0f2f5; /* 使用一個更柔和的灰色背景 */
     min-height: 100vh;
 }
 
-/* --- 主要卡片容器 --- */
+/* ================================================= */
+/* ==== 新增：圖文選單 (Menu) 頁面樣式 ==== */
+/* ================================================= */
+.menu-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.menu-header {
+    text-align: center;
+    margin-bottom: 40px;
+    color: #333;
+}
+
+.menu-header h1 {
+    font-weight: 700;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 桌面版一行兩個 */
+    gap: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.menu-item {
+    background-color: #ffd600; /* 參考圖片的黃色 */
+    color: #212529; /* 深灰色文字 */
+    text-decoration: none;
+    padding: 30px 20px;
+    border-radius: 12px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1; /* 保持正方形 */
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.menu-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    color: #000;
+}
+
+.menu-item i {
+    margin-bottom: 15px; /* 圖示與文字的間距 */
+}
+
+.menu-item-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* 手機版響應式設計：一行兩個不變，若要變一個可改為 1fr */
+@media (max-width: 576px) {
+    .menu-grid {
+        gap: 15px;
+    }
+    .menu-item {
+        padding: 20px 15px;
+    }
+}
+
+
+/* ================================================= */
+/* ==== 原有：預約系統 (Booking) 頁面樣式 ==== */
+/* ================================================= */
+.container.my-5 {
+    padding-top: 2rem; /* 為預約頁面增加一些頂部空間 */
+}
+
 .card {
-    border: none; /* 移除預設邊框 */
-    border-radius: 15px; /* 更圓潤的邊角 */
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); /* 更柔和、更深的立體陰影 */
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
 }
 
-/* --- 卡片標題 --- */
 .card-header {
-    background: linear-gradient(45deg, #4CAF50, #81C784); /* 溫暖的綠色漸層 */
+    background: linear-gradient(45deg, #4CAF50, #81C784);
     border-top-left-radius: 15px;
     border-top-right-radius: 15px;
     padding: 1.5rem;
@@ -27,15 +104,13 @@ body {
 
 .card-header h2 {
     font-weight: 700;
-    letter-spacing: 2px; /* 增加文字間距 */
+    letter-spacing: 2px;
 }
 
-/* --- 卡片內容區 --- */
 .card-body {
     padding: 2rem;
 }
 
-/* --- 時段選擇按鈕 --- */
 .time-slot {
     border-radius: 8px;
     font-weight: 500;
@@ -43,19 +118,16 @@ body {
     border-width: 2px;
 }
 
-/* 按鈕滑鼠懸停效果 */
 .time-slot:not(.full):not(:disabled):hover {
-    transform: translateY(-3px); /* 向上浮動 */
+    transform: translateY(-3px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 主要按鈕 (btn-primary 是 Bootstrap 預設) */
 .btn-primary {
     background-color: #4CAF50;
     border-color: #4CAF50;
 }
 
-/* 成功按鈕 (確認預約) */
 .btn-success {
     background-color: #4CAF50;
     border: none;
@@ -72,20 +144,17 @@ body {
     box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
 }
 
-/* --- 表單輸入框 --- */
 .form-control {
     border-radius: 8px;
     padding: 12px;
     border: 1px solid #ced4da;
 }
 
-/* 輸入框獲取焦點時的效果 */
 .form-control:focus {
     border-color: #81C784;
     box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
 }
 
-/* --- 額滿時段的樣式 --- */
 .time-slot.full {
     background-color: #e9ecef;
     color: #adb5bd;
@@ -94,7 +163,6 @@ body {
     opacity: 0.8;
 }
 
-/* --- 預約成功訊息區塊 --- */
 #successMessage {
     border-left: 5px solid #4CAF50;
     background-color: #f0fdf4;
@@ -107,7 +175,6 @@ body {
     font-weight: 700;
 }
 
-/* --- 管理者登入連結 --- */
 .card-footer {
     background-color: #fafafa;
     border-bottom-left-radius: 15px;
@@ -125,7 +192,6 @@ body {
     color: #4CAF50;
 }
 
-/* --- 查詢結果列表樣式 --- */
 #queryResults .list-group-item {
     border-radius: 8px;
     margin-bottom: 10px;
