@@ -39,11 +39,9 @@ body {
 
 .menu-grid {
     display: grid;
-    /* ==== 修改：從三欄改回兩欄 ==== */
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
     width: 100%;
-    /* ==== 修改：調整最大寬度以適應兩欄 ==== */
     max-width: 500px; 
 }
 
@@ -74,7 +72,7 @@ body {
 }
 
 .menu-item-text {
-    font-size: 1.1rem;
+    font-size: 1rem; /* 稍微縮小字體以容納較長文字 */
     font-weight: 500;
 }
 
@@ -91,7 +89,6 @@ body {
         font-size: 1.6rem; /* 手機上標題再縮小一點 */
     }
 
-    /* 在手機上維持兩欄佈局，若按鈕太小可改回 1fr */
     .menu-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 15px;
