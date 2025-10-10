@@ -37,9 +37,11 @@ body {
 }
 .menu-grid {
     display: grid;
+    /* ==== 修改：恢復為三欄式佈局 ==== */
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     width: 100%;
+    /* ==== 修改：調整最大寬度以適應三欄 ==== */
     max-width: 800px; 
 }
 .menu-item {
@@ -107,7 +109,6 @@ body {
     border-top-right-radius: 15px;
     padding: 1.5rem;
     border-bottom: none;
-    /* ==== 簡化：恢復為簡單的文字置中即可 ==== */
     text-align: center;
 }
 .card-header h2 {
