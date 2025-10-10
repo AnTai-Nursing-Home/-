@@ -6,8 +6,8 @@ body {
     font-family: 'Noto Sans TC', sans-serif;
     background: #f0f2f5;
     min-height: 100vh;
-    display: flex; /* 讓 footer 可以自動推到底部 */
-    flex-direction: column; /* 讓 footer 可以自動推到底部 */
+    display: flex;
+    flex-direction: column;
 }
 
 /* ================================================= */
@@ -18,7 +18,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex-grow: 1; /* 讓 menu-container 佔據可用空間，將 footer 推到底部 */
+    flex-grow: 1;
     padding: 20px;
 }
 .menu-header {
@@ -93,7 +93,7 @@ body {
 /* ================================================= */
 .container.my-5 {
     padding-top: 2rem; 
-    flex-grow: 1; /* 讓內容佔據可用空間，將 footer 推到底部 */
+    flex-grow: 1;
 }
 .card {
     border: none;
@@ -107,58 +107,52 @@ body {
     border-top-right-radius: 15px;
     padding: 1.5rem;
     border-bottom: none;
-    /* ==== 新增：讓卡片頭部內容可以彈性佈局 ==== */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative; /* 確保子元素可以絕對定位 */
+    position: relative;
 }
 .card-header h2 {
     font-weight: 700;
     letter-spacing: 2px;
-    /* ==== 確保文字不會被遮擋 ==== */
     z-index: 1; 
 }
-/* ==== 調整查詢/取消預約按鈕樣式，使其在手機版時位於標題下方 ==== */
 .card-header .btn-light {
-    position: static; /* 取消絕對定位 */
-    transform: none; /* 取消位移 */
-    margin-top: 10px; /* 在標題下方增加間距 */
-    width: auto; /* 恢復自動寬度 */
-    z-index: 1; /* 確保按鈕不會被標題遮擋 */
+    position: static;
+    transform: none;
+    margin-top: 10px;
+    width: auto;
+    z-index: 1;
 }
-/* ==== 針對寬螢幕，恢復按鈕原本的右上方位置 ==== */
 @media (min-width: 769px) {
     .card-header {
-        flex-direction: row; /* 寬螢幕時恢復水平排列 */
+        flex-direction: row;
         justify-content: center;
     }
     .card-header h2 {
-        text-align: center; /* 標題居中 */
-        flex-grow: 1; /* 讓標題盡可能佔據空間 */
+        text-align: center;
+        flex-grow: 1;
     }
     .card-header .btn-light {
-        position: absolute; /* 恢復絕對定位 */
+        position: absolute;
         top: 50%;
-        right: 0; /* 改回右側對齊 */
+        right: 0;
         transform: translateY(-50%);
-        margin-right: 1.5rem; /* 增加右側間距 */
-        margin-top: 0; /* 取消上方間距 */
+        margin-right: 1.5rem;
+        margin-top: 0;
         width: auto;
     }
 }
-/* ==== 在小螢幕時，縮小標題字體，避免過寬 ==== */
 @media (max-width: 576px) {
     .card-header h2 {
-        font-size: 1.5rem; /* 小手機字體更小 */
+        font-size: 1.5rem;
     }
     .card-header .btn-light {
-        font-size: 0.9rem; /* 小手機按鈕字體也縮小 */
+        font-size: 0.9rem;
         padding: 6px 12px;
     }
 }
-
 
 .card-body {
     padding: 2rem;
@@ -269,7 +263,7 @@ body {
 .site-footer {
     text-align: center;
     padding: 20px 0;
-    margin-top: 40px;
+    margin-top: 20px; /* 改為固定上邊距 */
     font-size: 0.9rem;
     color: #888;
 }
