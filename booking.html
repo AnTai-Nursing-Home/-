@@ -64,14 +64,52 @@
                             </form>
                         </div>
                         <div id="successMessage" class="d-none text-center mt-4 p-4 border rounded bg-light">
-                           </div>
+                            <h3 class="text-success">✔ 預約成功！</h3>
+                            <p>感謝您的預約，以下是您的預約資訊：</p>
+                            <ul class="list-unstyled text-start mx-auto" style="max-width: 300px;">
+                                <li><strong>日期：</strong> <span id="confirmDate"></span></li>
+                                <li><strong>時間：</strong> <span id="confirmTime"></span></li>
+                                <li><strong>住民姓名：</strong> <span id="confirmResidentName"></span></li>
+                                <li><strong>床號：</strong> <span id="confirmBedNumber"></span></li>
+                                <li><strong>家屬姓名：</strong> <span id="confirmVisitorName"></span></li>
+                                <li><strong>與住民關係：</strong> <span id="confirmVisitorRelationship"></span></li>
+                                <li><strong>聯絡電話：</strong> <span id="confirmVisitorPhone"></span></li>
+                            </ul>
+                            <hr>
+                            <p class="fw-bold text-danger">重要提醒：未來若需查詢或取消預約，請使用您的「電話號碼」作為憑證。</p>
+                            <a href="index.html" class="btn btn-primary mt-3">返回首頁選單</a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationModalLabel">請確認您的預約資訊</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>探視日期:</strong> <span id="modal-confirm-date"></span></li>
+                        <li class="list-group-item"><strong>探視時段:</strong> <span id="modal-confirm-time"></span></li>
+                        <li class="list-group-item"><strong>住民姓名:</strong> <span id="modal-confirm-residentName"></span></li>
+                        <li class="list-group-item"><strong>家屬姓名:</strong> <span id="modal-confirm-visitorName"></span></li>
+                        <li class="list-group-item"><strong>與住民關係:</strong> <span id="modal-confirm-visitorRelationship"></span></li>
+                        <li class="list-group-item"><strong>聯絡電話:</strong> <span id="modal-confirm-visitorPhone"></span></li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回修改</button>
+                    <button type="button" id="final-submit-button" class="btn btn-primary">確認送出</button>
+                </div>
+            </div>
         </div>
+    </div>
+
     <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
