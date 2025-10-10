@@ -1,7 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // ===============================================================
-    // ==== 住民資料庫 ====
-    // ===============================================================
     const residentDatabase = {
         "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1",
         "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1",
@@ -26,10 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
-        
         const visitDateInput = document.getElementById('visitDate');
         const timeSlotsContainer = document.getElementById('time-slots');
-        const bookingNotice = document.getElementById('booking-notice'); 
+        const bookingNotice = document.getElementById('booking-notice');
         const step1 = document.getElementById('step1');
         const step2 = document.getElementById('step2');
         const backButton = document.getElementById('backButton');
@@ -38,44 +34,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const residentNameInput = document.getElementById('residentName');
         const bedNumberInput = document.getElementById('bedNumber');
         const nameFeedback = document.getElementById('nameFeedback');
-        const queryPhoneInput = document.getElementById('queryPhoneInput');
-        const searchButton = document.getElementById('searchButton');
-        const queryResultsContainer = document.getElementById('queryResults');
         const confirmationModalElement = document.getElementById('confirmationModal');
         const confirmationModal = new bootstrap.Modal(confirmationModalElement);
         const finalSubmitButton = document.getElementById('final-submit-button');
-
         let pendingBookingData = {};
         const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
         const maxBookingsPerSlot = 4;
         let selectedDate = '';
         let selectedTime = '';
         let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
-        
         const today = new Date().toISOString().split('T')[0];
         visitDateInput.setAttribute('min', today);
         visitDateInput.value = today;
         selectedDate = today;
-
         function renderTimeSlots() {
             timeSlotsContainer.innerHTML = '';
             bookingNotice.classList.add('d-none');
-            
             const dateBookings = bookings[selectedDate] || {};
             const now = new Date();
             const todayString = now.toISOString().split('T')[0];
-
             if (selectedDate === todayString && now.getHours() >= 12) {
                 bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
                 bookingNotice.classList.remove('d-none');
                 return;
             }
-
             availableTimes.forEach(time => {
                 const count = dateBookings[time] ? dateBookings[time].length : 0;
                 const remaining = maxBookingsPerSlot - count;
                 const isFull = remaining <= 0;
-                
                 let isPast = false;
                 if (selectedDate === todayString) {
                     const [slotHour, slotMinute] = time.split(':').map(Number);
@@ -85,12 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         isPast = true;
                     }
                 }
-
                 const button = document.createElement('button');
                 button.className = `btn ${isFull || isPast ? 'btn-outline-secondary full' : 'btn-outline-primary'} time-slot`;
                 button.dataset.time = time;
                 button.disabled = isFull || isPast;
-
                 if (isFull) {
                     button.textContent = `${time} (已額滿)`;
                 } else if (isPast) {
@@ -98,11 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     button.textContent = `${time} (剩餘 ${remaining} 組)`;
                 }
-                
                 timeSlotsContainer.appendChild(button);
             });
         }
-
         function displaySuccessMessage(bookingData) {
             document.getElementById('confirmDate').textContent = selectedDate;
             document.getElementById('confirmTime').textContent = selectedTime;
@@ -114,38 +96,10 @@ document.addEventListener('DOMContentLoaded', function() {
             step2.classList.add('d-none');
             successMessage.classList.remove('d-none');
         }
-
-        function displaySearchResults(results) {
-            if (results.length === 0) {
-                queryResultsContainer.innerHTML = '<p class="text-center text-muted">查無相關預約紀錄。</p>';
-                return;
-            }
-            let html = '<ul class="list-group">';
-            results.forEach(b => {
-                html += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>${b.date} ${b.time}</strong><br>
-                            <small>住民: ${b.residentName} / 家屬: ${b.visitorName}</small>
-                        </div>
-                        <button class="btn btn-danger btn-sm btn-cancel" 
-                                data-date="${b.date}" 
-                                data-time="${b.time}" 
-                                data-timestamp="${b.timestamp}">
-                            取消預約
-                        </button>
-                    </li>
-                `;
-            });
-            html += '</ul>';
-            queryResultsContainer.innerHTML = html;
-        }
-
         visitDateInput.addEventListener('change', (e) => {
             selectedDate = e.target.value;
             renderTimeSlots();
         });
-
         timeSlotsContainer.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
                 selectedTime = e.target.dataset.time;
@@ -154,7 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 step2.classList.remove('d-none');
             }
         });
-
         backButton.addEventListener('click', () => {
             step2.classList.add('d-none');
             step1.classList.remove('d-none');
@@ -162,7 +115,6 @@ document.addEventListener('DOMContentLoaded', function() {
             residentNameInput.classList.remove('is-valid', 'is-invalid');
             bedNumberInput.value = '';
         });
-
         residentNameInput.addEventListener('input', function() {
             const name = this.value.trim();
             if (residentDatabase[name]) {
@@ -179,7 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 nameFeedback.className = 'invalid-feedback';
             }
         });
-
         bookingForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const residentName = residentNameInput.value.trim();
@@ -201,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
             confirmationModal.show();
         });
-
         finalSubmitButton.addEventListener('click', function() {
             if (!bookings[selectedDate]) bookings[selectedDate] = {};
             if (!bookings[selectedDate][selectedTime]) bookings[selectedDate][selectedTime] = [];
@@ -210,64 +160,6 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
         });
-
-        searchButton.addEventListener('click', function() {
-            const phone = queryPhoneInput.value.trim();
-            if (!phone) {
-                alert('請輸入電話號碼！');
-                return;
-            }
-            const foundBookings = [];
-            const today = new Date().toISOString().split('T')[0];
-            Object.keys(bookings).forEach(date => {
-                if (date >= today) {
-                    Object.keys(bookings[date]).forEach(time => {
-                        bookings[date][time].forEach(booking => {
-                            if (booking.visitorPhone === phone) {
-                                foundBookings.push({ date, time, ...booking });
-                            }
-                        });
-                    });
-                }
-            });
-            displaySearchResults(foundBookings);
-        });
-
-        queryResultsContainer.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-cancel')) {
-                const button = e.target;
-                const date = button.dataset.date;
-                const time = button.dataset.time;
-                const timestamp = button.dataset.timestamp;
-
-                if (confirm(`您確定要取消 ${date} ${time} 的預約嗎？`)) {
-                    const bookingsForSlot = bookings[date][time];
-                    const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
-                    if (indexToDelete > -1) {
-                        bookingsForSlot.splice(indexToDelete, 1);
-                        if (bookings[date][time].length === 0) delete bookings[date][time];
-                        if (Object.keys(bookings[date]).length === 0) delete bookings[date];
-                        localStorage.setItem('bookings', JSON.stringify(bookings));
-                        alert('預約已成功取消！');
-                        renderTimeSlots();
-                        searchButton.click();
-                    }
-                }
-            }
-        });
-
-        // ==== 修正：頁面載入後的初始操作邏輯 ====
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('action') === 'query') {
-            // 如果是從「查詢」按鈕進來的，直接打開查詢視窗
-            const queryModalElement = document.getElementById('queryModal');
-            if (typeof bootstrap !== 'undefined' && queryModalElement) {
-                const queryModal = new bootstrap.Modal(queryModalElement);
-                queryModal.show();
-            }
-        } else {
-            // 如果是正常進入預約頁面，才執行初始的時段渲染
-            renderTimeSlots();
-        }
+        renderTimeSlots();
     }
 });
