@@ -37,7 +37,6 @@ body {
 }
 .menu-grid {
     display: grid;
-    /* 確保是三欄式佈局 */
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     width: 100%;
@@ -90,7 +89,7 @@ body {
 }
 
 /* ================================================= */
-/* ==== 預約系統 (Booking) & 其他頁面樣式 ==== */
+/* ==== 預約系統 (Booking) & 其他內容頁面樣式 ==== */
 /* ================================================= */
 .container.my-5 {
     padding-top: 2rem; 
@@ -109,6 +108,9 @@ body {
     padding: 1.5rem;
     border-bottom: none;
     text-align: center;
+}
+.card-header.bg-dark {
+    background: linear-gradient(45deg, #212529, #495057);
 }
 .card-header h2 {
     font-weight: 700;
@@ -186,20 +188,6 @@ body {
     color: #3d8b40;
     font-weight: 700;
 }
-.card-footer {
-    background-color: #fafafa;
-    border-bottom-left-radius: 15px;
-    border-bottom-right-radius: 15px;
-    border-top: 1px solid #f0f0f0;
-}
-.card-footer a {
-    text-decoration: none;
-    color: #6c757d;
-    transition: color 0.2s;
-}
-.card-footer a:hover {
-    color: #4CAF50;
-}
 #queryResults .list-group-item {
     border-radius: 8px;
     margin-bottom: 10px;
@@ -227,4 +215,16 @@ body {
     margin-top: 20px; 
     font-size: 0.9rem;
     color: #888;
+}
+
+/* 員工儀表板選單樣式 */
+.admin-menu-grid {
+    max-width: 500px;
+    margin: 2rem auto; /* 上下留白並置中 */
+}
+@media (max-width: 768px) {
+    .admin-menu-grid {
+        grid-template-columns: 1fr; /* 手機上變為單欄 */
+        max-width: 300px;
+    }
 }
