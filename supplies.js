@@ -13,11 +13,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const nurseInput = document.getElementById('inventory-nurse');
     const restockerInput = document.getElementById('inventory-restocker');
     
-    const itemsStorageKey = 'inventoryStatus';
-    const headerStorageKey = 'inventoryHeader';
+    // 使用一個新的 Key 來儲存所有的歷史紀錄
+    const historyStorageKey = 'suppliesHistory';
 
-    function renderTable() {
-        const inventoryStatus = JSON.parse(localStorage.getItem(itemsStorageKey)) || {};
+    // 載入指定日期的資料並渲染表格
+    function loadAndRenderDataForDate(date) {
+        const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
+        const dailyData = suppliesHistory[date] || {};
+        
+        // 載入表頭
+        nurseInput.value = dailyData.header?.nurse || '';
+        restockerInput.value = dailyData.header?.restocker || '';
+
+        // 渲染表格內容
+        const itemsStatus = dailyData.items || {};
         tableBody.innerHTML = '';
         inventoryData.forEach(categoryData => {
             const categoryRow = document.createElement('tr');
@@ -26,13 +35,13 @@ document.addEventListener('DOMContentLoaded', function () {
             categoryData.items.forEach(item => {
                 const itemRow = document.createElement('tr');
                 itemRow.dataset.itemName = item.name;
-                const status = inventoryStatus[item.name]?.status || '-';
-                const restockStatus = inventoryStatus[item.name]?.restockStatus || '-';
-                if (status === '缺項') {
-                    itemRow.classList.add('table-danger');
-                } else if (status === '無缺項') {
-                    itemRow.classList.add('table-success');
-                }
+
+                const status = itemsStatus[item.name]?.status || '-';
+                const restockStatus = itemsStatus[item.name]?.restockStatus || '-';
+
+                if (status === '缺項') itemRow.classList.add('table-danger');
+                else if (status === '無缺項') itemRow.classList.add('table-success');
+
                 itemRow.innerHTML = `
                     <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
                     <td><select class="form-select" data-field="status"><option value="-" ${status === '-' ? 'selected' : ''}>-</option><option value="缺項" ${status === '缺項' ? 'selected' : ''}>缺項</option><option value="無缺項" ${status === '無缺項' ? 'selected' : ''}>無缺項</option></select></td>
@@ -43,7 +52,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function saveAllData() {
+    // 儲存本日資料
+    function saveTodaysData() {
+        const selectedDate = dateInput.value;
+        if (!selectedDate) {
+            alert('錯誤：請選擇盤點日期！');
+            return;
+        }
+        
         nurseInput.classList.remove('is-invalid');
         if (!nurseInput.value.trim()) {
             alert('錯誤：請填寫「盤點護理師」姓名！');
@@ -51,12 +67,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
-        let allValid = true;
-        const newStatus = {};
+        let allItemsValid = true;
+        const newItemsStatus = {};
         
-        tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => {
-            row.classList.remove('table-row-invalid');
-        });
+        tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => row.classList.remove('table-row-invalid'));
 
         inventoryData.forEach(categoryData => {
             categoryData.items.forEach(item => {
@@ -65,51 +79,56 @@ document.addEventListener('DOMContentLoaded', function () {
                 const statusSelect = row.querySelector('select[data-field="status"]');
                 const restockSelect = row.querySelector('select[data-field="restockStatus"]');
                 if (statusSelect.value === '-') {
-                    allValid = false;
+                    allItemsValid = false;
                     row.classList.add('table-row-invalid');
                 }
-                newStatus[item.name] = {
+                newItemsStatus[item.name] = {
                     status: statusSelect.value,
                     restockStatus: restockSelect.value
                 };
             });
         });
 
-        if (!allValid) {
+        if (!allItemsValid) {
             alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 "-"）。');
             return;
         }
 
-        const headerData = { date: dateInput.value, nurse: nurseInput.value, restocker: restockerInput.value };
-        localStorage.setItem(headerStorageKey, JSON.stringify(headerData));
-        localStorage.setItem(itemsStorageKey, JSON.stringify(newStatus));
-        alert('盤點紀錄已成功儲存！');
-        renderTable();
+        const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
+        
+        suppliesHistory[selectedDate] = {
+            header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value },
+            items: newItemsStatus
+        };
+
+        localStorage.setItem(historyStorageKey, JSON.stringify(suppliesHistory));
+        alert(`日期 ${selectedDate} 的盤點紀錄已成功儲存！`);
+        loadAndRenderDataForDate(selectedDate); // 儲存後重新渲染，以更新顏色
     }
     
-    function loadHeaderData() {
-        const savedHeader = JSON.parse(localStorage.getItem(headerStorageKey));
-        if (savedHeader) {
-            dateInput.value = savedHeader.date;
-            nurseInput.value = savedHeader.nurse;
-            restockerInput.value = savedHeader.restocker;
-        } else {
-            dateInput.value = new Date().toISOString().split('T')[0];
-        }
-    }
+    // --- 事件監聽器 ---
+    dateInput.addEventListener('change', function() {
+        loadAndRenderDataForDate(this.value);
+    });
 
-    saveButton.addEventListener('click', saveAllData);
+    saveButton.addEventListener('click', saveTodaysData);
 
     resetButton.addEventListener('click', function() {
-        if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？此操作將無法復原。')) {
-            localStorage.removeItem(itemsStorageKey);
-            localStorage.removeItem(headerStorageKey);
-            renderTable();
-            dateInput.value = '';
-            nurseInput.value = '';
-            restockerInput.value = '';
-            loadHeaderData();
-            alert('所有紀錄已清空。');
+        const selectedDate = dateInput.value;
+        if (!selectedDate) {
+            alert('請先選擇要清空的日期。');
+            return;
+        }
+        if (confirm(`您確定要清空日期 ${selectedDate} 的所有紀錄嗎？`)) {
+            const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
+            if (suppliesHistory[selectedDate]) {
+                delete suppliesHistory[selectedDate];
+                localStorage.setItem(historyStorageKey, JSON.stringify(suppliesHistory));
+                alert(`日期 ${selectedDate} 的紀錄已清空。`);
+                loadAndRenderDataForDate(selectedDate);
+            } else {
+                alert(`日期 ${selectedDate} 沒有任何紀錄可供清空。`);
+            }
         }
     });
 
@@ -119,6 +138,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    loadHeaderData();
-    renderTable();
+    // --- 初始操作 ---
+    const todayString = new Date().toISOString().split('T')[0];
+    dateInput.value = todayString;
+    loadAndRenderDataForDate(todayString);
 });
