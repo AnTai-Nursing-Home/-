@@ -1,3 +1,4 @@
+/* (此處貼上我上一則回覆中提供的完整、已修正的 style.css 程式碼) */
 /* --- Google Fonts 導入 (思源黑體) --- */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
 
@@ -6,8 +7,8 @@ body {
     font-family: 'Noto Sans TC', sans-serif;
     background: #f0f2f5;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    display: flex; 
+    flex-direction: column; 
 }
 
 /* ================================================= */
@@ -18,7 +19,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex-grow: 1;
+    flex-grow: 1; 
     padding: 20px;
 }
 .menu-header {
@@ -93,7 +94,7 @@ body {
 /* ================================================= */
 .container.my-5 {
     padding-top: 2rem; 
-    flex-grow: 1;
+    flex-grow: 1; 
 }
 .card {
     border: none;
@@ -111,7 +112,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
+    position: relative; 
 }
 .card-header h2 {
     font-weight: 700;
@@ -119,40 +120,41 @@ body {
     z-index: 1; 
 }
 .card-header .btn-light {
-    position: static;
-    transform: none;
-    margin-top: 10px;
-    width: auto;
-    z-index: 1;
+    position: static; 
+    transform: none; 
+    margin-top: 10px; 
+    width: auto; 
+    z-index: 1; 
 }
 @media (min-width: 769px) {
     .card-header {
-        flex-direction: row;
+        flex-direction: row; 
         justify-content: center;
     }
     .card-header h2 {
-        text-align: center;
-        flex-grow: 1;
+        text-align: center; 
+        flex-grow: 1; 
     }
     .card-header .btn-light {
-        position: absolute;
+        position: absolute; 
         top: 50%;
-        right: 0;
+        right: 0; 
         transform: translateY(-50%);
-        margin-right: 1.5rem;
-        margin-top: 0;
+        margin-right: 1.5rem; 
+        margin-top: 0; 
         width: auto;
     }
 }
 @media (max-width: 576px) {
     .card-header h2 {
-        font-size: 1.5rem;
+        font-size: 1.5rem; 
     }
     .card-header .btn-light {
-        font-size: 0.9rem;
+        font-size: 0.9rem; 
         padding: 6px 12px;
     }
 }
+
 
 .card-body {
     padding: 2rem;
@@ -263,7 +265,7 @@ body {
 .site-footer {
     text-align: center;
     padding: 20px 0;
-    margin-top: 20px; /* 改為固定上邊距 */
+    margin-top: 20px; 
     font-size: 0.9rem;
     color: #888;
 }
