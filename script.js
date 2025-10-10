@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // ==== 修改：頁面載入後的初始操作邏輯 ====
+        // ==== 修正：頁面載入後的初始操作邏輯 ====
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('action') === 'query') {
             // 如果是從「查詢」按鈕進來的，直接打開查詢視窗
