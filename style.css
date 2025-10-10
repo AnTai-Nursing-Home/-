@@ -32,12 +32,19 @@ body {
     line-height: 1.3; /* 優化換行時的行高 */
 }
 
+.menu-header p {
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
 .menu-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 桌面版一行兩個 */
+    /* ==== 修改：從三欄改回兩欄 ==== */
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
     width: 100%;
-    max-width: 500px;
+    /* ==== 修改：調整最大寬度以適應兩欄 ==== */
+    max-width: 500px; 
 }
 
 .menu-item {
@@ -71,14 +78,25 @@ body {
     font-weight: 500;
 }
 
+.menu-footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
 /* 手機版響應式設計 */
-@media (max-width: 576px) {
+@media (max-width: 768px) {
     .menu-header h1 {
         font-size: 1.6rem; /* 手機上標題再縮小一點 */
     }
+
+    /* 在手機上維持兩欄佈局，若按鈕太小可改回 1fr */
     .menu-grid {
+        grid-template-columns: repeat(2, 1fr);
         gap: 15px;
     }
+
     .menu-item {
         padding: 20px 15px;
     }
@@ -89,7 +107,7 @@ body {
 /* ==== 預約系統 (Booking) & 其他頁面樣式 ==== */
 /* ================================================= */
 .container.my-5 {
-    padding-top: 2rem; /* 為預約頁面增加一些頂部空間 */
+    padding-top: 2rem; 
 }
 
 .card {
