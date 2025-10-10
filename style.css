@@ -1,0 +1,27 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.time-slot {
+    flex-grow: 1;
+}
+
+.time-slot.full {
+    background-color: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
+
+/* 讓姓名驗證成功(valid)的提示文字也顯示出來 */
+.was-validated .form-control:valid, .form-control.is-valid {
+    border-color: #198754;
+}
+
+.valid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: .25rem;
+    font-size: .875em;
+    color: #198754;
+}
