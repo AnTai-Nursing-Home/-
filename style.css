@@ -115,7 +115,7 @@ body {
 .card-header h2 {
     font-weight: 700;
     letter-spacing: 2px;
-    color: #fff; /* 確保標題文字是白色 */
+    color: #fff;
 }
 
 .card-body {
@@ -228,4 +228,33 @@ body {
         grid-template-columns: 1fr;
         max-width: 300px;
     }
+}
+
+/* 衛材盤點頁面樣式 */
+.table-category {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+}
+
+.item-threshold {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.table .form-select,
+.table .form-control {
+    font-size: 0.9rem;
+}
+
+.table-danger > td, .table-danger > th {
+    background-color: #f8d7da !important;
+}
+
+.table-success > td, .table-success > th {
+    background-color: #d1e7dd !important;
+}
+
+.table-row-invalid > td {
+    background-color: #fff3cd !important;
 }
