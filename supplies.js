@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 itemRow.dataset.itemName = item.name;
 
                 const status = inventoryStatus[item.name]?.status || '-';
-                const restocker = inventoryStatus[item.name]?.restocker || '';
+                const restockStatus = inventoryStatus[item.name]?.restockStatus || '-'; // 改為讀取 restockStatus
 
                 if (status === '缺項') {
                     itemRow.classList.add('table-danger');
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     itemRow.classList.add('table-success');
                 }
 
+                // **** 修改：將原本的 input 改為 select ****
                 itemRow.innerHTML = `
                     <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
                     <td>
@@ -46,7 +47,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             <option value="無缺項" ${status === '無缺項' ? 'selected' : ''}>無缺項</option>
                         </select>
                     </td>
-                    <td><input type="text" class="form-control" data-field="restocker" value="${restocker}" placeholder="簽名"></td>
+                    <td>
+                        <select class="form-select" data-field="restockStatus">
+                            <option value="-" ${restockStatus === '-' ? 'selected' : ''}>-</option>
+                            <option value="已補齊" ${restockStatus === '已補齊' ? 'selected' : ''}>已補齊</option>
+                        </select>
+                    </td>
                 `;
                 tableBody.appendChild(itemRow);
             });
@@ -65,15 +71,18 @@ document.addEventListener('DOMContentLoaded', function () {
             categoryData.items.forEach(item => {
                 const row = tableBody.querySelector(`tr[data-item-name="${item.name}"]`);
                 if (!row) return;
+
                 const statusSelect = row.querySelector('select[data-field="status"]');
-                const restockerInput = row.querySelector('input[data-field="restocker"]');
+                const restockSelect = row.querySelector('select[data-field="restockStatus"]'); // 改為讀取下拉選單
+
                 if (statusSelect.value === '-') {
                     allValid = false;
                     row.classList.add('table-row-invalid');
                 }
+
                 newStatus[item.name] = {
                     status: statusSelect.value,
-                    restocker: restockerInput.value
+                    restockStatus: restockSelect.value // 改為儲存 restockStatus
                 };
             });
         });
@@ -107,7 +116,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？此操作將無法復原。')) {
             localStorage.removeItem(itemsStorageKey);
             localStorage.removeItem(headerStorageKey);
-            renderTable();
+            // 清空後重新渲染
+            renderTable(); 
+            // 清空後重新載入表頭，會恢復預設值
+            dateInput.value = '';
+            nurseInput.value = '';
+            restockerInput.value = '';
             loadHeaderData();
             alert('所有紀錄已清空。');
         }
