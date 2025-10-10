@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMessage = document.getElementById('errorMessage');
     
     const showBookingsBtn = document.getElementById('show-bookings-btn');
-    const showSuppliesBtn = document.getElementById('show-supplies-btn');
     const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
     
     const bookingListContainer = document.getElementById('booking-list');
@@ -57,17 +56,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         if (datesToDelete.length > 0) {
+            console.log('正在清理過期預約:', datesToDelete);
             datesToDelete.forEach(date => { delete bookings[date]; });
             localStorage.setItem('bookings', JSON.stringify(bookings));
         }
 
         const dates = Object.keys(bookings).sort();
-        if (dates.length === 0) {
-            bookingListContainer.innerHTML = '<p class="text-center">目前沒有任何預約紀錄。</p>';
-            return;
-        }
-
-        let html = '';
         const todayString = new Date().toISOString().split('T')[0];
         
         // 過濾掉已過期的日期，只顯示今天及未來的
@@ -78,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        let html = '';
         upcomingDates.forEach(date => {
             html += `<h4>${date}</h4>`;
             html += `<table class="table table-bordered table-striped table-hover">
@@ -129,11 +124,6 @@ document.addEventListener('DOMContentLoaded', function() {
         dashboardSection.classList.add('d-none');
         resultsSection.classList.remove('d-none');
         displayBookings();
-    });
-
-    showSuppliesBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('衛材點班功能開發中...');
     });
 
     backToDashboardBtn.addEventListener('click', () => {
