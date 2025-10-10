@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 itemRow.dataset.itemName = item.name;
 
                 const status = inventoryStatus[item.name]?.status || '-';
-                const restockStatus = inventoryStatus[item.name]?.restockStatus || '-'; // 改為讀取 restockStatus
+                const restockStatus = inventoryStatus[item.name]?.restockStatus || '-';
 
                 if (status === '缺項') {
                     itemRow.classList.add('table-danger');
@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     itemRow.classList.add('table-success');
                 }
 
-                // **** 修改：將原本的 input 改為 select ****
                 itemRow.innerHTML = `
                     <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
                     <td>
@@ -51,6 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <select class="form-select" data-field="restockStatus">
                             <option value="-" ${restockStatus === '-' ? 'selected' : ''}>-</option>
                             <option value="已補齊" ${restockStatus === '已補齊' ? 'selected' : ''}>已補齊</option>
+                            <option value="缺貨" ${restockStatus === '缺貨' ? 'selected' : ''}>缺貨</option>
                         </select>
                     </td>
                 `;
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!row) return;
 
                 const statusSelect = row.querySelector('select[data-field="status"]');
-                const restockSelect = row.querySelector('select[data-field="restockStatus"]'); // 改為讀取下拉選單
+                const restockSelect = row.querySelector('select[data-field="restockStatus"]');
 
                 if (statusSelect.value === '-') {
                     allValid = false;
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 newStatus[item.name] = {
                     status: statusSelect.value,
-                    restockStatus: restockSelect.value // 改為儲存 restockStatus
+                    restockStatus: restockSelect.value
                 };
             });
         });
@@ -116,13 +116,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirm('您確定要清空本次所有盤點紀錄與簽名嗎？此操作將無法復原。')) {
             localStorage.removeItem(itemsStorageKey);
             localStorage.removeItem(headerStorageKey);
+            
             // 清空後重新渲染
             renderTable(); 
+            
             // 清空後重新載入表頭，會恢復預設值
             dateInput.value = '';
             nurseInput.value = '';
             restockerInput.value = '';
             loadHeaderData();
+
             alert('所有紀錄已清空。');
         }
     });
