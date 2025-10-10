@@ -1,3 +1,4 @@
+// (此處貼上我上一則回覆中提供的完整、已修正的 script.js 程式碼)
 document.addEventListener('DOMContentLoaded', function() {
     // ===============================================================
     // ==== 住民資料庫 ====
@@ -24,11 +25,9 @@ document.addEventListener('DOMContentLoaded', function() {
         "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試用戶": "501-1"
     };
 
-    // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
         
-        // --- 宣告所有 booking.html 頁面會用到的元件 ---
         const visitDateInput = document.getElementById('visitDate');
         const timeSlotsContainer = document.getElementById('time-slots');
         const bookingNotice = document.getElementById('booking-notice'); 
@@ -47,7 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmationModal = new bootstrap.Modal(confirmationModalElement);
         const finalSubmitButton = document.getElementById('final-submit-button');
 
-        // --- 宣告預約相關的變數 ---
         let pendingBookingData = {};
         const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
         const maxBookingsPerSlot = 4;
@@ -55,13 +53,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let selectedTime = '';
         let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
         
-        // --- 初始化頁面狀態 ---
         const today = new Date().toISOString().split('T')[0];
         visitDateInput.setAttribute('min', today);
         visitDateInput.value = today;
         selectedDate = today;
 
-        // --- 所有函式定義 ---
         function renderTimeSlots() {
             timeSlotsContainer.innerHTML = '';
             bookingNotice.classList.add('d-none');
@@ -146,7 +142,6 @@ document.addEventListener('DOMContentLoaded', function() {
             queryResultsContainer.innerHTML = html;
         }
 
-        // --- 綁定所有事件監聽器 ---
         visitDateInput.addEventListener('change', (e) => {
             selectedDate = e.target.value;
             renderTimeSlots();
@@ -262,7 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // --- 頁面載入後執行的初始操作 ---
         renderTimeSlots();
 
         const urlParams = new URLSearchParams(window.location.search);
