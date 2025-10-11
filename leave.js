@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const adminHr = document.getElementById('admin-hr');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     
+    const adminViewPanel = document.getElementById('admin-view-panel');
+    const adminCalendarDiv = document.getElementById('admin-calendar');
+    const adminSummaryTableDiv = document.getElementById('admin-summary-table');
+    
     // --- 變數 ---
     const settingsKey = 'leavePeriodSettings';
     const requestsKey = 'leaveRequests';
@@ -32,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
         const year = nextMonth.getFullYear();
-        const month = nextMonth.getMonth();
+        const month = nextMonth.getMonth(); // 0-11
 
         calendarTitle.textContent = `${year}年 ${month + 1}月`;
         calendarDiv.innerHTML = '';
@@ -61,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
             calendarDiv.appendChild(dayEl);
         });
 
-        const firstDayOfWeek = new Date(year, month, 1).getDay();
+        const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0=Sun, 6=Sat
         for (let i = 0; i < firstDayOfWeek; i++) {
             calendarDiv.appendChild(document.createElement('div'));
         }
@@ -81,13 +85,86 @@ document.addEventListener('DOMContentLoaded', function () {
             if (myLeaveDates.includes(dateStr)) {
                 dayEl.classList.add('selected');
             }
+
             if (!isRequestPeriodOpen) {
                 dayEl.classList.add('disabled');
             }
+            
             calendarDiv.appendChild(dayEl);
         }
     }
 
+    function renderAdminView() {
+        const leaveRequests = JSON.parse(localStorage.getItem(requestsKey)) || {};
+        
+        // 1. 整理資料：將資料從 "人->日期" 轉換為 "日期->人"
+        const requestsByDate = {};
+        for (const employee in leaveRequests) {
+            if (leaveRequests[employee].length > 0) {
+                leaveRequests[employee].forEach(date => {
+                    if (!requestsByDate[date]) {
+                        requestsByDate[date] = [];
+                    }
+                    requestsByDate[date].push(employee);
+                });
+            }
+        }
+
+        // 2. 渲染總覽日曆
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const year = nextMonth.getFullYear();
+        const month = nextMonth.getMonth();
+
+        adminCalendarDiv.innerHTML = '';
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        weekdays.forEach(day => {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-weekday';
+            dayEl.textContent = day;
+            adminCalendarDiv.appendChild(dayEl);
+        });
+
+        const firstDayOfWeek = new Date(year, month, 1).getDay();
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            adminCalendarDiv.appendChild(document.createElement('div'));
+        }
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day admin-day';
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            let namesHTML = '';
+            if (requestsByDate[dateStr]) {
+                dayEl.classList.add('has-requests');
+                namesHTML = '<ul>';
+                requestsByDate[dateStr].forEach(name => {
+                    namesHTML += `<li>${name}</li>`;
+                });
+                namesHTML += '</ul>';
+            }
+            
+            dayEl.innerHTML = `<div class="day-number">${i}</div>${namesHTML}`;
+            adminCalendarDiv.appendChild(dayEl);
+        }
+
+        // 3. 渲染總覽清單
+        const sortedDates = Object.keys(requestsByDate).sort();
+        if (sortedDates.length === 0) {
+            adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假紀錄。</p>';
+            return;
+        }
+
+        let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預假人員</th></tr></thead><tbody>';
+        sortedDates.forEach(date => {
+            tableHTML += `<tr><td>${date}</td><td>${requestsByDate[date].join(', ')}</td></tr>`;
+        });
+        tableHTML += '</tbody></table>';
+        adminSummaryTableDiv.innerHTML = tableHTML;
+    }
+    
     // --- 事件監聽器 ---
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen && e.target.classList.contains('calendar-day')) {
@@ -139,6 +216,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 adminPasswordModal.hide();
                 adminSettingsPanel.classList.remove('d-none');
                 adminHr.classList.remove('d-none');
+                
+                adminViewPanel.classList.remove('d-none');
+                renderAdminView();
+                
                 const settings = JSON.parse(localStorage.getItem(settingsKey)) || {};
                 document.getElementById('leave-start-date').value = settings.startDate || '';
                 document.getElementById('leave-end-date').value = settings.endDate || '';
