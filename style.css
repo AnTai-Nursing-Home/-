@@ -220,7 +220,11 @@ body {
 
 /* 員工儀表板選單樣式 */
 .admin-menu-grid {
-    max-width: 500px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    width: 100%;
+    max-width: 800px;
     margin: 2rem auto;
 }
 @media (max-width: 768px) {
