@@ -3,8 +3,16 @@ document.addEventListener('firebase-ready', () => {
     if (!calendarDiv) return;
 
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral && document.referrer.includes('caregiver.html')) {
-        backButtonGeneral.href = 'caregiver.html';
+    if (backButtonGeneral) {
+        if (document.referrer.includes('caregiver.html')) {
+            backButtonGeneral.href = 'caregiver.html';
+        } else if (document.referrer.includes('admin.html')) {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(` ${getText('back_to_dashboard')}`);
+        }
     }
     
     const calendarTitle = document.getElementById('calendar-title');
@@ -46,11 +54,9 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate || getText('not_set')} ${getText('to')} ${settings.endDate || getText('not_set')}`;
             }
             saveLeaveBtn.disabled = !isRequestPeriodOpen;
-
             const snapshot = await db.collection(requestsCollection).get();
             const leaveRequests = {};
             snapshot.forEach(doc => { leaveRequests[doc.id] = doc.data().dates; });
-            
             const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             const year = nextMonth.getFullYear();
             const month = nextMonth.getMonth();
@@ -61,7 +67,6 @@ document.addEventListener('firebase-ready', () => {
             } else {
                 calendarTitle.textContent = `${year}${getText('calendar_title_prefix')} ${month + 1}${getText('calendar_title_suffix')}`;
             }
-
             calendarDiv.innerHTML = '';
             const weekdays = [getText('week_sun'), getText('week_mon'), getText('week_tue'), getText('week_wed'), getText('week_thu'), getText('week_fri'), getText('week_sat')];
             weekdays.forEach(day => {
@@ -70,12 +75,10 @@ document.addEventListener('firebase-ready', () => {
                 dayEl.textContent = day;
                 calendarDiv.appendChild(dayEl);
             });
-
             const firstDayOfWeek = new Date(year, month, 1).getDay();
             for (let i = 0; i < firstDayOfWeek; i++) {
                 calendarDiv.appendChild(document.createElement('div'));
             }
-
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const currentEmployee = employeeNameInput.value.trim();
             const requestsByDate = {};
@@ -87,7 +90,6 @@ document.addEventListener('firebase-ready', () => {
                     });
                 }
             }
-
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayEl = document.createElement('div');
                 dayEl.className = 'calendar-day';
@@ -119,9 +121,7 @@ document.addEventListener('firebase-ready', () => {
             calendarDiv.innerHTML = `<div class="alert alert-danger">${getText('read_calendar_failed')}</div>`;
         }
     }
-
     async function renderAdminView() { /* ... 內容不變 ... */ }
-    
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
@@ -131,7 +131,6 @@ document.addEventListener('firebase-ready', () => {
             }
         }
     });
-
     saveLeaveBtn.addEventListener('click', async () => {
         const currentEmployee = employeeNameInput.value.trim();
         if (!currentEmployee) { alert(getText('error_enter_name_first')); return; }
@@ -149,7 +148,6 @@ document.addEventListener('firebase-ready', () => {
             saveLeaveBtn.disabled = false;
         }
     });
-
     employeeNameInput.addEventListener('input', renderCalendar);
     adminSettingsBtn.addEventListener('click', () => adminPasswordModal.show());
     adminLoginBtn.addEventListener('click', async () => {
@@ -187,7 +185,6 @@ document.addEventListener('firebase-ready', () => {
             adminPasswordInput.value = '';
         }
     });
-
     saveSettingsBtn.addEventListener('click', async () => {
         const startDate = document.getElementById('leave-start-date').value;
         const endDate = document.getElementById('leave-end-date').value;
@@ -205,6 +202,5 @@ document.addEventListener('firebase-ready', () => {
             saveSettingsBtn.disabled = false;
         }
     });
-
     renderCalendar();
 });
