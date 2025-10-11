@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>探視規範 - 安泰護理之家</title>
+    <title data-i18n="visit_rules">探視規範</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container my-5">
@@ -14,49 +15,48 @@
             <div class="col-lg-8">
                 <div class="card shadow">
                     <div class="card-header text-center bg-primary text-white">
-                        <h2>訪客探視規範</h2>
+                        <h2 data-i18n="visit_rules_title">訪客探視規範</h2>
                     </div>
                     <div class="card-body p-4">
                         <div class="mb-4">
                             <a href="index.html" class="btn btn-back-menu">
-                                <i class="fas fa-arrow-left me-2"></i>返回首頁選單
+                                <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_main_menu">返回首頁選單</span>
                             </a>
                         </div>
-
                         <div class="rules-content">
-                            <p class="lead">為維護住民健康及安全，並確保住民能有安靜、舒適的休養環境，請訪客務必配合下列事項：</p>
-                            
-                            <h5 class="mt-4">一、 探視時間與限制</h5>
+                            <p class="lead" data-i18n="rules_intro">為維護住民健康及安全，並確保住民能有安靜、舒適的休養環境，請訪客務必配合下列事項：</p>
+                            <h5 class="mt-4" data-i18n="rules_time_header">一、 探視時間與限制</h5>
                             <ul>
-                                <li>訪客探視時間：下午 2:30 至 5:00，並請於 5:00 準時離開。</li>
-                                <li>每週開放探視兩次，一次 30 分鐘。</li>
-                                <li>為保障住民安全，每次探視最多三人為限（含兒童）。</li>
+                                <li data-i18n="rule_time_1">訪客探視時間：下午 2:30 至 5:00，並請於 5:00 準時離開。</li>
+                                <li data-i18n="rule_time_2">每週開放探視兩次，一次 30 分鐘。</li>
+                                <li data-i18n="rule_time_3">為保障住民安全，每次探視最多三人為限（含兒童）。</li>
                             </ul>
-
-                            <h5 class="mt-4">二、 預約方式</h5>
+                            <h5 class="mt-4" data-i18n="rules_booking_header">二、 預約方式</h5>
                             <ul>
-                                <li>預約請提前一天使用此系統或打電話告知。</li>
-                                <li>到達護家後請至服務台填寫或手機掃描登入訪客紀錄單。</li>
+                                <li data-i18n="rule_booking_1">預約請提前一天使用此系統或打電話告知。</li>
+                                <li data-i18n="rule_booking_2">請至服務台填寫或手機掃描登入訪客紀錄單。</li>
                             </ul>
-
-                            <h5 class="mt-4">三、 訪客健康與衛生須知</h5>
+                            <h5 class="mt-4" data-i18n="rules_health_header">三、 訪客健康與衛生須知</h5>
                             <ul>
-                                <li>進入機構請配戴口罩。</li>
-                                <li>如身體有不適之任何症狀（如：發燒或咳嗽），請勿探視住民。</li>
-                                <li>請落實量測體溫及洗手。</li>
+                                <li data-i18n="rule_health_1">進入機構請配戴口罩。</li>
+                                <li data-i18n="rule_health_2">如身體有不適之任何症狀（如：發燒或咳嗽），請勿探視住民。</li>
+                                <li data-i18n="rule_health_3">請落實量測體溫及洗手。</li>
                             </ul>
                             <hr>
-                            <p class="text-center text-muted">感謝您的理解與配合，共同為住民營造優質的照護環境。</p>
+                            <p class="text-center text-muted" data-i18n="rules_thanks">感謝您的理解與配合，共同為住民營造優質的照護環境。</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <footer class="site-footer">
-    © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+        <div class="mb-2">
+            <button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button>
+        </div>
+        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
     </footer>
-    
+    <script src="i18n.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
