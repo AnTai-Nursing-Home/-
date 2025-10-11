@@ -1,4 +1,3 @@
-// leave-caregiver.js
 document.addEventListener('firebase-ready', () => {
     const calendarDiv = document.getElementById('leave-calendar');
     if (!calendarDiv) return;
@@ -117,7 +116,7 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error("讀取日曆資料失敗:", error);
-            calendarDiv.innerHTML = '<div class="alert alert-danger">Failed to load calendar data. Please refresh.</div>';
+            calendarDiv.innerHTML = `<div class="alert alert-danger">${getText('read_calendar_failed')}</div>`;
         }
     }
 
@@ -141,11 +140,11 @@ document.addEventListener('firebase-ready', () => {
         saveLeaveBtn.disabled = true;
         try {
             await db.collection(requestsCollection).doc(currentEmployee).set({ dates: selectedDates });
-            alert(`Employee "${currentEmployee}" leave requests saved!`);
+            alert(`${getText('employee')} "${currentEmployee}" ${getText('leave_saved')}`);
             renderCalendar();
         } catch (error) {
             console.error("儲存預假失敗:", error);
-            alert("Save failed, please try again later.");
+            alert(getText('save_failed'));
         } finally {
             saveLeaveBtn.disabled = false;
         }
@@ -153,8 +152,59 @@ document.addEventListener('firebase-ready', () => {
 
     employeeNameInput.addEventListener('input', renderCalendar);
     adminSettingsBtn.addEventListener('click', () => adminPasswordModal.show());
-    adminLoginBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
-    saveSettingsBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
+    adminLoginBtn.addEventListener('click', async () => {
+        const password = adminPasswordInput.value;
+        if (!password) { return; }
+        const spinner = adminLoginBtn.querySelector('.spinner-border');
+        adminLoginBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        adminErrorMsg.classList.add('d-none');
+        try {
+            const response = await fetch('/api/leave-admin-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+            if (response.ok) {
+                adminPasswordModal.hide();
+                adminSettingsPanel.classList.remove('d-none');
+                adminHr.classList.remove('d-none');
+                adminViewPanel.classList.remove('d-none');
+                renderAdminView();
+                const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+                document.getElementById('leave-start-date').value = settings.startDate || '';
+                document.getElementById('leave-end-date').value = settings.endDate || '';
+            } else {
+                adminErrorMsg.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error(error);
+            alert(getText('verification_failed'));
+        } finally {
+            adminLoginBtn.disabled = false;
+            spinner.classList.add('d-none');
+            adminPasswordInput.value = '';
+        }
+    });
+
+    saveSettingsBtn.addEventListener('click', async () => {
+        const startDate = document.getElementById('leave-start-date').value;
+        const endDate = document.getElementById('leave-end-date').value;
+        if (!startDate || !endDate) { alert(getText('set_start_end_date')); return; }
+        if (new Date(endDate) < new Date(startDate)) { alert(getText('end_date_cannot_be_earlier')); return; }
+        saveSettingsBtn.disabled = true;
+        try {
+            await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
+            alert(getText('settings_saved'));
+            window.location.reload();
+        } catch (error) {
+            console.error("儲存設定失敗:", error);
+            alert(getText('settings_save_failed'));
+        } finally {
+            saveSettingsBtn.disabled = false;
+        }
+    });
 
     renderCalendar();
 });
