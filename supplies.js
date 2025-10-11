@@ -1,12 +1,12 @@
 document.addEventListener('firebase-ready', () => {
-    // **** 新增：透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面 ****
+    // 透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面
     const inventoryTableBody = document.getElementById('inventory-table-body');
     if (!inventoryTableBody) {
-        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免出錯
+        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免在其他頁面出錯
         return;
     }
 
-    // --- 智慧返回按鈕邏輯 ---
+    // --- 智慧返回按鈕邏輯 (已移到正確的位置) ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         if (document.referrer.includes('admin.html')) {
@@ -28,7 +28,6 @@ document.addEventListener('firebase-ready', () => {
         { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
     ];
 
-    // --- 元件宣告 ---
     const tableBody = inventoryTableBody;
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
@@ -42,10 +41,8 @@ document.addEventListener('firebase-ready', () => {
     const reportModal = new bootstrap.Modal(reportModalElement);
     const generateReportBtn = document.getElementById('generate-report-btn');
     
-    // --- 變數 ---
     const collectionName = 'supplies_inventory';
 
-    // --- 函式定義 ---
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
         try {
