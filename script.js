@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // ===============================================================
+    // ==== 住民資料庫 ====
+    // ===============================================================
     const residentDatabase = {
         "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1",
         "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1",
@@ -65,11 +68,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const dateBookings = bookings[selectedDate] || {};
             const now = new Date();
             const todayString = now.toISOString().split('T')[0];
+            
+            // **** 修正：確保 !isAdminMode 判斷正確 ****
             if (selectedDate === todayString && now.getHours() >= 12 && !isAdminMode) {
                 bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
                 bookingNotice.classList.remove('d-none');
                 return;
             }
+
             availableTimes.forEach(time => {
                 const count = dateBookings[time] ? dateBookings[time].length : 0;
                 const remaining = maxBookingsPerSlot - count;
