@@ -1,11 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral && document.referrer.includes('admin.html')) {
-        backButtonGeneral.href = 'admin.html';
         const icon = backButtonGeneral.querySelector('i');
         backButtonGeneral.innerHTML = '';
         backButtonGeneral.appendChild(icon);
         backButtonGeneral.append(' 返回儀表板');
+        backButtonGeneral.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.history.back();
+        });
     }
 
     const queryPhoneInput = document.getElementById('queryPhoneInput');
