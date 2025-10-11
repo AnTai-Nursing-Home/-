@@ -96,6 +96,7 @@ const translations = {
         'end_date_cannot_be_earlier': '結束日期不可早於開始日期',
         'settings_saved': '預假期間已儲存！頁面將會重新載入以套用新設定。',
         'settings_save_failed': '儲存設定失敗，請稍後再試。',
+        'read_calendar_failed': '讀取日曆資料失敗。請重新整理。',
     },
     'en': {
         // --- Common ---
