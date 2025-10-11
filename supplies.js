@@ -1,9 +1,20 @@
 document.addEventListener('DOMContentLoaded', function () {
+    // --- 智慧返回按鈕邏輯 ---
+    const backButtonGeneral = document.querySelector('.btn-back-menu');
+    if (backButtonGeneral) {
+        if (document.referrer.includes('admin.html')) {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(' 返回儀表板');
+        }
+    }
+    
     // 透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面
     const inventoryTableBody = document.getElementById('inventory-table-body');
     if (!inventoryTableBody) {
-        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免出錯
-        return;
+        return; // 如果找不到表格主體，代表不在盤點頁，直接結束，避免出錯
     }
 
     const inventoryData = [
@@ -13,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
     ];
 
-    const tableBody = inventoryTableBody; // 已經在上方宣告
+    const tableBody = inventoryTableBody;
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
     const dateInput = document.getElementById('inventory-date');
@@ -25,16 +36,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const reportModalElement = document.getElementById('report-modal');
     const reportModal = new bootstrap.Modal(reportModalElement);
     const generateReportBtn = document.getElementById('generate-report-btn');
-    
     const historyStorageKey = 'suppliesHistory';
 
     function loadAndRenderDataForDate(date) {
         const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
         const dailyData = suppliesHistory[date] || {};
-        
         nurseInput.value = dailyData.header?.nurse || '';
         restockerInput.value = dailyData.header?.restocker || '';
-        
         const itemsStatus = dailyData.items || {};
         tableBody.innerHTML = '';
         inventoryData.forEach(categoryData => {
@@ -53,17 +61,14 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
-
+    
     function saveTodaysData() {
         const selectedDate = dateInput.value;
         if (!selectedDate) { alert('錯誤：請選擇盤點日期！'); return; }
-        
         nurseInput.classList.remove('is-invalid');
         if (!nurseInput.value.trim()) { alert('錯誤：請填寫「盤點護理師」姓名！'); nurseInput.classList.add('is-invalid'); return; }
-        
         let allItemsValid = true;
         const newItemsStatus = {};
-        
         tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => row.classList.remove('table-row-invalid'));
         inventoryData.forEach(categoryData => {
             categoryData.items.forEach(item => {
@@ -75,9 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 newItemsStatus[item.name] = { status: statusSelect.value, restockStatus: restockSelect.value };
             });
         });
-
         if (!allItemsValid) { alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 "-"）。'); return; }
-
         const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
         suppliesHistory[selectedDate] = { header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value }, items: newItemsStatus };
         localStorage.setItem(historyStorageKey, JSON.stringify(suppliesHistory));
@@ -115,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 500);
     }
-
+    
     dateInput.addEventListener('change', function() { loadAndRenderDataForDate(this.value); });
     saveButton.addEventListener('click', saveTodaysData);
     resetButton.addEventListener('click', function() {
@@ -158,16 +161,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     exportRangeBtn.addEventListener('click', () => reportModal.show());
     generateReportBtn.addEventListener('click', generateReport);
-
-    const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral) {
-        backButtonGeneral.addEventListener('click', function(e) {
-            if (document.referrer.includes('admin.html')) {
-                e.preventDefault();
-                window.history.back();
-            }
-        });
-    }
 
     const todayString = new Date().toISOString().split('T')[0];
     dateInput.value = todayString;
