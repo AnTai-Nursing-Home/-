@@ -1,4 +1,4 @@
-// 這個後端函式只用來驗證預假系統的管理員密碼
+// 檔案路徑: api/leave-admin-login.js
 export default function handler(request, response) {
   if (request.method !== 'POST') {
     return response.status(405).json({ message: '僅允許 POST 方法' });
