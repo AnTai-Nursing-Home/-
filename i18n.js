@@ -1,3 +1,4 @@
+// i18n.js
 const translations = {
     'zh-TW': {
         // --- 通用 ---
@@ -10,6 +11,19 @@ const translations = {
         'cancel': '取消',
         'error_enter_name_first': '請先輸入您的姓名！',
         'loading': '讀取中...',
+        'confirm_submission': '確認送出',
+        'return_to_modify': '返回修改',
+        'admin_settings': '管理員設定',
+        'please_enter_password': '請輸入密碼',
+        'login': '登入',
+        'password_error': '密碼錯誤，請重試！',
+        'back_to_home': '返回首頁',
+        'querying': '查詢中...',
+        'no_records_found': '查無相關預約紀錄。',
+        'query_failed': '查詢失敗，請稍後再試。',
+        'confirm_cancel_booking': '您確定要取消這個預約嗎？',
+        'booking_cancelled_success': '預約已成功取消！',
+        'delete_failed': '刪除失敗，請稍後再試。',
 
         // --- 主選單 (index.html) ---
         'main_menu_title': '服務選單',
@@ -28,6 +42,11 @@ const translations = {
         'step1_title': '步驟一：選擇探視日期與時段',
         'choose_date': '選擇日期',
         'today_past_noon': '今日已過中午12點，無法預約當天時段，請選擇其他日期。',
+        'reading_slots': '讀取中...',
+        'read_slots_failed': '讀取時段失敗，請重新整理頁面。',
+        'slot_full': '已額滿',
+        'slot_past': '已逾時',
+        'slot_remaining': '剩餘 {remaining} 組',
         'step2_title': '步驟二：填寫預約資料',
         'resident_name': '住民姓名',
         'bed_number': '床號',
@@ -40,12 +59,22 @@ const translations = {
         'booking_success_info': '感謝您的預約，以下是您的預約資訊：',
         'date': '日期',
         'time': '時間',
-        'important_notice': '重要提醒：未来若需查詢或取消預約，請使用您的「電話號碼」作為憑證。',
+        'important_notice': '重要提醒：未來若需查詢或取消預約，請使用您的「電話號碼」作為憑證。',
+        'error_resident_name_invalid': '住民姓名不正確，無法提交預約！',
+        'name_validation_success': '姓名驗證成功！',
+        'name_validation_fail': '查無此住民姓名，請確認輸入是否正確。',
+        'booking_failed': '預約失敗，請稍後再試。',
+
+        // --- 照服員系統 (caregiver.html) ---
+        'caregiver_system': '照服員系統',
+        'enter_caregiver_password': '請輸入照服員密碼',
+        'caregiver_leave_system_menu': '預假系統',
+        'login_network_error': '登入時發生網路錯誤，請稍後再試。',
 
         // --- 照服員預假 (leave-caregiver.html) ---
         'caregiver_leave_system': '照服員預假系統',
         'your_name': '您的姓名',
-        'admin_settings': '管理員設定',
+        'enter_your_name_to_book': '請輸入您的姓名以預假',
         'calendar_title_prefix': '年',
         'calendar_title_suffix': '月',
         'leave_period_open': '預假開放中！期間為',
@@ -54,7 +83,19 @@ const translations = {
         'not_set': '未設定',
         'save_my_leave': '儲存我的預假',
         'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
-
+        'admin_verification': '管理員驗證',
+        'enter_admin_password_for_settings': '請輸入管理員密碼以設定預假期間。',
+        'set_next_month_leave_period': '設定下個月的預假開放期間',
+        'start_date': '開始日期',
+        'end_date': '結束日期',
+        'employee': '員工',
+        'leave_saved': '的預假已儲存',
+        'save_failed': '儲存失敗，請稍後再試。',
+        'verification_failed': '驗證時發生網路錯誤，請檢查網路連線或稍後再試。',
+        'set_start_end_date': '請設定開始與結束日期',
+        'end_date_cannot_be_earlier': '結束日期不可早於開始日期',
+        'settings_saved': '預假期間已儲存！頁面將會重新載入以套用新設定。',
+        'settings_save_failed': '儲存設定失敗，請稍後再試。',
     },
     'en': {
         // --- Common ---
@@ -67,7 +108,20 @@ const translations = {
         'cancel': 'Cancel',
         'error_enter_name_first': 'Please enter your name first!',
         'loading': 'Loading...',
-        
+        'confirm_submission': 'Confirm Submission',
+        'return_to_modify': 'Return to Modify',
+        'admin_settings': 'Admin Settings',
+        'please_enter_password': 'Please enter password',
+        'login': 'Login',
+        'password_error': 'Password incorrect, please try again!',
+        'back_to_home': 'Back to Home',
+        'querying': 'Querying...',
+        'no_records_found': 'No relevant booking records found.',
+        'query_failed': 'Query failed, please try again later.',
+        'confirm_cancel_booking': 'Are you sure you want to cancel this booking?',
+        'booking_cancelled_success': 'Booking has been cancelled successfully!',
+        'delete_failed': 'Delete failed, please try again later.',
+
         // --- Main Menu (index.html) ---
         'main_menu_title': 'Service Menu',
         'booking_visit': 'Visit Booking',
@@ -85,6 +139,11 @@ const translations = {
         'step1_title': 'Step 1: Select Date and Time',
         'choose_date': 'Select Date',
         'today_past_noon': 'Booking for today is closed after 12:00 PM. Please select another date.',
+        'reading_slots': 'Loading...',
+        'read_slots_failed': 'Failed to load time slots, please refresh the page.',
+        'slot_full': 'Full',
+        'slot_past': 'Past',
+        'slot_remaining': 'Remaining: {remaining}',
         'step2_title': 'Step 2: Fill in Information',
         'resident_name': 'Resident\'s Name',
         'bed_number': 'Bed Number',
@@ -98,11 +157,21 @@ const translations = {
         'date': 'Date',
         'time': 'Time',
         'important_notice': 'Important: To query or cancel your booking in the future, please use your phone number.',
+        'error_resident_name_invalid': 'Resident name is incorrect, cannot submit booking!',
+        'name_validation_success': 'Name verification successful!',
+        'name_validation_fail': 'Resident name not found, please check your input.',
+        'booking_failed': 'Booking failed, please try again later.',
+
+        // --- Caregiver System (caregiver.html) ---
+        'caregiver_system': 'Caregiver System',
+        'enter_caregiver_password': 'Please enter caregiver password',
+        'caregiver_leave_system_menu': 'Leave Request System',
+        'login_network_error': 'A network error occurred during login, please try again later.',
 
         // --- Caregiver Leave (leave-caregiver.html) ---
         'caregiver_leave_system': 'Caregiver Leave System',
         'your_name': 'Your Name',
-        'admin_settings': 'Admin Settings',
+        'enter_your_name_to_book': 'Please enter your name to request leave',
         'calendar_title_prefix': '',
         'calendar_title_suffix': '',
         'leave_period_open': 'Leave request period is open! From',
@@ -111,18 +180,36 @@ const translations = {
         'not_set': 'Not set',
         'save_my_leave': 'Save My Leave Requests',
         'week_sun': 'Sun', 'week_mon': 'Mon', 'week_tue': 'Tue', 'week_wed': 'Wed', 'week_thu': 'Thu', 'week_fri': 'Fri', 'week_sat': 'Sat',
+        'admin_verification': 'Admin Verification',
+        'enter_admin_password_for_settings': 'Please enter admin password to set the leave request period.',
+        'set_next_month_leave_period': 'Set Leave Request Period for Next Month',
+        'start_date': 'Start Date',
+        'end_date': 'End Date',
+        'employee': 'Employee',
+        'leave_saved': '\'s leave requests have been saved',
+        'save_failed': 'Save failed, please try again later.',
+        'verification_failed': 'A network error occurred during verification, please check your connection or try again later.',
+        'set_start_end_date': 'Please set both start and end dates',
+        'end_date_cannot_be_earlier': 'End date cannot be earlier than start date',
+        'settings_saved': 'Leave request period has been saved! The page will now reload to apply the new settings.',
+        'settings_save_failed': 'Failed to save settings, please try again later.',
     }
 };
 
 function setLanguage(lang) {
     localStorage.setItem('language', lang);
+    document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
 }
 
 function getLanguage() {
-    return localStorage.getItem('language') || 'zh-TW'; // 預設為中文
+    return localStorage.getItem('language') || 'zh-TW';
 }
 
-function getText(key) {
+function getText(key, replacements = {}) {
     const lang = getLanguage();
-    return translations[lang][key] || key; // 如果找不到翻譯，就返回 key 本身
+    let text = translations[lang][key] || key;
+    for (const placeholder in replacements) {
+        text = text.replace(`{${placeholder}}`, replacements[placeholder]);
+    }
+    return text;
 }
