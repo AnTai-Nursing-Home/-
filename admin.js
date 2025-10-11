@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- 元件宣告 ---
+    // --- 統一把所有元件宣告放在最前面 ---
     const passwordSection = document.getElementById('password-section');
     const dashboardSection = document.getElementById('dashboard-section');
     const resultsSection = document.getElementById('results-section');
@@ -63,8 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const dates = Object.keys(bookings).sort();
         const todayString = new Date().toISOString().split('T')[0];
-        
-        // 過濾掉已過期的日期，只顯示今天及未來的
         const upcomingDates = dates.filter(date => date >= todayString);
 
         if (upcomingDates.length === 0) {
@@ -75,39 +73,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
         upcomingDates.forEach(date => {
             html += `<h4>${date}</h4>`;
-            html += `<table class="table table-bordered table-striped table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>時段</th>
-                                <th>住民姓名</th>
-                                <th>床號</th>
-                                <th>家屬姓名</th>
-                                <th>與住民關係</th>
-                                <th>聯絡電話</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-            
+            html += `<table class="table table-bordered table-striped table-hover"><thead class="table-light"><tr><th>時段</th><th>住民姓名</th><th>床號</th><th>家屬姓名</th><th>與住民關係</th><th>聯絡電話</th><th>操作</th></tr></thead><tbody>`;
             const times = Object.keys(bookings[date]).sort();
             times.forEach(time => {
                 bookings[date][time].forEach(booking => {
-                    html += `<tr>
-                                <td>${time}</td>
-                                <td>${booking.residentName}</td>
-                                <td>${booking.bedNumber}</td>
-                                <td>${booking.visitorName}</td>
-                                <td>${booking.visitorRelationship || '未填寫'}</td>
-                                <td>${booking.visitorPhone}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-danger btn-admin-delete"
-                                            data-date="${date}"
-                                            data-time="${time}"
-                                            data-timestamp="${booking.timestamp}">
-                                        刪除
-                                    </button>
-                                </td>
-                            </tr>`;
+                    html += `<tr><td>${time}</td><td>${booking.residentName}</td><td>${booking.bedNumber}</td><td>${booking.visitorName}</td><td>${booking.visitorRelationship || '未填寫'}</td><td>${booking.visitorPhone}</td><td><button class="btn btn-sm btn-danger btn-admin-delete" data-date="${date}" data-time="${time}" data-timestamp="${booking.timestamp}">刪除</button></td></tr>`;
                 });
             });
             html += `</tbody></table>`;
@@ -115,48 +85,50 @@ document.addEventListener('DOMContentLoaded', function() {
         bookingListContainer.innerHTML = html;
     }
     
-    // --- 事件監聽器 ---
-    loginButton.addEventListener('click', handleLogin);
-    passwordInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleLogin(); });
+    // --- 事件監聽器 (加入 if 判斷，確保元件存在才綁定) ---
+    if (loginButton) {
+        loginButton.addEventListener('click', handleLogin);
+    }
+    if (passwordInput) {
+        passwordInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleLogin(); });
+    }
+    if (showBookingsBtn) {
+        showBookingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dashboardSection.classList.add('d-none');
+            resultsSection.classList.remove('d-none');
+            displayBookings();
+        });
+    }
+    if (backToDashboardBtn) {
+        backToDashboardBtn.addEventListener('click', () => {
+            resultsSection.classList.add('d-none');
+            dashboardSection.classList.remove('d-none');
+        });
+    }
+    if (bookingListContainer) {
+        bookingListContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-admin-delete')) {
+                const button = e.target;
+                const date = button.dataset.date;
+                const time = button.dataset.time;
+                const timestamp = button.dataset.timestamp;
 
-    showBookingsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        dashboardSection.classList.add('d-none');
-        resultsSection.classList.remove('d-none');
-        displayBookings();
-    });
-
-    backToDashboardBtn.addEventListener('click', () => {
-        resultsSection.classList.add('d-none');
-        dashboardSection.classList.remove('d-none');
-    });
-
-    bookingListContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-admin-delete')) {
-            const button = e.target;
-            const date = button.dataset.date;
-            const time = button.dataset.time;
-            const timestamp = button.dataset.timestamp;
-
-            if (confirm(`確定要刪除 ${date} ${time} 的這筆預約嗎？\n此操作無法復原。`)) {
-                let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
-                
-                const bookingsForSlot = bookings[date]?.[time];
-                if (!bookingsForSlot) return;
-
-                const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
-                
-                if (indexToDelete > -1) {
-                    bookingsForSlot.splice(indexToDelete, 1);
-                    if (bookingsForSlot.length === 0) delete bookings[date][time];
-                    if (Object.keys(bookings[date] || {}).length === 0) delete bookings[date];
-
-                    localStorage.setItem('bookings', JSON.stringify(bookings));
-                    alert('預約已刪除！');
-                    
-                    displayBookings();
+                if (confirm(`確定要刪除 ${date} ${time} 的這筆預約嗎？\n此操作無法復原。`)) {
+                    let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+                    const bookingsForSlot = bookings[date]?.[time];
+                    if (!bookingsForSlot) return;
+                    const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
+                    if (indexToDelete > -1) {
+                        bookingsForSlot.splice(indexToDelete, 1);
+                        if (bookingsForSlot.length === 0) delete bookings[date][time];
+                        if (Object.keys(bookings[date] || {}).length === 0) delete bookings[date];
+                        localStorage.setItem('bookings', JSON.stringify(bookings));
+                        alert('預約已刪除！');
+                        displayBookings();
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 });
