@@ -18,20 +18,17 @@
                     </div>
                     <div class="card-body">
                         <div id="password-section">
-                            <h5 class="card-title">請輸入員工密碼</h5>
-                            <div class="input-group mb-3">
-                                <input type="password" id="passwordInput" class="form-control" placeholder="請輸入密碼">
-                                <button id="loginButton" class="btn btn-primary">登入</button>
                             </div>
-                            <div id="errorMessage" class="text-danger d-none">密碼錯誤，請重試！</div>
-                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3">返回首頁</a>
-                        </div>
 
                         <div id="dashboard-section" class="d-none">
                             <div class="menu-grid admin-menu-grid">
                                 <a href="#" id="show-bookings-btn" class="menu-item">
                                     <i class="fas fa-list-alt fa-3x"></i>
                                     <span class="menu-item-text">預約名單查詢</span>
+                                </a>
+                                <a href="booking.html?mode=admin" class="menu-item">
+                                    <i class="fas fa-pen-to-square fa-3x"></i>
+                                    <span class="menu-item-text">代客預約</span>
                                 </a>
                                 <a href="supplies.html" class="menu-item">
                                     <i class="fas fa-boxes-stacked fa-3x"></i>
@@ -41,13 +38,7 @@
                         </div>
 
                         <div id="results-section" class="d-none mt-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3>所有預約紀錄</h3>
-                                <button id="back-to-dashboard-btn" class="btn btn-secondary">返回儀表板</button>
                             </div>
-                            <div id="booking-list" class="table-responsive">
-                                </div>
-                        </div>
                     </div>
                 </div>
             </div>
