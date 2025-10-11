@@ -211,8 +211,7 @@ document.addEventListener('firebase-ready', () => {
             if (dayEl && !dayEl.classList.contains('disabled')) {
                 if (!employeeNameInput.value.trim()) { alert('請先輸入您的姓名！'); employeeNameInput.focus(); return; }
                 dayEl.classList.toggle('selected');
-                dayEl.classList.remove('has-other-requests');
-                renderCalendar(); // 重新渲染以更新介面
+                renderCalendar();
             }
         }
     });
