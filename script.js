@@ -32,7 +32,9 @@ document.addEventListener('firebase-ready', () => {
     const finalSubmitButton = document.getElementById('final-submit-button');
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminMode = urlParams.get('mode') === 'admin';
-    if (isAdminMode) { adminNotice.classList.remove('d-none'); }
+    if (isAdminMode) {
+        adminNotice.classList.remove('d-none');
+    }
     let pendingBookingData = {};
     const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
     const maxBookingsPerSlot = 4;
