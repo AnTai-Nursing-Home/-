@@ -35,7 +35,7 @@ document.addEventListener('firebase-ready', () => {
     const adminCalendarDiv = document.getElementById('admin-calendar');
     const adminSummaryTableDiv = document.getElementById('admin-summary-table');
     
-    // --- 變數 ---
+    // --- Firebase 集合名稱 ---
     const settingsCollection = 'leave_settings';
     const requestsCollection = 'leave_requests';
     let isRequestPeriodOpen = false;
