@@ -85,11 +85,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (myLeaveDates.includes(dateStr)) {
                 dayEl.classList.add('selected');
             }
-
             if (!isRequestPeriodOpen) {
                 dayEl.classList.add('disabled');
             }
-            
             calendarDiv.appendChild(dayEl);
         }
     }
@@ -97,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderAdminView() {
         const leaveRequests = JSON.parse(localStorage.getItem(requestsKey)) || {};
         
-        // 1. 整理資料：將資料從 "人->日期" 轉換為 "日期->人"
         const requestsByDate = {};
         for (const employee in leaveRequests) {
             if (leaveRequests[employee].length > 0) {
@@ -110,7 +107,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // 2. 渲染總覽日曆
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
         const year = nextMonth.getFullYear();
@@ -150,7 +146,6 @@ document.addEventListener('DOMContentLoaded', function () {
             adminCalendarDiv.appendChild(dayEl);
         }
 
-        // 3. 渲染總覽清單
         const sortedDates = Object.keys(requestsByDate).sort();
         if (sortedDates.length === 0) {
             adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假紀錄。</p>';
@@ -185,11 +180,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const selectedEls = calendarDiv.querySelectorAll('.calendar-day.selected');
         const selectedDates = Array.from(selectedEls).map(el => el.dataset.date);
-
         const leaveRequests = JSON.parse(localStorage.getItem(requestsKey)) || {};
         leaveRequests[currentEmployee] = selectedDates;
         localStorage.setItem(requestsKey, JSON.stringify(leaveRequests));
-        
         alert(`員工「${currentEmployee}」的預假已儲存！`);
     });
 
@@ -200,12 +193,10 @@ document.addEventListener('DOMContentLoaded', function () {
     adminLoginBtn.addEventListener('click', async () => {
         const password = adminPasswordInput.value;
         if (!password) { return; }
-
         const spinner = adminLoginBtn.querySelector('.spinner-border');
         adminLoginBtn.disabled = true;
         spinner.classList.remove('d-none');
         adminErrorMsg.classList.add('d-none');
-
         try {
             const response = await fetch('/api/leave-admin-login', {
                 method: 'POST',
@@ -216,10 +207,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 adminPasswordModal.hide();
                 adminSettingsPanel.classList.remove('d-none');
                 adminHr.classList.remove('d-none');
-                
                 adminViewPanel.classList.remove('d-none');
                 renderAdminView();
-                
                 const settings = JSON.parse(localStorage.getItem(settingsKey)) || {};
                 document.getElementById('leave-start-date').value = settings.startDate || '';
                 document.getElementById('leave-end-date').value = settings.endDate || '';
