@@ -1,4 +1,3 @@
-// i18n.js
 const translations = {
     'zh-TW': {
         // --- 通用 ---
@@ -24,6 +23,7 @@ const translations = {
         'confirm_cancel_booking': '您確定要取消這個預約嗎？',
         'booking_cancelled_success': '預約已成功取消！',
         'delete_failed': '刪除失敗，請稍後再試。',
+        'please_enter_phone': '請輸入電話號碼！',
 
         // --- 主選單 (index.html) ---
         'main_menu_title': '服務選單',
@@ -121,6 +121,7 @@ const translations = {
         'confirm_cancel_booking': 'Are you sure you want to cancel this booking?',
         'booking_cancelled_success': 'Booking has been cancelled successfully!',
         'delete_failed': 'Delete failed, please try again later.',
+        'please_enter_phone': 'Please enter phone number!',
 
         // --- Main Menu (index.html) ---
         'main_menu_title': 'Service Menu',
@@ -193,6 +194,7 @@ const translations = {
         'end_date_cannot_be_earlier': 'End date cannot be earlier than start date',
         'settings_saved': 'Leave request period has been saved! The page will now reload to apply the new settings.',
         'settings_save_failed': 'Failed to save settings, please try again later.',
+        'read_calendar_failed': 'Failed to load calendar data. Please refresh.',
     }
 };
 
