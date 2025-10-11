@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
+    // ===============================================================
+    // ==== 衛材項目資料 ====
+    // ===============================================================
     const inventoryData = [
         { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
         { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] },
@@ -84,16 +87,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function generateReport() {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
-
         if (!startDate || !endDate) { alert('請選擇開始日期與結束日期。'); return; }
-
         const suppliesHistory = JSON.parse(localStorage.getItem(historyStorageKey)) || {};
         const datesInRange = Object.keys(suppliesHistory).filter(date => date >= startDate && date <= endDate).sort();
-
         if (datesInRange.length === 0) { alert('您選擇的日期區間內沒有任何盤點紀錄。'); return; }
-
         let reportHTML = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>衛材盤點區間報表</title><style>body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;}.report-container{width:95%;margin:auto;}h1,h2{text-align:center;}.daily-record{page-break-before:always;margin-top:2rem;}table{width:100%;border-collapse:collapse;margin-top:1rem;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.table-category{background-color:#e9ecef;font-weight:bold;text-align:center;}.item-threshold{font-size:0.8em;color:#666;}.status-danger{color:red;font-weight:bold;}</style></head><body><div class="report-container"><h1>衛材盤點區間報表</h1><h2>${startDate} 至 ${endDate}</h2>`;
-
         datesInRange.forEach(date => {
             const dailyData = suppliesHistory[date];
             reportHTML += `<div class="daily-record"><h3>盤點日期：${date}</h3><p><strong>盤點護理師：</strong>${dailyData.header.nurse||''} &nbsp;&nbsp;&nbsp; <strong>補齊者：</strong>${dailyData.header.restocker||''}</p><table><thead><tr><th style="width:40%">品項</th><th style="width:30%">護理師</th><th style="width:30%">補齊狀態</th></tr></thead><tbody>`;
@@ -109,7 +107,6 @@ document.addEventListener('DOMContentLoaded', function () {
             reportHTML += `</tbody></table></div>`;
         });
         reportHTML += `</div></body></html>`;
-
         reportModal.hide();
         const printWindow = window.open('', '_blank');
         printWindow.document.write(reportHTML);
@@ -146,11 +143,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const itemName = row.dataset.itemName;
             const originalRow = tableBody.querySelector(`tr[data-item-name="${itemName}"]`);
             if (originalRow) {
-                row.querySelector('select[data-field="status"]').outerHTML = originalRow.querySelector('select[data-field="status"]').value;
-                row.querySelector('select[data-field="restockStatus"]').outerHTML = originalRow.querySelector('select[data-field="restockStatus"]').value;
+                // 將 select 元素直接替換成其選中的值(文字)
+                const statusCell = row.cells[1];
+                const restockCell = row.cells[2];
+                statusCell.innerHTML = originalRow.querySelector('select[data-field="status"]').value;
+                restockCell.innerHTML = originalRow.querySelector('select[data-field="restockStatus"]').value;
             }
         });
-        let content = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>衛材盤點表</title><style>table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;}th{background-color:#f2f2f2;}</style></head><body><h2>衛材盤點表</h2><p><strong>盤點日期:</strong> ${dateInput.value}</p><p><strong>盤點護理師:</strong> ${nurseInput.value}</p><p><strong>補齊者:</strong> ${restockerInput.value}</p>${printableTable.innerHTML}</body></html>`;
+        let content = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>衛材盤點表</title><style>table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;}th{background-color:#f2f2f2;}.table-category{background-color:#e9ecef;font-weight:bold;text-align:center;}</style></head><body><h2>衛材盤點表</h2><p><strong>盤點日期:</strong> ${dateInput.value}</p><p><strong>盤點護理師:</strong> ${nurseInput.value}</p><p><strong>補齊者:</strong> ${restockerInput.value}</p>${printableTable.innerHTML}</body></html>`;
         const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
