@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>照服員預假系統 - 員工系統</title>
+    <title data-i18n="caregiver_leave_system">照服員預假系統</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -15,27 +15,25 @@
             <div class="col-lg-10">
                 <div class="card shadow">
                     <div class="card-header text-center bg-dark text-white">
-                        <h2>照服員預假系統</h2>
+                        <h2 data-i18n="caregiver_leave_system">照服員預假系統</h2>
                     </div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
                             <a href="caregiver.html" class="btn btn-back-menu">
-                                <i class="fas fa-arrow-left me-2"></i>返回照服員系統
+                                <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system">返回照服員系統</span>
                             </a>
                             <button id="admin-settings-btn" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-cog me-1"></i> 管理員設定
+                                <i class="fas fa-cog me-1"></i> <span data-i18n="admin_settings">管理員設定</span>
                             </button>
                         </div>
-                        
                         <div id="admin-settings-panel" class="d-none mt-4 p-3 border rounded bg-light">
-                            <h5>設定下個月的預假開放期間</h5>
+                            <h5 data-i18n="set_next_month_leave_period">設定下個月的預假開放期間</h5>
                             <div class="row g-3">
-                                <div class="col-md-5"><label for="leave-start-date" class="form-label">開始日期</label><input type="date" id="leave-start-date" class="form-control"></div>
-                                <div class="col-md-5"><label for="leave-end-date" class="form-label">結束日期</label><input type="date" id="leave-end-date" class="form-control"></div>
-                                <div class="col-md-2 d-flex align-items-end"><button id="save-settings-btn" class="btn btn-success w-100">儲存</button></div>
+                                <div class="col-md-5"><label for="leave-start-date" class="form-label" data-i18n="start_date">開始日期</label><input type="date" id="leave-start-date" class="form-control"></div>
+                                <div class="col-md-5"><label for="leave-end-date" class="form-label" data-i18n="end_date">結束日期</label><input type="date" id="leave-end-date" class="form-control"></div>
+                                <div class="col-md-2 d-flex align-items-end"><button id="save-settings-btn" class="btn btn-success w-100" data-i18n="save">儲存</button></div>
                             </div>
                         </div>
-
                         <div id="admin-view-panel" class="d-none">
                             <hr>
                             <h4 class="text-center mb-3">下個月預假總覽</h4>
@@ -43,27 +41,22 @@
                             <h5 class="mt-4">預假清單</h5>
                             <div id="admin-summary-table" class="table-responsive"></div>
                         </div>
-
                         <hr id="admin-hr" class="d-none">
-
                         <div class="row justify-content-center mb-4">
                             <div class="col-md-6">
-                                <label for="employee-name" class="form-label">您的姓名</label>
-                                <input type="text" id="employee-name" class="form-control" placeholder="請輸入您的姓名以預假">
+                                <label for="employee-name" class="form-label" data-i18n="your_name">您的姓名</label>
+                                <input type="text" id="employee-name" class="form-control" data-i18n="enter_your_name_to_book" placeholder="請輸入您的姓名以預假">
                             </div>
                         </div>
-
                         <div id="leave-calendar-container">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 id="calendar-title"></h4>
                             </div>
                             <div id="leave-calendar" class="leave-calendar-grid"></div>
                         </div>
-                        
                         <div id="status-notice" class="alert mt-3" role="alert"></div>
-
                         <div class="mt-4 text-center">
-                            <button id="save-leave-btn" class="btn btn-primary btn-lg">儲存我的預假</button>
+                            <button id="save-leave-btn" class="btn btn-primary btn-lg" data-i18n="save_my_leave">儲存我的預假</button>
                         </div>
                     </div>
                 </div>
@@ -71,14 +64,39 @@
         </div>
     </div>
     <div class="modal fade" id="admin-password-modal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">管理員驗證</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p>請輸入管理員密碼以設定預假期間。</p><input type="password" id="admin-password-input" class="form-control"><div id="admin-error-msg" class="text-danger mt-2 d-none">密碼錯誤！</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="button" id="admin-login-btn" class="btn btn-primary"><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> 確認</button></div></div></div>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-i18n="admin_verification">管理員驗證</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p data-i18n="enter_admin_password_for_settings">請輸入管理員密碼以設定預假期間。</p>
+                    <input type="password" id="admin-password-input" class="form-control">
+                    <div id="admin-error-msg" class="text-danger mt-2 d-none" data-i18n="password_error">密碼錯誤！</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">取消</button>
+                    <button type="button" id="admin-login-btn" class="btn btn-primary">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span data-i18n="confirm">確認</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
-    
+    <footer class="site-footer">
+        <div class="mb-2">
+            <button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button>
+        </div>
+        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+    </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="firebase-init.js"></script>
+    <script src="i18n.js"></script>
+    <script src="main.js"></script>
     <script src="leave-caregiver.js"></script>
 </body>
 </html>
