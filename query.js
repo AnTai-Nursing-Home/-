@@ -1,20 +1,16 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // --- 智慧返回按鈕邏輯 ---
+document.addEventListener('firebase-ready', () => {
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral) {
-        if (document.referrer.includes('admin.html')) {
-            backButtonGeneral.href = 'admin.html?view=dashboard';
-            const icon = backButtonGeneral.querySelector('i');
-            backButtonGeneral.innerHTML = '';
-            backButtonGeneral.appendChild(icon);
-            backButtonGeneral.append(' 返回儀表板');
-        }
+    if (backButtonGeneral && document.referrer.includes('admin.html')) {
+        backButtonGeneral.href = 'admin.html?view=dashboard';
+        const icon = backButtonGeneral.querySelector('i');
+        backButtonGeneral.innerHTML = '';
+        backButtonGeneral.appendChild(icon);
+        backButtonGeneral.append(' 返回儀表板');
     }
 
     const queryPhoneInput = document.getElementById('queryPhoneInput');
     const searchButton = document.getElementById('searchButton');
     const queryResultsContainer = document.getElementById('queryResults');
-    let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
 
     function displaySearchResults(results) {
         if (results.length === 0) {
@@ -23,32 +19,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         let html = '<ul class="list-group">';
         results.forEach(b => {
-            html += `<li class="list-group-item d-flex justify-content-between align-items-center"><div><strong>${b.date} ${b.time}</strong><br><small>住民: ${b.residentName} / 家屬: ${b.visitorName}</small></div><button class="btn btn-danger btn-sm btn-cancel" data-date="${b.date}" data-time="${b.time}" data-timestamp="${b.timestamp}">取消預約</button></li>`;
+            html += `<li class="list-group-item d-flex justify-content-between align-items-center"><div><strong>${b.date} ${b.time}</strong><br><small>住民: ${b.residentName} / 家屬: ${b.visitorName}</small></div><button class="btn btn-danger btn-sm btn-cancel" data-id="${b.id}">取消預約</button></li>`;
         });
         html += '</ul>';
         queryResultsContainer.innerHTML = html;
     }
 
-    function performSearch() {
+    async function performSearch() {
         const phone = queryPhoneInput.value.trim();
         if (!phone) {
             alert('請輸入電話號碼！');
             return;
         }
-        const foundBookings = [];
-        const today = new Date().toISOString().split('T')[0];
-        Object.keys(bookings).forEach(date => {
-            if (date >= today) {
-                Object.keys(bookings[date]).forEach(time => {
-                    bookings[date][time].forEach(booking => {
-                        if (booking.visitorPhone === phone) {
-                            foundBookings.push({ date, time, ...booking });
-                        }
-                    });
-});
-            }
-        });
-        displaySearchResults(foundBookings);
+        queryResultsContainer.innerHTML = '查詢中...';
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const snapshot = await db.collection('bookings')
+                .where('visitorPhone', '==', phone)
+                .where('date', '>=', today)
+                .orderBy('date', 'asc')
+                .get();
+            const foundBookings = [];
+            snapshot.forEach(doc => {
+                foundBookings.push({ id: doc.id, ...doc.data() });
+            });
+            displaySearchResults(foundBookings);
+        } catch (error) {
+            console.error("查詢失敗:", error);
+            queryResultsContainer.innerHTML = '<div class="alert alert-danger">查詢失敗，請稍後再試。</div>';
+        }
     }
 
     searchButton.addEventListener('click', performSearch);
@@ -58,23 +57,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    queryResultsContainer.addEventListener('click', function(e) {
+    queryResultsContainer.addEventListener('click', async function(e) {
         if (e.target.classList.contains('btn-cancel')) {
-            const button = e.target;
-            const date = button.dataset.date;
-            const time = button.dataset.time;
-            const timestamp = button.dataset.timestamp;
-            if (confirm(`您確定要取消 ${date} ${time} 的預約嗎？`)) {
-                const bookingsForSlot = bookings[date][time];
-                const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
-                if (indexToDelete > -1) {
-                    bookingsForSlot.splice(indexToDelete, 1);
-                    if (bookingsForSlot.length === 0) delete bookings[date][time];
-                    if (Object.keys(bookings[date]).length === 0) delete bookings[date];
-                    localStorage.setItem('bookings', JSON.stringify(bookings));
+            const docId = e.target.dataset.id;
+            if (confirm(`您確定要取消這個預約嗎？`)) {
+                try {
+                    e.target.disabled = true;
+                    await db.collection('bookings').doc(docId).delete();
                     alert('預約已成功取消！');
-                    bookings = JSON.parse(localStorage.getItem('bookings')) || {};
                     performSearch();
+                } catch (error) {
+                    console.error("刪除失敗:", error);
+                    alert("刪除失敗，請稍後再試。");
+                    e.target.disabled = false;
                 }
             }
         }
