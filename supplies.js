@@ -1,16 +1,26 @@
 document.addEventListener('firebase-ready', () => {
+    // **** 新增：透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面 ****
+    const inventoryTableBody = document.getElementById('inventory-table-body');
+    if (!inventoryTableBody) {
+        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免出錯
+        return;
+    }
+
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral && document.referrer.includes('admin.html')) {
-        backButtonGeneral.href = 'admin.html?view=dashboard';
-        const icon = backButtonGeneral.querySelector('i');
-        backButtonGeneral.innerHTML = '';
-        backButtonGeneral.appendChild(icon);
-        backButtonGeneral.append(' 返回儀表板');
+    if (backButtonGeneral) {
+        if (document.referrer.includes('admin.html')) {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(' 返回儀表板');
+        }
     }
     
-    const inventoryTableBody = document.getElementById('inventory-table-body');
-    if (!inventoryTableBody) return;
-
+    // ===============================================================
+    // ==== 衛材項目資料 ====
+    // ===============================================================
     const inventoryData = [
         { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
         { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] },
@@ -18,6 +28,7 @@ document.addEventListener('firebase-ready', () => {
         { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
     ];
 
+    // --- 元件宣告 ---
     const tableBody = inventoryTableBody;
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
@@ -31,8 +42,10 @@ document.addEventListener('firebase-ready', () => {
     const reportModal = new bootstrap.Modal(reportModalElement);
     const generateReportBtn = document.getElementById('generate-report-btn');
     
+    // --- 變數 ---
     const collectionName = 'supplies_inventory';
 
+    // --- 函式定義 ---
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
         try {
