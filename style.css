@@ -361,3 +361,20 @@ body {
 .admin-day.has-requests {
     background-color: #fff3cd;
 }
+/* ==== 新增：預假系統他人預假樣式 ==== */
+.calendar-day.has-other-requests {
+    background-color: #e9ecef; /* 淡灰色背景標示他人已預假 */
+}
+
+.calendar-day .day-number {
+    font-weight: bold;
+}
+
+.leave-names-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 2px 0 0 0;
+    font-size: 0.8rem;
+    text-align: center;
+    line-height: 1.3;
+}
