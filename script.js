@@ -23,11 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral && document.referrer.includes('admin.html')) {
-        backButtonGeneral.href = 'admin.html';
         const icon = backButtonGeneral.querySelector('i');
-        backButtonGeneral.innerHTML = ''; // 清空按鈕內容
-        backButtonGeneral.appendChild(icon); // 把圖示加回去
-        backButtonGeneral.append(' 返回儀表板'); // 加上新文字
+        backButtonGeneral.innerHTML = '';
+        backButtonGeneral.appendChild(icon);
+        backButtonGeneral.append(' 返回儀表板');
+        backButtonGeneral.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.history.back();
+        });
     }
 
     const bookingForm = document.getElementById('bookingForm');
