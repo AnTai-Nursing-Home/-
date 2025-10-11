@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>照服員登入</title>
+    <title data-i18n="caregiver_login">照服員登入</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container my-5">
@@ -14,23 +15,23 @@
             <div class="col-lg-10">
                 <div class="card shadow">
                     <div class="card-header text-center bg-dark text-white">
-                        <h2>照服員系統</h2>
+                        <h2 data-i18n="caregiver_system">照服員系統</h2>
                     </div>
                     <div class="card-body">
                         <div id="password-section-caregiver">
-                            <h5 class="card-title">請輸入照服員密碼</h5>
+                            <h5 class="card-title" data-i18n="enter_caregiver_password">請輸入照服員密碼</h5>
                             <div class="input-group mb-3">
-                                <input type="password" id="passwordInput-caregiver" class="form-control" placeholder="請輸入密碼">
-                                <button id="loginButton-caregiver" class="btn btn-primary">登入</button>
+                                <input type="password" id="passwordInput-caregiver" class="form-control" data-i18n="please_enter_password" placeholder="請輸入密碼">
+                                <button id="loginButton-caregiver" class="btn btn-primary" data-i18n="login">登入</button>
                             </div>
-                            <div id="errorMessage-caregiver" class="text-danger d-none">密碼錯誤，請重試！</div>
-                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3">返回首頁</a>
+                            <div id="errorMessage-caregiver" class="text-danger d-none" data-i18n="password_error">密碼錯誤，請重試！</div>
+                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
                         </div>
                         <div id="dashboard-section-caregiver" class="d-none">
                             <div class="menu-grid admin-menu-grid">
                                 <a href="leave-caregiver.html" class="menu-item">
                                     <i class="fas fa-calendar-days fa-3x"></i>
-                                    <span class="menu-item-text">預假系統</span>
+                                    <span class="menu-item-text" data-i18n="caregiver_leave_system_menu">預假系統</span>
                                 </a>
                             </div>
                         </div>
@@ -39,7 +40,14 @@
             </div>
         </div>
     </div>
-    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
+    <footer class="site-footer">
+        <div class="mb-2">
+            <button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button>
+        </div>
+        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+    </footer>
+    <script src="i18n.js"></script>
+    <script src="main.js"></script>
     <script src="caregiver.js"></script>
 </body>
 </html>
