@@ -12,7 +12,7 @@
     <div class="container my-5">
         <div class="row justify-content-center">
             <div class="col-lg-10">
-                <div class="card shadow">
+                <div class="card shadow" id="printable-area">
                     <div class="card-header text-center bg-dark text-white">
                         <h2>衛材盤點表</h2>
                     </div>
@@ -28,7 +28,39 @@
                                 <button id="reset-button" class="btn btn-outline-danger">清空本日紀錄</button>
                             </div>
                         </div>
+
+                        <div class="row g-3 mb-4 p-3 border rounded bg-light">
+                            <div class="col-md-4">
+                                <label for="inventory-date" class="form-label">盤點日期</label>
+                                <input type="date" class="form-control" id="inventory-date">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="inventory-nurse" class="form-label">盤點護理師 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="inventory-nurse" placeholder="請簽名" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="inventory-restocker" class="form-label">補齊者</label>
+                                <input type="text" class="form-control" id="inventory-restocker" placeholder="請簽名">
+                            </div>
                         </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr class="text-center">
+                                        <th style="width: 40%;">品項</th>
+                                        <th style="width: 30%;">護理師 <span class="text-danger">*</span></th>
+                                        <th style="width: 30%;">補齊狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-table-body">
+                                    </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-4 text-center d-print-none">
+                            <button id="save-button" class="btn btn-primary btn-lg">儲存本日盤點</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
