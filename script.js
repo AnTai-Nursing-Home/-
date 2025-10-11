@@ -1,32 +1,9 @@
 document.addEventListener('firebase-ready', () => {
-    // ===============================================================
-    // ==== 住民資料庫 ====
-    // ===============================================================
-    const residentDatabase = {
-        "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1",
-        "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1",
-        "洪輝童": "108-1", "王萬福": "108-2", "黃桂女": "109-1", "黃蕭琴": "109-2", "林瑞滿": "110-1",
-        "鄭錦足": "110-2", "吳葉聰霞": "111-1", "謝美": "111-2", "洪周金好": "112-1", "陳秀美大": "112-2",
-        "陳秀美": "115-1", "呂蕭秀琴": "115-2", "林麗香": "116-1", "孔伍櫻桃": "116-2", "王慧雅": "202-1",
-        "賴淑芬": "202-2", "潘麗珍": "203-2", "吳邱芳梅": "206-1", "莊雪娥": "206-2", "王文賢": "207-1",
-        "戴榮興": "207-2", "穆顯侗": "208-1", "黃萬吉": "208-2", "黃亮達": "208-3", "曾和成": "208-5",
-        "陳佳駿": "209-1", "李閏源": "209-2", "林麗真": "210-1", "蔡郭米": "210-2", "呂曾芳妹": "210-3",
-        "余劉春花": "210-5", "李秀花": "211-1", "王葉招枝": "211-2", "洪清富": "213-1", "邱文標": "213-2",
-        "鄞進發": "215-1", "郭蜜琴": "217-1", "高葉銀成": "217-2", "紀余日仔": "217-3", "許陳金鉛": "217-5",
-        "王蘇罔腰": "218-1", "王玉蘭": "218-2", "葉曾順妹": "218-3", "鄭張貴英": "218-5", "許謝運珍": "219-1",
-        "潘陳採綢": "219-2", "王秀珠": "219-3", "張秋淑": "219-5", "潘張清雲": "219-6", "曾光亮": "220-1",
-        "杜典崑": "220-2", "王進武": "221-1", "陳寶財": "221-2", "楊受滿": "221-3", "許居鎰": "303-1",
-        "許坤忠": "303-2", "黃國清": "303-3", "郭良吉": "303-5", "許湘玲": "305-1", "李職如": "306-1",
-        "朱全明": "307-1", "潘景宏": "308-1", "曾清火": "308-2", "林烈雲": "309-1", "葉正良": "309-2",
-        "張梅心": "311-1", "許陳菊季": "311-2", "林黃金枝": "311-3", "陳林金枝": "311-5", "邱桂英": "312-1",
-        "潘郁豐": "312-2", "宋進興": "312-3", "賴盈賢": "312-5", "林泰安": "312-6", "林文立": "313-1",
-        "張元平": "313-2", "林安允": "313-3", "林楊智": "313-5", "林昌輝": "313-6", "劉藍麗珠": "315-1",
-        "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試住民": "501-1"
-    };
-
+    // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
     if (!bookingForm) return;
 
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -39,6 +16,8 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
+    // --- 元件宣告 ---
+    const residentDatabase = { "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1", "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1", "洪輝童": "108-1", "王萬福": "108-2", "黃桂女": "109-1", "黃蕭琴": "109-2", "林瑞滿": "110-1", "鄭錦足": "110-2", "吳葉聰霞": "111-1", "謝美": "111-2", "洪周金好": "112-1", "陳秀美大": "112-2", "陳秀美": "115-1", "呂蕭秀琴": "115-2", "林麗香": "116-1", "孔伍櫻桃": "116-2", "王慧雅": "202-1", "賴淑芬": "202-2", "潘麗珍": "203-2", "吳邱芳梅": "206-1", "莊雪娥": "206-2", "王文賢": "207-1", "戴榮興": "207-2", "穆顯侗": "208-1", "黃萬吉": "208-2", "黃亮達": "208-3", "曾和成": "208-5", "陳佳駿": "209-1", "李閏源": "209-2", "林麗真": "210-1", "蔡郭米": "210-2", "呂曾芳妹": "210-3", "余劉春花": "210-5", "李秀花": "211-1", "王葉招枝": "211-2", "洪清富": "213-1", "邱文標": "213-2", "鄞進發": "215-1", "郭蜜琴": "217-1", "高葉銀成": "217-2", "紀余日仔": "217-3", "許陳金鉛": "217-5", "王蘇罔腰": "218-1", "王玉蘭": "218-2", "葉曾順妹": "218-3", "鄭張貴英": "218-5", "許謝運珍": "219-1", "潘陳採綢": "219-2", "王秀珠": "219-3", "張秋淑": "219-5", "潘張清雲": "219-6", "曾光亮": "220-1", "杜典崑": "220-2", "王進武": "221-1", "陳寶財": "221-2", "楊受滿": "221-3", "許居鎰": "303-1", "許坤忠": "303-2", "黃國清": "303-3", "郭良吉": "303-5", "許湘玲": "305-1", "李職如": "306-1", "朱全明": "307-1", "潘景宏": "308-1", "曾清火": "308-2", "林烈雲": "309-1", "葉正良": "309-2", "張梅心": "311-1", "許陳菊季": "311-2", "林黃金枝": "311-3", "陳林金枝": "311-5", "邱桂英": "312-1", "潘郁豐": "312-2", "宋進興": "312-3", "賴盈賢": "312-5", "林泰安": "312-6", "林文立": "313-1", "張元平": "313-2", "林安允": "313-3", "林楊智": "313-5", "林昌輝": "313-6", "劉藍麗珠": "315-1", "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試住民": "501-1" };
     const adminNotice = document.getElementById('admin-mode-notice');
     const visitDateInput = document.getElementById('visitDate');
     const timeSlotsContainer = document.getElementById('time-slots');
@@ -68,7 +47,6 @@ document.addEventListener('firebase-ready', () => {
     visitDateInput.setAttribute('min', today);
     visitDateInput.value = today;
     selectedDate = today;
-
     async function renderTimeSlots() {
         timeSlotsContainer.innerHTML = '讀取中...';
         bookingNotice.classList.add('d-none');
@@ -114,7 +92,6 @@ document.addEventListener('firebase-ready', () => {
             timeSlotsContainer.innerHTML = '<div class="alert alert-danger">讀取時段失敗，請重新整理頁面。</div>';
         }
     }
-
     function displaySuccessMessage(bookingData) {
         document.getElementById('confirmDate').textContent = selectedDate;
         document.getElementById('confirmTime').textContent = selectedTime;
@@ -127,12 +104,10 @@ document.addEventListener('firebase-ready', () => {
         step2.classList.add('d-none');
         successMessage.classList.remove('d-none');
     }
-
     visitDateInput.addEventListener('change', (e) => {
         selectedDate = e.target.value;
         renderTimeSlots();
     });
-
     timeSlotsContainer.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
             selectedTime = e.target.dataset.time;
@@ -141,7 +116,6 @@ document.addEventListener('firebase-ready', () => {
             step2.classList.remove('d-none');
         }
     });
-
     backButton.addEventListener('click', () => {
         step2.classList.add('d-none');
         step1.classList.remove('d-none');
@@ -150,7 +124,6 @@ document.addEventListener('firebase-ready', () => {
         residentNameInput.classList.remove('is-valid', 'is-invalid');
         bedNumberInput.value = '';
     });
-
     residentNameInput.addEventListener('input', function() {
         const name = this.value.trim();
         if (residentDatabase[name]) {
@@ -167,7 +140,6 @@ document.addEventListener('firebase-ready', () => {
             nameFeedback.className = 'invalid-feedback';
         }
     });
-
     bookingForm.addEventListener('submit', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -187,7 +159,7 @@ document.addEventListener('firebase-ready', () => {
             visitorName: document.getElementById('visitorName').value,
             visitorRelationship: document.getElementById('visitorRelationship').value,
             visitorPhone: document.getElementById('visitorPhone').value,
-            timestamp: new Date().toISOString()
+            timestamp: firebase.firestore.FieldValue.serverTimestamp() // 使用伺服器時間
         };
         document.getElementById('modal-confirm-date').textContent = selectedDate;
         document.getElementById('modal-confirm-time').textContent = selectedTime;
@@ -197,7 +169,6 @@ document.addEventListener('firebase-ready', () => {
         document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
         confirmationModal.show();
     });
-
     finalSubmitButton.addEventListener('click', async function() {
         finalSubmitButton.disabled = true;
         try {
@@ -215,6 +186,5 @@ document.addEventListener('firebase-ready', () => {
             finalSubmitButton.disabled = false;
         }
     });
-
     renderTimeSlots();
 });
