@@ -122,21 +122,16 @@ document.addEventListener('firebase-ready', () => {
             calendarDiv.innerHTML = '<div class="alert alert-danger">讀取日曆失敗，請重新整理。</div>';
         }
     }
-
     async function renderAdminView() { /* ... 內容不變 ... */ }
-    
-    // **** 修正：移除這一段中的 renderCalendar() ****
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
             if (dayEl && !dayEl.classList.contains('disabled')) {
                 if (!employeeNameInput.value.trim()) { alert('請先輸入您的姓名！'); employeeNameInput.focus(); return; }
                 dayEl.classList.toggle('selected');
-                // 移除 renderCalendar();
             }
         }
     });
-
     saveLeaveBtn.addEventListener('click', async () => {
         const currentEmployee = employeeNameInput.value.trim();
         if (!currentEmployee) { alert('請先輸入您的姓名！'); return; }
@@ -146,7 +141,7 @@ document.addEventListener('firebase-ready', () => {
         try {
             await db.collection(requestsCollection).doc(currentEmployee).set({ dates: selectedDates });
             alert(`員工「${currentEmployee}」的預假已儲存！`);
-            renderCalendar(); // 儲存後才重新渲染，以更新介面
+            renderCalendar();
         } catch (error) {
             console.error("儲存預假失敗:", error);
             alert("儲存失敗，請稍後再試。");
@@ -154,11 +149,11 @@ document.addEventListener('firebase-ready', () => {
             saveLeaveBtn.disabled = false;
         }
     });
-
     employeeNameInput.addEventListener('input', renderCalendar);
     adminSettingsBtn.addEventListener('click', () => adminPasswordModal.show());
     adminLoginBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
     saveSettingsBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
 
+    // --- 初始操作 ---
     renderCalendar();
 });
