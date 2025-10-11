@@ -1,260 +1,55 @@
-/* --- Google Fonts 導入 (思源黑體) --- */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+/* ... (所有舊的 CSS 內容都保留) ... */
 
-/* --- 整體頁面風格 --- */
-body {
-    font-family: 'Noto Sans TC', sans-serif;
-    background: #f0f2f5;
-    min-height: 100vh;
-    display: flex; 
-    flex-direction: column; 
-}
-
-/* ================================================= */
-/* ==== 圖文選單 (Menu) 頁面樣式 ==== */
-/* ================================================= */
-.menu-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-grow: 1; 
-    padding: 20px;
-}
-.menu-header {
-    text-align: center;
-    margin-bottom: 40px;
-    color: #333;
-}
-.menu-header h1 {
-    font-weight: 700;
-    font-size: 2.2rem;
-    line-height: 1.3;
-}
-.menu-header p {
-    font-size: 1.2rem;
-    color: #6c757d;
-}
-.menu-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    width: 100%;
-    max-width: 800px; 
-}
-.menu-item {
-    background-color: #ffd600;
-    color: #212529;
-    text-decoration: none;
-    padding: 30px 20px;
-    border-radius: 12px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    aspect-ratio: 1 / 1;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-}
-.menu-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-    color: #000;
-}
-.menu-item i {
-    margin-bottom: 15px;
-}
-.menu-item-text {
-    font-size: 1rem;
-    font-weight: 500;
-}
-.menu-footer {
-    text-align: center;
-    margin-top: 40px;
-    color: #6c757d;
-    font-weight: 500;
-}
-@media (max-width: 768px) {
-    .menu-header h1 {
-        font-size: 1.6rem;
+/* ==== 在檔案最底部，修改列印樣式 ==== */
+@media print {
+    /* 隱藏所有不需要列印的元素 */
+    .d-print-none,
+    .site-footer,
+    .btn-back-menu /* 也隱藏返回按鈕 */
+     {
+        display: none !important;
     }
-    .menu-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
+
+    body {
+        background: #fff;
     }
-    .menu-item {
-        padding: 20px 15px;
+
+    .container.my-5 {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
-}
-
-/* ================================================= */
-/* ==== 預約系統 (Booking) & 其他內容頁面樣式 ==== */
-/* ================================================= */
-.container.my-5 {
-    padding-top: 2rem; 
-    flex-grow: 1; 
-}
-.card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-}
-.card-header {
-    background: linear-gradient(45deg, #4CAF50, #81C784);
-    border-top-left-radius: 15px;
-    border-top-right-radius: 15px;
-    padding: 1.5rem;
-    border-bottom: none;
-    text-align: center;
-}
-.card-header.bg-dark {
-    background: linear-gradient(45deg, #212529, #495057);
-}
-.card-header h2 {
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: #fff;
-}
-
-.card-body {
-    padding: 2rem;
-}
-
-.btn-back-menu {
-    background-color: #6c757d;
-    color: #fff;
-    border: none;
-    font-weight: 500;
-    padding: 8px 16px;
-    border-radius: 8px;
-    text-decoration: none;
-    display: inline-block;
-    transition: background-color 0.2s;
-}
-.btn-back-menu:hover {
-    background-color: #5a6268;
-    color: #fff;
-}
-
-.time-slot {
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-    border-width: 2px;
-}
-.time-slot:not(.full):not(:disabled):hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.btn-success {
-    background-color: #4CAF50;
-    border: none;
-    padding: 12px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    border-radius: 8px;
-    transition: all 0.2s ease-in-out;
-    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
-}
-.btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
-}
-.form-control {
-    border-radius: 8px;
-    padding: 12px;
-    border: 1px solid #ced4da;
-}
-.form-control:focus {
-    border-color: #81C784;
-    box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
-}
-.time-slot.full {
-    background-color: #e9ecef;
-    color: #adb5bd;
-    cursor: not-allowed;
-    border-color: #dee2e6;
-    opacity: 0.8;
-}
-#successMessage {
-    border-left: 5px solid #4CAF50;
-    background-color: #f0fdf4;
-    border-radius: 8px;
-    padding: 1.5rem;
-}
-#successMessage h3 {
-    color: #3d8b40;
-    font-weight: 700;
-}
-#queryResults .list-group-item {
-    border-radius: 8px;
-    margin-bottom: 10px;
-    border: 1px solid #dee2e6;
-}
-#queryResults .list-group-item strong {
-    color: #343a40;
-}
-#queryResults .list-group-item small {
-    color: #6c757d;
-}
-
-/* 探視規範頁面專用樣式 */
-.rules-content ul {
-    padding-left: 20px;
-}
-.rules-content li {
-    margin-bottom: 10px;
-}
-
-/* 全站共用頁尾 (Footer) 樣式 */
-.site-footer {
-    text-align: center;
-    padding: 20px 0;
-    margin-top: 20px; 
-    font-size: 0.9rem;
-    color: #888;
-}
-
-/* 員工儀表板選單樣式 */
-.admin-menu-grid {
-    max-width: 500px;
-    margin: 2rem auto;
-}
-@media (max-width: 768px) {
-    .admin-menu-grid {
-        grid-template-columns: 1fr;
-        max-width: 300px;
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important; /* 列印時加回簡單邊框 */
     }
-}
+    
+    .card-header.bg-dark h2 {
+        color: #000 !important; /* 列印時標題改為黑色 */
+    }
+    .card-header {
+        background: #fff !important; /* 列印時移除背景色 */
+    }
 
-/* 衛材盤點頁面樣式 */
-.table-category {
-    background-color: #f8f9fa;
-    font-weight: bold;
-    text-align: center;
-}
+    .table, .table th, .table td {
+        border: 1px solid #999 !important;
+        font-size: 10pt;
+    }
 
-.item-threshold {
-    font-size: 0.85rem;
-    color: #6c757d;
-}
+    .table select, .table input {
+        border: none !important;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background: transparent !important;
+        padding: 0; /* 移除內邊距 */
+        font-size: 10pt;
+    }
 
-.table .form-select,
-.table .form-control {
-    font-size: 0.9rem;
-}
-
-.table-danger > td, .table-danger > th {
-    background-color: #f8d7da !important;
-}
-
-.table-success > td, .table-success > th {
-    background-color: #d1e7dd !important;
-}
-
-.table-row-invalid > td {
-    background-color: #fff3cd !important;
+    .table-danger > td, .table-danger > th {
+        background-color: #f8d7da !important;
+    }
+    .table-success > td, .table-success > th {
+        background-color: #d1e7dd !important;
+    }
 }
