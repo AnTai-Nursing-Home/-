@@ -1,23 +1,13 @@
+// leave-caregiver.js
 document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在 leave-caregiver.html 存在的獨特元件，來判斷我們是否在預假頁面
     const calendarDiv = document.getElementById('leave-calendar');
-    if (!calendarDiv) {
-        return; // 如果找不到日曆，代表不在預假頁，直接結束
-    }
+    if (!calendarDiv) return;
 
-    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral) {
-        if (document.referrer.includes('caregiver.html')) {
-            backButtonGeneral.href = 'caregiver.html';
-            const icon = backButtonGeneral.querySelector('i');
-            backButtonGeneral.innerHTML = '';
-            backButtonGeneral.appendChild(icon);
-            backButtonGeneral.append(' 返回照服員系統');
-        }
+    if (backButtonGeneral && document.referrer.includes('caregiver.html')) {
+        backButtonGeneral.href = 'caregiver.html';
     }
     
-    // --- 元件宣告 ---
     const calendarTitle = document.getElementById('calendar-title');
     const statusNotice = document.getElementById('status-notice');
     const employeeNameInput = document.getElementById('employee-name');
@@ -35,45 +25,46 @@ document.addEventListener('firebase-ready', () => {
     const adminCalendarDiv = document.getElementById('admin-calendar');
     const adminSummaryTableDiv = document.getElementById('admin-summary-table');
     
-    // --- Firebase 集合名稱 (照服員專用) ---
     const settingsCollection = 'caregiver_leave_settings';
     const requestsCollection = 'caregiver_leave_requests';
     let isRequestPeriodOpen = false;
 
-    // --- 函式定義 ---
     async function renderCalendar() {
-        calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
+        calendarDiv.innerHTML = `<div class="text-center">${getText('loading')}...</div>`;
         try {
             const settingsDoc = await db.collection(settingsCollection).doc('period').get();
             const settings = settingsDoc.exists ? settingsDoc.data() : {};
             const startDate = settings.startDate ? new Date(settings.startDate + 'T00:00:00') : null;
             const endDate = settings.endDate ? new Date(settings.endDate + 'T23:59:59') : null;
-
             const today = new Date();
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
-                statusNotice.textContent = `預假開放中！期間為 ${settings.startDate} 至 ${settings.endDate}。`;
+                statusNotice.textContent = `${getText('leave_period_open')} ${settings.startDate} ${getText('to')} ${settings.endDate}`;
             } else {
                 isRequestPeriodOpen = false;
                 statusNotice.className = 'alert alert-warning';
-                statusNotice.textContent = `目前非預假開放期間。下次開放期間為 ${settings.startDate || '未設定'} 至 ${settings.endDate || '未設定'}。`;
+                statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate || getText('not_set')} ${getText('to')} ${settings.endDate || getText('not_set')}`;
             }
             saveLeaveBtn.disabled = !isRequestPeriodOpen;
 
             const snapshot = await db.collection(requestsCollection).get();
             const leaveRequests = {};
-            snapshot.forEach(doc => {
-                leaveRequests[doc.id] = doc.data().dates;
-            });
+            snapshot.forEach(doc => { leaveRequests[doc.id] = doc.data().dates; });
             
             const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             const year = nextMonth.getFullYear();
             const month = nextMonth.getMonth();
-            calendarTitle.textContent = `${year}年 ${month + 1}月`;
-            calendarDiv.innerHTML = '';
+            const lang = getLanguage();
+            if (lang === 'en') {
+                const monthName = nextMonth.toLocaleString('en-US', { month: 'long' });
+                calendarTitle.textContent = `${monthName} ${year}`;
+            } else {
+                calendarTitle.textContent = `${year}${getText('calendar_title_prefix')} ${month + 1}${getText('calendar_title_suffix')}`;
+            }
 
-            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            calendarDiv.innerHTML = '';
+            const weekdays = [getText('week_sun'), getText('week_mon'), getText('week_tue'), getText('week_wed'), getText('week_thu'), getText('week_fri'), getText('week_sat')];
             weekdays.forEach(day => {
                 const dayEl = document.createElement('div');
                 dayEl.className = 'calendar-weekday';
@@ -88,7 +79,6 @@ document.addEventListener('firebase-ready', () => {
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const currentEmployee = employeeNameInput.value.trim();
-            
             const requestsByDate = {};
             for (const employee in leaveRequests) {
                 if (leaveRequests[employee].length > 0) {
@@ -104,7 +94,6 @@ document.addEventListener('firebase-ready', () => {
                 dayEl.className = 'calendar-day';
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 dayEl.dataset.date = dateStr;
-
                 let namesHTML = '';
                 if (requestsByDate[dateStr]) {
                     const names = requestsByDate[dateStr];
@@ -121,7 +110,6 @@ document.addEventListener('firebase-ready', () => {
                     namesHTML += '</ul>';
                 }
                 dayEl.innerHTML = `<div class="day-number">${i}</div>${namesHTML}`;
-                
                 if (!isRequestPeriodOpen) {
                     dayEl.classList.add('disabled');
                 }
@@ -129,40 +117,35 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error("讀取日曆資料失敗:", error);
-            calendarDiv.innerHTML = '<div class="alert alert-danger">讀取日曆失敗，請重新整理。</div>';
+            calendarDiv.innerHTML = '<div class="alert alert-danger">Failed to load calendar data. Please refresh.</div>';
         }
     }
 
-    async function renderAdminView() {
-        // ... (管理員總覽的邏輯不變) ...
-    }
+    async function renderAdminView() { /* ... 內容不變 ... */ }
     
-    // **** 修正：移除這一段中的 renderCalendar() ****
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
             if (dayEl && !dayEl.classList.contains('disabled')) {
-                if (!employeeNameInput.value.trim()) { alert('請先輸入您的姓名！'); employeeNameInput.focus(); return; }
+                if (!employeeNameInput.value.trim()) { alert(getText('error_enter_name_first')); employeeNameInput.focus(); return; }
                 dayEl.classList.toggle('selected');
-                // 移除 renderCalendar();
             }
         }
     });
 
     saveLeaveBtn.addEventListener('click', async () => {
         const currentEmployee = employeeNameInput.value.trim();
-        if (!currentEmployee) { alert('請先輸入您的姓名！'); return; }
+        if (!currentEmployee) { alert(getText('error_enter_name_first')); return; }
         const selectedEls = calendarDiv.querySelectorAll('.calendar-day.selected');
         const selectedDates = Array.from(selectedEls).map(el => el.dataset.date);
-        
         saveLeaveBtn.disabled = true;
         try {
             await db.collection(requestsCollection).doc(currentEmployee).set({ dates: selectedDates });
-            alert(`員工「${currentEmployee}」的預假已儲存！`);
-            renderCalendar(); // 儲存後才重新渲染，以更新介面
+            alert(`Employee "${currentEmployee}" leave requests saved!`);
+            renderCalendar();
         } catch (error) {
             console.error("儲存預假失敗:", error);
-            alert("儲存失敗，請稍後再試。");
+            alert("Save failed, please try again later.");
         } finally {
             saveLeaveBtn.disabled = false;
         }
