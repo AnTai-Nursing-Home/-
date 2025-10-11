@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('firebase-ready', () => {
     // ===============================================================
     // ==== 住民資料庫 ====
     // ===============================================================
@@ -23,8 +23,10 @@ document.addEventListener('DOMContentLoaded', function() {
         "張元平": "313-2", "林安允": "313-3", "林楊智": "313-5", "林昌輝": "313-6", "劉藍麗珠": "315-1",
         "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試住民": "501-1"
     };
-    
-    // --- 智慧返回按鈕邏輯 ---
+
+    const bookingForm = document.getElementById('bookingForm');
+    if (!bookingForm) return;
+
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -37,59 +39,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const bookingForm = document.getElementById('bookingForm');
-    if (bookingForm) {
-        
-        const adminNotice = document.getElementById('admin-mode-notice');
-        const visitDateInput = document.getElementById('visitDate');
-        const timeSlotsContainer = document.getElementById('time-slots');
-        const bookingNotice = document.getElementById('booking-notice');
-        const step1 = document.getElementById('step1');
-        const step2 = document.getElementById('step2');
-        const backButton = document.getElementById('backButton');
-        const successMessage = document.getElementById('successMessage');
-        const selectedTimeDisplay = document.getElementById('selected-time-display');
-        const residentNameInput = document.getElementById('residentName');
-        const bedNumberInput = document.getElementById('bedNumber');
-        const nameFeedback = document.getElementById('nameFeedback');
-        const confirmationModalElement = document.getElementById('confirmationModal');
-        const confirmationModal = new bootstrap.Modal(confirmationModalElement);
-        const finalSubmitButton = document.getElementById('final-submit-button');
+    const adminNotice = document.getElementById('admin-mode-notice');
+    const visitDateInput = document.getElementById('visitDate');
+    const timeSlotsContainer = document.getElementById('time-slots');
+    const bookingNotice = document.getElementById('booking-notice');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const backButton = document.getElementById('backButton');
+    const successMessage = document.getElementById('successMessage');
+    const selectedTimeDisplay = document.getElementById('selected-time-display');
+    const residentNameInput = document.getElementById('residentName');
+    const bedNumberInput = document.getElementById('bedNumber');
+    const nameFeedback = document.getElementById('nameFeedback');
+    const confirmationModalElement = document.getElementById('confirmationModal');
+    const confirmationModal = new bootstrap.Modal(confirmationModalElement);
+    const finalSubmitButton = document.getElementById('final-submit-button');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdminMode = urlParams.get('mode') === 'admin';
+    if (isAdminMode) {
+        adminNotice.classList.remove('d-none');
+    }
+    let pendingBookingData = {};
+    const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
+    const maxBookingsPerSlot = 4;
+    let selectedDate = '';
+    let selectedTime = '';
+    const today = new Date().toISOString().split('T')[0];
+    visitDateInput.setAttribute('min', today);
+    visitDateInput.value = today;
+    selectedDate = today;
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const isAdminMode = urlParams.get('mode') === 'admin';
-
-        if (isAdminMode) {
-            adminNotice.classList.remove('d-none');
-        }
-
-        let pendingBookingData = {};
-        const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
-        const maxBookingsPerSlot = 4;
-        let selectedDate = '';
-        let selectedTime = '';
-        let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
-        
-        const today = new Date().toISOString().split('T')[0];
-        visitDateInput.setAttribute('min', today);
-        visitDateInput.value = today;
-        selectedDate = today;
-
-        function renderTimeSlots() {
+    async function renderTimeSlots() {
+        timeSlotsContainer.innerHTML = '讀取中...';
+        bookingNotice.classList.add('d-none');
+        const now = new Date();
+        const todayString = now.toISOString().split('T')[0];
+        if (selectedDate === todayString && now.getHours() >= 12 && !isAdminMode) {
+            bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
+            bookingNotice.classList.remove('d-none');
             timeSlotsContainer.innerHTML = '';
-            bookingNotice.classList.add('d-none');
-            const dateBookings = bookings[selectedDate] || {};
-            const now = new Date();
-            const todayString = now.toISOString().split('T')[0];
-            
-            if (selectedDate === todayString && now.getHours() >= 12 && !isAdminMode) {
-                bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
-                bookingNotice.classList.remove('d-none');
-                return;
-            }
-
+            return;
+        }
+        try {
+            const snapshot = await db.collection('bookings').where('date', '==', selectedDate).get();
+            const bookingsForDate = {};
+            snapshot.forEach(doc => {
+                const booking = doc.data();
+                if (!bookingsForDate[booking.time]) bookingsForDate[booking.time] = 0;
+                bookingsForDate[booking.time]++;
+            });
+            timeSlotsContainer.innerHTML = '';
             availableTimes.forEach(time => {
-                const count = dateBookings[time] ? dateBookings[time].length : 0;
+                const count = bookingsForDate[time] || 0;
                 const remaining = maxBookingsPerSlot - count;
                 const isFull = remaining <= 0;
                 let isPast = false;
@@ -97,117 +98,123 @@ document.addEventListener('DOMContentLoaded', function() {
                     const [slotHour, slotMinute] = time.split(':').map(Number);
                     const slotTime = new Date();
                     slotTime.setHours(slotHour, slotMinute, 0, 0);
-                    if (now > slotTime) {
-                        isPast = true;
-                    }
+                    if (now > slotTime) isPast = true;
                 }
                 const button = document.createElement('button');
-                button.className = `btn ${isFull || isPast ? 'btn-outline-secondary full' : 'btn-outline-primary'} time-slot`;
+                button.className = `btn ${isFull||isPast?'btn-outline-secondary full':'btn-outline-primary'} time-slot`;
                 button.dataset.time = time;
                 button.disabled = isFull || isPast;
-                if (isFull) {
-                    button.textContent = `${time} (已額滿)`;
-                } else if (isPast) {
-                    button.textContent = `${time} (已逾時)`;
-                } else {
-                    button.textContent = `${time} (剩餘 ${remaining} 組)`;
-                }
+                if (isFull) button.textContent = `${time} (已額滿)`;
+                else if (isPast) button.textContent = `${time} (已逾時)`;
+                else button.textContent = `${time} (剩餘 ${remaining} 組)`;
                 timeSlotsContainer.appendChild(button);
             });
+        } catch (error) {
+            console.error("讀取時段資料失敗:", error);
+            timeSlotsContainer.innerHTML = '<div class="alert alert-danger">讀取時段失敗，請重新整理頁面。</div>';
         }
+    }
 
-        function displaySuccessMessage(bookingData) {
-            document.getElementById('confirmDate').textContent = selectedDate;
-            document.getElementById('confirmTime').textContent = selectedTime;
-            document.getElementById('confirmResidentName').textContent = bookingData.residentName;
-            document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
-            document.getElementById('confirmVisitorName').textContent = bookingData.visitorName;
-            document.getElementById('confirmVisitorRelationship').textContent = bookingData.visitorRelationship;
-            document.getElementById('confirmVisitorPhone').textContent = bookingData.visitorPhone;
+    function displaySuccessMessage(bookingData) {
+        document.getElementById('confirmDate').textContent = selectedDate;
+        document.getElementById('confirmTime').textContent = selectedTime;
+        document.getElementById('confirmResidentName').textContent = bookingData.residentName;
+        document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
+        document.getElementById('confirmVisitorName').textContent = bookingData.visitorName;
+        document.getElementById('confirmVisitorRelationship').textContent = bookingData.visitorRelationship;
+        document.getElementById('confirmVisitorPhone').textContent = bookingData.visitorPhone;
+        step1.classList.add('d-none');
+        step2.classList.add('d-none');
+        successMessage.classList.remove('d-none');
+    }
+
+    visitDateInput.addEventListener('change', (e) => {
+        selectedDate = e.target.value;
+        renderTimeSlots();
+    });
+
+    timeSlotsContainer.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
+            selectedTime = e.target.dataset.time;
+            selectedTimeDisplay.textContent = `${selectedDate} ${selectedTime}`;
             step1.classList.add('d-none');
-            step2.classList.add('d-none');
-            successMessage.classList.remove('d-none');
+            step2.classList.remove('d-none');
         }
+    });
 
-        visitDateInput.addEventListener('change', (e) => {
-            selectedDate = e.target.value;
-            renderTimeSlots();
-        });
+    backButton.addEventListener('click', () => {
+        step2.classList.add('d-none');
+        step1.classList.remove('d-none');
+        bookingForm.reset();
+        bookingForm.classList.remove('was-validated');
+        residentNameInput.classList.remove('is-valid', 'is-invalid');
+        bedNumberInput.value = '';
+    });
 
-        timeSlotsContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
-                selectedTime = e.target.dataset.time;
-                selectedTimeDisplay.textContent = `${selectedDate} ${selectedTime}`;
-                step1.classList.add('d-none');
-                step2.classList.remove('d-none');
-            }
-        });
-
-        backButton.addEventListener('click', () => {
-            step2.classList.add('d-none');
-            step1.classList.remove('d-none');
-            bookingForm.reset();
-            bookingForm.classList.remove('was-validated');
-            residentNameInput.classList.remove('is-valid', 'is-invalid');
+    residentNameInput.addEventListener('input', function() {
+        const name = this.value.trim();
+        if (residentDatabase[name]) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+            bedNumberInput.value = residentDatabase[name];
+            nameFeedback.textContent = '姓名驗證成功！';
+            nameFeedback.className = 'valid-feedback';
+        } else {
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
             bedNumberInput.value = '';
-        });
+            nameFeedback.textContent = '查無此住民姓名，請確認輸入是否正確。';
+            nameFeedback.className = 'invalid-feedback';
+        }
+    });
 
-        residentNameInput.addEventListener('input', function() {
-            const name = this.value.trim();
-            if (residentDatabase[name]) {
-                this.classList.remove('is-invalid');
-                this.classList.add('is-valid');
-                bedNumberInput.value = residentDatabase[name];
-                nameFeedback.textContent = '姓名驗證成功！';
-                nameFeedback.className = 'valid-feedback';
-            } else {
-                this.classList.remove('is-valid');
-                this.classList.add('is-invalid');
-                bedNumberInput.value = '';
-                nameFeedback.textContent = '查無此住民姓名，請確認輸入是否正確。';
-                nameFeedback.className = 'invalid-feedback';
-            }
-        });
+    bookingForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        bookingForm.classList.add('was-validated');
+        if (!bookingForm.checkValidity()) { return; }
+        const residentName = residentNameInput.value.trim();
+        if (!residentDatabase[residentName]) {
+            bookingForm.classList.remove('was-validated');
+            residentNameInput.classList.add('is-invalid');
+            nameFeedback.textContent = '查無此住民姓名，請確認輸入是否正確。';
+            nameFeedback.style.display = 'block';
+            return;
+        }
+        pendingBookingData = {
+            residentName,
+            bedNumber: bedNumberInput.value,
+            visitorName: document.getElementById('visitorName').value,
+            visitorRelationship: document.getElementById('visitorRelationship').value,
+            visitorPhone: document.getElementById('visitorPhone').value,
+            timestamp: new Date().toISOString()
+        };
+        document.getElementById('modal-confirm-date').textContent = selectedDate;
+        document.getElementById('modal-confirm-time').textContent = selectedTime;
+        document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
+        document.getElementById('modal-confirm-visitorName').textContent = pendingBookingData.visitorName;
+        document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
+        document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
+        confirmationModal.show();
+    });
 
-        bookingForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            bookingForm.classList.add('was-validated');
-            if (!bookingForm.checkValidity()) { return; }
-            const residentName = residentNameInput.value.trim();
-            if (!residentDatabase[residentName]) {
-                bookingForm.classList.remove('was-validated');
-                residentNameInput.classList.add('is-invalid');
-                nameFeedback.textContent = '查無此住民姓名，請確認輸入是否正確。';
-                nameFeedback.style.display = 'block';
-                return;
-            }
-            pendingBookingData = {
-                residentName,
-                bedNumber: bedNumberInput.value,
-                visitorName: document.getElementById('visitorName').value,
-                visitorRelationship: document.getElementById('visitorRelationship').value,
-                visitorPhone: document.getElementById('visitorPhone').value,
-                timestamp: new Date().toISOString()
-            };
-            document.getElementById('modal-confirm-date').textContent = selectedDate;
-            document.getElementById('modal-confirm-time').textContent = selectedTime;
-            document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
-            document.getElementById('modal-confirm-visitorName').textContent = pendingBookingData.visitorName;
-            document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
-            document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
-            confirmationModal.show();
-        });
-
-        finalSubmitButton.addEventListener('click', function() {
-            if (!bookings[selectedDate]) bookings[selectedDate] = {};
-            if (!bookings[selectedDate][selectedTime]) bookings[selectedDate][selectedTime] = [];
-            bookings[selectedDate][selectedTime].push(pendingBookingData);
-            localStorage.setItem('bookings', JSON.stringify(bookings));
+    finalSubmitButton.addEventListener('click', async function() {
+        finalSubmitButton.disabled = true;
+        try {
+            await db.collection('bookings').add({
+                date: selectedDate,
+                time: selectedTime,
+                ...pendingBookingData
+            });
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
-        });
-        
-        renderTimeSlots();
-    }
+        } catch (error) {
+            console.error("預約儲存失敗:", error);
+            alert("預約失敗，請稍後再試。");
+        } finally {
+            finalSubmitButton.disabled = false;
+        }
+    });
+
+    renderTimeSlots();
 });
