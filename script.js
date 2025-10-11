@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // ===============================================================
+    // ==== 住民資料庫 ====
+    // ===============================================================
     const residentDatabase = {
         "楊仲富": "101-1", "洪坤玉": "101-2", "古金山": "102-1", "張元耀": "102-2", "許明通": "103-1",
         "阮茂松": "103-2", "蔡調榮": "105-1", "潘樹杉": "105-2", "阮麗華": "106-2", "林秋豊": "107-1",
@@ -20,21 +23,23 @@ document.addEventListener('DOMContentLoaded', function() {
         "張元平": "313-2", "林安允": "313-3", "林楊智": "313-5", "林昌輝": "313-6", "劉藍麗珠": "315-1",
         "王周絲": "315-2", "吳政達": "318-1", "許榮成": "318-2", "測試住民": "501-1"
     };
-
+    
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral && document.referrer.includes('admin.html')) {
-        const icon = backButtonGeneral.querySelector('i');
-        backButtonGeneral.innerHTML = '';
-        backButtonGeneral.appendChild(icon);
-        backButtonGeneral.append(' 返回儀表板');
-        backButtonGeneral.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.history.back();
-        });
+    if (backButtonGeneral) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (document.referrer.includes('admin.html') || urlParams.get('mode') === 'admin') {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(' 返回儀表板');
+        }
     }
 
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
+        
         const adminNotice = document.getElementById('admin-mode-notice');
         const visitDateInput = document.getElementById('visitDate');
         const timeSlotsContainer = document.getElementById('time-slots');
@@ -50,32 +55,39 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmationModalElement = document.getElementById('confirmationModal');
         const confirmationModal = new bootstrap.Modal(confirmationModalElement);
         const finalSubmitButton = document.getElementById('final-submit-button');
+
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('mode') === 'admin';
+
         if (isAdminMode) {
             adminNotice.classList.remove('d-none');
         }
+
         let pendingBookingData = {};
         const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
         const maxBookingsPerSlot = 4;
         let selectedDate = '';
         let selectedTime = '';
         let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+        
         const today = new Date().toISOString().split('T')[0];
         visitDateInput.setAttribute('min', today);
         visitDateInput.value = today;
         selectedDate = today;
+
         function renderTimeSlots() {
             timeSlotsContainer.innerHTML = '';
             bookingNotice.classList.add('d-none');
             const dateBookings = bookings[selectedDate] || {};
             const now = new Date();
             const todayString = now.toISOString().split('T')[0];
+            
             if (selectedDate === todayString && now.getHours() >= 12 && !isAdminMode) {
                 bookingNotice.textContent = '今日已過中午12點，無法預約當天時段，請選擇其他日期。';
                 bookingNotice.classList.remove('d-none');
                 return;
             }
+
             availableTimes.forEach(time => {
                 const count = dateBookings[time] ? dateBookings[time].length : 0;
                 const remaining = maxBookingsPerSlot - count;
@@ -103,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 timeSlotsContainer.appendChild(button);
             });
         }
+
         function displaySuccessMessage(bookingData) {
             document.getElementById('confirmDate').textContent = selectedDate;
             document.getElementById('confirmTime').textContent = selectedTime;
@@ -115,10 +128,12 @@ document.addEventListener('DOMContentLoaded', function() {
             step2.classList.add('d-none');
             successMessage.classList.remove('d-none');
         }
+
         visitDateInput.addEventListener('change', (e) => {
             selectedDate = e.target.value;
             renderTimeSlots();
         });
+
         timeSlotsContainer.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
                 selectedTime = e.target.dataset.time;
@@ -127,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 step2.classList.remove('d-none');
             }
         });
+
         backButton.addEventListener('click', () => {
             step2.classList.add('d-none');
             step1.classList.remove('d-none');
@@ -135,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
             residentNameInput.classList.remove('is-valid', 'is-invalid');
             bedNumberInput.value = '';
         });
+
         residentNameInput.addEventListener('input', function() {
             const name = this.value.trim();
             if (residentDatabase[name]) {
@@ -151,13 +168,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 nameFeedback.className = 'invalid-feedback';
             }
         });
+
         bookingForm.addEventListener('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
             bookingForm.classList.add('was-validated');
-            if (!bookingForm.checkValidity()) {
-                return;
-            }
+            if (!bookingForm.checkValidity()) { return; }
             const residentName = residentNameInput.value.trim();
             if (!residentDatabase[residentName]) {
                 bookingForm.classList.remove('was-validated');
@@ -182,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
             confirmationModal.show();
         });
+
         finalSubmitButton.addEventListener('click', function() {
             if (!bookings[selectedDate]) bookings[selectedDate] = {};
             if (!bookings[selectedDate][selectedTime]) bookings[selectedDate][selectedTime] = [];
@@ -190,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
         });
+        
         renderTimeSlots();
     }
 });
