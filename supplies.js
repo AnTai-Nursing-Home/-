@@ -1,12 +1,7 @@
 document.addEventListener('firebase-ready', () => {
-    // **** 新增：透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面 ****
     const inventoryTableBody = document.getElementById('inventory-table-body');
-    if (!inventoryTableBody) {
-        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免在其他頁面出錯
-        return;
-    }
+    if (!inventoryTableBody) return;
 
-    // --- 智慧返回按鈕邏輯 (已移到正確的位置) ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         if (document.referrer.includes('admin.html')) {
@@ -18,17 +13,7 @@ document.addEventListener('firebase-ready', () => {
         }
     }
     
-    // ===============================================================
-    // ==== 衛材項目資料 ====
-    // ===============================================================
-    const inventoryData = [
-        { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
-        { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] },
-        { category: '三、清潔與消毒', items: [ { name: '消毒錠', threshold: '＜1盒=缺' }, { name: '酒精棉片', threshold: '＜1盒=缺' }, { name: '生理沖洗瓶', threshold: '＜10瓶=缺' }, { name: '沖洗棉棒', threshold: '＜2大袋=缺' }, { name: '普通棉棒', threshold: '＜2大袋=缺' }, { name: '口腔棉棒', threshold: '＜2大袋=缺' }, { name: '2*2紗布', threshold: '＜10包=缺' }, { name: '3*3紗布', threshold: '＜10包=缺' }, { name: '4*4紗布', threshold: '＜10包=缺' }, { name: '平紗', threshold: '＜5包=缺' }, ] },
-        { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
-    ];
-
-    // --- 元件宣告 ---
+    const inventoryData = [ { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] }, { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] }, { category: '三、清潔與消毒', items: [ { name: '消毒錠', threshold: '＜1盒=缺' }, { name: '酒精棉片', threshold: '＜1盒=缺' }, { name: '生理沖洗瓶', threshold: '＜10瓶=缺' }, { name: '沖洗棉棒', threshold: '＜2大袋=缺' }, { name: '普通棉棒', threshold: '＜2大袋=缺' }, { name: '口腔棉棒', threshold: '＜2大袋=缺' }, { name: '2*2紗布', threshold: '＜10包=缺' }, { name: '3*3紗布', threshold: '＜10包=缺' }, { name: '4*4紗布', threshold: '＜10包=缺' }, { name: '平紗', threshold: '＜5包=缺' }, ] }, { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] } ];
     const tableBody = inventoryTableBody;
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
@@ -41,11 +26,8 @@ document.addEventListener('firebase-ready', () => {
     const reportModalElement = document.getElementById('report-modal');
     const reportModal = new bootstrap.Modal(reportModalElement);
     const generateReportBtn = document.getElementById('generate-report-btn');
-    
-    // --- 變數 ---
     const collectionName = 'supplies_inventory';
 
-    // --- 函式定義 ---
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
         try {
@@ -76,7 +58,6 @@ document.addEventListener('firebase-ready', () => {
             tableBody.innerHTML = '<tr><td colspan="3"><div class="alert alert-danger">讀取資料失敗，請重新整理頁面。</div></td></tr>';
         }
     }
-
     async function saveTodaysData() {
         const selectedDate = dateInput.value;
         if (!selectedDate) { alert('錯誤：請選擇盤點日期！'); return; }
@@ -97,7 +78,7 @@ document.addEventListener('firebase-ready', () => {
         });
         if (!allItemsValid) { alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 "-"）。'); return; }
         const dataToSave = {
-            header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value },
+            header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value, timestamp: firebase.firestore.FieldValue.serverTimestamp() },
             items: newItemsStatus
         };
         try {
@@ -112,7 +93,6 @@ document.addEventListener('firebase-ready', () => {
             saveButton.disabled = false;
         }
     }
-
     async function generateReport() {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
@@ -156,7 +136,6 @@ document.addEventListener('firebase-ready', () => {
             alert("產生報表失敗，請稍後再試。");
         }
     }
-    
     dateInput.addEventListener('change', function() { loadAndRenderDataForDate(this.value); });
     saveButton.addEventListener('click', saveTodaysData);
     resetButton.addEventListener('click', async function() {
@@ -199,7 +178,6 @@ document.addEventListener('firebase-ready', () => {
     });
     exportRangeBtn.addEventListener('click', () => reportModal.show());
     generateReportBtn.addEventListener('click', generateReport);
-
     const todayString = new Date().toISOString().split('T')[0];
     dateInput.value = todayString;
     loadAndRenderDataForDate(todayString);
