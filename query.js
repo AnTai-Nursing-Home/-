@@ -1,4 +1,9 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找 queryPhoneInput 來判斷是否在查詢頁面
+    const queryPhoneInput = document.getElementById('queryPhoneInput');
+    if (!queryPhoneInput) return;
+
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral && document.referrer.includes('admin.html')) {
         backButtonGeneral.href = 'admin.html?view=dashboard';
@@ -7,8 +12,7 @@ document.addEventListener('firebase-ready', () => {
         backButtonGeneral.appendChild(icon);
         backButtonGeneral.append(' 返回儀表板');
     }
-
-    const queryPhoneInput = document.getElementById('queryPhoneInput');
+    
     const searchButton = document.getElementById('searchButton');
     const queryResultsContainer = document.getElementById('queryResults');
 
