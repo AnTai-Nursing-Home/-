@@ -1,21 +1,15 @@
 document.addEventListener('firebase-ready', () => {
-    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral) {
-        if (document.referrer.includes('admin.html')) {
-            backButtonGeneral.href = 'admin.html?view=dashboard';
-            const icon = backButtonGeneral.querySelector('i');
-            backButtonGeneral.innerHTML = '';
-            backButtonGeneral.appendChild(icon);
-            backButtonGeneral.append(' 返回儀表板');
-        }
+    if (backButtonGeneral && document.referrer.includes('admin.html')) {
+        backButtonGeneral.href = 'admin.html?view=dashboard';
+        const icon = backButtonGeneral.querySelector('i');
+        backButtonGeneral.innerHTML = '';
+        backButtonGeneral.appendChild(icon);
+        backButtonGeneral.append(' 返回儀表板');
     }
-
-    // 透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面
+    
     const inventoryTableBody = document.getElementById('inventory-table-body');
-    if (!inventoryTableBody) {
-        return; // 如果找不到表格主體，代表不在盤點頁，直接結束
-    }
+    if (!inventoryTableBody) return;
 
     const inventoryData = [
         { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
@@ -45,10 +39,8 @@ document.addEventListener('firebase-ready', () => {
             const docRef = db.collection(collectionName).doc(date);
             const doc = await docRef.get();
             const dailyData = doc.exists ? doc.data() : {};
-            
             nurseInput.value = dailyData.header?.nurse || '';
             restockerInput.value = dailyData.header?.restocker || '';
-            
             const itemsStatus = dailyData.items || {};
             tableBody.innerHTML = '';
             inventoryData.forEach(categoryData => {
@@ -75,13 +67,10 @@ document.addEventListener('firebase-ready', () => {
     async function saveTodaysData() {
         const selectedDate = dateInput.value;
         if (!selectedDate) { alert('錯誤：請選擇盤點日期！'); return; }
-        
         nurseInput.classList.remove('is-invalid');
         if (!nurseInput.value.trim()) { alert('錯誤：請填寫「盤點護理師」姓名！'); nurseInput.classList.add('is-invalid'); return; }
-        
         let allItemsValid = true;
         const newItemsStatus = {};
-        
         tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => row.classList.remove('table-row-invalid'));
         inventoryData.forEach(categoryData => {
             categoryData.items.forEach(item => {
@@ -93,14 +82,11 @@ document.addEventListener('firebase-ready', () => {
                 newItemsStatus[item.name] = { status: statusSelect.value, restockStatus: restockSelect.value };
             });
         });
-
         if (!allItemsValid) { alert('錯誤：請完成所有「護理師」欄位的盤點（不可為 "-"）。'); return; }
-
         const dataToSave = {
             header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value },
             items: newItemsStatus
         };
-
         try {
             saveButton.disabled = true;
             await db.collection(collectionName).doc(selectedDate).set(dataToSave);
@@ -123,15 +109,11 @@ document.addEventListener('firebase-ready', () => {
                 .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
                 .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
                 .get();
-
             const datesInRange = [];
             snapshot.forEach(doc => datesInRange.push(doc.id));
             datesInRange.sort();
-
             if (datesInRange.length === 0) { alert('您選擇的日期區間內沒有任何盤點紀錄。'); return; }
-            
             let reportHTML = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>衛材盤點區間報表</title><style>body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;}.report-container{width:95%;margin:auto;}h1,h2{text-align:center;}.daily-record{page-break-before:always;margin-top:2rem;}table{width:100%;border-collapse:collapse;margin-top:1rem;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.table-category{background-color:#e9ecef;font-weight:bold;text-align:center;}.item-threshold{font-size:0.8em;color:#666;}.status-danger{color:red;font-weight:bold;}</style></head><body><div class="report-container"><h1>衛材盤點區間報表</h1><h2>${startDate} 至 ${endDate}</h2>`;
-            
             for (const date of datesInRange) {
                 const doc = await db.collection(collectionName).doc(date).get();
                 if (doc.exists) {
