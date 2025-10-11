@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('firebase-ready', () => {
     const passwordSection = document.getElementById('password-section');
     const dashboardSection = document.getElementById('dashboard-section');
     const resultsSection = document.getElementById('results-section');
@@ -38,67 +38,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function displayBookings() {
-        let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const datesToDelete = [];
-        const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-        Object.keys(bookings).forEach(date => {
-            const bookingDate = new Date(date);
-            const timeDifference = today.getTime() - bookingDate.getTime();
-            if (timeDifference > thirtyDaysInMs) {
-                datesToDelete.push(date);
-            }
-        });
-        if (datesToDelete.length > 0) {
-            datesToDelete.forEach(date => { delete bookings[date]; });
-            localStorage.setItem('bookings', JSON.stringify(bookings));
-        }
-        const dates = Object.keys(bookings).sort();
-        const todayString = new Date().toISOString().split('T')[0];
-        const upcomingDates = dates.filter(date => date >= todayString);
-        if (upcomingDates.length === 0) {
-            bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
-            return;
-        }
-        let html = '';
-        upcomingDates.forEach(date => {
-            html += `<h4>${date}</h4>`;
-            html += `<table class="table table-bordered table-striped table-hover"><thead class="table-light"><tr><th>時段</th><th>住民姓名</th><th>床號</th><th>家屬姓名</th><th>與住民關係</th><th>聯絡電話</th><th>操作</th></tr></thead><tbody>`;
-            const times = Object.keys(bookings[date]).sort();
-            times.forEach(time => {
-                bookings[date][time].forEach(booking => {
-                    html += `<tr><td>${time}</td><td>${booking.residentName}</td><td>${booking.bedNumber}</td><td>${booking.visitorName}</td><td>${booking.visitorRelationship || '未填寫'}</td><td>${booking.visitorPhone}</td><td><button class="btn btn-sm btn-danger btn-admin-delete" data-date="${date}" data-time="${time}" data-timestamp="${booking.timestamp}">刪除</button></td></tr>`;
-                });
+    async function displayBookings() {
+        bookingListContainer.innerHTML = '讀取中...';
+        try {
+            const todayString = new Date().toISOString().split('T')[0];
+            const snapshot = await db.collection('bookings')
+                .where('date', '>=', todayString)
+                .orderBy('date', 'asc')
+                .orderBy('time', 'asc')
+                .get();
+
+            const bookingsByDate = {};
+            snapshot.forEach(doc => {
+                const booking = { id: doc.id, ...doc.data() };
+                if (!bookingsByDate[booking.date]) bookingsByDate[booking.date] = [];
+                bookingsByDate[booking.date].push(booking);
             });
-            html += `</tbody></table>`;
-        });
-        bookingListContainer.innerHTML = html;
+
+            const upcomingDates = Object.keys(bookingsByDate).sort();
+            if (upcomingDates.length === 0) {
+                bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
+                return;
+            }
+
+            let html = '';
+            upcomingDates.forEach(date => {
+                html += `<h4>${date}</h4>`;
+                html += `<table class="table table-bordered table-striped table-hover"><thead class="table-light"><tr><th>時段</th><th>住民姓名</th><th>床號</th><th>家屬姓名</th><th>與住民關係</th><th>聯絡電話</th><th>操作</th></tr></thead><tbody>`;
+                bookingsByDate[date].forEach(booking => {
+                    html += `<tr><td>${booking.time}</td><td>${booking.residentName}</td><td>${booking.bedNumber}</td><td>${booking.visitorName}</td><td>${booking.visitorRelationship || '未填寫'}</td><td>${booking.visitorPhone}</td><td><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${booking.id}">刪除</button></td></tr>`;
+                });
+                html += `</tbody></table>`;
+            });
+            bookingListContainer.innerHTML = html;
+        } catch (error) {
+            console.error("讀取預約列表失敗:", error);
+            bookingListContainer.innerHTML = '<div class="alert alert-danger">讀取預約列表失敗，請重新整理頁面。</div>';
+        }
     }
     
     if (loginButton) { loginButton.addEventListener('click', handleLogin); }
     if (passwordInput) { passwordInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleLogin(); }); }
     if (showBookingsBtn) { showBookingsBtn.addEventListener('click', (e) => { e.preventDefault(); dashboardSection.classList.add('d-none'); resultsSection.classList.remove('d-none'); displayBookings(); }); }
     if (backToDashboardBtn) { backToDashboardBtn.addEventListener('click', () => { resultsSection.classList.add('d-none'); dashboardSection.classList.remove('d-none'); }); }
-    if (bookingListContainer) { bookingListContainer.addEventListener('click', (e) => {
+    if (bookingListContainer) { bookingListContainer.addEventListener('click', async (e) => {
         if (e.target.classList.contains('btn-admin-delete')) {
-            const button = e.target;
-            const date = button.dataset.date;
-            const time = button.dataset.time;
-            const timestamp = button.dataset.timestamp;
-            if (confirm(`確定要刪除 ${date} ${time} 的這筆預約嗎？\n此操作無法復原。`)) {
-                let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
-                const bookingsForSlot = bookings[date]?.[time];
-                if (!bookingsForSlot) return;
-                const indexToDelete = bookingsForSlot.findIndex(b => b.timestamp === timestamp);
-                if (indexToDelete > -1) {
-                    bookingsForSlot.splice(indexToDelete, 1);
-                    if (bookingsForSlot.length === 0) delete bookings[date][time];
-                    if (Object.keys(bookings[date] || {}).length === 0) delete bookings[date];
-                    localStorage.setItem('bookings', JSON.stringify(bookings));
+            const docId = e.target.dataset.id;
+            if (confirm(`確定要刪除這筆預約嗎？\n此操作無法復原。`)) {
+                try {
+                    e.target.disabled = true;
+                    await db.collection('bookings').doc(docId).delete();
                     alert('預約已刪除！');
                     displayBookings();
+                } catch (error) {
+                    console.error("管理員刪除失敗:", error);
+                    alert("刪除失敗，請稍後再試。");
+                    e.target.disabled = false;
                 }
             }
         }
