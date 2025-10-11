@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral && document.referrer.includes('admin.html')) {
-        const icon = backButtonGeneral.querySelector('i');
-        backButtonGeneral.innerHTML = '';
-        backButtonGeneral.appendChild(icon);
-        backButtonGeneral.append(' 返回儀表板');
-        backButtonGeneral.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.history.back();
-        });
+    if (backButtonGeneral) {
+        if (document.referrer.includes('admin.html')) {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(' 返回儀表板');
+        }
     }
 
     const queryPhoneInput = document.getElementById('queryPhoneInput');
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             foundBookings.push({ date, time, ...booking });
                         }
                     });
-                });
+});
             }
         });
         displaySearchResults(foundBookings);
