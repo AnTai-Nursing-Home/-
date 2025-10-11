@@ -1,17 +1,29 @@
+// main.js
 document.addEventListener('DOMContentLoaded', function() {
     const langSwitcher = document.getElementById('lang-switcher');
 
     function applyTranslations() {
         const lang = getLanguage();
+        document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
+
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
+            const translation = getText(key);
+            
+            // 檢查是否有 title 屬性需要翻譯
+            const titleKey = element.getAttribute('data-i18n-title');
+            if (titleKey) {
+                element.title = getText(titleKey);
+            }
+
+            // 檢查是否有 placeholder 屬性需要翻譯
             if (element.placeholder) {
-                element.placeholder = getText(key);
+                element.placeholder = translation;
             } else {
-                element.textContent = getText(key);
+                element.textContent = translation;
             }
         });
-        // 更新切換按鈕的文字
+        
         if (langSwitcher) {
             langSwitcher.textContent = getText('lang_switch');
         }
@@ -19,13 +31,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (langSwitcher) {
         langSwitcher.addEventListener('click', () => {
-            const currentLang = getLanguage();
-            const newLang = currentLang === 'zh-TW' ? 'en' : 'zh-TW';
+            const newLang = getLanguage() === 'zh-TW' ? 'en' : 'zh-TW';
             setLanguage(newLang);
-            window.location.reload(); // 重新載入頁面以套用新語言
+            window.location.reload();
         });
     }
 
-    // 頁面載入時立即套用翻譯
     applyTranslations();
 });
