@@ -1,3 +1,4 @@
+// i18n.js
 const translations = {
     'zh-TW': {
         // --- 通用 ---
@@ -24,6 +25,7 @@ const translations = {
         'booking_cancelled_success': '預約已成功取消！',
         'delete_failed': '刪除失敗，請稍後再試。',
         'please_enter_phone': '請輸入電話號碼！',
+        'start_query': '開始查詢',
 
         // --- 主選單 (index.html) ---
         'main_menu_title': '服務選單',
@@ -64,6 +66,16 @@ const translations = {
         'name_validation_success': '姓名驗證成功！',
         'name_validation_fail': '查無此住民姓名，請確認輸入是否正確。',
         'booking_failed': '預約失敗，請稍後再試。',
+        'enter_phone_to_query': '請輸入您預約時使用的電話號碼：',
+
+        // --- 護理師系統 (admin.html) ---
+        'nurse_system': '護理師系統',
+        'enter_nurse_password': '請輸入護理師密碼',
+        'booking_list_query': '預約名單查詢',
+        'proxy_booking': '代客預約',
+        'supplies_inventory': '衛材點班',
+        'leave_system': '預假系統',
+        'all_booking_records': '所有預約紀錄',
 
         // --- 照服員系統 (caregiver.html) ---
         'caregiver_system': '照服員系統',
@@ -97,6 +109,28 @@ const translations = {
         'settings_saved': '預假期間已儲存！頁面將會重新載入以套用新設定。',
         'settings_save_failed': '儲存設定失敗，請稍後再試。',
         'read_calendar_failed': '讀取日曆資料失敗。請重新整理。',
+
+        // --- 探視規範 (rules.html) ---
+        'visit_rules_title': '訪客探視規範',
+        'rules_intro': '為維護住民健康及安全，並確保住民能有安靜、舒適的休養環境，請訪客務必配合下列事項：',
+        'rules_time_header': '一、 探視時間與限制',
+        'rule_time_1': '訪客探視時間：下午 2:30 至 5:00，並請於 5:00 準時離開。',
+        'rule_time_2': '每週開放探視兩次，一次 30 分鐘。',
+        'rule_time_3': '為保障住民安全，每次探視最多三人為限（含兒童）。',
+        'rules_booking_header': '二、 預約方式',
+        'rule_booking_1': '預約請提前一天使用此系統或打電話告知。',
+        'rule_booking_2': '請至服務台填寫或手機掃描登入訪客紀錄單。',
+        'rules_health_header': '三、 訪客健康與衛生須知',
+        'rule_health_1': '進入機構請配戴口罩。',
+        'rule_health_2': '如身體有不適之任何症狀（如：發燒或咳嗽），請勿探視住民。',
+        'rule_health_3': '請落實量測體溫及洗手。',
+        'rules_thanks': '感謝您的理解與配合，共同為住民營造優質的照護環境。',
+
+        // --- 聯絡我們 (contact.html) ---
+        'address': '地址',
+        'phone': '電話',
+        'service_hours': '行政人員/社工師服務時間',
+        'service_hours_time': '週一至週五 08:00 - 17:00',
     },
     'en': {
         // --- Common ---
@@ -123,6 +157,7 @@ const translations = {
         'booking_cancelled_success': 'Booking has been cancelled successfully!',
         'delete_failed': 'Delete failed, please try again later.',
         'please_enter_phone': 'Please enter phone number!',
+        'start_query': 'Start Query',
 
         // --- Main Menu (index.html) ---
         'main_menu_title': 'Service Menu',
@@ -163,6 +198,16 @@ const translations = {
         'name_validation_success': 'Name verification successful!',
         'name_validation_fail': 'Resident name not found, please check your input.',
         'booking_failed': 'Booking failed, please try again later.',
+        'enter_phone_to_query': 'Please enter the phone number used for the booking:',
+
+        // --- Nurse System (admin.html) ---
+        'nurse_system': 'Nurse System',
+        'enter_nurse_password': 'Please enter nurse password',
+        'booking_list_query': 'Booking List Query',
+        'proxy_booking': 'Proxy Booking',
+        'supplies_inventory': 'Supplies Inventory',
+        'leave_system': 'Leave Request System',
+        'all_booking_records': 'All Booking Records',
 
         // --- Caregiver System (caregiver.html) ---
         'caregiver_system': 'Caregiver System',
@@ -196,6 +241,28 @@ const translations = {
         'settings_saved': 'Leave request period has been saved! The page will now reload to apply the new settings.',
         'settings_save_failed': 'Failed to save settings, please try again later.',
         'read_calendar_failed': 'Failed to load calendar data. Please refresh.',
+
+        // --- Visitation Rules (rules.html) ---
+        'visit_rules_title': 'Visitor Guidelines',
+        'rules_intro': 'To maintain the health and safety of our residents and to ensure a quiet and comfortable environment, all visitors are requested to comply with the following:',
+        'rules_time_header': '1. Visiting Hours & Restrictions',
+        'rule_time_1': 'Visiting hours are from 2:30 PM to 5:00 PM. Please leave on time at 5:00 PM.',
+        'rule_time_2': 'Visits are allowed twice a week, for 30 minutes each time.',
+        'rule_time_3': 'For the safety of our residents, a maximum of three visitors (including children) are allowed per resident at a time.',
+        'rules_booking_header': '2. Booking Method',
+        'rule_booking_1': 'Please make a reservation one day in advance using this system or by phone.',
+        'rule_booking_2': 'Please fill out the visitor log at the front desk or scan the QR code to register.',
+        'rules_health_header': '3. Health & Hygiene Guidelines for Visitors',
+        'rule_health_1': 'Please wear a mask upon entering the facility.',
+        'rule_health_2': 'If you have any symptoms of illness (e.g., fever or cough), please refrain from visiting.',
+        'rule_health_3': 'Please have your temperature checked and wash your hands.',
+        'rules_thanks': 'Thank you for your understanding and cooperation in creating a quality care environment for our residents.',
+
+        // --- Contact Us (contact.html) ---
+        'address': 'Address',
+        'phone': 'Phone',
+        'service_hours': 'Admin/Social Worker Service Hours',
+        'service_hours_time': 'Monday to Friday 08:00 - 17:00',
     }
 };
 
