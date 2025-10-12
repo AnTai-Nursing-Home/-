@@ -10,13 +10,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const key = element.getAttribute('data-i18n');
             const translation = getText(key);
             
-            // 檢查是否有 title 屬性需要翻譯
-            const titleKey = element.getAttribute('data-i18n-title');
-            if (titleKey) {
-                element.title = getText(titleKey);
-            }
-
-            // 檢查是否有 placeholder 屬性需要翻譯
             if (element.placeholder) {
                 element.placeholder = translation;
             } else {
