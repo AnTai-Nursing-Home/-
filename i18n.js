@@ -1,4 +1,3 @@
-// i18n.js
 const translations = {
     'zh-TW': {
         // --- 通用 ---
@@ -28,6 +27,7 @@ const translations = {
         'start_query': '開始查詢',
 
         // --- 主選單 (index.html) ---
+        'main_title_full': '安泰醫療社團法人附設安泰護理之家',
         'main_menu_title': '服務選單',
         'booking_visit': '預約探視',
         'query_cancel_booking': '查詢/取消預約',
@@ -83,7 +83,7 @@ const translations = {
         'caregiver_leave_system_menu': '預假系統',
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
 
-        // --- 照服員預假 (leave-caregiver.html) ---
+        // --- 預假系統 (leave.js & leave-caregiver.js) ---
         'caregiver_leave_system': '照服員預假系統',
         'your_name': '您的姓名',
         'enter_your_name_to_book': '請輸入您的姓名以預假',
@@ -160,6 +160,7 @@ const translations = {
         'start_query': 'Start Query',
 
         // --- Main Menu (index.html) ---
+        'main_title_full': 'Antai Medical Corporation Antai Nursing Home',
         'main_menu_title': 'Service Menu',
         'booking_visit': 'Visit Booking',
         'query_cancel_booking': 'Query/Cancel Booking',
@@ -215,7 +216,7 @@ const translations = {
         'caregiver_leave_system_menu': 'Leave Request System',
         'login_network_error': 'A network error occurred during login, please try again later.',
 
-        // --- Caregiver Leave (leave-caregiver.html) ---
+        // --- Leave Request System (leave.js & leave-caregiver.js) ---
         'caregiver_leave_system': 'Caregiver Leave System',
         'your_name': 'Your Name',
         'enter_your_name_to_book': 'Please enter your name to request leave',
