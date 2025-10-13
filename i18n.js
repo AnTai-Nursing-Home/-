@@ -83,33 +83,39 @@ const translations = {
         'caregiver_leave_system_menu': '預假系統',
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
 
-        // --- 預假系統 (leave.js & leave-caregiver.js) ---
-        'caregiver_leave_system': '照服員預假系統',
+        // --- 預假系統 (通用) ---
+        'leave_system_title': '預假/預班系統',
+        'nurse_leave_system': '護理師 預假/預班系統',
+        'caregiver_leave_system': '照服員 預假/預班系統',
         'your_name': '您的姓名',
-        'enter_your_name_to_book': '請輸入您的姓名以預假',
+        'enter_your_name_to_book': '請輸入您的姓名以預排',
         'calendar_title_prefix': '年',
         'calendar_title_suffix': '月',
-        'leave_period_open': '預假開放中！期間為',
-        'leave_period_closed': '目前非預假開放期間。下次開放期間為',
+        'leave_period_open': '預假/預班開放中！期間：',
+        'leave_period_closed': '目前非預假/預班開放期間。下次開放：',
         'to': '至',
         'not_set': '未設定',
         'save_my_leave': '儲存我的預假',
         'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
         'admin_verification': '管理員驗證',
         'enter_admin_password_for_settings': '請輸入管理員密碼以設定預假期間。',
-        'set_next_month_leave_period': '設定下個月的預假開放期間',
-        'start_date': '開始日期',
-        'end_date': '結束日期',
+        'set_next_month_leave_period': '設定下個月的預假/預班開放期間',
+        'start_date': '開始日期與時間',
+        'end_date': '結束日期與時間',
         'employee': '員工',
-        'leave_saved': '的預假已儲存',
+        'leave_saved': '的預假已儲存！',
         'save_failed': '儲存失敗，請稍後再試。',
         'verification_failed': '驗證時發生網路錯誤，請檢查網路連線或稍後再試。',
         'set_start_end_date': '請設定開始與結束日期',
         'end_date_cannot_be_earlier': '結束日期不可早於開始日期',
         'settings_saved': '預假期間已儲存！頁面將會重新載入以套用新設定。',
         'settings_save_failed': '儲存設定失敗，請稍後再試。',
-        'read_calendar_failed': '讀取日曆資料失敗。請重新整理。',
-
+        'read_calendar_failed': '讀取日曆失敗，請重新整理。',
+        'select_shift_for': '選擇 {date} 的班別',
+        'clear_this_day': '清除此日',
+        'no_leave_requests_next_month': '下個月尚無預假/預班紀錄。',
+        'load_summary_failed': '讀取總覽資料失敗。',
+        
         // --- 探視規範 (rules.html) ---
         'visit_rules_title': '訪客探視規範',
         'rules_intro': '為維護住民健康及安全，並確保住民能有安靜、舒適的休養環境，請訪客務必配合下列事項：',
@@ -159,7 +165,7 @@ const translations = {
         'please_enter_phone': 'Please enter phone number!',
         'start_query': 'Start Query',
 
-        // --- Main Menu (index.html) ---
+        // --- Main Menu ---
         'main_title_full': 'Antai Medical Corporation Antai Nursing Home',
         'main_menu_title': 'Service Menu',
         'booking_visit': 'Visit Booking',
@@ -171,7 +177,7 @@ const translations = {
         'nurse_login': 'Nurse Login',
         'caregiver_login': 'Caregiver Login',
         
-        // --- Booking System (booking.html) ---
+        // --- Booking System ---
         'booking_system_title': 'Visit Booking System',
         'admin_mode_notice': 'Admin Mode: You can now book slots for today after 12:00 PM.',
         'step1_title': 'Step 1: Select Date and Time',
@@ -201,7 +207,7 @@ const translations = {
         'booking_failed': 'Booking failed, please try again later.',
         'enter_phone_to_query': 'Please enter the phone number used for the booking:',
 
-        // --- Nurse System (admin.html) ---
+        // --- Nurse System ---
         'nurse_system': 'Nurse System',
         'enter_nurse_password': 'Please enter nurse password',
         'booking_list_query': 'Booking List Query',
@@ -210,31 +216,33 @@ const translations = {
         'leave_system': 'Leave Request System',
         'all_booking_records': 'All Booking Records',
 
-        // --- Caregiver System (caregiver.html) ---
+        // --- Caregiver System ---
         'caregiver_system': 'Caregiver System',
         'enter_caregiver_password': 'Please enter caregiver password',
         'caregiver_leave_system_menu': 'Leave Request System',
         'login_network_error': 'A network error occurred during login, please try again later.',
 
-        // --- Leave Request System (leave.js & leave-caregiver.js) ---
-        'caregiver_leave_system': 'Caregiver Leave System',
+        // --- Leave Request System (Common) ---
+        'leave_system_title': 'Leave/Shift Request System',
+        'nurse_leave_system': 'Nurse Leave/Shift System',
+        'caregiver_leave_system': 'Caregiver Leave/Shift System',
         'your_name': 'Your Name',
-        'enter_your_name_to_book': 'Please enter your name to request leave',
+        'enter_your_name_to_book': 'Please enter your name to request',
         'calendar_title_prefix': '',
         'calendar_title_suffix': '',
-        'leave_period_open': 'Leave request period is open! From',
-        'leave_period_closed': 'Leave request period is currently closed. Next period:',
+        'leave_period_open': 'Leave/Shift request period is open! From',
+        'leave_period_closed': 'Leave/Shift request period is currently closed. Next period:',
         'to': 'to',
         'not_set': 'Not set',
         'save_my_leave': 'Save My Leave Requests',
         'week_sun': 'Sun', 'week_mon': 'Mon', 'week_tue': 'Tue', 'week_wed': 'Wed', 'week_thu': 'Thu', 'week_fri': 'Fri', 'week_sat': 'Sat',
         'admin_verification': 'Admin Verification',
-        'enter_admin_password_for_settings': 'Please enter admin password to set the leave request period.',
-        'set_next_month_leave_period': 'Set Leave Request Period for Next Month',
-        'start_date': 'Start Date',
-        'end_date': 'End Date',
+        'enter_admin_password_for_settings': 'Please enter admin password to set the leave/shift request period.',
+        'set_next_month_leave_period': 'Set Leave/Shift Request Period for Next Month',
+        'start_date': 'Start Date & Time',
+        'end_date': 'End Date & Time',
         'employee': 'Employee',
-        'leave_saved': '\'s leave requests have been saved',
+        'leave_saved': '\'s leave request has been saved!',
         'save_failed': 'Save failed, please try again later.',
         'verification_failed': 'A network error occurred during verification, please check your connection or try again later.',
         'set_start_end_date': 'Please set both start and end dates',
@@ -242,8 +250,12 @@ const translations = {
         'settings_saved': 'Leave request period has been saved! The page will now reload to apply the new settings.',
         'settings_save_failed': 'Failed to save settings, please try again later.',
         'read_calendar_failed': 'Failed to load calendar data. Please refresh.',
-
-        // --- Visitation Rules (rules.html) ---
+        'select_shift_for': 'Select shift for {date}',
+        'clear_this_day': 'Clear This Day',
+        'no_leave_requests_next_month': 'No leave/shift requests for next month yet.',
+        'load_summary_failed': 'Failed to load summary data.',
+        
+        // --- Visitation Rules ---
         'visit_rules_title': 'Visitor Guidelines',
         'rules_intro': 'To maintain the health and safety of our residents and to ensure a quiet and comfortable environment, all visitors are requested to comply with the following:',
         'rules_time_header': '1. Visiting Hours & Restrictions',
@@ -259,7 +271,7 @@ const translations = {
         'rule_health_3': 'Please have your temperature checked and wash your hands.',
         'rules_thanks': 'Thank you for your understanding and cooperation in creating a quality care environment for our residents.',
 
-        // --- Contact Us (contact.html) ---
+        // --- Contact Us ---
         'address': 'Address',
         'phone': 'Phone',
         'service_hours': 'Admin/Social Worker Service Hours',
