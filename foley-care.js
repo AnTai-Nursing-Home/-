@@ -1,6 +1,9 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找一個只在 foley-care.html 存在的獨特元件，來判斷我們是否在正確的頁面
     const careTableBody = document.getElementById('care-table-body');
-    if (!careTableBody) return;
+    if (!careTableBody) {
+        return; // 如果找不到，代表不在照護評估頁，直接結束
+    }
 
     // --- 元件宣告 ---
     const residentNameSelect = document.getElementById('resident-name-select');
@@ -24,17 +27,17 @@ document.addEventListener('firebase-ready', () => {
     const careItems = ['handHygiene', 'fixedPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
     const careFormsCollection = 'foley_care_records';
-    let currentCareFormId = null; // 記錄目前正在編輯的照護單ID
-    let residentsData = {}; // 暫存住民基本資料
+    let currentCareFormId = null;
+    let residentsData = {};
 
-    // --- 函式 ---
+    // --- 函式定義 ---
     async function loadResidentsDropdown() {
         residentNameSelect.innerHTML = '<option value="">讀取中...</option>';
         try {
             const snapshot = await db.collection(residentsCollection).orderBy('bedNumber').get();
             let optionsHTML = '<option value="" selected disabled>請選擇住民</option>';
             snapshot.forEach(doc => {
-                residentsData[doc.id] = doc.data(); // 暫存基本資料以供後續使用
+                residentsData[doc.id] = doc.data();
                 optionsHTML += `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
             });
             residentNameSelect.innerHTML = optionsHTML;
@@ -54,7 +57,7 @@ document.addEventListener('firebase-ready', () => {
         }
 
         careFormListSection.classList.remove('d-none');
-        careFormSection.classList.add('d-none'); // 選擇新住民時，先隱藏表單
+        careFormSection.classList.add('d-none');
         const [year, monthNum] = month.split('-');
         careFormListTitle.textContent = `${residentName} - ${year}年 ${parseInt(monthNum, 10)}月 的照護單`;
         careFormList.innerHTML = '<div class="list-group-item">讀取中...</div>';
@@ -124,7 +127,7 @@ document.addEventListener('firebase-ready', () => {
                          </tr>`;
             careTableBody.innerHTML += row;
         }
-        checkTimePermissions(); // 渲染完畢後檢查權限
+        checkTimePermissions();
     }
 
     function checkTimePermissions() {
@@ -132,20 +135,18 @@ document.addEventListener('firebase-ready', () => {
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         const currentTime = currentHour + currentMinute / 60;
-
-        const caregiverEnabled = (currentTime >= 10 && currentTime < 14.5); // 10:00 - 14:30
-        const nurseEnabled = (currentTime >= 14.5 && currentTime < 16);    // 14:31 - 16:00
-        
+        const caregiverEnabled = (currentTime >= 10 && currentTime < 14.5);
+        const nurseEnabled = (currentTime >= 14.5 && currentTime < 16);
         document.querySelectorAll('.form-check-input, .signature-field[data-signature="caregiver"]').forEach(el => el.disabled = !caregiverEnabled);
         document.querySelectorAll('.signature-field[data-signature="nurse"]').forEach(el => el.disabled = !nurseEnabled);
     }
-    
+
     // --- 事件監聽器 ---
     residentNameSelect.addEventListener('change', loadCareFormList);
     monthSelect.addEventListener('change', loadCareFormList);
 
     addNewFormBtn.addEventListener('click', () => {
-        currentCareFormId = null; // 標示為新表單
+        currentCareFormId = null;
         const residentName = residentNameSelect.value;
         const residentData = residentsData[residentName];
         if (!residentData) return;
@@ -155,10 +156,10 @@ document.addEventListener('firebase-ready', () => {
         genderInput.value = residentData.gender;
         birthdayInput.value = residentData.birthday;
         checkinDateInput.value = residentData.checkinDate;
-        placementDateInput.value = new Date().toISOString().split('T')[0]; // 預設今天
+        placementDateInput.value = new Date().toISOString().split('T')[0];
         closingDateInput.value = '';
         
-        renderCareTable({}); // 產生空白表格
+        renderCareTable({});
         careFormSection.classList.remove('d-none');
         careFormListSection.classList.add('d-none');
     });
@@ -177,7 +178,6 @@ document.addEventListener('firebase-ready', () => {
             if (doc.exists) {
                 const data = doc.data();
                 const residentData = residentsData[data.residentName];
-
                 residentNameDisplay.value = data.residentName;
                 bedNumberInput.value = residentData.bedNumber;
                 genderInput.value = residentData.gender;
@@ -185,7 +185,6 @@ document.addEventListener('firebase-ready', () => {
                 checkinDateInput.value = residentData.checkinDate;
                 placementDateInput.value = data.placementDate;
                 closingDateInput.value = data.closingDate || '';
-
                 renderCareTable(data.dailyData || {});
                 careFormSection.classList.remove('d-none');
                 careFormListSection.classList.add('d-none');
@@ -197,7 +196,7 @@ document.addEventListener('firebase-ready', () => {
     });
 
     saveCareFormBtn.addEventListener('click', async () => {
-        const residentName = residentNameSelect.value;
+        const residentName = residentNameDisplay.value;
         const month = monthSelect.value;
         const placementDate = placementDateInput.value;
         if (!residentName || !month || !placementDate) {
@@ -211,7 +210,7 @@ document.addEventListener('firebase-ready', () => {
             const record = {};
             let hasData = false;
             careItems.forEach(itemKey => {
-                const checkedRadio = row.querySelector(`input[name="${itemKey}-${row.rowIndex}"]:checked`);
+                const checkedRadio = row.querySelector(`input[name^="${itemKey}"]:checked`);
                 if (checkedRadio) {
                     record[itemKey] = checkedRadio.value;
                     hasData = true;
@@ -240,7 +239,8 @@ document.addEventListener('firebase-ready', () => {
                 await db.collection(careFormsCollection).add(dataToSave);
             }
             alert('照護單已成功儲存！');
-            loadCareFormList(); // 返回列表
+            careFormSection.classList.add('d-none');
+            loadCareFormList();
         } catch (error) {
             console.error("儲存失敗:", error);
             alert("儲存失敗，請稍後再試。");
@@ -250,17 +250,13 @@ document.addEventListener('firebase-ready', () => {
     });
     
     careTableBody.addEventListener('blur', (e) => {
-        if (e.target.classList.contains('signature-field') && e.target.value) {
+        if (e.target.classList.contains('signature-field') && e.target.value && !e.target.value.includes('@')) {
             const signatureType = e.target.dataset.signature;
             const now = new Date();
             const timeString = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
-            // 在簽名後方加上時間戳
-            if (!e.target.value.includes('@')) {
-                e.target.value += ` @ ${timeString}`;
-            }
+            e.target.value += ` @ ${timeString}`;
         }
     }, true);
-
 
     // --- 初始操作 ---
     const today = new Date();
@@ -269,5 +265,5 @@ document.addEventListener('firebase-ready', () => {
     monthSelect.value = `${currentYear}-${currentMonth}`;
 
     loadResidentsDropdown();
-    setInterval(checkTimePermissions, 60 * 1000); // 每分鐘檢查一次時間權限
+    setInterval(checkTimePermissions, 60 * 1000);
 });
