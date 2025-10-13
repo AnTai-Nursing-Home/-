@@ -26,6 +26,7 @@
                                 <i class="fas fa-cog me-1"></i> 管理員設定
                             </button>
                         </div>
+                        
                         <div id="admin-settings-panel" class="d-none mt-4 p-3 border rounded bg-light">
                             <h5>設定下個月的預假/預班開放期間</h5>
                             <div class="row g-3 align-items-end">
@@ -34,6 +35,7 @@
                                 <div class="col-md-2"><button id="save-settings-btn" class="btn btn-success w-100">儲存</button></div>
                             </div>
                         </div>
+
                         <div id="admin-view-panel" class="d-none">
                             <hr>
                             <h4 class="text-center mb-3">下個月預假/預班總覽</h4>
@@ -44,27 +46,38 @@
                             </div>
                             <div id="admin-summary-table" class="table-responsive"></div>
                         </div>
+
                         <hr id="admin-hr" class="d-none">
+
                         <div class="row justify-content-center mb-4">
                             <div class="col-md-6">
                                 <label for="employee-name" class="form-label">您的姓名</label>
                                 <input type="text" id="employee-name" class="form-control" placeholder="請輸入您的姓名以預排">
                             </div>
                         </div>
+
                         <div id="leave-calendar-container">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 id="calendar-title"></h4>
                             </div>
                             <div id="leave-calendar" class="leave-calendar-grid"></div>
                         </div>
+                        
                         <div id="status-notice" class="alert mt-3" role="alert"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="modal fade" id="admin-password-modal" tabindex="-1"></div>
-    <div class="modal fade" id="shift-modal" tabindex="-1"></div>
+
+    <div class="modal fade" id="admin-password-modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">管理員驗證</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p>請輸入管理員密碼以設定預假期間。</p><input type="password" id="admin-password-input" class="form-control"><div id="admin-error-msg" class="text-danger mt-2 d-none">密碼錯誤！</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="button" id="admin-login-btn" class="btn btn-primary"><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> 確認</button></div></div></div>
+    </div>
+
+    <div class="modal fade" id="shift-modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="shift-modal-title">選擇班別</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><div class="d-grid gap-2"><button class="btn btn-lg btn-outline-info shift-btn" data-shift="AM">AM (上午)</button><button class="btn btn-lg btn-outline-dark shift-btn" data-shift="PM">PM (下午)</button><hr><button class="btn btn-lg btn-outline-primary shift-btn" data-shift="D">D (白班)</button><button class="btn btn-lg btn-outline-warning shift-btn" data-shift="E">E (小夜)</button><button class="btn btn-lg btn-outline-secondary shift-btn" data-shift="N">N (大夜)</button><button class="btn btn-lg btn-outline-success shift-btn" data-shift="休">休 (休假)</button></div></div><div class="modal-footer"><button type="button" class="btn btn-danger" id="clear-shift-btn">清除此日</button></div></div></div>
+    </div>
+    
     <footer class="site-footer d-print-none">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
