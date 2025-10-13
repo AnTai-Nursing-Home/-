@@ -60,7 +60,6 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
 
-            // 自動儲存，所以隱藏舊的儲存按鈕
             if (document.getElementById('save-leave-btn')) {
                 document.getElementById('save-leave-btn').style.display = 'none';
             }
@@ -159,8 +158,45 @@ document.addEventListener('firebase-ready', () => {
         }
     }
     
-    function generateReportHTML(title, subTitle, content) {
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:20mm;}h1,h2,h3{text-align:center;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;}th{background-color:#f2f2f2;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${subTitle}</h2>${content}</body></html>`;
+    async function generateProfessionalReportHTML() {
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const year = nextMonth.getFullYear();
+        const month = nextMonth.getMonth();
+        const monthName = `${year}年 ${month + 1}月`;
+        
+        const snapshot = await db.collection(requestsCollection).get();
+        const requestsByDate = {};
+        const employeeSet = new Set();
+        snapshot.forEach(doc => {
+            requestsByDate[doc.id] = doc.data();
+            Object.keys(doc.data()).forEach(name => employeeSet.add(name));
+        });
+
+        const sortedEmployees = Array.from(employeeSet).sort();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let tableHeaderHTML = '<tr><th>姓名</th>';
+        for (let i = 1; i <= daysInMonth; i++) {
+            tableHeaderHTML += `<th>${i}</th>`;
+        }
+        tableHeaderHTML += '</tr>';
+
+        let tableBodyHTML = '';
+        sortedEmployees.forEach(name => {
+            tableBodyHTML += `<tr><td>${name}</td>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const shift = requestsByDate[dateStr]?.[name] || '';
+                tableBodyHTML += `<td>${shift}</td>`;
+            }
+            tableBodyHTML += '</tr>';
+        });
+
+        const tableContent = `<table class="report-table"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
+        const title = "護理師預假/預班總表";
+
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table{width:100%;border-collapse:collapse;font-size:10pt;}th,td{border:1px solid black;padding:4px;text-align:center;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
     }
 
     calendarDiv.addEventListener('click', (e) => {
@@ -213,7 +249,6 @@ document.addEventListener('firebase-ready', () => {
     }
 
     employeeNameInput.addEventListener('input', renderCalendar);
-
     adminSettingsBtn.addEventListener('click', () => {
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
@@ -274,28 +309,28 @@ document.addEventListener('firebase-ready', () => {
     });
     
     if(exportAdminWordBtn) {
-        exportAdminWordBtn.addEventListener('click', () => {
-            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+        exportAdminWordBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
             const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '預班總覽.doc'; a.click();
+            const a = document.createElement("a"); a.href = url; a.download = '護理師預班總表.doc'; a.click();
             window.URL.revokeObjectURL(url);
         });
     }
 
     if(exportAdminExcelBtn) {
-        exportAdminExcelBtn.addEventListener('click', () => {
-            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+        exportAdminExcelBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
             const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '預班總覽.xls'; a.click();
+            const a = document.createElement("a"); a.href = url; a.download = '護理師預班總表.xls'; a.click();
             window.URL.revokeObjectURL(url);
         });
     }
 
     if(printAdminReportBtn) {
-        printAdminReportBtn.addEventListener('click', () => {
-            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+        printAdminReportBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
             const printWindow = window.open('', '_blank');
             printWindow.document.write(content);
             printWindow.document.close();
@@ -304,6 +339,5 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
-    // --- 初始操作 ---
     renderCalendar();
 });
