@@ -1,22 +1,20 @@
 document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面
+    // **** 新增：透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面 ****
     const calendarDiv = document.getElementById('leave-calendar');
     if (!calendarDiv) {
-        return; // 如果找不到日曆，代表不在預假頁，直接結束
+        // 如果找不到日曆，代表不在預假頁，直接結束，避免在其他頁面出錯
+        return;
     }
 
-    // --- 智慧返回按鈕邏輯 ---
+    // --- 智慧返回按鈕邏輯 (已移到正確的位置) ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
-        // 檢查是不是從員工系統來的 (透過 referrer)
         if (document.referrer.includes('admin.html')) {
-            // 將返回按鈕的連結直接設定為帶有參數的儀表板頁面
             backButtonGeneral.href = 'admin.html?view=dashboard';
-            
             const icon = backButtonGeneral.querySelector('i');
-            backButtonGeneral.innerHTML = ''; // 清空按鈕內容
-            backButtonGeneral.appendChild(icon); // 把圖示加回去
-            backButtonGeneral.append(' 返回儀表板'); // 加上新文字
+            backButtonGeneral.innerHTML = '';
+            backButtonGeneral.appendChild(icon);
+            backButtonGeneral.append(' 返回儀表板');
         }
     }
     
@@ -42,8 +40,8 @@ document.addEventListener('firebase-ready', () => {
     let currentlyEditingDate = null;
     
     // --- 變數 ---
-    const settingsCollection = 'leave_settings'; // 護理師的設定
-    const requestsCollection = 'leave_requests'; // 護理師的預假紀錄
+    const settingsCollection = 'leave_settings';
+    const requestsCollection = 'leave_requests';
     let isRequestPeriodOpen = false;
 
     // --- 函式定義 ---
@@ -65,7 +63,9 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.className = 'alert alert-warning';
                 statusNotice.textContent = `目前非預假/預班開放期間。下次開放期間為 ${settings.startDate || '未設定'} 至 ${settings.endDate || '未設定'}。`;
             }
-            saveLeaveBtn.disabled = !isRequestPeriodOpen;
+            if (document.getElementById('save-leave-btn')) { // 舊版 HTML 可能沒有此按鈕
+                document.getElementById('save-leave-btn').style.display = 'none'; // 隱藏舊的儲存按鈕
+            }
 
             const snapshot = await db.collection(requestsCollection).get();
             const requestsByDate = {};
@@ -133,9 +133,7 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    async function renderAdminView() {
-        // ... (管理員總覽的邏輯不變) ...
-    }
+    async function renderAdminView() { /* ... 內容不變 ... */ }
     
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
@@ -186,14 +184,19 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    saveLeaveBtn.addEventListener('click', () => {
-        alert('您的預排會在您選擇班別後自動儲存，無需再按此按鈕。');
-    });
+    if (saveLeaveBtn) {
+        saveLeaveBtn.style.display = 'none'; // 直接隱藏舊的儲存按鈕
+    }
 
     employeeNameInput.addEventListener('input', renderCalendar);
-    adminSettingsBtn.addEventListener('click', () => adminPasswordModal.show());
+    adminSettingsBtn.addEventListener('click', () => {
+        adminPasswordInput.value = '';
+        adminErrorMsg.classList.add('d-none');
+        adminPasswordModal.show();
+    });
     adminLoginBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
     saveSettingsBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
-
+    
+    // 初始操作
     renderCalendar();
 });
