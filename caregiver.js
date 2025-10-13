@@ -5,9 +5,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.getElementById('loginButton-caregiver');
     const errorMessage = document.getElementById('errorMessage-caregiver');
 
+    // **** 新增：檢查 URL 參數，如果指定了儀表板，就直接顯示 ****
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('view') === 'dashboard') {
+        passwordSection.classList.add('d-none');
+        dashboardSection.classList.remove('d-none');
+    }
+
     async function handleLogin() {
         const password = passwordInput.value;
-        if (!password) { alert('請輸入密碼'); return; }
+        if (!password) { alert(getText('please_enter_password')); return; }
         loginButton.disabled = true;
         try {
             const response = await fetch('/api/caregiver-login', {
@@ -23,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('登入時發生錯誤:', error);
-            alert('登入時發生網路錯誤，請稍後再試。');
+            alert(getText('login_network_error'));
         } finally {
             loginButton.disabled = false;
         }
