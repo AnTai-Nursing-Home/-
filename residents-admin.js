@@ -25,7 +25,6 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 變數 ---
     const collectionName = 'residents';
-    let lastFocusedElement = null; // 用來記錄打開 modal 前的焦點
 
     // --- 函式定義 ---
     async function loadAndRenderResidents() {
@@ -162,7 +161,6 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 事件監聽器 ---
     addResidentBtn.addEventListener('click', () => {
-        lastFocusedElement = document.activeElement; // 記錄是哪個按鈕打開了 modal
         residentModalTitle.textContent = '新增住民';
         residentForm.reset();
         nameInput.disabled = false;
@@ -176,7 +174,6 @@ document.addEventListener('firebase-ready', () => {
         const residentId = row.dataset.id;
 
         if (target.classList.contains('btn-edit')) {
-            lastFocusedElement = target; // 記錄是哪個按鈕打開了 modal
             residentModalTitle.textContent = '編輯住民資料';
             residentForm.reset();
             
@@ -217,13 +214,6 @@ document.addEventListener('firebase-ready', () => {
     });
     excelFileInput.addEventListener('change', handleExcelImport);
     
-    // **** 新增：處理 modal 關閉後的焦點 ****
-    residentModalEl.addEventListener('hidden.bs.modal', () => {
-        if (lastFocusedElement) {
-            lastFocusedElement.focus();
-        }
-    });
-
     // --- 初始操作 ---
     loadAndRenderResidents();
 });
