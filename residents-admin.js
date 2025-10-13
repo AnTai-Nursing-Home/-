@@ -25,7 +25,6 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 變數 ---
     const collectionName = 'residents';
-    let currentEditingId = null; 
 
     // --- 函式定義 ---
     async function loadAndRenderResidents() {
@@ -127,9 +126,15 @@ document.addEventListener('firebase-ready', () => {
                         
                         const formatDate = (date) => {
                             if (!date) return '';
+                            // 檢查是否為 Excel 讀取出的日期物件
                             if (date instanceof Date) {
-                                return date.toISOString().split('T')[0];
+                                // 將日期物件轉換為 YYYY-MM-DD 格式
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                return `${year}-${month}-${day}`;
                             }
+                            // 如果已經是文字格式，直接回傳
                             return String(date);
                         };
 
@@ -162,7 +167,6 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 事件監聽器 ---
     addResidentBtn.addEventListener('click', () => {
-        currentEditingId = null;
         residentModalTitle.textContent = '新增住民';
         residentForm.reset();
         nameInput.disabled = false;
@@ -171,11 +175,11 @@ document.addEventListener('firebase-ready', () => {
 
     residentsTableBody.addEventListener('click', async (e) => {
         const target = e.target;
-        if (!target.closest('tr')) return;
-        const residentId = target.closest('tr').dataset.id;
+        const row = target.closest('tr');
+        if (!row) return;
+        const residentId = row.dataset.id;
 
         if (target.classList.contains('btn-edit')) {
-            currentEditingId = residentId;
             residentModalTitle.textContent = '編輯住民資料';
             residentForm.reset();
             
@@ -185,7 +189,7 @@ document.addEventListener('firebase-ready', () => {
                 if (doc.exists) {
                     const data = doc.data();
                     nameInput.value = residentId;
-                    nameInput.disabled = true;
+                    nameInput.disabled = true; // 編輯時姓名(ID)不可修改
                     bedNumberInput.value = data.bedNumber || '';
                     genderInput.value = data.gender || '';
                     birthdayInput.value = data.birthday || '';
