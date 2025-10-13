@@ -9,7 +9,7 @@ document.addEventListener('firebase-ready', () => {
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         if (document.referrer.includes('caregiver.html')) {
-            backButtonGeneral.href = 'caregiver.html';
+            backButtonGeneral.href = 'caregiver.html?view=dashboard';
         }
     }
     
@@ -49,7 +49,6 @@ document.addEventListener('firebase-ready', () => {
             const startDate = settings.startDate ? new Date(settings.startDate) : null;
             const endDate = settings.endDate ? new Date(settings.endDate) : null;
             const today = new Date();
-
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
@@ -61,7 +60,7 @@ document.addEventListener('firebase-ready', () => {
             }
 
             if (document.getElementById('save-leave-btn')) {
-                document.getElementById('save-leave-btn').style.display = 'none'; // 自動儲存，所以隱藏舊的儲存按鈕
+                document.getElementById('save-leave-btn').style.display = 'none';
             }
 
             const snapshot = await db.collection(requestsCollection).get();
@@ -172,7 +171,7 @@ document.addEventListener('firebase-ready', () => {
             if (dayEl && !dayEl.classList.contains('disabled')) {
                 if (!employeeNameInput.value.trim()) { alert(getText('error_enter_name_first')); employeeNameInput.focus(); return; }
                 currentlyEditingDate = dayEl.dataset.date;
-                document.getElementById('shift-modal-title').textContent = `${getText('select_shift_for')} ${currentlyEditingDate}`;
+                document.getElementById('shift-modal-title').textContent = getText('select_shift_for', { date: currentlyEditingDate });
                 shiftModal.show();
             }
         }
