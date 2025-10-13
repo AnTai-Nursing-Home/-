@@ -25,6 +25,7 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 變數 ---
     const collectionName = 'residents';
+    let lastFocusedElement = null; // 用來記錄打開 modal 前的焦點
 
     // --- 函式定義 ---
     async function loadAndRenderResidents() {
@@ -126,15 +127,9 @@ document.addEventListener('firebase-ready', () => {
                         
                         const formatDate = (date) => {
                             if (!date) return '';
-                            // 檢查是否為 Excel 讀取出的日期物件
                             if (date instanceof Date) {
-                                // 將日期物件轉換為 YYYY-MM-DD 格式
-                                const year = date.getFullYear();
-                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                const day = String(date.getDate()).padStart(2, '0');
-                                return `${year}-${month}-${day}`;
+                                return date.toISOString().split('T')[0];
                             }
-                            // 如果已經是文字格式，直接回傳
                             return String(date);
                         };
 
@@ -167,6 +162,7 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 事件監聽器 ---
     addResidentBtn.addEventListener('click', () => {
+        lastFocusedElement = document.activeElement; // 記錄是哪個按鈕打開了 modal
         residentModalTitle.textContent = '新增住民';
         residentForm.reset();
         nameInput.disabled = false;
@@ -180,6 +176,7 @@ document.addEventListener('firebase-ready', () => {
         const residentId = row.dataset.id;
 
         if (target.classList.contains('btn-edit')) {
+            lastFocusedElement = target; // 記錄是哪個按鈕打開了 modal
             residentModalTitle.textContent = '編輯住民資料';
             residentForm.reset();
             
@@ -189,7 +186,7 @@ document.addEventListener('firebase-ready', () => {
                 if (doc.exists) {
                     const data = doc.data();
                     nameInput.value = residentId;
-                    nameInput.disabled = true; // 編輯時姓名(ID)不可修改
+                    nameInput.disabled = true;
                     bedNumberInput.value = data.bedNumber || '';
                     genderInput.value = data.gender || '';
                     birthdayInput.value = data.birthday || '';
@@ -220,6 +217,13 @@ document.addEventListener('firebase-ready', () => {
     });
     excelFileInput.addEventListener('change', handleExcelImport);
     
+    // **** 新增：處理 modal 關閉後的焦點 ****
+    residentModalEl.addEventListener('hidden.bs.modal', () => {
+        if (lastFocusedElement) {
+            lastFocusedElement.focus();
+        }
+    });
+
     // --- 初始操作 ---
     loadAndRenderResidents();
 });
