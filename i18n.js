@@ -26,7 +26,7 @@ const translations = {
         'please_enter_phone': '請輸入電話號碼！',
         'start_query': '開始查詢',
 
-        // --- 主選單 ---
+        // --- 主選單 (index.html) ---
         'main_title_full': '安泰醫療社團法人附設安泰護理之家',
         'main_menu_title': '服務選單',
         'booking_visit': '預約探視',
@@ -38,7 +38,7 @@ const translations = {
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
         
-        // --- 預約系統 ---
+        // --- 預約系統 (booking.html) ---
         'booking_system_title': '預約探視系統',
         'admin_mode_notice': '管理員模式：您現在可以預約今天已過中午的時段。',
         'step1_title': '步驟一：選擇探視日期與時段',
@@ -67,8 +67,13 @@ const translations = {
         'name_validation_fail': '查無此住民姓名，請確認輸入是否正確。',
         'booking_failed': '預約失敗，請稍後再試。',
         'enter_phone_to_query': '請輸入您預約時使用的電話號碼：',
+        'please_fill_resident_name': '請填寫住民姓名。',
+        'please_fill_visitor_name': '請填寫您的姓名。',
+        'please_fill_visitor_relationship': '請填寫您與住民的關係。',
+        'please_fill_contact_phone': '請填寫您的聯絡電話。',
+        'confirm_booking_info_title': '請確認您的預約資訊',
 
-        // --- 護理師系統 ---
+        // --- 護理師系統 (admin.html) ---
         'nurse_system': '護理師系統',
         'enter_nurse_password': '請輸入護理師密碼',
         'booking_list_query': '預約名單查詢',
@@ -78,14 +83,14 @@ const translations = {
         'all_booking_records': '所有預約紀錄',
         'resident_data_management': '住民資料管理',
 
-        // --- 照服員系統 ---
+        // --- 照服員系統 (caregiver.html) ---
         'caregiver_system': '照服員系統',
         'enter_caregiver_password': '請輸入照服員密碼',
         'caregiver_leave_system_menu': '預假系統',
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
         'foley_care_assessment_menu': '導尿管照護評估',
 
-        // --- 預假/預班系統 ---
+        // --- 預假/預班系統 (通用) ---
         'leave_system_title': '預假/預班系統',
         'nurse_leave_system': '護理師 預假/預班系統',
         'caregiver_leave_system': '照服員 預假/預班系統',
@@ -117,7 +122,7 @@ const translations = {
         'no_leave_requests_next_month': '下個月尚無預假/預班紀錄。',
         'load_summary_failed': '讀取總覽資料失敗。',
         
-        // --- 探視規範 ---
+        // --- 探視規範 (rules.html) ---
         'visit_rules_title': '訪客探視規範',
         'rules_intro': '為維護住民健康及安全，並確保住民能有安靜、舒適的休養環境，請訪客務必配合下列事項：',
         'rules_time_header': '一、 探視時間與限制', 'rule_time_1': '訪客探視時間：下午 2:30 至 5:00，並請於 5:00 準時離開。',
@@ -127,8 +132,30 @@ const translations = {
         'rule_health_1': '進入機構請配戴口罩。', 'rule_health_2': '如身體有不適之任何症狀（如：發燒或咳嗽），請勿探視住民。',
         'rule_health_3': '請落實量測體溫及洗手。', 'rules_thanks': '感謝您的理解與配合，共同為住民營造優質的照護環境。',
 
-        // --- 聯絡我們 ---
+        // --- 聯絡我們 (contact.html) ---
         'address': '地址', 'phone': '電話', 'service_hours': '行政人員/社工師服務時間', 'service_hours_time': '週一至週五 08:00 - 17:00',
+
+        // --- 住民資料管理 (residents-admin.html) ---
+        'add_resident': '新增住民', 'import_from_excel': '從 Excel 匯入',
+        'name': '姓名', 'gender': '性別', 'birthday': '生日', 'checkin_date': '入住日期',
+        'actions': '操作', 'edit': '編輯', 'delete': '刪除',
+        'reading_residents': '讀取中...', 'no_residents_yet': '尚無住民資料，請點擊「新增住民」或「從 Excel 匯入」開始建立。',
+        'read_failed': '讀取資料失敗，請重新整理頁面。', 'fill_resident_name': '請務必填寫住民姓名！',
+        'save_failed_try_again': '儲存失敗，請稍後再試。',
+        'confirm_delete_resident': '您確定要刪除住民「{name}」的資料嗎？\n此操作無法復原！',
+
+        // --- 導尿管照護評估 (foley-care.html) ---
+        'foley_care_assessment': '導尿管照護評估表',
+        'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
+        'save_this_month_record': '儲存本月紀錄', 'resident_basic_info': '住民基本資料',
+        'please_select_resident': '請選擇住民', 'select_month': '選擇月份',
+        'care_form_list_for': '{name} - {year}年 {month}月 的照護單',
+        'add_this_month_form': '新增本月照護單', 'no_records_for_month': '尚無此月份的照護單紀錄。',
+        'placement_date': '置放日期', 'closing_date': '結案日期', 'assessment_items': '每日評估項目',
+        'signature': '簽章', 'caregiver': '照服員', 'nurse': '護理師',
+        'hand_hygiene': '1. 手部衛生', 'fixed_position': '2. 固定位置', 'unobstructed_drainage': '3. 無菌暢通',
+        'avoid_overfill': '4. 避免過滿', 'urethral_cleaning': '5. 尿道口清潔', 'single_use_container': '6. 單一非共用容器',
+        'yes': 'Yes', 'no': 'No', 'save_this_care_form': '儲存此張照護單',
     },
     'en': {
         // --- Common ---
@@ -161,6 +188,9 @@ const translations = {
         'error_resident_name_invalid': 'Resident name is incorrect, cannot submit booking!', 'name_validation_success': 'Name verification successful!',
         'name_validation_fail': 'Resident name not found, please check your input.', 'booking_failed': 'Booking failed, please try again later.',
         'enter_phone_to_query': 'Please enter the phone number used for the booking:',
+        'please_fill_resident_name': 'Please fill in resident\'s name.', 'please_fill_visitor_name': 'Please fill in your name.',
+        'please_fill_visitor_relationship': 'Please fill in your relationship to the resident.', 'please_fill_contact_phone': 'Please fill in your contact phone.',
+        'confirm_booking_info_title': 'Please confirm your booking information',
 
         // --- Nurse System ---
         'nurse_system': 'Nurse System', 'enter_nurse_password': 'Please enter nurse password',
@@ -202,6 +232,29 @@ const translations = {
 
         // --- Contact Us ---
         'address': 'Address', 'phone': 'Phone', 'service_hours': 'Admin/Social Worker Service Hours', 'service_hours_time': 'Monday to Friday 08:00 - 17:00',
+        
+        // --- Resident Data Management ---
+        'add_resident': 'Add Resident', 'import_from_excel': 'Import from Excel',
+        'name': 'Name', 'gender': 'Gender', 'birthday': 'Birthday', 'checkin_date': 'Check-in Date',
+        'actions': 'Actions', 'edit': 'Edit', 'delete': 'Delete',
+        'reading_residents': 'Loading...', 'no_residents_yet': 'No resident data found. Click "Add Resident" or "Import from Excel" to start.',
+        'read_failed': 'Failed to load data, please refresh the page.', 'fill_resident_name': 'Resident name is required!',
+        'save_failed_try_again': 'Save failed, please try again later.',
+        'confirm_delete_resident': 'Are you sure you want to delete the record for "{name}"?\nThis action cannot be undone!',
+
+        // --- Foley Care Assessment ---
+        'foley_care_assessment': 'Foley Care Assessment Form',
+        'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
+        'save_this_month_record': 'Save This Month\'s Record', 'resident_basic_info': 'Resident\'s Basic Information',
+        'please_select_resident': 'Please select a resident', 'select_month': 'Select Month',
+        'care_form_list_for': 'Care Forms for {name} - {year}/{month}',
+        'add_this_month_form': 'Add New Form for This Month',
+        'no_records_for_month': 'No care form records for this month yet.',
+        'placement_date': 'Placement Date', 'closing_date': 'Closing Date', 'assessment_items': 'Daily Assessment Items',
+        'signature': 'Signature', 'caregiver': 'Caregiver', 'nurse': 'Nurse',
+        'hand_hygiene': '1. Hand Hygiene', 'fixed_position': '2. Fixed Position', 'unobstructed_drainage': '3. Unobstructed Drainage',
+        'avoid_overfill': '4. Avoid Overfill', 'urethral_cleaning': '5. Urethral Cleaning', 'single_use_container': '6. Single Use Container',
+        'yes': 'Yes', 'no': 'No', 'save_this_care_form': 'Save This Care Form',
     }
 };
 
