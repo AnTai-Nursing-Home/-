@@ -337,3 +337,5 @@ body {
 .calendar-day.shift-e { background-color: #fff3cd !important; color: #000 !important; }
 .calendar-day.shift-n { background-color: #d6d8db !important; color: #000 !important; }
 .calendar-day.shift-休 { background-color: #d1e7dd !important; color: #000 !important; }
+.calendar-day.shift-am { background-color: #cff4fc !important; color: #000 !important; } /* 淡藍色 */
+.calendar-day.shift-pm { background-color: #e2e3e5 !important; color: #000 !important; } /* 淡灰色 */
