@@ -91,7 +91,7 @@ const translations = {
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
         'foley_care_assessment_menu': '導尿管照護評估',
 
-        // --- 預假/預班系統 (通用) ---
+        // --- 預假系統 (通用) ---
         'leave_system_title': '預假/預班系統',
         'nurse_leave_system': '護理師 預假/預班系統',
         'caregiver_leave_system': '照服員 預假/預班系統',
