@@ -2,7 +2,7 @@ document.addEventListener('firebase-ready', () => {
     // 透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面
     const calendarDiv = document.getElementById('leave-calendar');
     if (!calendarDiv) {
-        return; // 如果找不到日曆，代表不在預假頁，直接結束，避免在其他頁面出錯
+        return; // 如果找不到日曆，代表不在預假頁，直接結束
     }
 
     // --- 智慧返回按鈕邏輯 ---
@@ -60,8 +60,9 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
 
+            // 自動儲存，所以隱藏舊的儲存按鈕
             if (document.getElementById('save-leave-btn')) {
-                document.getElementById('save-leave-btn').style.display = 'none'; // 自動儲存，所以隱藏舊的儲存按鈕
+                document.getElementById('save-leave-btn').style.display = 'none';
             }
 
             const snapshot = await db.collection(requestsCollection).get();
@@ -303,5 +304,6 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
+    // --- 初始操作 ---
     renderCalendar();
 });
