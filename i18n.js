@@ -1,3 +1,4 @@
+// i18n.js
 const translations = {
     'zh-TW': {
         // --- 通用 ---
@@ -247,7 +248,7 @@ const translations = {
         'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
         'save_this_month_record': 'Save This Month\'s Record', 'resident_basic_info': 'Resident\'s Basic Information',
         'please_select_resident': 'Please select a resident', 'select_month': 'Select Month',
-        'care_form_list_for': 'Care Forms for {name} - {year}/{month}',
+        'care_form_list_for': 'Care Forms for {name} - {month}/{year}',
         'add_this_month_form': 'Add New Form for This Month',
         'no_records_for_month': 'No care form records for this month yet.',
         'placement_date': 'Placement Date', 'closing_date': 'Closing Date', 'assessment_items': 'Daily Assessment Items',
