@@ -1,20 +1,15 @@
 document.addEventListener('firebase-ready', () => {
-    // **** 新增：透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面 ****
+    // 透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面
     const calendarDiv = document.getElementById('leave-calendar');
     if (!calendarDiv) {
-        // 如果找不到日曆，代表不在預假頁，直接結束，避免在其他頁面出錯
-        return;
+        return; // 如果找不到日曆，代表不在預假頁，直接結束，避免在其他頁面出錯
     }
 
-    // --- 智慧返回按鈕邏輯 (已移到正確的位置) ---
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         if (document.referrer.includes('admin.html')) {
             backButtonGeneral.href = 'admin.html?view=dashboard';
-            const icon = backButtonGeneral.querySelector('i');
-            backButtonGeneral.innerHTML = '';
-            backButtonGeneral.appendChild(icon);
-            backButtonGeneral.append(' 返回儀表板');
         }
     }
     
@@ -22,7 +17,6 @@ document.addEventListener('firebase-ready', () => {
     const calendarTitle = document.getElementById('calendar-title');
     const statusNotice = document.getElementById('status-notice');
     const employeeNameInput = document.getElementById('employee-name');
-    const saveLeaveBtn = document.getElementById('save-leave-btn');
     const adminSettingsBtn = document.getElementById('admin-settings-btn');
     const adminPasswordModalEl = document.getElementById('admin-password-modal');
     const adminPasswordModal = new bootstrap.Modal(adminPasswordModalEl);
@@ -33,15 +27,17 @@ document.addEventListener('firebase-ready', () => {
     const adminHr = document.getElementById('admin-hr');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const adminViewPanel = document.getElementById('admin-view-panel');
-    const adminCalendarDiv = document.getElementById('admin-calendar');
     const adminSummaryTableDiv = document.getElementById('admin-summary-table');
     const shiftModalEl = document.getElementById('shift-modal');
     const shiftModal = new bootstrap.Modal(shiftModalEl);
+    const exportAdminWordBtn = document.getElementById('export-admin-word');
+    const exportAdminExcelBtn = document.getElementById('export-admin-excel');
+    const printAdminReportBtn = document.getElementById('print-admin-report');
     let currentlyEditingDate = null;
     
     // --- 變數 ---
-    const settingsCollection = 'leave_settings';
-    const requestsCollection = 'leave_requests';
+    const settingsCollection = 'leave_settings'; // 護理師的設定
+    const requestsCollection = 'leave_requests'; // 護理師的預假紀錄
     let isRequestPeriodOpen = false;
 
     // --- 函式定義 ---
@@ -64,8 +60,8 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
 
-            if (saveLeaveBtn) {
-                saveLeaveBtn.style.display = 'none'; // 直接隱藏舊的儲存按鈕
+            if (document.getElementById('save-leave-btn')) {
+                document.getElementById('save-leave-btn').style.display = 'none'; // 自動儲存，所以隱藏舊的儲存按鈕
             }
 
             const snapshot = await db.collection(requestsCollection).get();
@@ -109,7 +105,7 @@ document.addEventListener('firebase-ready', () => {
                     if (currentEmployee && names.includes(currentEmployee)) {
                         dayEl.classList.add('selected');
                         const myShift = dailyRequests[currentEmployee];
-                        dayEl.classList.add(`shift-${myShift.toLowerCase()}`);
+                        dayEl.classList.add(`shift-${String(myShift).toLowerCase()}`);
                     } else {
                         dayEl.classList.add('has-other-requests');
                     }
@@ -216,6 +212,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     employeeNameInput.addEventListener('input', renderCalendar);
+
     adminSettingsBtn.addEventListener('click', () => {
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
@@ -306,6 +303,5 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
-    // 初始操作
     renderCalendar();
 });
