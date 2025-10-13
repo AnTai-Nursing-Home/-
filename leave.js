@@ -63,7 +63,12 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.className = 'alert alert-warning';
                 statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
-            
+
+            // 自動儲存，所以隱藏手動儲存按鈕
+            if (document.getElementById('save-leave-btn')) {
+                document.getElementById('save-leave-btn').style.display = 'none';
+            }
+
             const snapshot = await db.collection(requestsCollection).get();
             const requestsByDate = {};
             snapshot.forEach(doc => {
@@ -101,7 +106,7 @@ document.addEventListener('firebase-ready', () => {
                 const dailyRequests = requestsByDate[dateStr] || {};
                 let namesHTML = '';
                 if (Object.keys(dailyRequests).length > 0) {
-                    const names = Object.keys(dailyRequests);
+                    const names = Object.keys(dailyRequests).sort();
                     if (currentEmployee && names.includes(currentEmployee)) {
                         dayEl.classList.add('selected');
                         const myShift = dailyRequests[currentEmployee];
@@ -162,7 +167,6 @@ document.addEventListener('firebase-ready', () => {
         return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:20mm;}h1,h2,h3{text-align:center;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;}th{background-color:#f2f2f2;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${subTitle}</h2>${content}</body></html>`;
     }
 
-    // --- 事件監聽器 ---
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
@@ -211,12 +215,9 @@ document.addEventListener('firebase-ready', () => {
             alert("儲存失敗，請稍後再試。");
         }
     }
-    
-    if (document.getElementById('save-leave-btn')) {
-        document.getElementById('save-leave-btn').style.display = 'none';
-    }
 
     employeeNameInput.addEventListener('input', renderCalendar);
+
     adminSettingsBtn.addEventListener('click', () => {
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
@@ -275,7 +276,7 @@ document.addEventListener('firebase-ready', () => {
             saveSettingsBtn.disabled = false;
         }
     });
-
+    
     if(exportAdminWordBtn) {
         exportAdminWordBtn.addEventListener('click', () => {
             const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
@@ -307,6 +308,5 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
-    // --- 初始操作 ---
     renderCalendar();
 });
