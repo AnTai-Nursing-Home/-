@@ -125,7 +125,6 @@ document.addEventListener('firebase-ready', () => {
                     if (name) {
                         const docRef = db.collection(collectionName).doc(name);
                         
-                        // 處理日期格式，確保是 YYYY-MM-DD
                         const formatDate = (date) => {
                             if (!date) return '';
                             if (date instanceof Date) {
