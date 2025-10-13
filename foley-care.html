@@ -21,69 +21,69 @@
                             <a href="caregiver.html" class="btn btn-back-menu">
                                 <i class="fas fa-arrow-left me-2"></i>返回照服員系統
                             </a>
-                            <button id="save-care-form" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>儲存本月紀錄
-                            </button>
                         </div>
 
-                        <fieldset class="border p-3 mb-4">
-                            <legend class="float-none w-auto px-2">住民基本資料</legend>
-                            <div class="row g-3">
-                                <div class="col-md-3">
-                                    <label for="resident-name" class="form-label">姓名</label>
-                                    <select id="resident-name" class="form-select"></select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="resident-bedNumber" class="form-label">床號</label>
-                                    <input type="text" id="resident-bedNumber" class="form-control" readonly>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="resident-gender" class="form-label">性別</label>
-                                    <input type="text" id="resident-gender" class="form-control" readonly>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="resident-birthday" class="form-label">生日</label>
-                                    <input type="text" id="resident-birthday" class="form-control" readonly>
-                                </div>
-                                 <div class="col-md-3">
-                                    <label for="resident-checkinDate" class="form-label">入住日期</label>
-                                    <input type="text" id="resident-checkinDate" class="form-control" readonly>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="foley-placement-date" class="form-label">置放日期</label>
-                                    <input type="date" id="foley-placement-date" class="form-control">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="foley-closing-date" class="form-label">結案日期</label>
-                                    <input type="date" id="foley-closing-date" class="form-control">
-                                </div>
+                        <div class="row justify-content-center mb-4">
+                            <div class="col-md-4">
+                                <label for="resident-name-select" class="form-label fs-5">請選擇住民</label>
+                                <select id="resident-name-select" class="form-select form-select-lg"></select>
                             </div>
-                        </fieldset>
-
-                        <div class="table-responsive">
-                            <h4 id="table-month-title" class="text-center mb-3"></h4>
-                            <table class="table table-bordered table-sm text-center align-middle care-table">
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">日期</th>
-                                        <th colspan="6">每日評估項目</th>
-                                        <th colspan="2">簽章</th>
-                                    </tr>
-                                    <tr>
-                                        <th>1. 手部衛生</th>
-                                        <th>2. 固定位置</th>
-                                        <th>3. 無菌暢通</th>
-                                        <th>4. 避免過滿</th>
-                                        <th>5. 尿道口清潔</th>
-                                        <th>6. 單一非共用容器</th>
-                                        <th>照服員</th>
-                                        <th>護理師</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="care-table-body">
-                                    </tbody>
-                            </table>
+                            <div class="col-md-4">
+                                <label for="month-select" class="form-label fs-5">選擇月份</label>
+                                <input type="month" id="month-select" class="form-select form-select-lg">
+                            </div>
                         </div>
+
+                        <hr>
+
+                        <div id="care-form-list-section" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 id="care-form-list-title"></h4>
+                                <button id="add-new-form-btn" class="btn btn-success">
+                                    <i class="fas fa-plus me-2"></i>新增本月照護單
+                                </button>
+                            </div>
+                            <div id="care-form-list" class="list-group">
+                                </div>
+                        </div>
+
+                        <div id="care-form-section" class="d-none">
+                            <fieldset class="border p-3 mb-4">
+                                <legend class="float-none w-auto px-2">住民基本資料</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-3"><label class="form-label">姓名</label><input type="text" id="resident-name-display" class="form-control" readonly></div>
+                                    <div class="col-md-2"><label class="form-label">床號</label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
+                                    <div class="col-md-2"><label class="form-label">性別</label><input type="text" id="resident-gender" class="form-control" readonly></div>
+                                    <div class="col-md-2"><label class="form-label">生日</label><input type="text" id="resident-birthday" class="form-control" readonly></div>
+                                    <div class="col-md-3"><label class="form-label">入住日期</label><input type="text" id="resident-checkinDate" class="form-control" readonly></div>
+                                    <div class="col-md-3"><label for="foley-placement-date" class="form-label">置放日期</label><input type="date" id="foley-placement-date" class="form-control"></div>
+                                    <div class="col-md-3"><label for="foley-closing-date" class="form-label">結案日期</label><input type="date" id="foley-closing-date" class="form-control"></div>
+                                </div>
+                            </fieldset>
+
+                            <div class="table-responsive">
+                                <h4 id="table-month-title" class="text-center mb-3"></h4>
+                                <table class="table table-bordered table-sm text-center align-middle care-table">
+                                    <thead>
+                                        <tr>
+                                            <th rowspan="2">日期</th>
+                                            <th colspan="6">每日評估項目</th>
+                                            <th colspan="2">簽章</th>
+                                        </tr>
+                                        <tr>
+                                            <th>1. 手部衛生</th><th>2. 固定位置</th><th>3. 無菌暢通</th>
+                                            <th>4. 避免過滿</th><th>5. 尿道口清潔</th><th>6. 單一非共用容器</th>
+                                            <th>照服員</th><th>護理師</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="care-table-body"></tbody>
+                                </table>
+                            </div>
+                            <div class="text-center mt-4">
+                                <button id="save-care-form" class="btn btn-primary btn-lg">儲存此張照護單</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
