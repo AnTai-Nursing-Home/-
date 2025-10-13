@@ -1,12 +1,11 @@
 document.addEventListener('firebase-ready', () => {
-    // **** 新增：透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面 ****
+    // 透過尋找一個只在 leave.html 存在的獨特元件，來判斷我們是否在預假頁面
     const calendarDiv = document.getElementById('leave-calendar');
     if (!calendarDiv) {
-        // 如果找不到日曆，代表不在預假頁，直接結束，避免在其他頁面出錯
-        return;
+        return; // 如果找不到日曆，代表不在預假頁，直接結束
     }
 
-    // --- 智慧返回按鈕邏輯 (已移到正確的位置) ---
+    // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral) {
         if (document.referrer.includes('admin.html')) {
@@ -22,7 +21,6 @@ document.addEventListener('firebase-ready', () => {
     const calendarTitle = document.getElementById('calendar-title');
     const statusNotice = document.getElementById('status-notice');
     const employeeNameInput = document.getElementById('employee-name');
-    const saveLeaveBtn = document.getElementById('save-leave-btn');
     const adminSettingsBtn = document.getElementById('admin-settings-btn');
     const adminPasswordModalEl = document.getElementById('admin-password-modal');
     const adminPasswordModal = new bootstrap.Modal(adminPasswordModalEl);
@@ -33,15 +31,17 @@ document.addEventListener('firebase-ready', () => {
     const adminHr = document.getElementById('admin-hr');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const adminViewPanel = document.getElementById('admin-view-panel');
-    const adminCalendarDiv = document.getElementById('admin-calendar');
     const adminSummaryTableDiv = document.getElementById('admin-summary-table');
     const shiftModalEl = document.getElementById('shift-modal');
     const shiftModal = new bootstrap.Modal(shiftModalEl);
+    const exportAdminWordBtn = document.getElementById('export-admin-word');
+    const exportAdminExcelBtn = document.getElementById('export-admin-excel');
+    const printAdminReportBtn = document.getElementById('print-admin-report');
     let currentlyEditingDate = null;
     
     // --- 變數 ---
-    const settingsCollection = 'leave_settings';
-    const requestsCollection = 'leave_requests';
+    const settingsCollection = 'leave_settings'; // 護理師的設定
+    const requestsCollection = 'leave_requests'; // 護理師的預假紀錄
     let isRequestPeriodOpen = false;
 
     // --- 函式定義 ---
@@ -57,16 +57,13 @@ document.addEventListener('firebase-ready', () => {
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
-                statusNotice.textContent = `預假/預班開放中！期間為 ${settings.startDate} 至 ${settings.endDate}。`;
+                statusNotice.textContent = `預假/預班開放中！期間： ${settings.startDate.replace('T', ' ')} 至 ${settings.endDate.replace('T', ' ')}`;
             } else {
                 isRequestPeriodOpen = false;
                 statusNotice.className = 'alert alert-warning';
-                statusNotice.textContent = `目前非預假/預班開放期間。下次開放期間為 ${settings.startDate || '未設定'} 至 ${settings.endDate || '未設定'}。`;
+                statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
-            if (document.getElementById('save-leave-btn')) { // 舊版 HTML 可能沒有此按鈕
-                document.getElementById('save-leave-btn').style.display = 'none'; // 隱藏舊的儲存按鈕
-            }
-
+            
             const snapshot = await db.collection(requestsCollection).get();
             const requestsByDate = {};
             snapshot.forEach(doc => {
@@ -133,8 +130,39 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    async function renderAdminView() { /* ... 內容不變 ... */ }
+    async function renderAdminView() {
+        try {
+            const snapshot = await db.collection(requestsCollection).get();
+            const requestsByDate = {};
+            snapshot.forEach(doc => {
+                requestsByDate[doc.id] = doc.data();
+            });
+
+            const sortedDates = Object.keys(requestsByDate).sort();
+            if (sortedDates.length === 0) {
+                adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假/預班紀錄。</p>';
+                return;
+            }
+
+            let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預排人員及班別</th></tr></thead><tbody>';
+            sortedDates.forEach(date => {
+                const dailyRequests = requestsByDate[date];
+                const entries = Object.entries(dailyRequests).map(([name, shift]) => `${name}: ${shift}`);
+                tableHTML += `<tr><td>${date}</td><td>${entries.join(', ')}</td></tr>`;
+            });
+            tableHTML += '</tbody></table>';
+            adminSummaryTableDiv.innerHTML = tableHTML;
+        } catch (error) {
+            console.error("渲染管理員視圖失敗:", error);
+            adminViewPanel.innerHTML = '<div class="alert alert-danger">讀取總覽資料失敗。</div>';
+        }
+    }
     
+    function generateReportHTML(title, subTitle, content) {
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:20mm;}h1,h2,h3{text-align:center;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;}th{background-color:#f2f2f2;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${subTitle}</h2>${content}</body></html>`;
+    }
+
+    // --- 事件監聽器 ---
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
@@ -183,9 +211,9 @@ document.addEventListener('firebase-ready', () => {
             alert("儲存失敗，請稍後再試。");
         }
     }
-
-    if (saveLeaveBtn) {
-        saveLeaveBtn.style.display = 'none'; // 直接隱藏舊的儲存按鈕
+    
+    if (document.getElementById('save-leave-btn')) {
+        document.getElementById('save-leave-btn').style.display = 'none';
     }
 
     employeeNameInput.addEventListener('input', renderCalendar);
@@ -194,9 +222,91 @@ document.addEventListener('firebase-ready', () => {
         adminErrorMsg.classList.add('d-none');
         adminPasswordModal.show();
     });
-    adminLoginBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
-    saveSettingsBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
+
+    adminLoginBtn.addEventListener('click', async () => {
+        const password = adminPasswordInput.value;
+        if (!password) { return; }
+        const spinner = adminLoginBtn.querySelector('.spinner-border');
+        adminLoginBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        adminErrorMsg.classList.add('d-none');
+        try {
+            const response = await fetch('/api/leave-admin-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+            if (response.ok) {
+                adminPasswordModal.hide();
+                adminSettingsPanel.classList.remove('d-none');
+                adminHr.classList.remove('d-none');
+                adminViewPanel.classList.remove('d-none');
+                renderAdminView();
+                const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+                document.getElementById('leave-start-date').value = settings.startDate || '';
+                document.getElementById('leave-end-date').value = settings.endDate || '';
+            } else {
+                adminErrorMsg.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('驗證時發生網路錯誤，請檢查網路連線或稍後再試。');
+        } finally {
+            adminLoginBtn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+
+    saveSettingsBtn.addEventListener('click', async () => {
+        const startDate = document.getElementById('leave-start-date').value;
+        const endDate = document.getElementById('leave-end-date').value;
+        if (!startDate || !endDate) { alert('請設定開始與結束日期'); return; }
+        if (new Date(endDate) < new Date(startDate)) { alert('結束日期不可早於開始日期'); return; }
+        saveSettingsBtn.disabled = true;
+        try {
+            await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
+            alert('預假期間已儲存！頁面將會重新載入以套用新設定。');
+            window.location.reload();
+        } catch (error) {
+            console.error("儲存設定失敗:", error);
+            alert("儲存失敗，請稍後再試。");
+        } finally {
+            saveSettingsBtn.disabled = false;
+        }
+    });
+
+    if(exportAdminWordBtn) {
+        exportAdminWordBtn.addEventListener('click', () => {
+            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+            const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = '預班總覽.doc'; a.click();
+            window.URL.revokeObjectURL(url);
+        });
+    }
+
+    if(exportAdminExcelBtn) {
+        exportAdminExcelBtn.addEventListener('click', () => {
+            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+            const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = '預班總覽.xls'; a.click();
+            window.URL.revokeObjectURL(url);
+        });
+    }
+
+    if(printAdminReportBtn) {
+        printAdminReportBtn.addEventListener('click', () => {
+            const content = generateReportHTML("護理師預假/預班總覽", "", adminSummaryTableDiv.innerHTML);
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(content);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
+        });
+    }
     
-    // 初始操作
+    // --- 初始操作 ---
     renderCalendar();
 });
