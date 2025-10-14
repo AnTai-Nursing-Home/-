@@ -61,7 +61,7 @@ document.addEventListener('firebase-ready', () => {
         }
 
         careFormListSection.classList.remove('d-none');
-        careFormSection.classList.add('d-none');
+        careFormSection.classList.add('d-none'); // 選擇新住民時，先隱藏表單
         const [year, monthNum] = month.split('-');
         const lang = getLanguage();
         const title = lang === 'en' 
@@ -150,7 +150,30 @@ document.addEventListener('firebase-ready', () => {
     }
     
     function generateReportHTML() {
-        // ... (This function is now more complex)
+        const residentName = residentNameDisplay.value;
+        const month = monthSelect.value;
+        const [year, monthNum] = month.split('-');
+        let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;"><thead><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th rowspan="2" style="border: 1px solid black; padding: 4px;">${getText('date')}</th><th colspan="6" style="border: 1px solid black; padding: 4px;">${getText('assessment_items')}</th><th colspan="2" style="border: 1px solid black; padding: 4px;">${getText('signature')}</th></tr><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 4px;">${getText('hand_hygiene')}</th><th style="border: 1px solid black; padding: 4px;">${getText('fixed_position')}</th><th style="border: 1px solid black; padding: 4px;">${getText('unobstructed_drainage')}</th><th style="border: 1px solid black; padding: 4px;">${getText('avoid_overfill')}</th><th style="border: 1px solid black; padding: 4px;">${getText('urethral_cleaning')}</th><th style="border: 1px solid black; padding: 4px;">${getText('single_use_container')}</th><th style="border: 1px solid black; padding: 4px;">${getText('caregiver')}</th><th style="border: 1px solid black; padding: 4px;">${getText('nurse')}</th></tr></thead><tbody>`;
+        careTableBody.querySelectorAll('tr').forEach(row => {
+            const date = row.querySelector('th').textContent;
+            let rowContent = `<tr><td style="border: 1px solid black; padding: 4px;">${date}</td>`;
+            row.querySelectorAll('td').forEach((cell, index) => {
+                let cellValue = '';
+                if (index < careItems.length) {
+                    const checkedRadio = cell.querySelector('input:checked');
+                    cellValue = checkedRadio ? checkedRadio.value : '';
+                } else {
+                    cellValue = cell.querySelector('input').value;
+                }
+                rowContent += `<td style="border: 1px solid black; padding: 4px;">${cellValue}</td>`;
+            });
+            rowContent += '</tr>';
+            tableContent += rowContent;
+        });
+        tableContent += '</tbody></table>';
+        const residentData = residentsData[residentName];
+        let reportHTML = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'Microsoft JhengHei', sans-serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;}.info-grid{display:grid; grid-template-columns: 1fr 1fr; gap: 0 20px;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2><div class="info-grid"><p><strong>${getText('name')}:</strong> ${residentName}</p><p><strong>${getText('bed_number')}:</strong> ${residentData.bedNumber}</p><p><strong>${getText('gender')}:</strong> ${residentData.gender}</p><p><strong>病歷號:</strong></p><p><strong>${getText('birthday')}:</strong> ${residentData.birthday}</p><p><strong>${getText('checkin_date')}:</strong> ${residentData.checkinDate}</p><p><strong>${getText('placement_date')}:</strong> ${placementDateInput.value}</p><p><strong>${getText('closing_date')}:</strong> ${closingDateInput.value || ''}</p></div>${tableContent}</body></html>`;
+        return reportHTML;
     }
 
     // --- 事件監聽器 ---
@@ -159,7 +182,7 @@ document.addEventListener('firebase-ready', () => {
 
     addNewFormBtn.addEventListener('click', () => {
         currentCareFormId = null;
-        deleteCareFormBtn.classList.add('d-none'); // 新增時隱藏刪除按鈕
+        deleteCareFormBtn.classList.add('d-none');
         const residentName = residentNameSelect.value;
         const residentData = residentsData[residentName];
         if (!residentData) return;
@@ -181,7 +204,7 @@ document.addEventListener('firebase-ready', () => {
         if (!link) return;
         const docId = link.dataset.id;
         currentCareFormId = docId;
-        deleteCareFormBtn.classList.remove('d-none'); // 載入舊表單時顯示刪除按鈕
+        deleteCareFormBtn.classList.remove('d-none');
         try {
             const docRef = db.collection(careFormsCollection).doc(docId);
             const doc = await docRef.get();
@@ -283,6 +306,37 @@ document.addEventListener('firebase-ready', () => {
             }
         }
     });
+
+    exportWordBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameDisplay.value}-${monthSelect.value}-導尿管照護單.doc`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    exportExcelBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameDisplay.value}-${monthSelect.value}-導尿管照護單.xls`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    printReportBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
     
     // --- 初始操作 ---
     const today = new Date();
@@ -290,5 +344,6 @@ document.addEventListener('firebase-ready', () => {
     const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
     monthSelect.value = `${currentYear}-${currentMonth}`;
     loadResidentsDropdown();
-    setInterval(checkTimePermissions, 60 * 1000);
+    checkTimePermissions();
+    setInterval(checkTimePermissions, 30 * 1000);
 });
