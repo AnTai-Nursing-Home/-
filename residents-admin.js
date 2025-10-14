@@ -18,7 +18,7 @@ document.addEventListener('firebase-ready', () => {
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
     const checkinDateInput = document.getElementById('resident-checkinDate');
-    const sortOrderInput = document.getElementById('employee-sortOrder'); // Corresponds to the new ID in HTML
+    const sortOrderInput = document.getElementById('resident-sortOrder');
 
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
@@ -39,7 +39,7 @@ document.addEventListener('firebase-ready', () => {
         try {
             const snapshot = await db.collection(collectionName)
                 .orderBy(sortConfig.key, sortConfig.order)
-                .orderBy('id', 'asc') // 當 sortOrder 相同時，用員編做次要排序
+                .orderBy('bedNumber', 'asc') // 當 sortOrder 相同時，用床號做次要排序
                 .get();
             
             if (snapshot.empty) {
@@ -82,6 +82,15 @@ document.addEventListener('firebase-ready', () => {
                 header.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
             }
         });
+    }
+
+    function openModalForNew() {
+        currentEditingId = null;
+        residentModalTitle.textContent = '新增住民';
+        residentForm.reset();
+        sortOrderInput.value = 999;
+        nameInput.disabled = false;
+        residentModal.show();
     }
 
     async function handleSave() {
@@ -187,13 +196,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // --- 事件監聽器 ---
-    addResidentBtn.addEventListener('click', () => {
-        currentEditingId = null;
-        residentModalTitle.textContent = '新增住民';
-        residentForm.reset();
-        nameInput.disabled = false;
-        residentModal.show();
-    });
+    addResidentBtn.addEventListener('click', openModalForNew);
 
     residentsTableBody.addEventListener('click', async (e) => {
         const target = e.target;
