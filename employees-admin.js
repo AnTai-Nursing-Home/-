@@ -1,6 +1,9 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找一個只在 employees-admin.html 存在的獨特元件，來判斷我們是否在正確的頁面
     const nursesTableBody = document.getElementById('nurses-table-body');
-    if (!nursesTableBody) return; // 頁面偵測
+    if (!nursesTableBody) {
+        return; // 如果找不到，代表不在員工管理頁，直接結束
+    }
 
     // --- 元件宣告 ---
     const caregiversTableBody = document.getElementById('caregivers-table-body');
@@ -13,32 +16,50 @@ document.addEventListener('firebase-ready', () => {
     const employeeIdInput = document.getElementById('employee-id');
     const employeeNameInput = document.getElementById('employee-name');
     const employeeTypeInput = document.getElementById('employee-type');
-    const nursesTab = document.getElementById('nurses-tab');
+    const employeeSortOrderInput = document.getElementById('employee-sortOrder');
+    const tableHeaders = document.querySelectorAll('.sortable-header');
+    const exportWordBtn = document.getElementById('export-word-btn');
+    const exportExcelBtn = document.getElementById('export-excel-btn');
+    const printBtn = document.getElementById('print-btn');
     
     // --- 變數 ---
     const nursesCollection = 'nurses';
     const caregiversCollection = 'caregivers';
     let currentEditingId = null;
+    let sortConfig = { key: 'sortOrder', order: 'asc' }; // 預設使用自訂排序
 
-    // --- 函式 ---
+    // --- 函式定義 ---
     async function loadAndRenderEmployees(collectionName, tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="3" class="text-center">讀取中...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center">讀取中...</td></tr>`;
         try {
-            const snapshot = await db.collection(collectionName).orderBy('id').get();
+            const snapshot = await db.collection(collectionName)
+                .orderBy(sortConfig.key, sortConfig.order)
+                .orderBy('id', 'asc') // 當 sortOrder 相同時，用員編做次要排序
+                .get();
             if (snapshot.empty) {
-                tableBody.innerHTML = `<tr><td colspan="3" class="text-center">尚無資料。</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center">尚無資料。</td></tr>`;
                 return;
             }
             let html = '';
             snapshot.forEach(doc => {
                 const employee = doc.data();
-                html += `<tr data-id="${doc.id}"><td>${employee.id}</td><td>${employee.name}</td><td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td></tr>`;
+                html += `<tr data-id="${doc.id}"><td>${employee.sortOrder || 999}</td><td>${employee.id}</td><td>${employee.name}</td><td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td></tr>`;
             });
             tableBody.innerHTML = html;
         } catch (error) {
             console.error(`讀取 ${collectionName} 資料失敗:`, error);
-            tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">讀取失敗！</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">讀取失敗！</td></tr>`;
         }
+    }
+
+    function updateHeaderSortUI() {
+        tableHeaders.forEach(header => {
+            const sortKey = header.dataset.sort;
+            header.classList.remove('sort-asc', 'sort-desc');
+            if (sortKey === sortConfig.key) {
+                header.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+        });
     }
 
     function openModalForNew() {
@@ -52,6 +73,7 @@ document.addEventListener('firebase-ready', () => {
     async function handleSave() {
         const id = employeeIdInput.value.trim();
         const name = employeeNameInput.value.trim();
+        const sortOrder = parseInt(employeeSortOrderInput.value) || 999;
         const type = employeeTypeInput.value;
         if (!id || !name) { alert('請填寫員編和姓名！'); return; }
 
@@ -59,11 +81,10 @@ document.addEventListener('firebase-ready', () => {
         
         saveEmployeeBtn.disabled = true;
         try {
-            // 如果是編輯，且ID被修改，需要先刪除舊的再新增
             if (currentEditingId && currentEditingId !== id) {
                 await db.collection(collectionName).doc(currentEditingId).delete();
             }
-            await db.collection(collectionName).doc(id).set({ id, name });
+            await db.collection(collectionName).doc(id).set({ id, name, sortOrder });
             employeeModal.hide();
             loadAll();
         } catch (error) {
@@ -76,6 +97,36 @@ document.addEventListener('firebase-ready', () => {
     function loadAll() {
         loadAndRenderEmployees(nursesCollection, nursesTableBody);
         loadAndRenderEmployees(caregiversCollection, caregiversTableBody);
+        updateHeaderSortUI();
+    }
+
+    async function generateEmployeeReportHTML() {
+        const activeTab = document.querySelector('#employeeTabs .nav-link.active');
+        const isNurses = activeTab.id === 'nurses-tab';
+        const collectionName = isNurses ? nursesCollection : caregiversCollection;
+        const reportTitle = isNurses ? '護理師名冊' : '照服員名冊';
+
+        const snapshot = await db.collection(collectionName).orderBy('sortOrder', 'asc').orderBy('id', 'asc').get();
+        
+        let tableHTML = `<table style="width: 60%; margin: 20px auto; border-collapse: collapse; text-align: center;">
+                            <thead>
+                                <tr style="background-color: #f2f2f2;">
+                                    <th style="border: 1px solid black; padding: 8px;">員編</th>
+                                    <th style="border: 1px solid black; padding: 8px;">姓名</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+        
+        snapshot.forEach(doc => {
+            const employee = doc.data();
+            tableHTML += `<tr>
+                            <td style="border: 1px solid black; padding: 8px;">${employee.id}</td>
+                            <td style="border: 1px solid black; padding: 8px;">${employee.name}</td>
+                          </tr>`;
+        });
+        tableHTML += '</tbody></table>';
+
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle}</h2>${tableHTML}</body></html>`;
     }
     
     // --- 事件監聽器 ---
@@ -95,16 +146,18 @@ document.addEventListener('firebase-ready', () => {
         const docId = row.dataset.id;
         
         if (target.classList.contains('btn-edit')) {
-            const employeeData = {
-                id: row.cells[0].textContent,
-                name: row.cells[1].textContent
+            const employeeData = { 
+                sortOrder: row.cells[0].textContent,
+                id: row.cells[1].textContent, 
+                name: row.cells[2].textContent 
             };
             currentEditingId = docId;
             employeeModalTitle.textContent = '編輯員工';
+            employeeSortOrderInput.value = employeeData.sortOrder;
             employeeIdInput.value = employeeData.id;
             employeeNameInput.value = employeeData.name;
             employeeTypeInput.value = (collectionName === nursesCollection) ? 'nurse' : 'caregiver';
-            employeeIdInput.disabled = false; // ID可以被修改
+            employeeIdInput.disabled = false;
             employeeModal.show();
         } else if (target.classList.contains('btn-delete')) {
             if (confirm(`確定要刪除員工 ${docId} 嗎？`)) {
@@ -119,6 +172,46 @@ document.addEventListener('firebase-ready', () => {
     }
 
     saveEmployeeBtn.addEventListener('click', handleSave);
+
+    tableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const newKey = header.dataset.sort;
+            if (sortConfig.key === newKey) {
+                sortConfig.order = (sortConfig.order === 'asc') ? 'desc' : 'asc';
+            } else {
+                sortConfig.key = newKey;
+                sortConfig.order = 'asc';
+            }
+            loadAll();
+        });
+    });
+
+    exportWordBtn.addEventListener('click', async () => {
+        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
+        const content = await generateEmployeeReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.doc`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    exportExcelBtn.addEventListener('click', async () => {
+        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
+        const content = await generateEmployeeReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.xls`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    printBtn.addEventListener('click', async () => {
+        const content = await generateEmployeeReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
 
     // --- 初始載入 ---
     loadAll();
