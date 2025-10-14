@@ -42,7 +42,7 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 函式定義 ---
     async function renderCalendar() {
-        calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
+        calendarDiv.innerHTML = `<div class="text-center">${getText('loading')}</div>`;
         try {
             const settingsDoc = await db.collection(settingsCollection).doc('period').get();
             const settings = settingsDoc.exists ? settingsDoc.data() : {};
@@ -53,11 +53,11 @@ document.addEventListener('firebase-ready', () => {
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
-                statusNotice.textContent = `預假/預班開放中！期間： ${settings.startDate.replace('T', ' ')} 至 ${settings.endDate.replace('T', ' ')}`;
+                statusNotice.textContent = `${getText('leave_period_open')} ${settings.startDate.replace('T', ' ')} ${getText('to')} ${settings.endDate.replace('T', ' ')}`;
             } else {
                 isRequestPeriodOpen = false;
                 statusNotice.className = 'alert alert-warning';
-                statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
+                statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate ? settings.startDate.replace('T', ' ') : getText('not_set')} ${getText('to')} ${settings.endDate ? settings.endDate.replace('T', ' ') : getText('not_set')}`;
             }
 
             if (document.getElementById('save-leave-btn')) {
@@ -73,10 +73,16 @@ document.addEventListener('firebase-ready', () => {
             const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             const year = nextMonth.getFullYear();
             const month = nextMonth.getMonth();
-            calendarTitle.textContent = `${year}年 ${month + 1}月`;
+            const lang = getLanguage();
+            if (lang === 'en') {
+                const monthName = nextMonth.toLocaleString('en-US', { month: 'long' });
+                calendarTitle.textContent = `${monthName} ${year}`;
+            } else {
+                calendarTitle.textContent = `${year}${getText('calendar_title_prefix')} ${month + 1}${getText('calendar_title_suffix')}`;
+            }
+            
             calendarDiv.innerHTML = '';
-
-            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            const weekdays = [getText('week_sun'), getText('week_mon'), getText('week_tue'), getText('week_wed'), getText('week_thu'), getText('week_fri'), getText('week_sat')];
             weekdays.forEach(day => {
                 const dayEl = document.createElement('div');
                 dayEl.className = 'calendar-weekday';
@@ -126,7 +132,7 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error("讀取日曆資料失敗:", error);
-            calendarDiv.innerHTML = '<div class="alert alert-danger">讀取日曆失敗，請重新整理。</div>';
+            calendarDiv.innerHTML = `<div class="alert alert-danger">${getText('read_calendar_failed')}</div>`;
         }
     }
 
@@ -137,13 +143,11 @@ document.addEventListener('firebase-ready', () => {
             snapshot.forEach(doc => {
                 requestsByDate[doc.id] = doc.data();
             });
-
             const sortedDates = Object.keys(requestsByDate).sort();
             if (sortedDates.length === 0) {
-                adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假/預班紀錄。</p>';
+                adminSummaryTableDiv.innerHTML = `<p class="text-center text-muted">${getText('no_leave_requests_next_month')}</p>`;
                 return;
             }
-
             let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預排人員及班別</th></tr></thead><tbody>';
             sortedDates.forEach(date => {
                 const dailyRequests = requestsByDate[date];
@@ -154,7 +158,7 @@ document.addEventListener('firebase-ready', () => {
             adminSummaryTableDiv.innerHTML = tableHTML;
         } catch (error) {
             console.error("渲染管理員視圖失敗:", error);
-            adminViewPanel.innerHTML = '<div class="alert alert-danger">讀取總覽資料失敗。</div>';
+            adminViewPanel.innerHTML = `<div class="alert alert-danger">${getText('load_summary_failed')}</div>`;
         }
     }
     
@@ -203,9 +207,9 @@ document.addEventListener('firebase-ready', () => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
             if (dayEl && !dayEl.classList.contains('disabled')) {
-                if (!employeeNameInput.value.trim()) { alert('請先輸入您的姓名！'); employeeNameInput.focus(); return; }
+                if (!employeeNameInput.value.trim()) { alert(getText('error_enter_name_first')); employeeNameInput.focus(); return; }
                 currentlyEditingDate = dayEl.dataset.date;
-                document.getElementById('shift-modal-title').textContent = `選擇 ${currentlyEditingDate} 的班別`;
+                document.getElementById('shift-modal-title').textContent = getText('select_shift_for', { date: currentlyEditingDate });
                 shiftModal.show();
             }
         }
@@ -244,11 +248,12 @@ document.addEventListener('firebase-ready', () => {
             renderCalendar();
         } catch (error) {
             console.error("儲存班別失敗:", error);
-            alert("儲存失敗，請稍後再試。");
+            alert(getText('save_failed'));
         }
     }
 
     employeeNameInput.addEventListener('input', renderCalendar);
+
     adminSettingsBtn.addEventListener('click', () => {
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
@@ -283,7 +288,7 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error(error);
-            alert('驗證時發生網路錯誤，請檢查網路連線或稍後再試。');
+            alert(getText('verification_failed'));
         } finally {
             adminLoginBtn.disabled = false;
             spinner.classList.add('d-none');
@@ -293,16 +298,16 @@ document.addEventListener('firebase-ready', () => {
     saveSettingsBtn.addEventListener('click', async () => {
         const startDate = document.getElementById('leave-start-date').value;
         const endDate = document.getElementById('leave-end-date').value;
-        if (!startDate || !endDate) { alert('請設定開始與結束日期'); return; }
-        if (new Date(endDate) < new Date(startDate)) { alert('結束日期不可早於開始日期'); return; }
+        if (!startDate || !endDate) { alert(getText('set_start_end_date')); return; }
+        if (new Date(endDate) < new Date(startDate)) { alert(getText('end_date_cannot_be_earlier')); return; }
         saveSettingsBtn.disabled = true;
         try {
             await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
-            alert('預假期間已儲存！頁面將會重新載入以套用新設定。');
+            alert(getText('settings_saved'));
             window.location.reload();
         } catch (error) {
             console.error("儲存設定失敗:", error);
-            alert("儲存失敗，請稍後再試。");
+            alert(getText('settings_save_failed'));
         } finally {
             saveSettingsBtn.disabled = false;
         }
