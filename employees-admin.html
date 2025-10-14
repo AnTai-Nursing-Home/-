@@ -17,15 +17,6 @@
                         <h2>員工資料管理</h2>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <a href="admin.html?view=dashboard" class="btn btn-back-menu">
-                                <i class="fas fa-arrow-left me-2"></i>返回儀表板
-                            </a>
-                            <button id="add-employee-btn" class="btn btn-success">
-                                <i class="fas fa-plus me-2"></i>新增員工
-                            </button>
-                        </div>
-
                         <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="nurses-tab" data-bs-toggle="tab" data-bs-target="#nurses-panel" type="button" role="tab">護理師</button>
@@ -39,7 +30,14 @@
                             <div class="tab-pane fade show active" id="nurses-panel" role="tabpanel">
                                 <div class="table-responsive mt-3">
                                     <table class="table table-hover align-middle">
-                                        <thead class="table-light"><tr><th>員編</th><th>姓名</th><th>操作</th></tr></thead>
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="sortable-header" data-sort="sortOrder">排序</th>
+                                                <th class="sortable-header" data-sort="id">員編</th>
+                                                <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="nurses-table-body"></tbody>
                                     </table>
                                 </div>
@@ -47,7 +45,14 @@
                             <div class="tab-pane fade" id="caregivers-panel" role="tabpanel">
                                 <div class="table-responsive mt-3">
                                     <table class="table table-hover align-middle">
-                                        <thead class="table-light"><tr><th>員編</th><th>姓名</th><th>操作</th></tr></thead>
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="sortable-header" data-sort="sortOrder">排序</th>
+                                                <th class="sortable-header" data-sort="id">員編</th>
+                                                <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="caregivers-table-body"></tbody>
                                     </table>
                                 </div>
@@ -66,6 +71,10 @@
                 <div class="modal-body">
                     <form id="employee-form">
                         <input type="hidden" id="employee-type">
+                        <div class="mb-3">
+                            <label for="employee-sortOrder" class="form-label">排序 (數字越小越前面)</label>
+                            <input type="number" class="form-control" id="employee-sortOrder" value="999">
+                        </div>
                         <div class="mb-3">
                             <label for="employee-id" class="form-label">員編</label>
                             <input type="text" class="form-control" id="employee-id" required>
