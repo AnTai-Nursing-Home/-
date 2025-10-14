@@ -1,218 +1,122 @@
-document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在 employees-admin.html 存在的獨特元件，來判斷我們是否在正確的頁面
-    const nursesTableBody = document.getElementById('nurses-table-body');
-    if (!nursesTableBody) {
-        return; // 如果找不到，代表不在員工管理頁，直接結束
-    }
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工資料管理 - 員工系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card shadow">
+                    <div class="card-header text-center bg-dark text-white">
+                        <h2>員工資料管理</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                            <a href="admin.html?view=dashboard" class="btn btn-back-menu">
+                                <i class="fas fa-arrow-left me-2"></i>返回儀表板
+                            </a>
+                            <div>
+                                <button id="export-word-btn" class="btn btn-sm btn-primary">匯出 Word</button>
+                                <button id="export-excel-btn" class="btn btn-sm btn-success">匯出 Excel</button>
+                                <button id="print-btn" class="btn btn-sm btn-info">列印報表</button>
+                                <button id="add-employee-btn" class="btn btn-success">
+                                    <i class="fas fa-plus me-2"></i>新增員工
+                                </button>
+                            </div>
+                        </div>
 
-    // --- 元件宣告 ---
-    const caregiversTableBody = document.getElementById('caregivers-table-body');
-    const addEmployeeBtn = document.getElementById('add-employee-btn');
-    const employeeModalEl = document.getElementById('employee-modal');
-    const employeeModal = new bootstrap.Modal(employeeModalEl);
-    const employeeModalTitle = document.getElementById('employee-modal-title');
-    const saveEmployeeBtn = document.getElementById('save-employee-btn');
-    const employeeForm = document.getElementById('employee-form');
-    const employeeIdInput = document.getElementById('employee-id');
-    const employeeNameInput = document.getElementById('employee-name');
-    const employeeTypeInput = document.getElementById('employee-type');
-    const employeeSortOrderInput = document.getElementById('employee-sortOrder');
-    const tableHeaders = document.querySelectorAll('.sortable-header');
-    const exportWordBtn = document.getElementById('export-word-btn');
-    const exportExcelBtn = document.getElementById('export-excel-btn');
-    const printBtn = document.getElementById('print-btn');
-    
-    // --- 變數 ---
-    const nursesCollection = 'nurses';
-    const caregiversCollection = 'caregivers';
-    let currentEditingId = null;
-    let sortConfig = { key: 'sortOrder', order: 'asc' }; // 預設使用自訂排序
+                        <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="nurses-tab" data-bs-toggle="tab" data-bs-target="#nurses-panel" type="button" role="tab">護理師</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="caregivers-tab" data-bs-toggle="tab" data-bs-target="#caregivers-panel" type="button" role="tab">照服員</button>
+                            </li>
+                        </ul>
 
-    // --- 函式定義 ---
-    async function loadAndRenderEmployees(collectionName, tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="text-center">讀取中...</td></tr>`;
-        try {
-            const snapshot = await db.collection(collectionName)
-                .orderBy(sortConfig.key, sortConfig.order)
-                .orderBy('id', 'asc') // 當 sortOrder 相同時，用員編做次要排序
-                .get();
-            if (snapshot.empty) {
-                tableBody.innerHTML = `<tr><td colspan="4" class="text-center">尚無資料。</td></tr>`;
-                return;
-            }
-            let html = '';
-            snapshot.forEach(doc => {
-                const employee = doc.data();
-                html += `<tr data-id="${doc.id}"><td>${employee.sortOrder || 999}</td><td>${employee.id}</td><td>${employee.name}</td><td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td></tr>`;
-            });
-            tableBody.innerHTML = html;
-        } catch (error) {
-            console.error(`讀取 ${collectionName} 資料失敗:`, error);
-            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">讀取失敗！</td></tr>`;
-        }
-    }
+                        <div class="tab-content" id="employeeTabsContent">
+                            <div class="tab-pane fade show active" id="nurses-panel" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="sortable-header" data-sort="sortOrder">排序</th>
+                                                <th class="sortable-header" data-sort="id">員編</th>
+                                                <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="nurses-table-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="caregivers-panel" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="sortable-header" data-sort="sortOrder">排序</th>
+                                                <th class="sortable-header" data-sort="id">員編</th>
+                                                <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="caregivers-table-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function updateHeaderSortUI() {
-        tableHeaders.forEach(header => {
-            const sortKey = header.dataset.sort;
-            header.classList.remove('sort-asc', 'sort-desc');
-            if (sortKey === sortConfig.key) {
-                header.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
-            }
-        });
-    }
+    <div class="modal fade" id="employee-modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="employee-modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="employee-form">
+                        <input type="hidden" id="employee-type">
+                        <div class="mb-3">
+                            <label for="employee-sortOrder" class="form-label">排序 (數字越小越前面)</label>
+                            <input type="number" class="form-control" id="employee-sortOrder" value="999">
+                        </div>
+                        <div class="mb-3">
+                            <label for="employee-id" class="form-label">員編</label>
+                            <input type="text" class="form-control" id="employee-id" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="employee-name" class="form-label">姓名</label>
+                            <input type="text" class="form-control" id="employee-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" id="save-employee-btn" class="btn btn-primary">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function openModalForNew() {
-        currentEditingId = null;
-        employeeModalTitle.textContent = '新增員工';
-        employeeForm.reset();
-        employeeIdInput.disabled = false;
-        employeeModal.show();
-    }
+    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
 
-    async function handleSave() {
-        const id = employeeIdInput.value.trim();
-        const name = employeeNameInput.value.trim();
-        const sortOrder = parseInt(employeeSortOrderInput.value) || 999;
-        const type = employeeTypeInput.value;
-        if (!id || !name) { alert('請填寫員編和姓名！'); return; }
-
-        const collectionName = (type === 'nurse') ? nursesCollection : caregiversCollection;
-        
-        saveEmployeeBtn.disabled = true;
-        try {
-            if (currentEditingId && currentEditingId !== id) {
-                await db.collection(collectionName).doc(currentEditingId).delete();
-            }
-            await db.collection(collectionName).doc(id).set({ id, name, sortOrder });
-            employeeModal.hide();
-            loadAll();
-        } catch (error) {
-            alert('儲存失敗！');
-        } finally {
-            saveEmployeeBtn.disabled = false;
-        }
-    }
-
-    function loadAll() {
-        loadAndRenderEmployees(nursesCollection, nursesTableBody);
-        loadAndRenderEmployees(caregiversCollection, caregiversTableBody);
-        updateHeaderSortUI();
-    }
-
-    async function generateEmployeeReportHTML() {
-        const activeTab = document.querySelector('#employeeTabs .nav-link.active');
-        const isNurses = activeTab.id === 'nurses-tab';
-        const collectionName = isNurses ? nursesCollection : caregiversCollection;
-        const reportTitle = isNurses ? '護理師名冊' : '照服員名冊';
-
-        const snapshot = await db.collection(collectionName).orderBy('sortOrder', 'asc').orderBy('id', 'asc').get();
-        
-        let tableHTML = `<table style="width: 60%; margin: 20px auto; border-collapse: collapse; text-align: center;">
-                            <thead>
-                                <tr style="background-color: #f2f2f2;">
-                                    <th style="border: 1px solid black; padding: 8px;">員編</th>
-                                    <th style="border: 1px solid black; padding: 8px;">姓名</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-        
-        snapshot.forEach(doc => {
-            const employee = doc.data();
-            tableHTML += `<tr>
-                            <td style="border: 1px solid black; padding: 8px;">${employee.id}</td>
-                            <td style="border: 1px solid black; padding: 8px;">${employee.name}</td>
-                          </tr>`;
-        });
-        tableHTML += '</tbody></table>';
-
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle}</h2>${tableHTML}</body></html>`;
-    }
-    
-    // --- 事件監聽器 ---
-    addEmployeeBtn.addEventListener('click', () => {
-        const activeTab = document.querySelector('#employeeTabs .nav-link.active');
-        employeeTypeInput.value = (activeTab.id === 'nurses-tab') ? 'nurse' : 'caregiver';
-        openModalForNew();
-    });
-
-    nursesTableBody.addEventListener('click', (e) => handleTableClick(e, nursesCollection));
-    caregiversTableBody.addEventListener('click', (e) => handleTableClick(e, caregiversCollection));
-
-    async function handleTableClick(e, collectionName) {
-        const target = e.target;
-        const row = target.closest('tr');
-        if (!row) return;
-        const docId = row.dataset.id;
-        
-        if (target.classList.contains('btn-edit')) {
-            const employeeData = { 
-                sortOrder: row.cells[0].textContent,
-                id: row.cells[1].textContent, 
-                name: row.cells[2].textContent 
-            };
-            currentEditingId = docId;
-            employeeModalTitle.textContent = '編輯員工';
-            employeeSortOrderInput.value = employeeData.sortOrder;
-            employeeIdInput.value = employeeData.id;
-            employeeNameInput.value = employeeData.name;
-            employeeTypeInput.value = (collectionName === nursesCollection) ? 'nurse' : 'caregiver';
-            employeeIdInput.disabled = false;
-            employeeModal.show();
-        } else if (target.classList.contains('btn-delete')) {
-            if (confirm(`確定要刪除員工 ${docId} 嗎？`)) {
-                try {
-                    await db.collection(collectionName).doc(docId).delete();
-                    loadAll();
-                } catch {
-                    alert('刪除失敗！');
-                }
-            }
-        }
-    }
-
-    saveEmployeeBtn.addEventListener('click', handleSave);
-
-    tableHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const newKey = header.dataset.sort;
-            if (sortConfig.key === newKey) {
-                sortConfig.order = (sortConfig.order === 'asc') ? 'desc' : 'asc';
-            } else {
-                sortConfig.key = newKey;
-                sortConfig.order = 'asc';
-            }
-            loadAll();
-        });
-    });
-
-    exportWordBtn.addEventListener('click', async () => {
-        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
-        const content = await generateEmployeeReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.doc`; a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    exportExcelBtn.addEventListener('click', async () => {
-        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
-        const content = await generateEmployeeReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.xls`; a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    printBtn.addEventListener('click', async () => {
-        const content = await generateEmployeeReportHTML();
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 500);
-    });
-
-    // --- 初始載入 ---
-    loadAll();
-});
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="employees-admin.js"></script>
+</body>
+</html>
