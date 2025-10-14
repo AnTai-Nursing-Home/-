@@ -50,9 +50,13 @@
                         <hr id="admin-hr" class="d-none">
 
                         <div class="row justify-content-center mb-4">
-                            <div class="col-md-6">
-                                <label for="employee-name" class="form-label" data-i18n="your_name">您的姓名</label>
-                                <input type="text" id="employee-name" class="form-control" data-i18n="enter_your_name_to_book" placeholder="請輸入您的姓名以預排">
+                            <div class="col-md-4">
+                                <label for="employee-name-select" class="form-label" data-i18n="your_name">您的姓名</label>
+                                <select id="employee-name-select" class="form-select"></select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="employee-id-display" class="form-label">員編</label>
+                                <input type="text" id="employee-id-display" class="form-control" readonly>
                             </div>
                         </div>
 
