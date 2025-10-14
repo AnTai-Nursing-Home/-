@@ -60,6 +60,7 @@ document.addEventListener('firebase-ready', () => {
                 statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate ? settings.startDate.replace('T', ' ') : getText('not_set')} ${getText('to')} ${settings.endDate ? settings.endDate.replace('T', ' ') : getText('not_set')}`;
             }
 
+            // 自動儲存，所以隱藏舊的儲存按鈕
             if (document.getElementById('save-leave-btn')) {
                 document.getElementById('save-leave-btn').style.display = 'none';
             }
@@ -344,6 +345,5 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
-    // --- 初始操作 ---
     renderCalendar();
 });
