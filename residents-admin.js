@@ -18,13 +18,16 @@ document.addEventListener('firebase-ready', () => {
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
     const checkinDateInput = document.getElementById('resident-checkinDate');
-    const sortOrderInput = document.getElementById('resident-sortOrder');
+    const sortOrderInput = document.getElementById('employee-sortOrder'); // Corresponds to the new ID in HTML
 
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
     const importStatus = document.getElementById('import-status');
     const tableHeaders = document.querySelectorAll('.sortable-header');
-
+    const exportWordBtn = document.getElementById('export-word-btn');
+    const exportExcelBtn = document.getElementById('export-excel-btn');
+    const printBtn = document.getElementById('print-btn');
+    
     // --- 變數 ---
     const collectionName = 'residents';
     let currentEditingId = null; 
@@ -32,7 +35,7 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 函式定義 ---
     async function loadAndRenderResidents() {
-        residentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">讀取中...</td></tr>';
+        residentsTableBody.innerHTML = '<tr><td colspan="7" class="text-center">讀取中...</td></tr>';
         try {
             const snapshot = await db.collection(collectionName)
                 .orderBy(sortConfig.key, sortConfig.order)
@@ -40,7 +43,7 @@ document.addEventListener('firebase-ready', () => {
                 .get();
             
             if (snapshot.empty) {
-                residentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">尚無住民資料，請點擊「新增住民」或「從 Excel 匯入」開始建立。</td></tr>';
+                residentsTableBody.innerHTML = '<tr><td colspan="7" class="text-center">尚無住民資料，請點擊「新增住民」或「從 Excel 匯入」開始建立。</td></tr>';
                 return;
             }
 
@@ -160,7 +163,7 @@ document.addEventListener('firebase-ready', () => {
                             gender: String(resident.性別 || ''),
                             birthday: formatDate(resident.生日),
                             checkinDate: formatDate(resident.入住日期),
-                            sortOrder: parseInt(resident.排序) || (index + 1) * 10 // 如果Excel沒有排序欄，就按順序給
+                            sortOrder: parseInt(resident.排序) || (index + 1) * 10 
                         });
                     }
                 });
