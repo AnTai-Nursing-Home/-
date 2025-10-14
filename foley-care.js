@@ -243,10 +243,7 @@ document.addEventListener('firebase-ready', () => {
             let hasData = false;
             careItems.forEach(itemKey => {
                 const checkedRadio = row.querySelector(`input[name^="${itemKey}"]:checked`);
-                if (checkedRadio) {
-                    record[itemKey] = checkedRadio.value;
-                    hasData = true;
-                }
+                if (checkedRadio) { record[itemKey] = checkedRadio.value; hasData = true; }
             });
             const caregiverSignInput = row.querySelector('[data-signature="caregiver"]');
             const nurseSignInput = row.querySelector('[data-signature="nurse"]');
@@ -264,8 +261,7 @@ document.addEventListener('firebase-ready', () => {
                 currentCareFormId = docRef.id;
             }
             alert(getText('care_form_saved'));
-            careFormSection.classList.add('d-none');
-            loadCareFormList();
+            // 留在原頁面，不清空
         } catch (error) {
             console.error("儲存失敗:", error);
             alert(getText('save_failed'));
