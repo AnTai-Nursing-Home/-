@@ -344,5 +344,6 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
+    // --- 初始操作 ---
     renderCalendar();
 });
