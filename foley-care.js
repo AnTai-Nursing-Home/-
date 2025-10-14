@@ -55,21 +55,25 @@ document.addEventListener('firebase-ready', () => {
             careFormSection.classList.add('d-none');
             return;
         }
+
         careFormListSection.classList.remove('d-none');
         careFormSection.classList.add('d-none');
         const [year, monthNum] = month.split('-');
         careFormListTitle.textContent = `${residentName} - ${year}年 ${parseInt(monthNum, 10)}月 的照護單`;
         careFormList.innerHTML = '<div class="list-group-item">讀取中...</div>';
+
         try {
             const snapshot = await db.collection(careFormsCollection)
                 .where('residentName', '==', residentName)
                 .where('month', '==', month)
                 .orderBy('placementDate', 'desc')
                 .get();
+
             if (snapshot.empty) {
                 careFormList.innerHTML = '<p class="text-muted mt-2">尚無此月份的照護單紀錄。</p>';
                 return;
             }
+
             let listHTML = '';
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -95,6 +99,7 @@ document.addEventListener('firebase-ready', () => {
         tableMonthTitle.textContent = `${year}年 ${monthNum}月`;
         careTableBody.innerHTML = '';
         const daysInMonth = new Date(year, monthNum, 0).getDate();
+
         for (let i = 1; i <= daysInMonth; i++) {
             const dateString = `${year}-${String(monthNum).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
@@ -139,11 +144,13 @@ document.addEventListener('firebase-ready', () => {
     // --- 事件監聽器 ---
     residentNameSelect.addEventListener('change', loadCareFormList);
     monthSelect.addEventListener('change', loadCareFormList);
+    
     addNewFormBtn.addEventListener('click', () => {
         currentCareFormId = null;
         const residentName = residentNameSelect.value;
         const residentData = residentsData[residentName];
         if (!residentData) return;
+
         residentNameDisplay.value = residentName;
         bedNumberInput.value = residentData.bedNumber;
         genderInput.value = residentData.gender;
@@ -151,6 +158,7 @@ document.addEventListener('firebase-ready', () => {
         checkinDateInput.value = residentData.checkinDate;
         placementDateInput.value = new Date().toISOString().split('T')[0];
         closingDateInput.value = '';
+        
         renderCareTable({});
         careFormSection.classList.remove('d-none');
         careFormListSection.classList.add('d-none');
@@ -160,14 +168,17 @@ document.addEventListener('firebase-ready', () => {
         e.preventDefault();
         const link = e.target.closest('a.list-group-item');
         if (!link) return;
+
         const docId = link.dataset.id;
         currentCareFormId = docId;
+
         try {
             const docRef = db.collection(careFormsCollection).doc(docId);
-            const doc = await doc.get();
+            const doc = await docRef.get(); // **** 修正：確保 doc 在這裡被正確宣告和賦值 ****
             if (doc.exists) {
                 const data = doc.data();
                 const residentData = residentsData[data.residentName];
+
                 residentNameDisplay.value = data.residentName;
                 bedNumberInput.value = residentData.bedNumber;
                 genderInput.value = residentData.gender;
@@ -193,6 +204,7 @@ document.addEventListener('firebase-ready', () => {
             alert('請先選擇住民、月份並填寫置放日期！');
             return;
         }
+
         const dailyData = {};
         careTableBody.querySelectorAll('tr[data-date]').forEach(row => {
             const date = row.dataset.date;
@@ -226,7 +238,7 @@ document.addEventListener('firebase-ready', () => {
                 await db.collection(careFormsCollection).doc(currentCareFormId).set(dataToSave, { merge: true });
             } else {
                 const docRef = await db.collection(careFormsCollection).add(dataToSave);
-                currentCareFormId = docRef.id; // 新增後記住ID，避免重複建立
+                currentCareFormId = docRef.id;
             }
             alert('照護單已成功儲存！');
             careFormSection.classList.add('d-none');
@@ -239,7 +251,6 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     
-    // **** 修改：加入完整日期和時間的時間戳記 ****
     careTableBody.addEventListener('blur', (e) => {
         if (e.target.classList.contains('signature-field') && e.target.value && !e.target.value.includes('@')) {
             const now = new Date();
@@ -260,5 +271,5 @@ document.addEventListener('firebase-ready', () => {
     monthSelect.value = `${currentYear}-${currentMonth}`;
 
     loadResidentsDropdown();
-    setInterval(checkTimePermissions, 60 * 1000); // 每分鐘檢查一次時間權限
+    setInterval(checkTimePermissions, 60 * 1000);
 });
