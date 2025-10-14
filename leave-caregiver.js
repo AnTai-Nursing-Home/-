@@ -16,7 +16,8 @@ document.addEventListener('firebase-ready', () => {
     // --- 元件宣告 ---
     const calendarTitle = document.getElementById('calendar-title');
     const statusNotice = document.getElementById('status-notice');
-    const employeeNameInput = document.getElementById('employee-name');
+    const employeeNameSelect = document.getElementById('employee-name-select');
+    const employeeIdDisplay = document.getElementById('employee-id-display');
     const adminSettingsBtn = document.getElementById('admin-settings-btn');
     const adminPasswordModalEl = document.getElementById('admin-password-modal');
     const adminPasswordModal = new bootstrap.Modal(adminPasswordModalEl);
@@ -35,33 +36,52 @@ document.addEventListener('firebase-ready', () => {
     const printAdminReportBtn = document.getElementById('print-admin-report');
     let currentlyEditingDate = null;
     
-    // **** 關鍵修改：使用照服員專屬的集合名稱 ****
+    // --- 變數 ---
+    const employeesCollection = 'caregivers';
     const settingsCollection = 'caregiver_leave_settings';
     const requestsCollection = 'caregiver_leave_requests';
     let isRequestPeriodOpen = false;
+    let employeesData = {};
 
     // --- 函式定義 ---
+    async function loadEmployeesDropdown() {
+        employeeNameSelect.innerHTML = `<option value="">讀取中...</option>`;
+        try {
+            const snapshot = await db.collection(employeesCollection).orderBy('sortOrder').get();
+            let optionsHTML = `<option value="" selected disabled>請選擇姓名</option>`;
+            snapshot.forEach(doc => {
+                const emp = doc.data();
+                employeesData[emp.name] = emp;
+                optionsHTML += `<option value="${emp.name}">${emp.name}</option>`;
+            });
+            employeeNameSelect.innerHTML = optionsHTML;
+        } catch (error) {
+            console.error("讀取員工列表失敗:", error);
+            employeeNameSelect.innerHTML = `<option value="">讀取失敗</option>`;
+        }
+    }
+
     async function renderCalendar() {
-        calendarDiv.innerHTML = `<div class="text-center">${getText('loading')}</div>`;
+        calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
         try {
             const settingsDoc = await db.collection(settingsCollection).doc('period').get();
             const settings = settingsDoc.exists ? settingsDoc.data() : {};
             const startDate = settings.startDate ? new Date(settings.startDate) : null;
             const endDate = settings.endDate ? new Date(settings.endDate) : null;
             const today = new Date();
+
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
-                statusNotice.textContent = `${getText('leave_period_open')} ${settings.startDate.replace('T', ' ')} ${getText('to')} ${settings.endDate.replace('T', ' ')}`;
+                statusNotice.textContent = `預假/預班開放中！期間： ${settings.startDate.replace('T', ' ')} 至 ${settings.endDate.replace('T', ' ')}`;
             } else {
                 isRequestPeriodOpen = false;
                 statusNotice.className = 'alert alert-warning';
-                statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate ? settings.startDate.replace('T', ' ') : getText('not_set')} ${getText('to')} ${settings.endDate ? settings.endDate.replace('T', ' ') : getText('not_set')}`;
+                statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
 
-            if (document.getElementById('save-leave-btn')) {
-                document.getElementById('save-leave-btn').style.display = 'none';
-            }
+            const currentEmployee = employeeNameSelect.value;
+            employeeIdDisplay.value = employeesData[currentEmployee]?.id || '';
 
             const snapshot = await db.collection(requestsCollection).get();
             const requestsByDate = {};
@@ -72,16 +92,10 @@ document.addEventListener('firebase-ready', () => {
             const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             const year = nextMonth.getFullYear();
             const month = nextMonth.getMonth();
-            const lang = getLanguage();
-            if (lang === 'en') {
-                const monthName = nextMonth.toLocaleString('en-US', { month: 'long' });
-                calendarTitle.textContent = `${monthName} ${year}`;
-            } else {
-                calendarTitle.textContent = `${year}${getText('calendar_title_prefix')} ${month + 1}${getText('calendar_title_suffix')}`;
-            }
-            
+            calendarTitle.textContent = `${year}年 ${month + 1}月`;
             calendarDiv.innerHTML = '';
-            const weekdays = [getText('week_sun'), getText('week_mon'), getText('week_tue'), getText('week_wed'), getText('week_thu'), getText('week_fri'), getText('week_sat')];
+
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
             weekdays.forEach(day => {
                 const dayEl = document.createElement('div');
                 dayEl.className = 'calendar-weekday';
@@ -95,7 +109,6 @@ document.addEventListener('firebase-ready', () => {
             }
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const currentEmployee = employeeNameInput.value.trim();
             
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayEl = document.createElement('div');
@@ -131,7 +144,7 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error("讀取日曆資料失敗:", error);
-            calendarDiv.innerHTML = `<div class="alert alert-danger">${getText('read_calendar_failed')}</div>`;
+            calendarDiv.innerHTML = '<div class="alert alert-danger">讀取日曆失敗，請重新整理。</div>';
         }
     }
 
@@ -144,7 +157,7 @@ document.addEventListener('firebase-ready', () => {
             });
             const sortedDates = Object.keys(requestsByDate).sort();
             if (sortedDates.length === 0) {
-                adminSummaryTableDiv.innerHTML = `<p class="text-center text-muted">${getText('no_leave_requests_next_month')}</p>`;
+                adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假/預班紀錄。</p>';
                 return;
             }
             let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預排人員及班別</th></tr></thead><tbody>';
@@ -157,7 +170,7 @@ document.addEventListener('firebase-ready', () => {
             adminSummaryTableDiv.innerHTML = tableHTML;
         } catch (error) {
             console.error("渲染管理員視圖失敗:", error);
-            adminViewPanel.innerHTML = `<div class="alert alert-danger">${getText('load_summary_failed')}</div>`;
+            adminViewPanel.innerHTML = '<div class="alert alert-danger">讀取總覽資料失敗。</div>';
         }
     }
     
@@ -168,47 +181,43 @@ document.addEventListener('firebase-ready', () => {
         const month = nextMonth.getMonth();
         const monthName = `${year}年 ${month + 1}月`;
         
-        const snapshot = await db.collection(requestsCollection).get();
+        const reqSnapshot = await db.collection(requestsCollection).get();
         const requestsByDate = {};
-        const employeeSet = new Set();
-        snapshot.forEach(doc => {
-            requestsByDate[doc.id] = doc.data();
-            Object.keys(doc.data()).forEach(name => employeeSet.add(name));
-        });
+        reqSnapshot.forEach(doc => { requestsByDate[doc.id] = doc.data(); });
+        
+        const empSnapshot = await db.collection(employeesCollection).orderBy('sortOrder').get();
+        const sortedEmployees = [];
+        empSnapshot.forEach(doc => sortedEmployees.push(doc.data()));
 
-        const sortedEmployees = Array.from(employeeSet).sort();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        let tableHeaderHTML = '<tr><th>姓名</th>';
-        for (let i = 1; i <= daysInMonth; i++) {
-            tableHeaderHTML += `<th>${i}</th>`;
-        }
+        let tableHeaderHTML = '<tr><th>員編</th><th>姓名</th>';
+        for (let i = 1; i <= daysInMonth; i++) { tableHeaderHTML += `<th>${i}</th>`; }
         tableHeaderHTML += '</tr>';
 
         let tableBodyHTML = '';
-        sortedEmployees.forEach(name => {
-            tableBodyHTML += `<tr><td>${name}</td>`;
+        sortedEmployees.forEach(employee => {
+            if (!employee.id || !employee.name) return;
+            tableBodyHTML += `<tr><td>${employee.id}</td><td>${employee.name}</td>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                const shift = requestsByDate[dateStr]?.[name] || '';
+                const shift = requestsByDate[dateStr]?.[employee.name] || '';
                 tableBodyHTML += `<td>${shift}</td>`;
             }
             tableBodyHTML += '</tr>';
         });
 
-        const tableContent = `<table class="report-table"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
+        const tableContent = `<table><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
         const title = "照服員預假/預班總表";
-
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table{width:100%;border-collapse:collapse;font-size:10pt;}th,td{border:1px solid black;padding:4px;text-align:center;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html>...<body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
     }
 
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
             if (dayEl && !dayEl.classList.contains('disabled')) {
-                if (!employeeNameInput.value.trim()) { alert(getText('error_enter_name_first')); employeeNameInput.focus(); return; }
+                if (!employeeNameSelect.value) { alert('請先選擇您的姓名！'); return; }
                 currentlyEditingDate = dayEl.dataset.date;
-                document.getElementById('shift-modal-title').textContent = getText('select_shift_for', { date: currentlyEditingDate });
+                document.getElementById('shift-modal-title').textContent = `選擇 ${currentlyEditingDate} 的班別`;
                 shiftModal.show();
             }
         }
@@ -226,7 +235,7 @@ document.addEventListener('firebase-ready', () => {
     });
 
     async function saveShiftForCurrentUser(date, shift) {
-        const currentEmployee = employeeNameInput.value.trim();
+        const currentEmployee = employeeNameSelect.value;
         if (!currentEmployee || !date) return;
         try {
             const docRef = db.collection(requestsCollection).doc(date);
@@ -247,12 +256,11 @@ document.addEventListener('firebase-ready', () => {
             renderCalendar();
         } catch (error) {
             console.error("儲存班別失敗:", error);
-            alert(getText('save_failed'));
+            alert("儲存失敗，請稍後再試。");
         }
     }
 
-    employeeNameInput.addEventListener('input', renderCalendar);
-
+    employeeNameSelect.addEventListener('change', renderCalendar);
     adminSettingsBtn.addEventListener('click', () => {
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
@@ -287,7 +295,7 @@ document.addEventListener('firebase-ready', () => {
             }
         } catch (error) {
             console.error(error);
-            alert(getText('verification_failed'));
+            alert('驗證時發生網路錯誤，請檢查網路連線或稍後再試。');
         } finally {
             adminLoginBtn.disabled = false;
             spinner.classList.add('d-none');
@@ -297,16 +305,16 @@ document.addEventListener('firebase-ready', () => {
     saveSettingsBtn.addEventListener('click', async () => {
         const startDate = document.getElementById('leave-start-date').value;
         const endDate = document.getElementById('leave-end-date').value;
-        if (!startDate || !endDate) { alert(getText('set_start_end_date')); return; }
-        if (new Date(endDate) < new Date(startDate)) { alert(getText('end_date_cannot_be_earlier')); return; }
+        if (!startDate || !endDate) { alert('請設定開始與結束日期'); return; }
+        if (new Date(endDate) < new Date(startDate)) { alert('結束日期不可早於開始日期'); return; }
         saveSettingsBtn.disabled = true;
         try {
             await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
-            alert(getText('settings_saved'));
+            alert('預假期間已儲存！頁面將會重新載入以套用新設定。');
             window.location.reload();
         } catch (error) {
             console.error("儲存設定失敗:", error);
-            alert(getText('settings_save_failed'));
+            alert("儲存失敗，請稍後再試。");
         } finally {
             saveSettingsBtn.disabled = false;
         }
@@ -317,7 +325,7 @@ document.addEventListener('firebase-ready', () => {
             const content = await generateProfessionalReportHTML();
             const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總覽.doc'; a.click();
+            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總表.doc'; a.click();
             window.URL.revokeObjectURL(url);
         });
     }
@@ -327,7 +335,7 @@ document.addEventListener('firebase-ready', () => {
             const content = await generateProfessionalReportHTML();
             const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總覽.xls'; a.click();
+            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總表.xls'; a.click();
             window.URL.revokeObjectURL(url);
         });
     }
@@ -343,5 +351,6 @@ document.addEventListener('firebase-ready', () => {
         });
     }
     
+    loadEmployeesDropdown();
     renderCalendar();
 });
