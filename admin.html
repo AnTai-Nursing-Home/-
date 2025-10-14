@@ -12,7 +12,7 @@
 <body>
     <div class="container my-5">
         <div class="row justify-content-center">
-            <div class="col-lg-10">
+            <div class="col-lg-12">
                 <div class="card shadow">
                     <div class="card-header text-center bg-dark text-white">
                         <h2 data-i18n="nurse_system">護理師系統</h2>
@@ -33,34 +33,23 @@
                                 <a href="booking.html?mode=admin" class="menu-item"><i class="fas fa-pen-to-square fa-3x"></i><span class="menu-item-text" data-i18n="proxy_booking">代客預約</span></a>
                                 <a href="supplies.html" class="menu-item"><i class="fas fa-boxes-stacked fa-3x"></i><span class="menu-item-text" data-i18n="supplies_inventory">衛材點班</span></a>
                                 <a href="leave.html" class="menu-item"><i class="fas fa-calendar-days fa-3x"></i><span class="menu-item-text" data-i18n="leave_system">預假系統</span></a>
-                                <a href="residents-admin.html" class="menu-item">
-                                    <i class="fas fa-users-cog fa-3x"></i>
-                                    <span class="menu-item-text">住民資料管理</span>
+                                <a href="residents-admin.html" class="menu-item"><i class="fas fa-users-cog fa-3x"></i><span class="menu-item-text" data-i18n="resident_data_management">住民資料管理</span></a>
+                                <a href="employees-admin.html" class="menu-item">
+                                    <i class="fas fa-id-card-alt fa-3x"></i>
+                                    <span class="menu-item-text">員工資料管理</span>
                                 </a>
                             </div>
                             <div class="text-center mt-4">
-                                <a href="index.html" class="btn btn-outline-secondary">
-                                    <i class="fas fa-home me-2"></i><span data-i18n="back_to_main_menu">返回首頁選單</span>
-                                </a>
+                                <a href="index.html" class="btn btn-outline-secondary"><i class="fas fa-home me-2"></i><span data-i18n="back_to_main_menu">返回首頁選單</span></a>
                             </div>
                         </div>
-                        <div id="results-section" class="d-none mt-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3 data-i18n="all_booking_records">所有預約紀錄</h3>
-                                <button id="back-to-dashboard-btn" class="btn btn-secondary" data-i18n="back_to_dashboard">返回儀表板</button>
-                            </div>
-                            <div id="booking-list" class="table-responsive"></div>
-                        </div>
+                        <div id="results-section" class="d-none mt-4"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <footer class="site-footer">
-        <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
-        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
-    </footer>
-    
+    <footer class="site-footer"></footer>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="firebase-init.js"></script>
