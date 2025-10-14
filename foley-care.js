@@ -61,7 +61,7 @@ document.addEventListener('firebase-ready', () => {
         }
 
         careFormListSection.classList.remove('d-none');
-        careFormSection.classList.add('d-none'); // 選擇新住民時，先隱藏表單
+        careFormSection.classList.add('d-none');
         const [year, monthNum] = month.split('-');
         const lang = getLanguage();
         const title = lang === 'en' 
@@ -306,7 +306,7 @@ document.addEventListener('firebase-ready', () => {
             }
         }
     });
-
+    
     exportWordBtn.addEventListener('click', () => {
         const content = generateReportHTML();
         const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
