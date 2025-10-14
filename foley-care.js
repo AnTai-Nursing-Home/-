@@ -1,6 +1,9 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找一個只在 foley-care.html 存在的獨特元件，來判斷我們是否在正確的頁面
     const careTableBody = document.getElementById('care-table-body');
-    if (!careTableBody) return;
+    if (!careTableBody) {
+        return; // 如果找不到，代表不在照護評估頁，直接結束
+    }
 
     // --- 元件宣告 ---
     const residentNameSelect = document.getElementById('resident-name-select');
@@ -61,7 +64,7 @@ document.addEventListener('firebase-ready', () => {
         careFormSection.classList.add('d-none');
         const [year, monthNum] = month.split('-');
         const lang = getLanguage();
-        const title = lang === 'en'
+        const title = lang === 'en' 
             ? getText('care_form_list_for', { name: residentName, year: year, month: parseInt(monthNum, 10) })
             : getText('care_form_list_for', { name: residentName, year: year, month: parseInt(monthNum, 10) });
         careFormListTitle.textContent = title;
