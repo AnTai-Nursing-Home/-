@@ -21,6 +21,9 @@ document.addEventListener('firebase-ready', () => {
     const exportWordBtn = document.getElementById('export-word-btn');
     const exportExcelBtn = document.getElementById('export-excel-btn');
     const printBtn = document.getElementById('print-btn');
+    const importExcelBtn = document.getElementById('import-excel-btn');
+    const excelFileInput = document.getElementById('excel-file-input');
+    const importStatus = document.getElementById('import-status');
     
     // --- 變數 ---
     const nursesCollection = 'nurses';
@@ -128,6 +131,71 @@ document.addEventListener('firebase-ready', () => {
 
         return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle}</h2>${tableHTML}</body></html>`;
     }
+
+    async function handleExcelImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const activeTab = document.querySelector('#employeeTabs .nav-link.active');
+        const isNurses = activeTab.id === 'nurses-tab';
+        const collectionName = isNurses ? nursesCollection : caregiversCollection;
+        const employeeTypeText = isNurses ? '護理師' : '照服員';
+
+        importStatus.className = 'alert alert-info';
+        importStatus.classList.remove('d-none');
+        importStatus.textContent = `正在讀取檔案並匯入至「${employeeTypeText}」名冊...`;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const employees = XLSX.utils.sheet_to_json(worksheet);
+
+                if (employees.length === 0) {
+                    importStatus.textContent = '錯誤：Excel 檔案中沒有資料。';
+                    return;
+                }
+
+                if (!employees[0].hasOwnProperty('員編') || !employees[0].hasOwnProperty('姓名')) {
+                    importStatus.textContent = '錯誤：Excel 檔案缺少必要的「員編」或「姓名」欄位，請確認第一列的欄位標題是否正確。';
+                    return;
+                }
+
+                importStatus.textContent = `偵測到 ${employees.length} 筆資料，正在批次寫入雲端...`;
+                const batch = db.batch();
+                employees.forEach((emp) => {
+                    const id = String(emp.員編).trim();
+                    const name = String(emp.姓名).trim();
+                    if (id && name) {
+                        const docRef = db.collection(collectionName).doc(id);
+                        batch.set(docRef, {
+                            id: id,
+                            name: name,
+                            sortOrder: parseInt(emp.排序) || 999
+                        });
+                    }
+                });
+
+                await batch.commit();
+
+                importStatus.className = 'alert alert-success';
+                importStatus.textContent = `成功匯入 ${employees.length} 筆資料至「${employeeTypeText}」名冊！頁面將重新整理。`;
+                
+                setTimeout(() => window.location.reload(), 2000);
+
+            } catch (error) {
+                console.error("Excel 匯入失敗:", error);
+                importStatus.className = 'alert alert-danger';
+                importStatus.textContent = '匯入失敗，請檢查檔案格式或聯繫管理員。';
+            } finally {
+                excelFileInput.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
     
     // --- 事件監聽器 ---
     addEmployeeBtn.addEventListener('click', () => {
@@ -185,6 +253,11 @@ document.addEventListener('firebase-ready', () => {
             loadAll();
         });
     });
+
+    importExcelBtn.addEventListener('click', () => {
+        excelFileInput.click();
+    });
+    excelFileInput.addEventListener('change', handleExcelImport);
 
     exportWordBtn.addEventListener('click', async () => {
         const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
