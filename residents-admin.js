@@ -18,32 +18,22 @@ document.addEventListener('firebase-ready', () => {
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
     const checkinDateInput = document.getElementById('resident-checkinDate');
-    const sortOrderInput = document.getElementById('resident-sortOrder');
 
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
     const importStatus = document.getElementById('import-status');
-    const tableHeaders = document.querySelectorAll('.sortable-header');
-    const exportWordBtn = document.getElementById('export-word-btn');
-    const exportExcelBtn = document.getElementById('export-excel-btn');
-    const printBtn = document.getElementById('print-btn');
-    
+
     // --- 變數 ---
     const collectionName = 'residents';
-    let currentEditingId = null; 
-    let sortConfig = { key: 'sortOrder', order: 'asc' }; // 預設使用自訂排序
 
     // --- 函式定義 ---
     async function loadAndRenderResidents() {
-        residentsTableBody.innerHTML = '<tr><td colspan="7" class="text-center">讀取中...</td></tr>';
+        residentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">讀取中...</td></tr>';
         try {
-            const snapshot = await db.collection(collectionName)
-                .orderBy(sortConfig.key, sortConfig.order)
-                .orderBy('bedNumber', 'asc') // 當 sortOrder 相同時，用床號做次要排序
-                .get();
+            const snapshot = await db.collection(collectionName).orderBy('bedNumber').get();
             
             if (snapshot.empty) {
-                residentsTableBody.innerHTML = '<tr><td colspan="7" class="text-center">尚無住民資料，請點擊「新增住民」或「從 Excel 匯入」開始建立。</td></tr>';
+                residentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">尚無住民資料，請點擊「新增住民」或「從 Excel 匯入」開始建立。</td></tr>';
                 return;
             }
 
@@ -52,7 +42,6 @@ document.addEventListener('firebase-ready', () => {
                 const resident = doc.data();
                 html += `
                     <tr data-id="${doc.id}">
-                        <td>${resident.sortOrder || 999}</td>
                         <td>${doc.id}</td>
                         <td>${resident.bedNumber || ''}</td>
                         <td>${resident.gender || ''}</td>
@@ -66,31 +55,11 @@ document.addEventListener('firebase-ready', () => {
                 `;
             });
             residentsTableBody.innerHTML = html;
-            updateHeaderSortUI();
 
         } catch (error) {
             console.error("讀取住民資料失敗:", error);
-            residentsTableBody.innerHTML = '<tr><td colspan="7"><div class="alert alert-danger">讀取資料失敗，請重新整理頁面。</div></td></tr>';
+            residentsTableBody.innerHTML = '<tr><td colspan="6"><div class="alert alert-danger">讀取資料失敗，請重新整理頁面。</div></td></tr>';
         }
-    }
-
-    function updateHeaderSortUI() {
-        tableHeaders.forEach(header => {
-            const sortKey = header.dataset.sort;
-            header.classList.remove('sort-asc', 'sort-desc');
-            if (sortKey === sortConfig.key) {
-                header.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
-            }
-        });
-    }
-
-    function openModalForNew() {
-        currentEditingId = null;
-        residentModalTitle.textContent = '新增住民';
-        residentForm.reset();
-        sortOrderInput.value = 999;
-        nameInput.disabled = false;
-        residentModal.show();
     }
 
     async function handleSave() {
@@ -105,14 +74,10 @@ document.addEventListener('firebase-ready', () => {
             gender: genderInput.value,
             birthday: birthdayInput.value,
             checkinDate: checkinDateInput.value,
-            sortOrder: parseInt(sortOrderInput.value) || 999
         };
 
         saveResidentBtn.disabled = true;
         try {
-            if (currentEditingId && currentEditingId !== name) {
-                await db.collection(collectionName).doc(currentEditingId).delete();
-            }
             await db.collection(collectionName).doc(name).set(residentData);
             residentModal.hide();
             loadAndRenderResidents();
@@ -154,7 +119,7 @@ document.addEventListener('firebase-ready', () => {
                 importStatus.textContent = `偵測到 ${residents.length} 筆資料，正在批次寫入雲端...`;
 
                 const batch = db.batch();
-                residents.forEach((resident, index) => {
+                residents.forEach(resident => {
                     const name = String(resident.姓名).trim();
                     if (name) {
                         const docRef = db.collection(collectionName).doc(name);
@@ -172,7 +137,6 @@ document.addEventListener('firebase-ready', () => {
                             gender: String(resident.性別 || ''),
                             birthday: formatDate(resident.生日),
                             checkinDate: formatDate(resident.入住日期),
-                            sortOrder: parseInt(resident.排序) || (index + 1) * 10 
                         });
                     }
                 });
@@ -196,7 +160,12 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // --- 事件監聽器 ---
-    addResidentBtn.addEventListener('click', openModalForNew);
+    addResidentBtn.addEventListener('click', () => {
+        residentModalTitle.textContent = '新增住民';
+        residentForm.reset();
+        nameInput.disabled = false;
+        residentModal.show();
+    });
 
     residentsTableBody.addEventListener('click', async (e) => {
         const target = e.target;
@@ -205,7 +174,6 @@ document.addEventListener('firebase-ready', () => {
         const residentId = row.dataset.id;
 
         if (target.classList.contains('btn-edit')) {
-            currentEditingId = residentId;
             residentModalTitle.textContent = '編輯住民資料';
             residentForm.reset();
             
@@ -220,7 +188,6 @@ document.addEventListener('firebase-ready', () => {
                     genderInput.value = data.gender || '';
                     birthdayInput.value = data.birthday || '';
                     checkinDateInput.value = data.checkinDate || '';
-                    sortOrderInput.value = data.sortOrder || 999;
                     residentModal.show();
                 }
             } catch (error) {
@@ -246,19 +213,6 @@ document.addEventListener('firebase-ready', () => {
         excelFileInput.click();
     });
     excelFileInput.addEventListener('change', handleExcelImport);
-
-    tableHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const newKey = header.dataset.sort;
-            if (sortConfig.key === newKey) {
-                sortConfig.order = (sortConfig.order === 'asc') ? 'desc' : 'asc';
-            } else {
-                sortConfig.key = newKey;
-                sortConfig.order = 'asc';
-            }
-            loadAndRenderResidents();
-        });
-    });
     
     // --- 初始操作 ---
     loadAndRenderResidents();
