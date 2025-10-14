@@ -94,10 +94,17 @@ document.addEventListener('firebase-ready', () => {
             calendarDiv.innerHTML = '';
 
             const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-            weekdays.forEach(day => { /* ... */ });
+            weekdays.forEach(day => {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-weekday';
+                dayEl.textContent = day;
+                calendarDiv.appendChild(dayEl);
+            });
 
             const firstDayOfWeek = new Date(year, month, 1).getDay();
-            for (let i = 0; i < firstDayOfWeek; i++) { calendarDiv.appendChild(document.createElement('div')); }
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                calendarDiv.appendChild(document.createElement('div'));
+            }
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
@@ -128,7 +135,9 @@ document.addEventListener('firebase-ready', () => {
                 }
                 dayEl.innerHTML = `<div class="day-number">${i}</div>${namesHTML}`;
                 
-                if (!isRequestPeriodOpen) { dayEl.classList.add('disabled'); }
+                if (!isRequestPeriodOpen) {
+                    dayEl.classList.add('disabled');
+                }
                 calendarDiv.appendChild(dayEl);
             }
         } catch (error) {
@@ -137,7 +146,31 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    async function renderAdminView() { /* ... 內容不變 ... */ }
+    async function renderAdminView() {
+        try {
+            const snapshot = await db.collection(requestsCollection).get();
+            const requestsByDate = {};
+            snapshot.forEach(doc => {
+                requestsByDate[doc.id] = doc.data();
+            });
+            const sortedDates = Object.keys(requestsByDate).sort();
+            if (sortedDates.length === 0) {
+                adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假/預班紀錄。</p>';
+                return;
+            }
+            let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預排人員及班別</th></tr></thead><tbody>';
+            sortedDates.forEach(date => {
+                const dailyRequests = requestsByDate[date];
+                const entries = Object.entries(dailyRequests).map(([name, shift]) => `${name}: ${shift}`);
+                tableHTML += `<tr><td>${date}</td><td>${entries.join(', ')}</td></tr>`;
+            });
+            tableHTML += '</tbody></table>';
+            adminSummaryTableDiv.innerHTML = tableHTML;
+        } catch (error) {
+            console.error("渲染管理員視圖失敗:", error);
+            adminViewPanel.innerHTML = '<div class="alert alert-danger">讀取總覽資料失敗。</div>';
+        }
+    }
     
     async function generateProfessionalReportHTML() {
         const today = new Date();
@@ -173,7 +206,7 @@ document.addEventListener('firebase-ready', () => {
 
         const tableContent = `<table><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
         const title = "護理師預假/預班總表";
-        return `<!DOCTYPE html><html>...<body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;font-size:10pt;}th{background-color:#f2f2f2;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
     }
 
     calendarDiv.addEventListener('click', (e) => {
@@ -226,13 +259,96 @@ document.addEventListener('firebase-ready', () => {
     }
 
     employeeNameSelect.addEventListener('change', renderCalendar);
-    adminSettingsBtn.addEventListener('click', () => { /* ... 內容不變 ... */ });
-    adminLoginBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
-    saveSettingsBtn.addEventListener('click', async () => { /* ... 內容不變 ... */ });
+
+    adminSettingsBtn.addEventListener('click', () => {
+        adminPasswordInput.value = '';
+        adminErrorMsg.classList.add('d-none');
+        adminPasswordModal.show();
+    });
+
+    adminLoginBtn.addEventListener('click', async () => {
+        const password = adminPasswordInput.value;
+        if (!password) { return; }
+        const spinner = adminLoginBtn.querySelector('.spinner-border');
+        adminLoginBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        adminErrorMsg.classList.add('d-none');
+        try {
+            const response = await fetch('/api/leave-admin-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+            if (response.ok) {
+                adminPasswordModal.hide();
+                adminSettingsPanel.classList.remove('d-none');
+                adminHr.classList.remove('d-none');
+                adminViewPanel.classList.remove('d-none');
+                renderAdminView();
+                const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+                document.getElementById('leave-start-date').value = settings.startDate || '';
+                document.getElementById('leave-end-date').value = settings.endDate || '';
+            } else {
+                adminErrorMsg.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('驗證時發生網路錯誤，請檢查網路連線或稍後再試。');
+        } finally {
+            adminLoginBtn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+
+    saveSettingsBtn.addEventListener('click', async () => {
+        const startDate = document.getElementById('leave-start-date').value;
+        const endDate = document.getElementById('leave-end-date').value;
+        if (!startDate || !endDate) { alert('請設定開始與結束日期'); return; }
+        if (new Date(endDate) < new Date(startDate)) { alert('結束日期不可早於開始日期'); return; }
+        saveSettingsBtn.disabled = true;
+        try {
+            await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
+            alert('預假期間已儲存！頁面將會重新載入以套用新設定。');
+            window.location.reload();
+        } catch (error) {
+            console.error("儲存設定失敗:", error);
+            alert("儲存失敗，請稍後再試。");
+        } finally {
+            saveSettingsBtn.disabled = false;
+        }
+    });
     
-    if(exportAdminWordBtn) { exportAdminWordBtn.addEventListener('click', async () => { /* ... */ }); }
-    if(exportAdminExcelBtn) { exportAdminExcelBtn.addEventListener('click', async () => { /* ... */ }); }
-    if(printAdminReportBtn) { printAdminReportBtn.addEventListener('click', async () => { /* ... */ }); }
+    if(exportAdminWordBtn) {
+        exportAdminWordBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
+            const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = '護理師預班總表.doc'; a.click();
+            window.URL.revokeObjectURL(url);
+        });
+    }
+
+    if(exportAdminExcelBtn) {
+        exportAdminExcelBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
+            const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = '護理師預班總表.xls'; a.click();
+            window.URL.revokeObjectURL(url);
+        });
+    }
+
+    if(printAdminReportBtn) {
+        printAdminReportBtn.addEventListener('click', async () => {
+            const content = await generateProfessionalReportHTML();
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(content);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
+        });
+    }
     
     loadEmployeesDropdown();
     renderCalendar();
