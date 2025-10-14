@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工資料管理 - 員工系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card shadow">
+                    <div class="card-header text-center bg-dark text-white">
+                        <h2>員工資料管理</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <a href="admin.html?view=dashboard" class="btn btn-back-menu">
+                                <i class="fas fa-arrow-left me-2"></i>返回儀表板
+                            </a>
+                            <button id="add-employee-btn" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>新增員工
+                            </button>
+                        </div>
+
+                        <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="nurses-tab" data-bs-toggle="tab" data-bs-target="#nurses-panel" type="button" role="tab">護理師</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="caregivers-tab" data-bs-toggle="tab" data-bs-target="#caregivers-panel" type="button" role="tab">照服員</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="employeeTabsContent">
+                            <div class="tab-pane fade show active" id="nurses-panel" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light"><tr><th>員編</th><th>姓名</th><th>操作</th></tr></thead>
+                                        <tbody id="nurses-table-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="caregivers-panel" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light"><tr><th>員編</th><th>姓名</th><th>操作</th></tr></thead>
+                                        <tbody id="caregivers-table-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="employee-modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title" id="employee-modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="employee-form">
+                        <input type="hidden" id="employee-type">
+                        <div class="mb-3">
+                            <label for="employee-id" class="form-label">員編</label>
+                            <input type="text" class="form-control" id="employee-id" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="employee-name" class="form-label">姓名</label>
+                            <input type="text" class="form-control" id="employee-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" id="save-employee-btn" class="btn btn-primary">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="employees-admin.js"></script>
+</body>
+</html>
