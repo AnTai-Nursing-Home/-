@@ -61,7 +61,7 @@ document.addEventListener('firebase-ready', () => {
         }
 
         careFormListSection.classList.remove('d-none');
-        careFormSection.classList.add('d-none');
+        careFormSection.classList.add('d-none'); // 選擇新住民時，先隱藏表單
         const [year, monthNum] = month.split('-');
         const lang = getLanguage();
         const title = lang === 'en' 
@@ -163,7 +163,7 @@ document.addEventListener('firebase-ready', () => {
                     const checkedRadio = cell.querySelector('input:checked');
                     cellValue = checkedRadio ? checkedRadio.value : '';
                 } else {
-                    cellValue = cell.querySelector('input').value;
+                    cellValue = (cell.querySelector('input').value || '').split('@')[0].trim();
                 }
                 rowContent += `<td style="border: 1px solid black; padding: 4px;">${cellValue}</td>`;
             });
@@ -259,9 +259,9 @@ document.addEventListener('firebase-ready', () => {
             } else {
                 const docRef = await db.collection(careFormsCollection).add(dataToSave);
                 currentCareFormId = docRef.id;
+                deleteCareFormBtn.classList.remove('d-none');
             }
             alert(getText('care_form_saved'));
-            // 留在原頁面，不清空
         } catch (error) {
             console.error("儲存失敗:", error);
             alert(getText('save_failed'));
