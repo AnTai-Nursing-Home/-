@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>護理師體溫登錄</title>
+    <title data-i18n="temperature_log_nurse">護理師體溫登錄</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container my-5">
@@ -14,39 +15,45 @@
             <div class="col-lg-8">
                 <div class="card shadow">
                     <div class="card-header text-center bg-dark text-white">
-                        <h2>護理師每日體溫登錄</h2>
+                        <h2 data-i18n="nurse_temperature_log_title">護理師每日體溫登錄</h2>
                     </div>
                     <div class="card-body">
                         <a href="admin.html?view=dashboard" class="btn btn-back-menu mb-4 d-print-none">
-                            <i class="fas fa-arrow-left me-2"></i>返回儀表板
+                            <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_dashboard">返回儀表板</span>
                         </a>
                         <div class="row g-3 mb-4 align-items-end d-print-none">
                             <div class="col-md-6">
-                                <label for="record-date" class="form-label">登錄日期</label>
+                                <label for="record-date" class="form-label" data-i18n="log_date">登錄日期</label>
                                 <input type="date" id="record-date" class="form-control">
                             </div>
                         </div>
                         
                         <div class="d-flex justify-content-end gap-2 mb-3 d-print-none">
-                            <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
-                            <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
-                            <button id="print-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
+                            <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> <span data-i18n="export_word">匯出 Word</span></button>
+                            <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> <span data-i18n="export_excel">匯出 Excel</span></button>
+                            <button id="print-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> <span data-i18n="print_report">列印</span></button>
                         </div>
 
                         <div id="employee-list-container">
                             </div>
                         <div class="text-center mt-4 d-print-none">
-                            <button id="save-temps-btn" class="btn btn-primary btn-lg">儲存本日體溫</button>
+                            <button id="save-temps-btn" class="btn btn-primary btn-lg" data-i18n="save_today_temps">儲存本日體溫</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <footer class="site-footer d-print-none">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
+    <footer class="site-footer d-print-none">
+        <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
+        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+    </footer>
+    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="firebase-init.js"></script>
+    <script src="i18n.js"></script>
+    <script src="main.js"></script>
     <script src="temperature-nurse.js"></script>
 </body>
 </html>
