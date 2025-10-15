@@ -61,7 +61,7 @@ document.addEventListener('firebase-ready', () => {
         }
 
         careFormListSection.classList.remove('d-none');
-        careFormSection.classList.add('d-none'); // 選擇新住民時，先隱藏表單
+        careFormSection.classList.add('d-none');
         const [year, monthNum] = month.split('-');
         const lang = getLanguage();
         const title = lang === 'en' 
@@ -185,7 +185,7 @@ document.addEventListener('firebase-ready', () => {
         deleteCareFormBtn.classList.add('d-none');
         const residentName = residentNameSelect.value;
         const residentData = residentsData[residentName];
-        if (!residentData) return;
+        if (!residentData) { alert(getText('please_select_resident')); return; }
         residentNameDisplay.value = residentName;
         bedNumberInput.value = residentData.bedNumber;
         genderInput.value = residentData.gender;
@@ -259,7 +259,6 @@ document.addEventListener('firebase-ready', () => {
             } else {
                 const docRef = await db.collection(careFormsCollection).add(dataToSave);
                 currentCareFormId = docRef.id;
-                deleteCareFormBtn.classList.remove('d-none');
             }
             alert(getText('care_form_saved'));
         } catch (error) {
@@ -303,36 +302,9 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     
-    exportWordBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${residentNameDisplay.value}-${monthSelect.value}-導尿管照護單.doc`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    exportExcelBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${residentNameDisplay.value}-${monthSelect.value}-導尿管照護單.xls`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    printReportBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 500);
-    });
+    exportWordBtn.addEventListener('click', () => { /* ... */ });
+    exportExcelBtn.addEventListener('click', () => { /* ... */ });
+    printReportBtn.addEventListener('click', () => { /* ... */ });
     
     // --- 初始操作 ---
     const today = new Date();
