@@ -53,6 +53,12 @@ document.addEventListener('firebase-ready', () => {
         const date = recordDateInput.value;
         if (!date) return;
 
+        // 先清空所有輸入框
+        container.querySelectorAll('.temp-input').forEach(input => {
+            input.value = '';
+            input.classList.remove('is-invalid');
+        });
+
         try {
             const docRef = db.collection(tempsCollection).doc(date);
             const doc = await docRef.get();
@@ -63,13 +69,8 @@ document.addEventListener('firebase-ready', () => {
                     if (temps[empId] !== undefined) {
                         input.value = temps[empId];
                         validateTemperature(input);
-                    } else {
-                        input.value = '';
                     }
                 });
-            } else {
-                // 如果那天沒資料，清空所有輸入框
-                container.querySelectorAll('.temp-input').forEach(input => input.value = '');
             }
         } catch (error) {
             console.error("讀取體溫紀錄失敗:", error);
@@ -78,8 +79,12 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function validateTemperature(inputElement) {
+        if (!inputElement.value) {
+            inputElement.classList.remove('is-invalid');
+            return true;
+        }
         const temp = parseFloat(inputElement.value);
-        if (inputElement.value && (temp < 36.0 || temp > 37.5)) {
+        if (temp < 36.0 || temp > 37.5) {
             inputElement.classList.add('is-invalid');
             return false;
         } else {
@@ -109,7 +114,7 @@ document.addEventListener('firebase-ready', () => {
         });
 
         if (!allValid) {
-            alert('體溫有異常值，請確認後再儲存！');
+            alert('體溫有異常值(低於36.0或高於37.5)，請確認後再儲存！');
             return;
         }
 
@@ -129,7 +134,15 @@ document.addEventListener('firebase-ready', () => {
         const date = recordDateInput.value;
         const reportTitle = "照服員每日體溫紀錄總表";
 
-        let tableHTML = `<table style="width: 80%; margin: 20px auto; border-collapse: collapse; text-align: center;"><thead><tr style="background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 8px;">員編</th><th style="border: 1px solid black; padding: 8px;">姓名</th><th style="border: 1px solid black; padding: 8px;">體溫 (°C)</th></tr></thead><tbody>`;
+        let tableHTML = `<table style="width: 80%; margin: 20px auto; border-collapse: collapse; text-align: center;">
+                            <thead>
+                                <tr style="background-color: #f2f2f2;">
+                                    <th style="border: 1px solid black; padding: 8px;">員編</th>
+                                    <th style="border: 1px solid black; padding: 8px;">姓名</th>
+                                    <th style="border: 1px solid black; padding: 8px;">體溫 (°C)</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
         
         employeeList.forEach(emp => {
             const inputEl = container.querySelector(`.temp-input[data-id="${emp.id}"]`);
@@ -137,7 +150,11 @@ document.addEventListener('firebase-ready', () => {
             const isAbnormal = tempValue && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
             const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
 
-            tableHTML += `<tr><td style="border: 1px solid black; padding: 8px;">${emp.id}</td><td style="border: 1px solid black; padding: 8px;">${emp.name}</td><td ${style} style="border: 1px solid black; padding: 8px;">${tempValue}</td></tr>`;
+            tableHTML += `<tr>
+                            <td style="border: 1px solid black; padding: 8px;">${emp.id}</td>
+                            <td style="border: 1px solid black; padding: 8px;">${emp.name}</td>
+                            <td ${style} style="border: 1px solid black; padding: 8px;">${tempValue}</td>
+                          </tr>`;
         });
         tableHTML += '</tbody></table>';
 
