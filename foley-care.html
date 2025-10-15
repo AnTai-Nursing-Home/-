@@ -18,41 +18,40 @@
                         <h2 data-i18n="foley_care_title">照護機構預防導尿管相關泌尿道感染每日照護評估表</h2>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
-                            <a href="caregiver.html?view=dashboard" class="btn btn-back-menu">
-                                <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system">返回照服員系統</span>
-                            </a>
-                        </div>
-
-                        <div class="row justify-content-center mb-4 d-print-none">
-                            <div class="col-md-4">
-                                <label for="resident-name-select" class="form-label fs-5" data-i18n="please_select_resident">請選擇住民</label>
-                                <select id="resident-name-select" class="form-select form-select-lg"></select>
+                        <div id="list-view">
+                            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                                <a href="caregiver.html?view=dashboard" class="btn btn-back-menu">
+                                    <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system">返回照服員系統</span>
+                                </a>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="text" id="search-resident-input" class="form-control" placeholder="輸入住民姓名查詢...">
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-primary active" data-status="ongoing">進行中</button>
+                                        <button type="button" class="btn btn-secondary" data-status="closed">已結案</button>
+                                    </div>
+                                    <button id="add-new-form-btn" class="btn btn-success">
+                                        <i class="fas fa-plus me-2"></i><span data-i18n="add_this_month_form">新增照護單</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="month-select" class="form-label fs-5" data-i18n="select_month">選擇月份</label>
-                                <input type="month" id="month-select" class="form-select form-select-lg">
-                            </div>
-                        </div>
-
-                        <hr class="d-print-none">
-
-                        <div id="care-form-list-section" class="d-none d-print-none">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 id="care-form-list-title"></h4>
-                                <button id="add-new-form-btn" class="btn btn-success">
-                                    <i class="fas fa-plus me-2"></i><span data-i18n="add_this_month_form">新增本月照護單</span>
-                                </button>
-                            </div>
+                            <h4 id="care-form-list-title"></h4>
                             <div id="care-form-list" class="list-group">
                                 </div>
                         </div>
 
-                        <div id="care-form-section" class="d-none">
+                        <div id="form-view" class="d-none">
+                             <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+                                <button id="back-to-list-btn" class="btn btn-back-menu">
+                                    <i class="fas fa-arrow-left me-2"></i>返回列表
+                                </button>
+                            </div>
                             <fieldset class="border p-3 mb-4">
                                 <legend class="float-none w-auto px-2" data-i18n="resident_basic_info">住民基本資料</legend>
                                 <div class="row g-3">
-                                    <div class="col-md-3"><label class="form-label" data-i18n="name">姓名</label><input type="text" id="resident-name-display" class="form-control" readonly></div>
+                                    <div class="col-md-3">
+                                        <label for="resident-name-select" class="form-label" data-i18n="name">姓名</label>
+                                        <select id="resident-name-select" class="form-select"></select>
+                                    </div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="bed_number">床號</label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="gender">性別</label><input type="text" id="resident-gender" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="birthday">生日</label><input type="text" id="resident-birthday" class="form-control" readonly></div>
