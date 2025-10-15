@@ -13,7 +13,7 @@ document.addEventListener('firebase-ready', () => {
     // --- 變數 ---
     const employeesCollection = 'caregivers';
     const tempsCollection = 'caregiver_temperatures';
-    let employeeList = [];
+    let employeeList = []; // 用來暫存從Firebase讀取的員工列表
 
     // --- 函式 ---
     async function loadAndRenderEmployees() {
@@ -171,20 +171,18 @@ document.addEventListener('firebase-ready', () => {
         });
 
         const tableContent = `<table style="width: 100%; border-collapse: collapse; font-size: 9pt;"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
-        const headerTable = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${monthName})</h2></div>`;
+        const headerContent = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${monthName})</h2></div>`;
 
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerTable}${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerContent}${tableContent}</body></html>`;
     }
 
     // --- 事件監聽器 ---
     recordDateInput.addEventListener('change', loadTemperaturesForDate);
-
     container.addEventListener('input', (e) => {
         if (e.target.classList.contains('temp-input')) {
             validateTemperature(e.target);
         }
     });
-
     saveTempsBtn.addEventListener('click', handleSave);
 
     exportWordBtn.addEventListener('click', async () => {
