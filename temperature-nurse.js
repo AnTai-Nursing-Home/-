@@ -15,7 +15,7 @@ document.addEventListener('firebase-ready', () => {
     const tempsCollection = 'nurse_temperatures';
     let employeeList = []; // 用來暫存從Firebase讀取的員工列表
 
-    // --- 函式定義 ---
+    // --- 函式 ---
     async function loadAndRenderEmployees() {
         container.innerHTML = '讀取中...';
         try {
@@ -53,6 +53,7 @@ document.addEventListener('firebase-ready', () => {
         const date = recordDateInput.value;
         if (!date) return;
         
+        // 先清空所有輸入框和錯誤樣式
         container.querySelectorAll('.temp-input').forEach(input => {
             input.value = '';
             input.classList.remove('is-invalid');
@@ -132,6 +133,7 @@ document.addEventListener('firebase-ready', () => {
         const month = selectedDate.getMonth(); // 0-11
         const monthName = `${year}年 ${month + 1}月`;
         const reportTitle = "護理師每日體溫紀錄總表";
+
         const sortedEmployees = employeeList;
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
@@ -170,7 +172,13 @@ document.addEventListener('firebase-ready', () => {
         });
 
         const tableContent = `<table style="width: 100%; border-collapse: collapse; font-size: 9pt;"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table,th,td{border:1px solid black;padding:4px;text-align:center;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${monthName})</h2>${tableContent}</body></html>`;
+        const headerTable = `
+            <table style="width:100%; border:none; margin-bottom: 20px; font-size: 12pt;">
+                <tr><td style="border:none; text-align: left;"><strong>機構名稱:</strong> 安泰醫療社團法人附設安泰護理之家</td></tr>
+                <tr><td style="border:none; text-align: left;"><strong>報表名稱:</strong> ${reportTitle}</td><td style="border:none; text-align: right;"><strong>月份:</strong> ${monthName}</td></tr>
+            </table>`;
+
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerTable}${tableContent}</body></html>`;
     }
 
     // --- 事件監聽器 ---
