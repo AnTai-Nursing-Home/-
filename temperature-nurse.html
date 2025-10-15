@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>護理師體溫登錄</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header text-center bg-dark text-white">
+                        <h2>護理師每日體溫登錄</h2>
+                    </div>
+                    <div class="card-body">
+                        <a href="admin.html?view=dashboard" class="btn btn-back-menu mb-4">
+                            <i class="fas fa-arrow-left me-2"></i>返回儀表板
+                        </a>
+                        <div class="row g-3 mb-4 align-items-end">
+                            <div class="col-md-6">
+                                <label for="record-date" class="form-label">登錄日期</label>
+                                <input type="date" id="record-date" class="form-control">
+                            </div>
+                        </div>
+                        <div id="employee-list-container">
+                            </div>
+                        <div class="text-center mt-4">
+                            <button id="save-temps-btn" class="btn btn-primary btn-lg">儲存本日體溫</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="temperature-nurse.js"></script>
+</body>
+</html>
