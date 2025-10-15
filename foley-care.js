@@ -8,13 +8,14 @@ document.addEventListener('firebase-ready', () => {
     // --- 元件宣告 ---
     const listView = document.getElementById('list-view');
     const formView = document.getElementById('form-view');
-    const residentNameSelect = document.getElementById('resident-name-select');
-    const searchResidentInput = document.getElementById('search-resident-input');
+    const residentNameSelect = document.getElementById('resident-name-select'); // 表單內的下拉選單
+    const searchResidentInput = document.getElementById('search-resident-input'); // 列表上的搜尋框
     const statusBtnGroup = document.querySelector('.btn-group');
     const careFormListTitle = document.getElementById('care-form-list-title');
     const careFormList = document.getElementById('care-form-list');
     const addNewFormBtn = document.getElementById('add-new-form-btn');
     const backToListBtn = document.getElementById('back-to-list-btn');
+    
     const bedNumberInput = document.getElementById('resident-bedNumber');
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
@@ -61,10 +62,10 @@ document.addEventListener('firebase-ready', () => {
         try {
             let query = db.collection(careFormsCollection);
             query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null).orderBy('placementDate', 'desc')
-                : query.where('closingDate', '!=', null).orderBy('closingDate', 'desc').orderBy('placementDate', 'desc');
+                ? query.where('closingDate', '==', null) 
+                : query.where('closingDate', '!=', null);
 
-            const snapshot = await query.get();
+            const snapshot = await query.orderBy('placementDate', 'desc').get();
             let filteredDocs = snapshot.docs;
 
             if (currentSearchTerm) {
@@ -187,7 +188,9 @@ document.addEventListener('firebase-ready', () => {
         listView.classList.add('d-none');
         formView.classList.remove('d-none');
         currentCareFormId = docId;
+        
         residentNameSelect.disabled = !isNew;
+        
         if (isNew) {
             residentNameSelect.value = '';
             bedNumberInput.value = '';
