@@ -17,18 +17,25 @@
                         <h2>護理師每日體溫登錄</h2>
                     </div>
                     <div class="card-body">
-                        <a href="admin.html?view=dashboard" class="btn btn-back-menu mb-4">
+                        <a href="admin.html?view=dashboard" class="btn btn-back-menu mb-4 d-print-none">
                             <i class="fas fa-arrow-left me-2"></i>返回儀表板
                         </a>
-                        <div class="row g-3 mb-4 align-items-end">
+                        <div class="row g-3 mb-4 align-items-end d-print-none">
                             <div class="col-md-6">
                                 <label for="record-date" class="form-label">登錄日期</label>
                                 <input type="date" id="record-date" class="form-control">
                             </div>
                         </div>
+                        
+                        <div class="d-flex justify-content-end gap-2 mb-3 d-print-none">
+                            <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
+                            <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
+                            <button id="print-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
+                        </div>
+
                         <div id="employee-list-container">
                             </div>
-                        <div class="text-center mt-4">
+                        <div class="text-center mt-4 d-print-none">
                             <button id="save-temps-btn" class="btn btn-primary btn-lg">儲存本日體溫</button>
                         </div>
                     </div>
@@ -36,7 +43,7 @@
             </div>
         </div>
     </div>
-    <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
+    <footer class="site-footer d-print-none">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="firebase-init.js"></script>
