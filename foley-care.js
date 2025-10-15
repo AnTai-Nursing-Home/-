@@ -15,6 +15,7 @@ document.addEventListener('firebase-ready', () => {
     const careFormList = document.getElementById('care-form-list');
     const addNewFormBtn = document.getElementById('add-new-form-btn');
     const backToListBtn = document.getElementById('back-to-list-btn');
+    
     const bedNumberInput = document.getElementById('resident-bedNumber');
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
@@ -159,8 +160,11 @@ document.addEventListener('firebase-ready', () => {
             tableContent += rowContent;
         });
         tableContent += '</tbody></table>';
-        let reportHTML = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>
-            <div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>
+        const headerContent = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1>安泰醫療社團法人附設安泰護理之家</h1>
+                <h2>${getText('foley_care_title')}</h2>
+            </div>
             <table style="width:100%; border:none; margin-bottom: 10px; font-size: 12pt;">
                 <tr>
                     <td style="border:none; text-align: left;"><strong>${getText('name')}:</strong> ${residentName}</td>
@@ -175,8 +179,8 @@ document.addEventListener('firebase-ready', () => {
                     <td style="border:none; text-align: left;"><strong>${getText('closing_date')}:</strong> ${closingDateInput.value || ''}</td>
                 </tr>
             </table>
-            ${tableContent}</body></html>`;
-        return reportHTML;
+        `;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerContent}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
@@ -189,7 +193,9 @@ document.addEventListener('firebase-ready', () => {
         listView.classList.add('d-none');
         formView.classList.remove('d-none');
         currentCareFormId = docId;
+        
         residentNameSelect.disabled = !isNew;
+        
         if (isNew) {
             residentNameSelect.value = '';
             bedNumberInput.value = '';
