@@ -9,7 +9,7 @@ document.addEventListener('firebase-ready', () => {
     const listView = document.getElementById('list-view');
     const formView = document.getElementById('form-view');
     const residentNameSelect = document.getElementById('resident-name-select'); // 表單內的下拉選單
-    const residentFilterSelect = document.getElementById('resident-filter-select'); // 列表上的篩選選單
+    const searchResidentInput = document.getElementById('search-resident-input'); // 列表上的搜尋框
     const statusBtnGroup = document.querySelector('.btn-group');
     const careFormListTitle = document.getElementById('care-form-list-title');
     const careFormList = document.getElementById('care-form-list');
@@ -36,55 +36,49 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let residentsData = {};
     let currentView = 'ongoing';
+    let currentSearchTerm = '';
 
     // --- 函式定義 ---
-    async function loadResidentsDropdowns() {
-        const dropdowns = [residentFilterSelect, residentNameSelect];
-        dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('loading')}</option>`);
+    async function loadResidentsDropdown() {
+        residentNameSelect.innerHTML = `<option value="">${getText('loading')}</option>`;
         try {
             const snapshot = await db.collection(residentsCollection).orderBy('sortOrder').get();
-            let optionsHTML = `<option value="" selected>${getText('all_residents') || '全部住民'}</option>`;
-            let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
-            
+            let optionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             snapshot.forEach(doc => {
                 residentsData[doc.id] = doc.data();
                 optionsHTML += `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
-                formOptionsHTML += `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
             });
-            
-            residentFilterSelect.innerHTML = optionsHTML;
-            residentNameSelect.innerHTML = formOptionsHTML;
+            residentNameSelect.innerHTML = optionsHTML;
         } catch (error) {
             console.error("讀取住民列表失敗:", error);
-            dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('read_failed')}</option>`);
+            residentNameSelect.innerHTML = `<option value="">${getText('read_failed')}</option>`;
         }
     }
 
     async function loadCareFormList() {
-        const residentName = residentFilterSelect.value;
         careFormList.innerHTML = `<div class="list-group-item">${getText('loading')}</div>`;
         careFormListTitle.textContent = (currentView === 'ongoing') ? getText('ongoing_care_forms') : getText('closed_care_forms');
 
         try {
             let query = db.collection(careFormsCollection);
-
-            if (residentName) {
-                query = query.where('residentName', '==', residentName);
-            }
-            
             query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null)
+                ? query.where('closingDate', '==', null) 
                 : query.where('closingDate', '!=', null);
 
             const snapshot = await query.orderBy('placementDate', 'desc').get();
+            let filteredDocs = snapshot.docs;
 
-            if (snapshot.empty) {
+            if (currentSearchTerm) {
+                filteredDocs = filteredDocs.filter(doc => doc.data().residentName.includes(currentSearchTerm));
+            }
+
+            if (filteredDocs.length === 0) {
                 careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
                 return;
             }
 
             let listHTML = '';
-            snapshot.forEach(doc => {
+            filteredDocs.forEach(doc => {
                 const data = doc.data();
                 const status = data.closingDate ? `<span class="badge bg-secondary">${getText('status_closed')}</span>` : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
                 listHTML += `<a href="#" class="list-group-item list-group-item-action" data-id="${doc.id}">
@@ -148,9 +142,40 @@ document.addEventListener('firebase-ready', () => {
     function generateReportHTML() {
         const residentName = residentNameSelect.value;
         const residentData = residentsData[residentName];
-        let tableContent = `...`; // Report generation logic here
-        const headerContent = `...`;
-        return `<!DOCTYPE html>...`;
+        let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;"><thead><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th rowspan="2" style="border: 1px solid black; padding: 4px;">${getText('date')}</th><th colspan="6" style="border: 1px solid black; padding: 4px;">${getText('assessment_items')}</th><th colspan="2" style="border: 1px solid black; padding: 4px;">${getText('signature')}</th></tr><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 4px;">${getText('hand_hygiene')}</th><th style="border: 1px solid black; padding: 4px;">${getText('fixed_position')}</th><th style="border: 1px solid black; padding: 4px;">${getText('unobstructed_drainage')}</th><th style="border: 1px solid black; padding: 4px;">${getText('avoid_overfill')}</th><th style="border: 1px solid black; padding: 4px;">${getText('urethral_cleaning')}</th><th style="border: 1px solid black; padding: 4px;">${getText('single_use_container')}</th><th style="border: 1px solid black; padding: 4px;">${getText('caregiver')}</th><th style="border: 1px solid black; padding: 4px;">${getText('nurse')}</th></tr></thead><tbody>`;
+        careTableBody.querySelectorAll('tr').forEach(row => {
+            const date = row.querySelector('th').textContent;
+            let rowContent = `<tr><td style="border: 1px solid black; padding: 4px;">${date}</td>`;
+            row.querySelectorAll('td').forEach((cell, index) => {
+                let cellValue = '';
+                if (index < careItems.length) {
+                    const checkedRadio = cell.querySelector('input:checked');
+                    cellValue = checkedRadio ? checkedRadio.value : '';
+                } else {
+                    cellValue = (cell.querySelector('input').value || '').split('@')[0].trim();
+                }
+                rowContent += `<td style="border: 1px solid black; padding: 4px;">${cellValue}</td>`;
+            });
+            rowContent += '</tr>';
+            tableContent += rowContent;
+        });
+        tableContent += '</tbody></table>';
+        const headerContent = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>
+            <table style="width:100%; border:none; margin-bottom: 10px; font-size: 12pt;">
+                <tr>
+                    <td style="border:none; text-align: left;"><strong>${getText('name')}:</strong> ${residentName}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('bed_number')}:</strong> ${residentData.bedNumber}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('gender')}:</strong> ${residentData.gender}</td>
+                    <td style="border:none; text-align: left;"><strong>病歷號:</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:none; text-align: left;"><strong>${getText('birthday')}:</strong> ${residentData.birthday}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('checkin_date')}:</strong> ${residentData.checkinDate}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('placement_date')}:</strong> ${placementDateInput.value}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('closing_date')}:</strong> ${closingDateInput.value || ''}</td>
+                </tr>
+            </table>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerContent}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
@@ -212,7 +237,13 @@ document.addEventListener('firebase-ready', () => {
             if (nurseSignInput.value) { record.nurseSign = nurseSignInput.value; hasData = true; }
             if (hasData) { dailyData[date] = record; }
         });
-        const dataToSave = { residentName, placementDate, closingDate: closingDateInput.value || null, dailyData };
+        const dataToSave = {
+            residentName,
+            month: placementDate.substring(0, 7),
+            placementDate,
+            closingDate: closingDateInput.value || null,
+            dailyData
+        };
         saveCareFormBtn.disabled = true;
         try {
             if (currentCareFormId) {
@@ -232,7 +263,10 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // --- 事件監聽器 ---
-    residentFilterSelect.addEventListener('change', loadCareFormList);
+    searchResidentInput.addEventListener('keyup', (e) => {
+        currentSearchTerm = e.target.value.trim();
+        loadCareFormList();
+    });
 
     statusBtnGroup.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
@@ -305,9 +339,36 @@ document.addEventListener('firebase-ready', () => {
         }
     });
 
-    exportWordBtn.addEventListener('click', () => { /* ... */ });
-    exportExcelBtn.addEventListener('click', () => { /* ... */ });
-    printReportBtn.addEventListener('click', () => { /* ... */ });
+    exportWordBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameSelect.value}-${placementDateInput.value}-導尿管照護單.doc`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    exportExcelBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameSelect.value}-${placementDateInput.value}-導尿管照護單.xls`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    printReportBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
     
     // --- 初始操作 ---
     async function initializePage() {
