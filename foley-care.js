@@ -62,14 +62,11 @@ document.addEventListener('firebase-ready', () => {
         try {
             let query = db.collection(careFormsCollection);
             query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null) 
-                : query.where('closingDate', '!=', null);
-            
+                ? query.where('closingDate', '==', null).orderBy('placementDate', 'desc')
+                : query.where('closingDate', '!=', null).orderBy('closingDate', 'desc').orderBy('placementDate', 'desc');
+
             const snapshot = await query.get();
             let filteredDocs = snapshot.docs;
-
-            // 在前端進行排序和篩選
-            filteredDocs.sort((a, b) => new Date(b.data().placementDate) - new Date(a.data().placementDate));
 
             if (currentSearchTerm) {
                 filteredDocs = filteredDocs.filter(doc => doc.data().residentName.includes(currentSearchTerm));
