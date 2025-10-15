@@ -62,10 +62,10 @@ document.addEventListener('firebase-ready', () => {
         try {
             let query = db.collection(careFormsCollection);
             query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null) 
-                : query.where('closingDate', '!=', null);
+                ? query.where('closingDate', '==', null).orderBy('placementDate', 'desc')
+                : query.where('closingDate', '!=', null).orderBy('closingDate', 'desc').orderBy('placementDate', 'desc');
 
-            const snapshot = await query.orderBy('placementDate', 'desc').get();
+            const snapshot = await query.get();
             let filteredDocs = snapshot.docs;
 
             if (currentSearchTerm) {
@@ -371,7 +371,11 @@ document.addEventListener('firebase-ready', () => {
     });
     
     // --- 初始操作 ---
-    loadResidentsDropdown();
-    loadCareFormList();
-    setInterval(checkTimePermissions, 60 * 1000);
+    async function initializePage() {
+        await loadResidentsDropdown();
+        await loadCareFormList();
+        setInterval(checkTimePermissions, 30 * 1000);
+    }
+    
+    initializePage();
 });
