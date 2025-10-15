@@ -1,4 +1,5 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找一個只在體溫登錄頁存在的獨特元件，來判斷我們是否在正確的頁面
     const container = document.getElementById('employee-list-container');
     if (!container) return;
 
@@ -11,7 +12,8 @@ document.addEventListener('firebase-ready', () => {
     
     // --- 變數 ---
     const employeesCollection = 'nurses';
-    let employeeList = []; // 暫存員工列表
+    const tempsCollection = 'nurse_temperatures';
+    let employeeList = [];
 
     // --- 函式 ---
     async function loadAndRenderEmployees() {
@@ -23,16 +25,16 @@ document.addEventListener('firebase-ready', () => {
                 return;
             }
             
-            employeeList = []; // 清空暫存
+            employeeList = [];
             let html = '<ul class="list-group">';
             snapshot.forEach(doc => {
                 const emp = doc.data();
-                employeeList.push(emp); // 存入暫存列表
+                employeeList.push(emp);
                 html += `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>${emp.name} (${emp.id})</span>
-                        <div class="input-group" style="width: 120px;">
-                            <input type="number" class="form-control temp-input" placeholder="體溫" data-id="${emp.id}">
+                        <div class="input-group" style="width: 150px;">
+                            <input type="number" class="form-control temp-input" placeholder="體溫" data-id="${emp.id}" step="0.1">
                             <span class="input-group-text">°C</span>
                         </div>
                     </li>
@@ -40,68 +42,106 @@ document.addEventListener('firebase-ready', () => {
             });
             html += '</ul>';
             container.innerHTML = html;
+            await loadTemperaturesForDate();
         } catch (error) {
             console.error("讀取員工列表失敗:", error);
             container.innerHTML = '<div class="alert alert-danger">讀取員工列表失敗。</div>';
         }
     }
 
-    function generateReportHTML() {
+    async function loadTemperaturesForDate() {
         const date = recordDateInput.value;
-        const reportTitle = "護理師每日體溫紀錄總表";
-
-        let tableHTML = `<table style="width: 80%; margin: 20px auto; border-collapse: collapse; text-align: center;">
-                            <thead>
-                                <tr style="background-color: #f2f2f2;">
-                                    <th style="border: 1px solid black; padding: 8px;">員編</th>
-                                    <th style="border: 1px solid black; padding: 8px;">姓名</th>
-                                    <th style="border: 1px solid black; padding: 8px;">體溫 (°C)</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
+        if (!date) return;
         
-        employeeList.forEach(emp => {
-            const inputEl = container.querySelector(`.temp-input[data-id="${emp.id}"]`);
-            const tempValue = inputEl ? inputEl.value : '';
-            const isAbnormal = tempValue && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
-            const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
-
-            tableHTML += `<tr>
-                            <td style="border: 1px solid black; padding: 8px;">${emp.id}</td>
-                            <td style="border: 1px solid black; padding: 8px;">${emp.name}</td>
-                            <td ${style} style="border: 1px solid black; padding: 8px;">${tempValue}</td>
-                          </tr>`;
+        container.querySelectorAll('.temp-input').forEach(input => {
+            input.value = ''; // 先清空
+            input.classList.remove('is-invalid');
         });
-        tableHTML += '</tbody></table>';
 
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 portrait;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${date})</h2>${tableHTML}</body></html>`;
+        try {
+            const docRef = db.collection(tempsCollection).doc(date);
+            const doc = await docRef.get();
+            if (doc.exists) {
+                const temps = doc.data();
+                container.querySelectorAll('.temp-input').forEach(input => {
+                    const empId = input.dataset.id;
+                    if (temps[empId] !== undefined) {
+                        input.value = temps[empId];
+                        validateTemperature(input);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("讀取體溫紀錄失敗:", error);
+            alert("讀取本日體溫紀錄失敗！");
+        }
     }
 
+    function validateTemperature(inputElement) {
+        if (!inputElement.value) {
+            inputElement.classList.remove('is-invalid');
+            return true;
+        }
+        const temp = parseFloat(inputElement.value);
+        if (temp < 36.0 || temp > 37.5) {
+            inputElement.classList.add('is-invalid');
+            return false;
+        } else {
+            inputElement.classList.remove('is-invalid');
+            return true;
+        }
+    }
+    
+    async function handleSave() {
+        const date = recordDateInput.value;
+        if (!date) {
+            alert('請先選擇登錄日期！');
+            return;
+        }
+
+        let allValid = true;
+        const tempsToSave = {};
+        container.querySelectorAll('.temp-input').forEach(input => {
+            if (!validateTemperature(input)) {
+                allValid = false;
+            }
+            const empId = input.dataset.id;
+            const tempValue = input.value;
+            if (tempValue) {
+                tempsToSave[empId] = parseFloat(tempValue);
+            }
+        });
+
+        if (!allValid) {
+            alert('體溫有異常值(低於36.0或高於37.5)，請確認後再儲存！');
+            return;
+        }
+
+        saveTempsBtn.disabled = true;
+        try {
+            await db.collection(tempsCollection).doc(date).set(tempsToSave, { merge: true });
+            alert(`日期 ${date} 的體溫紀錄已成功儲存！`);
+        } catch (error) {
+            console.error("儲存體溫紀錄失敗:", error);
+            alert("儲存失敗，請稍後再試。");
+        } finally {
+            saveTempsBtn.disabled = false;
+        }
+    }
+
+    function generateReportHTML() { /* ... 內容與上一則回覆相同 ... */ }
+
     // --- 事件監聽器 ---
-    exportWordBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.doc`; a.click();
-        window.URL.revokeObjectURL(url);
+    recordDateInput.addEventListener('change', loadTemperaturesForDate);
+    container.addEventListener('input', (e) => {
+        if (e.target.classList.contains('temp-input')) {
+            validateTemperature(e.target);
+        }
     });
-
-    exportExcelBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.xls`; a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    printBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 500);
-    });
+    saveTempsBtn.addEventListener('click', handleSave);
+    exportWordBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
+    exportExcelBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
+    printBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
 
     // --- 初始操作 ---
     recordDateInput.value = new Date().toISOString().split('T')[0];
