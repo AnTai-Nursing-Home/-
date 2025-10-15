@@ -1,7 +1,9 @@
 document.addEventListener('firebase-ready', () => {
     // 透過尋找一個只在體溫登錄頁存在的獨特元件，來判斷我們是否在正確的頁面
     const container = document.getElementById('employee-list-container');
-    if (!container) return;
+    if (!container) {
+        return; // 如果找不到，代表不在體溫登錄頁，直接結束
+    }
 
     // --- 元件宣告 ---
     const recordDateInput = document.getElementById('record-date');
@@ -13,9 +15,9 @@ document.addEventListener('firebase-ready', () => {
     // --- 變數 ---
     const employeesCollection = 'caregivers';
     const tempsCollection = 'caregiver_temperatures';
-    let employeeList = [];
+    let employeeList = []; // 用來暫存從Firebase讀取的員工列表
 
-    // --- 函式 ---
+    // --- 函式定義 ---
     async function loadAndRenderEmployees() {
         container.innerHTML = '讀取中...';
         try {
@@ -25,11 +27,11 @@ document.addEventListener('firebase-ready', () => {
                 return;
             }
             
-            employeeList = [];
+            employeeList = []; // 清空暫存
             let html = '<ul class="list-group">';
             snapshot.forEach(doc => {
                 const emp = doc.data();
-                employeeList.push(emp);
+                employeeList.push(emp); // 存入暫存列表以供後續報表使用
                 html += `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>${emp.name} (${emp.id})</span>
@@ -53,7 +55,7 @@ document.addEventListener('firebase-ready', () => {
         const date = recordDateInput.value;
         if (!date) return;
 
-        // 先清空所有輸入框
+        // 先清空所有輸入框和錯誤樣式
         container.querySelectorAll('.temp-input').forEach(input => {
             input.value = '';
             input.classList.remove('is-invalid');
@@ -68,7 +70,7 @@ document.addEventListener('firebase-ready', () => {
                     const empId = input.dataset.id;
                     if (temps[empId] !== undefined) {
                         input.value = temps[empId];
-                        validateTemperature(input);
+                        validateTemperature(input); // 載入時也驗證一次
                     }
                 });
             }
@@ -79,6 +81,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function validateTemperature(inputElement) {
+        // 如果輸入框是空的，就移除錯誤樣式並視為有效
         if (!inputElement.value) {
             inputElement.classList.remove('is-invalid');
             return true;
@@ -147,13 +150,14 @@ document.addEventListener('firebase-ready', () => {
         employeeList.forEach(emp => {
             const inputEl = container.querySelector(`.temp-input[data-id="${emp.id}"]`);
             const tempValue = inputEl ? inputEl.value : '';
+            const displayValue = tempValue ? tempValue : 'Off';
             const isAbnormal = tempValue && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
             const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
 
             tableHTML += `<tr>
                             <td style="border: 1px solid black; padding: 8px;">${emp.id}</td>
                             <td style="border: 1px solid black; padding: 8px;">${emp.name}</td>
-                            <td ${style} style="border: 1px solid black; padding: 8px;">${tempValue}</td>
+                            <td ${style} style="border: 1px solid black; padding: 8px;">${displayValue}</td>
                           </tr>`;
         });
         tableHTML += '</tbody></table>';
@@ -163,11 +167,13 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 事件監聽器 ---
     recordDateInput.addEventListener('change', loadTemperaturesForDate);
+
     container.addEventListener('input', (e) => {
         if (e.target.classList.contains('temp-input')) {
             validateTemperature(e.target);
         }
     });
+
     saveTempsBtn.addEventListener('click', handleSave);
 
     exportWordBtn.addEventListener('click', () => {
