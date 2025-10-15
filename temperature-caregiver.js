@@ -131,7 +131,7 @@ document.addEventListener('firebase-ready', () => {
         const year = selectedDate.getFullYear();
         const month = selectedDate.getMonth();
         const monthName = `${year}年 ${month + 1}月`;
-        const reportTitle = "照服員每日體溫紀錄總表";
+        const reportTitle = "照服員每月體溫紀錄總表";
 
         const sortedEmployees = employeeList;
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -171,7 +171,7 @@ document.addEventListener('firebase-ready', () => {
         });
 
         const tableContent = `<table style="width: 100%; border-collapse: collapse; font-size: 9pt;"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
-        const headerTable = `<table style="width:100%; border:none; margin-bottom: 20px; font-size: 12pt;"><tr><td style="border:none; text-align: left;"><strong>機構名稱:</strong> 安泰醫療社團法人附設安泰護理之家</td></tr><tr><td style="border:none; text-align: left;"><strong>報表名稱:</strong> ${reportTitle}</td><td style="border:none; text-align: right;"><strong>月份:</strong> ${monthName}</td></tr></table>`;
+        const headerTable = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${monthName})</h2></div>`;
 
         return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerTable}${tableContent}</body></html>`;
     }
