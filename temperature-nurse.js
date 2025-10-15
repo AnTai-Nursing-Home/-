@@ -1,5 +1,4 @@
 document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在體溫登錄頁存在的獨特元件，來判斷我們是否在正確的頁面
     const container = document.getElementById('employee-list-container');
     if (!container) return;
 
@@ -54,7 +53,7 @@ document.addEventListener('firebase-ready', () => {
         if (!date) return;
         
         container.querySelectorAll('.temp-input').forEach(input => {
-            input.value = ''; // 先清空
+            input.value = '';
             input.classList.remove('is-invalid');
         });
 
@@ -98,7 +97,6 @@ document.addEventListener('firebase-ready', () => {
             alert('請先選擇登錄日期！');
             return;
         }
-
         let allValid = true;
         const tempsToSave = {};
         container.querySelectorAll('.temp-input').forEach(input => {
@@ -111,12 +109,10 @@ document.addEventListener('firebase-ready', () => {
                 tempsToSave[empId] = parseFloat(tempValue);
             }
         });
-
         if (!allValid) {
             alert('體溫有異常值(低於36.0或高於37.5)，請確認後再儲存！');
             return;
         }
-
         saveTempsBtn.disabled = true;
         try {
             await db.collection(tempsCollection).doc(date).set(tempsToSave, { merge: true });
@@ -129,7 +125,25 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    function generateReportHTML() { /* ... 內容與上一則回覆相同 ... */ }
+    function generateReportHTML() {
+        const date = recordDateInput.value;
+        const reportTitle = "護理師每日體溫紀錄總表";
+
+        let tableHTML = `<table style="width: 80%; margin: 20px auto; border-collapse: collapse; text-align: center;"><thead><tr style="background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 8px;">員編</th><th style="border: 1px solid black; padding: 8px;">姓名</th><th style="border: 1px solid black; padding: 8px;">體溫 (°C)</th></tr></thead><tbody>`;
+        
+        employeeList.forEach(emp => {
+            const inputEl = container.querySelector(`.temp-input[data-id="${emp.id}"]`);
+            const tempValue = inputEl ? inputEl.value : '';
+            // **** 修改：如果 tempValue 是空的，就顯示 Off ****
+            const displayValue = tempValue ? tempValue : 'Off';
+            const isAbnormal = tempValue && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
+            const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
+            tableHTML += `<tr><td style="border: 1px solid black; padding: 8px;">${emp.id}</td><td style="border: 1px solid black; padding: 8px;">${emp.name}</td><td ${style} style="border: 1px solid black; padding: 8px;">${displayValue}</td></tr>`;
+        });
+        tableHTML += '</tbody></table>';
+
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 portrait;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${date})</h2>${tableHTML}</body></html>`;
+    }
 
     // --- 事件監聽器 ---
     recordDateInput.addEventListener('change', loadTemperaturesForDate);
@@ -139,9 +153,32 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     saveTempsBtn.addEventListener('click', handleSave);
-    exportWordBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
-    exportExcelBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
-    printBtn.addEventListener('click', () => { /* ... 內容與上一則回覆相同 ... */ });
+
+    // **** 新增：為匯出和列印按鈕加上事件監聽 ****
+    exportWordBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.doc`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    exportExcelBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.xls`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    printBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
 
     // --- 初始操作 ---
     recordDateInput.value = new Date().toISOString().split('T')[0];
