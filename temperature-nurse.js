@@ -1,4 +1,5 @@
 document.addEventListener('firebase-ready', () => {
+    // 透過尋找一個只在體溫登錄頁存在的獨特元件，來判斷我們是否在正確的頁面
     const container = document.getElementById('employee-list-container');
     if (!container) return;
 
@@ -12,9 +13,9 @@ document.addEventListener('firebase-ready', () => {
     // --- 變數 ---
     const employeesCollection = 'nurses';
     const tempsCollection = 'nurse_temperatures';
-    let employeeList = [];
+    let employeeList = []; // 用來暫存從Firebase讀取的員工列表
 
-    // --- 函式 ---
+    // --- 函式定義 ---
     async function loadAndRenderEmployees() {
         container.innerHTML = '讀取中...';
         try {
@@ -125,24 +126,51 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    function generateReportHTML() {
-        const date = recordDateInput.value;
+    async function generateMonthlyReportHTML() {
+        const selectedDate = new Date(recordDateInput.value);
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth(); // 0-11
+        const monthName = `${year}年 ${month + 1}月`;
         const reportTitle = "護理師每日體溫紀錄總表";
-
-        let tableHTML = `<table style="width: 80%; margin: 20px auto; border-collapse: collapse; text-align: center;"><thead><tr style="background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 8px;">員編</th><th style="border: 1px solid black; padding: 8px;">姓名</th><th style="border: 1px solid black; padding: 8px;">體溫 (°C)</th></tr></thead><tbody>`;
+        const sortedEmployees = employeeList;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
         
-        employeeList.forEach(emp => {
-            const inputEl = container.querySelector(`.temp-input[data-id="${emp.id}"]`);
-            const tempValue = inputEl ? inputEl.value : '';
-            // **** 修改：如果 tempValue 是空的，就顯示 Off ****
-            const displayValue = tempValue ? tempValue : 'Off';
-            const isAbnormal = tempValue && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
-            const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
-            tableHTML += `<tr><td style="border: 1px solid black; padding: 8px;">${emp.id}</td><td style="border: 1px solid black; padding: 8px;">${emp.name}</td><td ${style} style="border: 1px solid black; padding: 8px;">${displayValue}</td></tr>`;
+        const promises = [];
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            promises.push(db.collection(tempsCollection).doc(dateStr).get());
+        }
+        const docSnaps = await Promise.all(promises);
+        const tempsByDate = {};
+        docSnaps.forEach((doc, index) => {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`;
+            if (doc.exists) {
+                tempsByDate[dateStr] = doc.data();
+            }
         });
-        tableHTML += '</tbody></table>';
 
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 portrait;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${date})</h2>${tableHTML}</body></html>`;
+        let tableHeaderHTML = '<tr><th>員編</th><th>姓名</th>';
+        for (let i = 1; i <= daysInMonth; i++) {
+            tableHeaderHTML += `<th>${i}</th>`;
+        }
+        tableHeaderHTML += '</tr>';
+
+        let tableBodyHTML = '';
+        sortedEmployees.forEach(emp => {
+            tableBodyHTML += `<tr><td>${emp.id}</td><td>${emp.name}</td>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const tempValue = tempsByDate[dateStr]?.[emp.id];
+                const displayValue = tempValue !== undefined ? tempValue : 'Off';
+                const isAbnormal = tempValue !== undefined && (parseFloat(tempValue) < 36.0 || parseFloat(tempValue) > 37.5);
+                const style = isAbnormal ? 'style="color: red; font-weight: bold;"' : '';
+                tableBodyHTML += `<td ${style}>${displayValue}</td>`;
+            }
+            tableBodyHTML += '</tr>';
+        });
+
+        const tableContent = `<table style="width: 100%; border-collapse: collapse; font-size: 9pt;"><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table,th,td{border:1px solid black;padding:4px;text-align:center;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle} (${monthName})</h2>${tableContent}</body></html>`;
     }
 
     // --- 事件監聽器 ---
@@ -154,25 +182,24 @@ document.addEventListener('firebase-ready', () => {
     });
     saveTempsBtn.addEventListener('click', handleSave);
 
-    // **** 新增：為匯出和列印按鈕加上事件監聽 ****
-    exportWordBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
+    exportWordBtn.addEventListener('click', async () => {
+        const content = await generateMonthlyReportHTML();
         const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.doc`; a.click();
+        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫月報表-${recordDateInput.value.substring(0, 7)}.doc`; a.click();
         window.URL.revokeObjectURL(url);
     });
 
-    exportExcelBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
+    exportExcelBtn.addEventListener('click', async () => {
+        const content = await generateMonthlyReportHTML();
         const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫紀錄-${recordDateInput.value}.xls`; a.click();
+        const a = document.createElement("a"); a.href = url; a.download = `護理師體溫月報表-${recordDateInput.value.substring(0, 7)}.xls`; a.click();
         window.URL.revokeObjectURL(url);
     });
 
-    printBtn.addEventListener('click', () => {
-        const content = generateReportHTML();
+    printBtn.addEventListener('click', async () => {
+        const content = await generateMonthlyReportHTML();
         const printWindow = window.open('', '_blank');
         printWindow.document.write(content);
         printWindow.document.close();
