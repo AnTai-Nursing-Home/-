@@ -23,16 +23,16 @@
                                 <a href="caregiver.html?view=dashboard" class="btn btn-back-menu">
                                     <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system"></span>
                                 </a>
-                                <div class="d-flex align-items-center gap-2">
-                                    <input type="text" id="search-resident-input" class="form-control" placeholder="輸入住民姓名查詢...">
+                                <div class="d-flex align-items-center gap-2" style="max-width: 600px;">
+                                    <select id="resident-filter-select" class="form-select form-select-lg"></select>
                                     <div class="btn-group">
                                         <button type="button" class="btn btn-primary active" data-status="ongoing" data-i18n="status_ongoing"></button>
                                         <button type="button" class="btn btn-secondary" data-status="closed" data-i18n="status_closed"></button>
                                     </div>
-                                    <button id="add-new-form-btn" class="btn btn-success">
-                                        <i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
-                                    </button>
                                 </div>
+                                <button id="add-new-form-btn" class="btn btn-success">
+                                    <i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
+                                </button>
                             </div>
                             <h4 id="care-form-list-title"></h4>
                             <div id="care-form-list" class="list-group"></div>
@@ -52,10 +52,7 @@
                             <fieldset class="border p-3 mb-4">
                                 <legend class="float-none w-auto px-2" data-i18n="resident_basic_info"></legend>
                                 <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="resident-name-select" class="form-label" data-i18n="name"></label>
-                                        <select id="resident-name-select" class="form-select"></select>
-                                    </div>
+                                    <div class="col-md-3"><label class="form-label" data-i18n="name"></label><input type="text" id="resident-name-display" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="bed_number"></label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="gender"></label><input type="text" id="resident-gender" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="birthday"></label><input type="text" id="resident-birthday" class="form-control" readonly></div>
