@@ -31,7 +31,7 @@ const translations = {
         'not_set': '未設定',
         'read_list_failed': '讀取列表失敗。',
 
-        // --- 主選單 (index.html) ---
+        // --- 主選單 ---
         'main_title_full': '安泰醫療社團法人附設安泰護理之家',
         'main_menu_title': '服務選單',
         'booking_visit': '預約探視',
@@ -43,7 +43,7 @@ const translations = {
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
         
-        // --- 預約系統 (booking.html) ---
+        // --- 預約系統 ---
         'booking_system_title': '預約探視系統',
         'admin_mode_notice': '管理員模式：您現在可以預約今天已過中午的時段。',
         'step1_title': '步驟一：選擇探視日期與時段',
@@ -78,7 +78,7 @@ const translations = {
         'please_fill_contact_phone': '請填寫您的聯絡電話。',
         'confirm_booking_info_title': '請確認您的預約資訊',
 
-        // --- 護理師/照服員系統 (通用) ---
+        // --- 護理師/照服員系統 ---
         'nurse_system': '護理師系統',
         'enter_nurse_password': '請輸入護理師密碼',
         'booking_list_query': '預約名單查詢',
@@ -151,11 +151,11 @@ const translations = {
         // --- 導尿管照護評估 ---
         'foley_care_assessment': '導尿管照護評估表',
         'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
-        'resident_basic_info': '住民基本資料',
         'please_select_resident': '請選擇住民',
         'ongoing_care_forms': '進行中的照護單', 'closed_care_forms': '已結案的照護單',
         'add_new_form': '新增照護單', 'no_care_forms_found': '找不到符合條件的照護單紀錄。',
-        'placement_date': '置放日期', 'closing_date': '結案日期', 'care_period': '照護期間', 'ongoing': '持續中',
+        'resident_basic_info': '住民基本資料', 'placement_date': '置放日期',
+        'closing_date': '結案日期', 'care_period': '照護期間', 'ongoing': '持續中',
         'assessment_items': '每日評估項目', 'signature': '簽章', 'caregiver': '照服員', 'nurse': '護理師',
         'hand_hygiene': '1. 手部衛生', 'fixed_position': '2. 固定位置', 'unobstructed_drainage': '3. 無菌暢通',
         'avoid_overfill': '4. 避免過滿', 'urethral_cleaning': '5. 尿道口清潔', 'single_use_container': '6. 單一非共用容器',
@@ -167,7 +167,7 @@ const translations = {
     },
     'en': {
         // --- Common ---
-        'lang_switch': '中文',
+        'lang_switch': 'Chinese',
         'back_to_dashboard': 'Back to Dashboard',
         'back_to_main_menu': 'Back to Main Menu',
         'back_to_caregiver_system': 'Back to Caregiver System',
@@ -323,13 +323,13 @@ const translations = {
         // --- Foley Care Assessment ---
         'foley_care_assessment': 'Foley Care Assessment Form',
         'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
-        'resident_basic_info': 'Resident\'s Basic Information',
         'please_select_resident': 'Please select a resident',
         'select_month': 'Select Month',
         'ongoing_care_forms': 'Ongoing Care Forms',
         'closed_care_forms': 'Closed Care Forms',
         'add_new_form': 'Add New Care Form',
         'no_care_forms_found': 'No matching care form records found.',
+        'resident_basic_info': 'Resident\'s Basic Information',
         'placement_date': 'Placement Date',
         'closing_date': 'Closing Date',
         'care_period': 'Care Period',
@@ -366,7 +366,6 @@ function getLanguage() {
 }
 function getText(key, replacements = {}) {
     const lang = getLanguage();
-    // 確保 translations[lang] 存在，如果不存在，則回退到 'zh-TW'
     const langDict = translations[lang] || translations['zh-TW'];
     let text = langDict[key] || key;
     
