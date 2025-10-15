@@ -42,7 +42,7 @@ const translations = {
         'contact_us': '聯絡我們',
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
-        
+
         // --- 預約系統 ---
         'booking_system_title': '預約探視系統',
         'admin_mode_notice': '管理員模式：您現在可以預約今天已過中午的時段。',
@@ -151,7 +151,7 @@ const translations = {
         // --- 導尿管照護評估 ---
         'foley_care_assessment': '導尿管照護評估表',
         'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
-        'please_select_resident': '請選擇住民',
+        'please_select_resident': '請選擇住民', 'please_select_resident_first': '請先從上方選擇一位住民！', 'all_residents': '全部住民',
         'ongoing_care_forms': '進行中的照護單', 'closed_care_forms': '已結案的照護單',
         'add_new_form': '新增照護單', 'no_care_forms_found': '找不到符合條件的照護單紀錄。',
         'resident_basic_info': '住民基本資料', 'placement_date': '置放日期',
@@ -324,7 +324,8 @@ const translations = {
         'foley_care_assessment': 'Foley Care Assessment Form',
         'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
         'please_select_resident': 'Please select a resident',
-        'select_month': 'Select Month',
+        'please_select_resident_first': 'Please select a resident from the top menu first!',
+        'all_residents': 'All Residents',
         'ongoing_care_forms': 'Ongoing Care Forms',
         'closed_care_forms': 'Closed Care Forms',
         'add_new_form': 'Add New Care Form',
