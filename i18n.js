@@ -31,6 +31,7 @@ const translations = {
         'status_closed': '已結案',
         'not_set': '未設定',
         'read_list_failed': '讀取列表失敗。',
+        'save_failed': '儲存失敗，請稍後再試。',
 
         // --- 主選單 ---
         'main_title_full': '安泰醫療社團法人附設安泰護理之家',
@@ -125,27 +126,49 @@ const translations = {
         // --- 導尿管照護評估 ---
         'foley_care_assessment': '導尿管照護評估表',
         'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
-        'please_select_resident': '請選擇住民', 'all_residents': '全部住民', 'please_select_resident_first': '請先從上方選擇一位住民！',
-        'ongoing_care_forms': '進行中的照護單', 'closed_care_forms': '已結案的照護單',
-        'add_new_form': '新增照護單', 'no_care_forms_found': '找不到符合條件的照護單紀錄。',
-        'resident_basic_info': '住民基本資料', 'placement_date': '置放日期',
-        'closing_date': '結案日期', 'care_period': '照護期間', 'ongoing': '持續中',
-        'assessment_items': '每日評估項目', 'signature': '簽章', 'caregiver': '照服員', 'nurse': '護理師',
-        'hand_hygiene': '1. 手部衛生', 'fixed_position': '2. 固定位置', 'unobstructed_drainage': '3. 無菌暢通',
-        'avoid_overfill': '4. 避免過滿', 'urethral_cleaning': '5. 尿道口清潔', 'single_use_container': '6. 單一非共用容器',
-        'yes': 'Yes', 'no': 'No', 'save_this_care_form': '儲存此張照護單',
-        'delete_this_care_form': '刪除此張照護單', 'back_to_list': '返回列表',
-        'load_care_form_failed': '載入照護單失敗，請稍後再試。', 'fill_form_first': '請先選擇住民並填寫置放日期！',
-        'care_form_saved': '照護單已成功儲存！', 'confirm_delete_care_form': '您確定要永久刪除此張照護單嗎？\n此操作無法復原！',
-        'care_form_deleted': '照護單已成功刪除！', 'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
-
+        'please_select_resident': '請選擇住民',
+        'all_residents': '全部住民',
+        'please_select_resident_first': '請先從上方選擇一位住民！',
+        'ongoing_care_forms': '進行中的照護單',
+        'closed_care_forms': '已結案的照護單',
+        'add_new_form': '新增照護單',
+        'no_care_forms_found': '找不到符合條件的照護單紀錄。',
+        'resident_basic_info': '住民基本資料',
+        'placement_date': '置放日期',
+        'closing_date': '結案日期',
+        'care_period': '照護期間',
+        'ongoing': '持續中',
+        'assessment_items': '每日評估項目',
+        'signature': '簽章',
+        'caregiver': '照服員',
+        'nurse': '護理師',
+        'hand_hygiene': '1. 手部衛生',
+        'fixed_position': '2. 固定位置',
+        'unobstructed_drainage': '3. 無菌暢通',
+        'avoid_overfill': '4. 避免過滿',
+        'urethral_cleaning': '5. 尿道口清潔',
+        'single_use_container': '6. 單一非共用容器',
+        'yes': 'Yes',
+        'no': 'No',
+        'save_this_care_form': '儲存此張照護單',
+        'delete_this_care_form': '刪除此張照護單',
+        'back_to_list': '返回列表',
+        'load_care_form_failed': '載入照護單失敗，請稍後再試。',
+        'fill_form_first': '請先選擇住民並填寫置放日期！',
+        'care_form_saved': '照護單已成功儲存！',
+        'confirm_delete_care_form': '您確定要永久刪除此張照護單嗎？\n此操作無法復原！',
+        'care_form_deleted': '照護單已成功刪除！',
+        'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
+        
         // --- 辦公室系統 ---
-        'office_system': '辦公室系統', 'enter_office_password': '請輸入辦公室密碼', 'auto_temp_system': '自動化體溫紀錄系統',
-        'auto_clockin_system': '自動化打卡紀錄系統', 'temperature_system': '體溫系統', 'clockin_system': '打卡系統',
-        'select_month': '選擇月份', 'upload_schedule': '上傳班表', 'upload_and_generate': '上傳班表並生成紀錄',
-        'reading_schedule_and_generating': '正在讀取班表並生成紀錄...', 'error_select_month_first': '請先選擇月份！',
-        'error_read_excel': '讀取 Excel 檔案失敗，請確認檔案格式是否正確。', 'export_word': '匯出 Word',
-        'export_excel': '匯出 Excel', 'print_report': '列印報表', 'no_report_generated': '請先選擇月份並上傳當月份的 Excel 班表檔案。',
+        'office_system': '辦公室系統', 'enter_office_password': '請輸入辦公室密碼',
+        'auto_temp_system': '自動化體溫紀錄系統', 'auto_clockin_system': '自動化打卡紀錄系統',
+        'temperature_system': '體溫系統', 'clockin_system': '打卡系統',
+        'select_month': '選擇月份', 'upload_schedule': '上傳班表',
+        'upload_and_generate': '上傳班表並生成紀錄', 'reading_schedule_and_generating': '正在讀取班表並生成紀錄...',
+        'error_select_month_first': '請先選擇月份！', 'error_read_excel': '讀取 Excel 檔案失敗，請確認檔案格式是否正確。',
+        'export_word': '匯出 Word', 'export_excel': '匯出 Excel', 'print_report': '列印報表',
+        'no_report_generated': '請先選擇月份並上傳當月份的 Excel 班表檔案。',
         'temp_report_title': '員工體溫紀錄總表', 'clockin_report_title': '員工打卡紀錄總表',
         'clock_in': '上班', 'clock_out': '下班',
 
@@ -222,7 +245,7 @@ const translations = {
         'fill_form_first': 'Please select a resident and fill in the placement date first!', 'care_form_saved': 'Care form has been saved successfully!',
         'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\nThis action cannot be undone!',
         'care_form_deleted': 'Care form has been deleted successfully!', 'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
-
+        
         // --- Office System ---
         'office_system': 'Office System', 'enter_office_password': 'Please enter office password',
         'auto_temp_system': 'Automated Temperature Log System', 'auto_clockin_system': 'Automated Clock-in/out System',
@@ -240,9 +263,11 @@ function setLanguage(lang) {
     localStorage.setItem('language', lang);
     document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
 }
+
 function getLanguage() {
     return localStorage.getItem('language') || 'zh-TW';
 }
+
 function getText(key, replacements = {}) {
     const lang = getLanguage();
     const langDict = translations[lang] || translations['zh-TW'];
