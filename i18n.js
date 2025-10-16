@@ -94,6 +94,8 @@ const translations = {
         'temperature_log': '體溫登錄',
         'caregiver_system': '照服員系統',
         'enter_caregiver_password': '請輸入照服員密碼',
+        'temperature_log_caregiver': '照服員體溫登錄',
+        'caregiver_temperature_log_title': '照服員每日體溫登錄',
         'caregiver_leave_system_menu': '預假系統',
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
         'foley_care_assessment_menu': '導尿管照護評估',
@@ -217,7 +219,8 @@ const translations = {
         'proxy_booking': 'Proxy Booking', 'supplies_inventory': 'Supplies Inventory', 'leave_system': 'Leave Request System',
         'all_booking_records': 'All Booking Records', 'resident_data_management': 'Resident Data Management',
         'employee_data_management': 'Employee Data Management', 'temperature_log': 'Temperature Log', 'caregiver_system': 'Caregiver System',
-        'enter_caregiver_password': 'Please enter caregiver password', 'caregiver_leave_system_menu': 'Leave Request System',
+        'enter_caregiver_password': 'Please enter caregiver password', 'caregiver_leave_system_menu': 'Leave Request System','temperature_log_caregiver': 'Caregiver Temperature Log',
+        'caregiver_temperature_log_title': 'Daily Temperature Log for Caregivers',
         'login_network_error': 'A network error occurred during login, please try again later.', 'foley_care_assessment_menu': 'Foley Care Assessment',
         'temperature_record_menu': 'Temperature Recording',
 
