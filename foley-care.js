@@ -1,8 +1,8 @@
 document.addEventListener('firebase-ready', () => {
-    // **** 關鍵修正：透過尋找一個只在 foley-care.html 存在的獨特元件，來判斷我們是否在正確的頁面 ****
+    // 透過尋找一個只在 foley-care.html 存在的獨特元件，來判斷我們是否在正確的頁面
     const careTableBody = document.getElementById('care-table-body');
     if (!careTableBody) {
-        return; // 如果找不到，代表不在照護評估頁，直接結束，避免在其他頁面出錯
+        return; // 如果找不到，代表不在照護評估頁，直接結束
     }
 
     // --- 元件宣告 ---
@@ -44,12 +44,14 @@ document.addEventListener('firebase-ready', () => {
             const snapshot = await db.collection(residentsCollection).orderBy('sortOrder').get();
             let filterOptionsHTML = `<option value="" selected>${getText('all_residents')}</option>`;
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
+            
             snapshot.forEach(doc => {
                 residentsData[doc.id] = doc.data();
                 const option = `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
+            
             residentFilterSelect.innerHTML = filterOptionsHTML;
             residentNameSelectForm.innerHTML = formOptionsHTML;
         } catch (error) {
@@ -62,19 +64,25 @@ document.addEventListener('firebase-ready', () => {
         const residentName = residentFilterSelect.value;
         careFormList.innerHTML = `<div class="list-group-item">${getText('loading')}</div>`;
         careFormListTitle.textContent = (currentView === 'ongoing') ? getText('ongoing_care_forms') : getText('closed_care_forms');
+
         try {
             let query = db.collection(careFormsCollection);
+
             if (residentName) {
                 query = query.where('residentName', '==', residentName);
             }
+            
             query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null) 
+                ? query.where('closingDate', '==', null)
                 : query.where('closingDate', '!=', null);
+
             const snapshot = await query.orderBy('placementDate', 'desc').get();
+
             if (snapshot.empty) {
                 careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
                 return;
             }
+
             let listHTML = '';
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -101,19 +109,23 @@ document.addEventListener('firebase-ready', () => {
     function renderCareTable(placementDate, closingDate, careData = {}) {
         const startDate = new Date(placementDate + 'T00:00:00');
         const endDate = closingDate ? new Date(closingDate + 'T00:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0);
+
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
         careTableBody.innerHTML = '';
+
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const year = d.getFullYear();
             const month = d.getMonth() + 1;
             const day = d.getDate();
             const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
+            
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
                 itemCells += `<td><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="Yes" ${value === 'Yes' ? 'checked' : ''}><label class="form-check-label">${getText('yes')}</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="No" ${value === 'No' ? 'checked' : ''}><label class="form-check-label">${getText('no')}</label></div></td>`;
             });
+            
             const caregiverSign = dailyRecord.caregiverSign || '';
             const nurseSign = dailyRecord.nurseSign || '';
             const row = `<tr data-date="${dateString}"><th>${month}/${day}</th>${itemCells}<td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td><td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td></tr>`;
@@ -127,8 +139,8 @@ document.addEventListener('firebase-ready', () => {
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         const currentTime = currentHour + currentMinute / 60;
-        const caregiverEnabled = true;
-        const nurseEnabled = true;
+        const caregiverEnabled = true; // (currentTime >= 10 && currentTime < 14.5);
+        const nurseEnabled = true; // (currentTime >= 14.5 && currentTime < 16);
         document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => el.disabled = !caregiverEnabled);
         document.querySelectorAll('#form-view [data-signature="nurse"]').forEach(el => el.disabled = !nurseEnabled);
     }
@@ -136,9 +148,40 @@ document.addEventListener('firebase-ready', () => {
     function generateReportHTML() {
         const residentName = residentNameSelectForm.value;
         const residentData = residentsData[residentName];
-        let tableContent = `...`; // Report generation logic
-        const headerContent = `...`;
-        return `<!DOCTYPE html>...`;
+        let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;"><thead><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th rowspan="2" style="border: 1px solid black; padding: 4px;">${getText('date')}</th><th colspan="6" style="border: 1px solid black; padding: 4px;">${getText('assessment_items')}</th><th colspan="2" style="border: 1px solid black; padding: 4px;">${getText('signature')}</th></tr><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 4px;">${getText('hand_hygiene')}</th><th style="border: 1px solid black; padding: 4px;">${getText('fixed_position')}</th><th style="border: 1px solid black; padding: 4px;">${getText('unobstructed_drainage')}</th><th style="border: 1px solid black; padding: 4px;">${getText('avoid_overfill')}</th><th style="border: 1px solid black; padding: 4px;">${getText('urethral_cleaning')}</th><th style="border: 1px solid black; padding: 4px;">${getText('single_use_container')}</th><th style="border: 1px solid black; padding: 4px;">${getText('caregiver')}</th><th style="border: 1px solid black; padding: 4px;">${getText('nurse')}</th></tr></thead><tbody>`;
+        careTableBody.querySelectorAll('tr').forEach(row => {
+            const date = row.querySelector('th').textContent;
+            let rowContent = `<tr><td style="border: 1px solid black; padding: 4px;">${date}</td>`;
+            row.querySelectorAll('td').forEach((cell, index) => {
+                let cellValue = '';
+                if (index < careItems.length) {
+                    const checkedRadio = cell.querySelector('input:checked');
+                    cellValue = checkedRadio ? checkedRadio.value : '';
+                } else {
+                    cellValue = (cell.querySelector('input').value || '').split('@')[0].trim();
+                }
+                rowContent += `<td style="border: 1px solid black; padding: 4px;">${cellValue}</td>`;
+            });
+            rowContent += '</tr>';
+            tableContent += rowContent;
+        });
+        tableContent += '</tbody></table>';
+        const headerContent = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>
+            <table style="width:100%; border:none; margin-bottom: 10px; font-size: 12pt;">
+                <tr>
+                    <td style="border:none; text-align: left;"><strong>${getText('name')}:</strong> ${residentName}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('bed_number')}:</strong> ${residentData.bedNumber}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('gender')}:</strong> ${residentData.gender}</td>
+                    <td style="border:none; text-align: left;"><strong>病歷號:</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:none; text-align: left;"><strong>${getText('birthday')}:</strong> ${residentData.birthday}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('checkin_date')}:</strong> ${residentData.checkinDate}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('placement_date')}:</strong> ${placementDateInput.value}</td>
+                    <td style="border:none; text-align: left;"><strong>${getText('closing_date')}:</strong> ${closingDateInput.value || ''}</td>
+                </tr>
+            </table>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerContent}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
@@ -151,7 +194,9 @@ document.addEventListener('firebase-ready', () => {
         listView.classList.add('d-none');
         formView.classList.remove('d-none');
         currentCareFormId = docId;
+        
         residentNameSelectForm.disabled = !isNew;
+        
         if (isNew) {
             residentNameSelectForm.value = '';
             bedNumberInput.value = '';
@@ -225,6 +270,7 @@ document.addEventListener('firebase-ready', () => {
 
     // --- 事件監聽器 ---
     residentFilterSelect.addEventListener('change', loadCareFormList);
+
     statusBtnGroup.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
             statusBtnGroup.querySelector('.active').classList.remove('active');
@@ -233,8 +279,10 @@ document.addEventListener('firebase-ready', () => {
             loadCareFormList();
         }
     });
+
     addNewFormBtn.addEventListener('click', () => switchToFormView(true));
     backToListBtn.addEventListener('click', switchToListView);
+    
     residentNameSelectForm.addEventListener('change', () => {
         const residentData = residentsData[residentNameSelectForm.value];
         if(residentData){
@@ -244,6 +292,7 @@ document.addEventListener('firebase-ready', () => {
             checkinDateInput.value = residentData.checkinDate;
         }
     });
+    
     careFormList.addEventListener('click', async (e) => {
         e.preventDefault();
         const link = e.target.closest('a.list-group-item');
@@ -258,7 +307,9 @@ document.addEventListener('firebase-ready', () => {
             alert(getText('load_care_form_failed'));
         }
     });
+    
     saveCareFormBtn.addEventListener('click', handleSave);
+
     careTableBody.addEventListener('blur', (e) => {
         const target = e.target;
         if (target.classList.contains('signature-field')) {
@@ -273,10 +324,54 @@ document.addEventListener('firebase-ready', () => {
             }
         }
     }, true);
-    deleteCareFormBtn.addEventListener('click', async () => { /* ... */ });
-    exportWordBtn.addEventListener('click', () => { /* ... */ });
-    exportExcelBtn.addEventListener('click', () => { /* ... */ });
-    printReportBtn.addEventListener('click', () => { /* ... */ });
+
+    deleteCareFormBtn.addEventListener('click', async () => {
+        if (!currentCareFormId) return;
+        if (confirm(getText('confirm_delete_care_form'))) {
+            deleteCareFormBtn.disabled = true;
+            try {
+                await db.collection(careFormsCollection).doc(currentCareFormId).delete();
+                alert(getText('care_form_deleted'));
+                switchToListView();
+            } catch (error) {
+                console.error("刪除失敗:", error);
+                alert(getText('delete_failed'));
+            } finally {
+                deleteCareFormBtn.disabled = false;
+            }
+        }
+    });
+
+    exportWordBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameSelectForm.value}-${placementDateInput.value}-導尿管照護單.doc`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    exportExcelBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${residentNameSelectForm.value}-${placementDateInput.value}-導尿管照護單.xls`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
+
+    printReportBtn.addEventListener('click', () => {
+        const content = generateReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
     
     // --- 初始操作 ---
     async function initializePage() {
