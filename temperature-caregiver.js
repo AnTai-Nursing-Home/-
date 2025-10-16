@@ -34,7 +34,7 @@ document.addEventListener('firebase-ready', () => {
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>${emp.name} (${emp.id})</span>
                         <div class="input-group" style="width: 150px;">
-                            <input type="number" class="form-control temp-input" placeholder="體溫" data-id="${emp.id}" step="0.1">
+                            <input type="number" class="form-control temp-input" placeholder="${getText('temperature_label')}" data-id="${emp.id}" step="0.1">
                             <span class="input-group-text">°C</span>
                         </div>
                     </li>
