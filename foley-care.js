@@ -41,7 +41,7 @@ document.addEventListener('firebase-ready', () => {
         const dropdowns = [residentFilterSelect, residentNameSelectForm];
         dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('loading')}</option>`);
         try {
-            const snapshot = await db.collection(residentsCollection).orderBy('sortOrder').get();
+            const snapshot = await db.collection(residentsCollection).get();
             let filterOptionsHTML = `<option value="" selected>${getText('all_residents')}</option>`;
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             
@@ -60,10 +60,14 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
+    // ✅ 修正版：解決 Firestore Invalid query 問題
     async function loadCareFormList() {
         const residentName = residentFilterSelect.value;
         careFormList.innerHTML = `<div class="list-group-item">${getText('loading')}</div>`;
-        careFormListTitle.textContent = (currentView === 'ongoing') ? getText('ongoing_care_forms') : getText('closed_care_forms');
+        careFormListTitle.textContent =
+            (currentView === 'ongoing')
+                ? getText('ongoing_care_forms')
+                : getText('closed_care_forms');
 
         try {
             let query = db.collection(careFormsCollection);
@@ -71,12 +75,18 @@ document.addEventListener('firebase-ready', () => {
             if (residentName) {
                 query = query.where('residentName', '==', residentName);
             }
-            
-            query = (currentView === 'ongoing') 
-                ? query.where('closingDate', '==', null)
-                : query.where('closingDate', '!=', null);
 
-            const snapshot = await query.orderBy('placementDate', 'desc').get();
+            if (currentView === 'ongoing') {
+                query = query.where('closingDate', '==', null);
+            } else {
+                query = query.where('closingDate', '!=', null);
+            }
+
+            // 🔹 修正 Firestore 限制，必須先排序 closingDate
+            const snapshot = await query
+                .orderBy('closingDate')
+                .orderBy('placementDate', 'desc')
+                .get();
 
             if (snapshot.empty) {
                 careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
@@ -86,16 +96,21 @@ document.addEventListener('firebase-ready', () => {
             let listHTML = '';
             snapshot.forEach(doc => {
                 const data = doc.data();
-                const status = data.closingDate ? `<span class="badge bg-secondary">${getText('status_closed')}</span>` : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
-                listHTML += `<a href="#" class="list-group-item list-group-item-action" data-id="${doc.id}">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
-                                    <small>${status}</small>
-                                </div>
-                                <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
-                             </a>`;
+                const status = data.closingDate
+                    ? `<span class="badge bg-secondary">${getText('status_closed')}</span>`
+                    : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
+
+                listHTML += `
+                    <a href="#" class="list-group-item list-group-item-action" data-id="${doc.id}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                            <small>${status}</small>
+                        </div>
+                        <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
+                    </a>`;
             });
             careFormList.innerHTML = listHTML;
+
         } catch (error) {
             console.error("讀取照護單列表失敗:", error);
             if (error.code === 'failed-precondition') {
@@ -105,7 +120,7 @@ document.addEventListener('firebase-ready', () => {
             }
         }
     }
-    
+
     function renderCareTable(placementDate, closingDate, careData = {}) {
         const startDate = new Date(placementDate + 'T00:00:00');
         const endDate = closingDate ? new Date(closingDate + 'T00:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0);
@@ -123,24 +138,33 @@ document.addEventListener('firebase-ready', () => {
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
-                itemCells += `<td><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="Yes" ${value === 'Yes' ? 'checked' : ''}><label class="form-check-label">${getText('yes')}</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="No" ${value === 'No' ? 'checked' : ''}><label class="form-check-label">${getText('no')}</label></div></td>`;
+                itemCells += `<td>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="Yes" ${value === 'Yes' ? 'checked' : ''}>
+                        <label class="form-check-label">${getText('yes')}</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="${itemKey}-${dateString}" value="No" ${value === 'No' ? 'checked' : ''}>
+                        <label class="form-check-label">${getText('no')}</label>
+                    </div>
+                </td>`;
             });
             
             const caregiverSign = dailyRecord.caregiverSign || '';
             const nurseSign = dailyRecord.nurseSign || '';
-            const row = `<tr data-date="${dateString}"><th>${month}/${day}</th>${itemCells}<td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td><td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td></tr>`;
+            const row = `<tr data-date="${dateString}">
+                <th>${month}/${day}</th>${itemCells}
+                <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
+                <td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td>
+            </tr>`;
             careTableBody.innerHTML += row;
         }
         checkTimePermissions();
     }
 
     function checkTimePermissions() {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTime = currentHour + currentMinute / 60;
-        const caregiverEnabled = true; // (currentTime >= 10 && currentTime < 14.5);
-        const nurseEnabled = true; // (currentTime >= 14.5 && currentTime < 16);
+        const caregiverEnabled = true;
+        const nurseEnabled = true;
         document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => el.disabled = !caregiverEnabled);
         document.querySelectorAll('#form-view [data-signature="nurse"]').forEach(el => el.disabled = !nurseEnabled);
     }
@@ -148,10 +172,20 @@ document.addEventListener('firebase-ready', () => {
     function generateReportHTML() {
         const residentName = residentNameSelectForm.value;
         const residentData = residentsData[residentName];
-        let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;"><thead><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th rowspan="2" style="border: 1px solid black; padding: 4px;">${getText('date')}</th><th colspan="6" style="border: 1px solid black; padding: 4px;">${getText('assessment_items')}</th><th colspan="2" style="border: 1px solid black; padding: 4px;">${getText('signature')}</th></tr><tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;"><th style="border: 1px solid black; padding: 4px;">${getText('hand_hygiene')}</th><th style="border: 1px solid black; padding: 4px;">${getText('fixed_position')}</th><th style="border: 1px solid black; padding: 4px;">${getText('unobstructed_drainage')}</th><th style="border: 1px solid black; padding: 4px;">${getText('avoid_overfill')}</th><th style="border: 1px solid black; padding: 4px;">${getText('urethral_cleaning')}</th><th style="border: 1px solid black; padding: 4px;">${getText('single_use_container')}</th><th style="border: 1px solid black; padding: 4px;">${getText('caregiver')}</th><th style="border: 1px solid black; padding: 4px;">${getText('nurse')}</th></tr></thead><tbody>`;
+        let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;">
+        <thead>
+        <tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;">
+        <th rowspan="2" style="border: 1px solid black;">${getText('date')}</th>
+        <th colspan="6" style="border: 1px solid black;">${getText('assessment_items')}</th>
+        <th colspan="2" style="border: 1px solid black;">${getText('signature')}</th></tr>
+        <tr style="text-align:center;font-weight:bold;background-color:#f2f2f2;">
+        <th>${getText('hand_hygiene')}</th><th>${getText('fixed_position')}</th><th>${getText('unobstructed_drainage')}</th>
+        <th>${getText('avoid_overfill')}</th><th>${getText('urethral_cleaning')}</th><th>${getText('single_use_container')}</th>
+        <th>${getText('caregiver')}</th><th>${getText('nurse')}</th></tr></thead><tbody>`;
+
         careTableBody.querySelectorAll('tr').forEach(row => {
             const date = row.querySelector('th').textContent;
-            let rowContent = `<tr><td style="border: 1px solid black; padding: 4px;">${date}</td>`;
+            let rowContent = `<tr><td style="border:1px solid black;">${date}</td>`;
             row.querySelectorAll('td').forEach((cell, index) => {
                 let cellValue = '';
                 if (index < careItems.length) {
@@ -160,28 +194,15 @@ document.addEventListener('firebase-ready', () => {
                 } else {
                     cellValue = (cell.querySelector('input').value || '').split('@')[0].trim();
                 }
-                rowContent += `<td style="border: 1px solid black; padding: 4px;">${cellValue}</td>`;
+                rowContent += `<td style="border:1px solid black;">${cellValue}</td>`;
             });
             rowContent += '</tr>';
             tableContent += rowContent;
         });
+
         tableContent += '</tbody></table>';
-        const headerContent = `<div style="text-align: center; margin-bottom: 20px;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>
-            <table style="width:100%; border:none; margin-bottom: 10px; font-size: 12pt;">
-                <tr>
-                    <td style="border:none; text-align: left;"><strong>${getText('name')}:</strong> ${residentName}</td>
-                    <td style="border:none; text-align: left;"><strong>${getText('bed_number')}:</strong> ${residentData.bedNumber}</td>
-                    <td style="border:none; text-align: left;"><strong>${getText('gender')}:</strong> ${residentData.gender}</td>
-                    <td style="border:none; text-align: left;"><strong>病歷號:</strong></td>
-                </tr>
-                <tr>
-                    <td style="border:none; text-align: left;"><strong>${getText('birthday')}:</strong> ${residentData.birthday}</td>
-                    <td style="border:none; text-align: left;"><strong>${getText('checkin_date')}:</strong> ${residentData.checkinDate}</td>
-                    <td style="border:none; text-align: left;"><strong>${getText('placement_date')}:</strong> ${placementDateInput.value}</td>
-                    <td style="border:none; text-align: left;"><strong>${getText('closing_date')}:</strong> ${closingDateInput.value || ''}</td>
-                </tr>
-            </table>`;
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page { size: A4 landscape; margin: 15mm; }h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;}</style></head><body>${headerContent}${tableContent}</body></html>`;
+        const headerContent = `<div style="text-align: center;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title></head><body>${headerContent}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
@@ -189,14 +210,14 @@ document.addEventListener('firebase-ready', () => {
         formView.classList.add('d-none');
         loadCareFormList();
     }
-    
+
     function switchToFormView(isNew, docData = {}, docId = null) {
         listView.classList.add('d-none');
         formView.classList.remove('d-none');
         currentCareFormId = docId;
-        
+
         residentNameSelectForm.disabled = !isNew;
-        
+
         if (isNew) {
             residentNameSelectForm.value = '';
             bedNumberInput.value = '';
@@ -282,7 +303,7 @@ document.addEventListener('firebase-ready', () => {
 
     addNewFormBtn.addEventListener('click', () => switchToFormView(true));
     backToListBtn.addEventListener('click', switchToListView);
-    
+
     residentNameSelectForm.addEventListener('change', () => {
         const residentData = residentsData[residentNameSelectForm.value];
         if(residentData){
@@ -292,7 +313,7 @@ document.addEventListener('firebase-ready', () => {
             checkinDateInput.value = residentData.checkinDate;
         }
     });
-    
+
     careFormList.addEventListener('click', async (e) => {
         e.preventDefault();
         const link = e.target.closest('a.list-group-item');
@@ -307,7 +328,7 @@ document.addEventListener('firebase-ready', () => {
             alert(getText('load_care_form_failed'));
         }
     });
-    
+
     saveCareFormBtn.addEventListener('click', handleSave);
 
     careTableBody.addEventListener('blur', (e) => {
@@ -372,13 +393,13 @@ document.addEventListener('firebase-ready', () => {
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 500);
     });
-    
+
     // --- 初始操作 ---
     async function initializePage() {
         await loadResidentsDropdowns();
         await loadCareFormList();
         setInterval(checkTimePermissions, 30 * 1000);
     }
-    
+
     initializePage();
 });
