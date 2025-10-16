@@ -41,7 +41,7 @@ document.addEventListener('firebase-ready', () => {
         const dropdowns = [residentFilterSelect, residentNameSelectForm];
         dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('loading')}</option>`);
         try {
-            const snapshot = await db.collection(residentsCollection).get();
+            const snapshot = await db.collection(residentsCollection).orderBy('bedNumber').get();
             let filterOptionsHTML = `<option value="" selected>${getText('all_residents')}</option>`;
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             
