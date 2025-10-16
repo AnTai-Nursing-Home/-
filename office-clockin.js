@@ -4,20 +4,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('schedule-file-input');
     const reportContainer = document.getElementById('clockin-report-container');
     const reportControls = document.getElementById('report-controls');
+    const exportWordBtn = document.getElementById('export-word-btn');
+    const exportExcelBtn = document.getElementById('export-excel-btn');
+    const printBtn = document.getElementById('print-btn');
 
     // --- 班別時間定義 ---
     const shiftTimes = {
-        // 護理師
         'D': { start: '08:00', end: '16:00' },
         'E': { start: '16:00', end: '24:00' },
-        'N': { start: '00:00', end: '08:00' }, // 跨日班
-        // 行政
+        'N': { start: '00:00', end: '08:00' }, 
         'DA': { start: '08:00', end: '17:00' },
-        // 照服員
         'D_CAREGIVER': { start: '08:00', end: '20:00' },
-        'N_CAREGIVER': { start: '20:00', end: '08:00' }, // 跨日班
+        'N_CAREGIVER': { start: '20:00', end: '08:00' },
         '8-17': { start: '08:00', end: '17:00' },
-        // 新增的 Dd 班
         'DD': { start: '08:00', end: '17:00' },
     };
     
@@ -27,20 +26,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const is24Hour = hour === 24;
         const effectiveHour = is24Hour ? 23 : hour;
         const effectiveMinute = is24Hour ? 59 : minute;
-
         const baseDate = new Date(2000, 0, 1, effectiveHour, effectiveMinute);
         const randomMinutes = Math.floor(Math.random() * (minuteOffset + 1));
-        
         if (before) {
             baseDate.setMinutes(baseDate.getMinutes() - randomMinutes);
         } else {
             baseDate.setMinutes(baseDate.getMinutes() + randomMinutes);
         }
-
         if(is24Hour && !before) {
              return "23:" + String(50 + Math.floor(Math.random() * 10)).padStart(2, '0');
         }
-
         return baseDate.toTimeString().substring(0, 5);
     }
     
@@ -68,8 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     let shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : '';
                     let clockIn = '';
                     let clockOut = '';
-
                     let effectiveShift = shift;
+
                     if (shift.startsWith('D') && shift !== 'DA' && shift !== 'DD') {
                          effectiveShift = 'D';
                     } else if (shift.startsWith('E')) {
@@ -85,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const shiftInfo = shiftTimes[effectiveShift];
                         clockIn = getRandomTime(shiftInfo.start, 12, true);
                         clockOut = getRandomTime(shiftInfo.end, 12, false);
-                    } else if (shift === 'OFF' || shift === 'OFH' || shift === 'OF') {
+                    } else if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V') { // **** 關鍵修改 ****
                         clockIn = shift;
                         clockOut = shift;
                     }
@@ -98,6 +93,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const fullTableHTML = `<table class="table table-bordered table-sm text-center report-table"><thead>${tableHeader}</thead><tbody>${tableBody}</tbody></table>`;
         reportContainer.innerHTML = fullTableHTML;
         reportControls.classList.remove('d-none');
+    }
+
+    function generateReportHTML(title) {
+        const monthName = monthSelect.value;
+        const tableContent = reportContainer.innerHTML;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'BiauKai','標楷體',serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}table,th,td{border:1px solid black;padding:2px;text-align:center;font-size:8pt;}.report-table{width:100%;border-collapse:collapse;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
     }
     
     // --- 事件監聽器 ---
@@ -127,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsArrayBuffer(file);
     });
 
-    document.getElementById('export-word-btn').addEventListener('click', () => {
+    exportWordBtn.addEventListener('click', () => {
         const title = "員工打卡紀錄總表";
         const content = generateReportHTML(title);
         const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
@@ -135,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.doc`; a.click();
         window.URL.revokeObjectURL(url);
     });
-    document.getElementById('export-excel-btn').addEventListener('click', () => {
+    exportExcelBtn.addEventListener('click', () => {
         const title = "員工打卡紀錄總表";
         const content = generateReportHTML(title);
         const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
@@ -143,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.xls`; a.click();
         window.URL.revokeObjectURL(url);
     });
-    document.getElementById('print-btn').addEventListener('click', () => {
+    printBtn.addEventListener('click', () => {
         const title = "員工打卡紀錄總表";
         const content = generateReportHTML(title);
         const printWindow = window.open('', '_blank');
