@@ -66,10 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : ''; 
                     let temp = '';
                     
-                    if (shift === 'OFF' || shift === 'OFH' || shift === 'OF') {
+                    // **** 關鍵修改：加入對 'V' 的判斷 ****
+                    if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V') {
                         temp = shift;
-                    } else if (shift) {
-                        // **** 關鍵修改：將體溫區間上限改為 37.3 ****
+                    } else if (shift) { 
                         temp = (Math.random() * (37.3 - 36.0) + 36.0).toFixed(1);
                     }
                     tableBody += `<td>${temp}</td>`;
