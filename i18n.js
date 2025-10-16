@@ -113,6 +113,11 @@ const translations = {
         'leave_period_closed': '目前非預假/預班開放期間。下次開放：',
         'leave_period_open': '預假/預班開放中！期間：',
         'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
+        'next_month_overview': '下個月預假/預班總覽',
+        'export_word': '匯出 Word',
+        'export_excel': '匯出 Excel',
+        'print_report': '列印報表',
+        'employee_id': '員編',
         'admin_verification': '管理員驗證',
         'enter_admin_password_for_settings': '請輸入管理員密碼以設定預假期間。',
         'set_next_month_leave_period': '設定下個月的預假/預班開放期間',
@@ -241,6 +246,12 @@ const translations = {
         'settings_save_failed': 'Failed to save settings, please try again later.', 'read_calendar_failed': 'Failed to load calendar data. Please refresh.',
         'select_shift_for': 'Select shift for {date}', 'clear_this_day': 'Clear This Day', 'no_leave_requests_next_month': 'No leave/shift requests for next month yet.',
         'load_summary_failed': 'Failed to load summary data.', 'shift_d': 'D (Day)', 'shift_n': 'N (Night)', 'shift_off': 'OFF',
+        'next_month_overview': 'Next Month Leave/Shift Overview',
+        'export_word': 'Export Word',
+        'export_excel': 'Export Excel',
+        'print_report': 'Print Report',
+        'employee_id': 'Employee ID',
+
 
         // --- Foley Care Assessment ---
         'foley_care_assessment': 'Foley Care Assessment Form', 'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
