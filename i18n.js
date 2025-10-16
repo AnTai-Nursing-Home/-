@@ -92,6 +92,7 @@ const translations = {
         'resident_data_management': '住民資料管理',
         'employee_data_management': '員工資料管理',
         'temperature_log': '體溫登錄',
+        'save_today_temps': '儲存今日體溫',
         'caregiver_system': '照服員系統',
         'enter_caregiver_password': '請輸入照服員密碼',
         'temperature_log_caregiver': '照服員體溫登錄',
@@ -222,7 +223,7 @@ const translations = {
         'enter_caregiver_password': 'Please enter caregiver password', 'caregiver_leave_system_menu': 'Leave Request System','temperature_log_caregiver': 'Caregiver Temperature Log',
         'caregiver_temperature_log_title': 'Daily Temperature Log for Caregivers',
         'login_network_error': 'A network error occurred during login, please try again later.', 'foley_care_assessment_menu': 'Foley Care Assessment',
-        'temperature_record_menu': 'Temperature Recording',
+        'temperature_record_menu': 'Temperature Recording','save_today_temps': 'Save Today\'s Temperatures',
 
         // --- Leave Request System ---
         'your_name': 'Your Name', 'enter_your_name_to_book': 'Please enter your name to request', 'calendar_title_prefix': '',
