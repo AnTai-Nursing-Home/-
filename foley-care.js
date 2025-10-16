@@ -8,8 +8,8 @@ document.addEventListener('firebase-ready', () => {
     // --- 元件宣告 ---
     const listView = document.getElementById('list-view');
     const formView = document.getElementById('form-view');
-    const residentFilterSelect = document.getElementById('resident-filter-select');
-    const residentNameSelectForm = document.getElementById('resident-name-select-form');
+    const residentFilterSelect = document.getElementById('resident-filter-select'); // 列表頁的篩選選單
+    const residentNameSelectForm = document.getElementById('resident-name-select-form'); // 表單內的姓名選單
     const statusBtnGroup = document.querySelector('.btn-group');
     const careFormListTitle = document.getElementById('care-form-list-title');
     const careFormList = document.getElementById('care-form-list');
