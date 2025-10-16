@@ -24,7 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 核心功能函式 ---
     function getRandomTime(baseTime, minuteOffset, before = true) {
         const [hour, minute] = baseTime.split(':').map(Number);
-        const baseDate = new Date(2000, 0, 1, hour, minute); // 用一個固定日期來計算
+        const is24Hour = hour === 24;
+        const effectiveHour = is24Hour ? 23 : hour;
+        const effectiveMinute = is24Hour ? 59 : minute;
+
+        const baseDate = new Date(2000, 0, 1, effectiveHour, effectiveMinute);
         const randomMinutes = Math.floor(Math.random() * (minuteOffset + 1));
         
         if (before) {
@@ -32,6 +36,11 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             baseDate.setMinutes(baseDate.getMinutes() + randomMinutes);
         }
+
+        if(is24Hour && !before) {
+             return "23:" + String(50 + Math.floor(Math.random() * 10)).padStart(2, '0');
+        }
+
         return baseDate.toTimeString().substring(0, 5);
     }
     
@@ -60,14 +69,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     let clockIn = '';
                     let clockOut = '';
 
-                    // 針對照服員的 D 和 N 班做特別標記，以區分護理師
-                    if (empId.toString().startsWith('C') || empName.includes('照服員')) {
-                        if (shift === 'D') shift = 'D_CAREGIVER';
-                        if (shift === 'N') shift = 'N_CAREGIVER';
+                    let effectiveShift = shift;
+                    if (shift.startsWith('D') && shift !== 'DA' && shift !== 'DD') {
+                         effectiveShift = 'D';
+                    } else if (shift.startsWith('E')) {
+                         effectiveShift = 'E';
                     }
 
-                    if (shiftTimes[shift]) {
-                        const shiftInfo = shiftTimes[shift];
+                    if (empId.toString().startsWith('C') || empName.includes('照服員')) {
+                        if (effectiveShift === 'D') effectiveShift = 'D_CAREGIVER';
+                        if (effectiveShift === 'N') effectiveShift = 'N_CAREGIVER';
+                    }
+
+                    if (shiftTimes[effectiveShift]) {
+                        const shiftInfo = shiftTimes[effectiveShift];
                         clockIn = getRandomTime(shiftInfo.start, 12, true);
                         clockOut = getRandomTime(shiftInfo.end, 12, false);
                     } else if (shift === 'OFF' || shift === 'OFH' || shift === 'OF') {
@@ -112,10 +127,31 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsArrayBuffer(file);
     });
 
-    // ... (之後會完成報表匯出的事件監聽) ...
-    document.getElementById('export-word-btn').addEventListener('click', () => alert('匯出 Word 功能將在下一階段完成。'));
-    document.getElementById('export-excel-btn').addEventListener('click', () => alert('匯出 Excel 功能將在下一階段完成。'));
-    document.getElementById('print-btn').addEventListener('click', () => alert('列印功能將在下一階段完成。'));
+    document.getElementById('export-word-btn').addEventListener('click', () => {
+        const title = "員工打卡紀錄總表";
+        const content = generateReportHTML(title);
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.doc`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+    document.getElementById('export-excel-btn').addEventListener('click', () => {
+        const title = "員工打卡紀錄總表";
+        const content = generateReportHTML(title);
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.xls`; a.click();
+        window.URL.revokeObjectURL(url);
+    });
+    document.getElementById('print-btn').addEventListener('click', () => {
+        const title = "員工打卡紀錄總表";
+        const content = generateReportHTML(title);
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    });
     
     // --- 初始操作 ---
     const today = new Date();
