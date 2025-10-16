@@ -73,11 +73,11 @@ document.addEventListener('firebase-ready', () => {
             if (startDate && endDate && today >= startDate && today <= endDate) {
                 isRequestPeriodOpen = true;
                 statusNotice.className = 'alert alert-success';
-                statusNotice.textContent = `預假/預班開放中！期間： ${settings.startDate.replace('T', ' ')} 至 ${settings.endDate.replace('T', ' ')}`;
+                statusNotice.textContent = `${getText('leave_period_open')} ${settings.startDate.replace('T', ' ')} - ${settings.endDate.replace('T', ' ')}`;
             } else {
                 isRequestPeriodOpen = false;
                 statusNotice.className = 'alert alert-warning';
-                statusNotice.textContent = `目前非預假/預班開放期間。下次開放： ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} 至 ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
+                statusNotice.textContent = `${getText('leave_period_closed')} ${settings.startDate ? settings.startDate.replace('T', ' ') : '未設定'} - ${settings.endDate ? settings.endDate.replace('T', ' ') : '未設定'}`;
             }
 
             const currentEmployee = employeeNameSelect.value;
