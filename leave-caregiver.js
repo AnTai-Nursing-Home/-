@@ -353,4 +353,5 @@ document.addEventListener('firebase-ready', () => {
     
     loadEmployeesDropdown();
     renderCalendar();
+    applyTranslations();
 });
