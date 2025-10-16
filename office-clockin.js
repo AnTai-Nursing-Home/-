@@ -10,14 +10,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- 班別時間定義 ---
     const shiftTimes = {
+        // 護理師
         'D': { start: '08:00', end: '16:00' },
         'E': { start: '16:00', end: '24:00' },
-        'N': { start: '00:00', end: '08:00' }, 
+        'N': { start: '00:00', end: '08:00' }, // 跨日班
+        // 行政
         'DA': { start: '08:00', end: '17:00' },
+        // 照服員
         'D_CAREGIVER': { start: '08:00', end: '20:00' },
-        'N_CAREGIVER': { start: '20:00', end: '08:00' },
+        'N_CAREGIVER': { start: '20:00', end: '08:00' }, // 跨日班
         '8-17': { start: '08:00', end: '17:00' },
+        // 其他班別
         'DD': { start: '08:00', end: '17:00' },
+        'PM': { start: '08:00', end: '12:00' } // **** 新增 PM 班 ****
     };
     
     // --- 核心功能函式 ---
@@ -26,16 +31,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const is24Hour = hour === 24;
         const effectiveHour = is24Hour ? 23 : hour;
         const effectiveMinute = is24Hour ? 59 : minute;
+
         const baseDate = new Date(2000, 0, 1, effectiveHour, effectiveMinute);
         const randomMinutes = Math.floor(Math.random() * (minuteOffset + 1));
+        
         if (before) {
             baseDate.setMinutes(baseDate.getMinutes() - randomMinutes);
         } else {
             baseDate.setMinutes(baseDate.getMinutes() + randomMinutes);
         }
+
         if(is24Hour && !before) {
              return "23:" + String(50 + Math.floor(Math.random() * 10)).padStart(2, '0');
         }
+
         return baseDate.toTimeString().substring(0, 5);
     }
     
@@ -80,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const shiftInfo = shiftTimes[effectiveShift];
                         clockIn = getRandomTime(shiftInfo.start, 12, true);
                         clockOut = getRandomTime(shiftInfo.end, 12, false);
-                    } else if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V') { // **** 關鍵修改 ****
+                    } else if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V' || shift === '病') { // **** 關鍵修改：加入 '病' ****
                         clockIn = shift;
                         clockOut = shift;
                     }
@@ -122,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const employeeData = rows.slice(2);
                 generateAndDisplayReport(employeeData);
             } catch (error) {
+                console.error("讀取 Excel 失敗:", error);
                 reportContainer.innerHTML = '<p class="text-center text-danger">讀取 Excel 檔案失敗，請確認檔案格式是否正確。</p>';
             }
         };
@@ -136,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.doc`; a.click();
         window.URL.revokeObjectURL(url);
     });
+
     exportExcelBtn.addEventListener('click', () => {
         const title = "員工打卡紀錄總表";
         const content = generateReportHTML(title);
@@ -144,6 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const a = document.createElement("a"); a.href = url; a.download = `打卡紀錄總表-${monthSelect.value}.xls`; a.click();
         window.URL.revokeObjectURL(url);
     });
+
     printBtn.addEventListener('click', () => {
         const title = "員工打卡紀錄總表";
         const content = generateReportHTML(title);
