@@ -63,14 +63,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if(empId && empName) {
                 tableBody += `<tr><td>${empId}</td><td>${empName}</td>`;
                 for(let i = 1; i <= daysInMonth; i++) {
-                    const shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : ''; // 日期從第3欄開始(索引2)
+                    const shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : ''; 
                     let temp = '';
                     
-                    // **** 關鍵修改：加入對 'OF' 的判斷 ****
                     if (shift === 'OFF' || shift === 'OFH' || shift === 'OF') {
                         temp = shift;
-                    } else if (shift) { // 只要有班別 (不是 OFF/OFH/OF，也不是空白)，就產生體溫
-                        temp = (Math.random() * (37.4 - 36.0) + 36.0).toFixed(1);
+                    } else if (shift) {
+                        // **** 關鍵修改：將體溫區間上限改為 37.3 ****
+                        temp = (Math.random() * (37.3 - 36.0) + 36.0).toFixed(1);
                     }
                     tableBody += `<td>${temp}</td>`;
                 }
