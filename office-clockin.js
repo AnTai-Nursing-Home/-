@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- 元件宣告 ---
     const monthSelect = document.getElementById('month-select');
     const uploadBtn = document.getElementById('upload-schedule-btn');
     const fileInput = document.getElementById('schedule-file-input');
@@ -31,20 +30,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const is24Hour = hour === 24;
         const effectiveHour = is24Hour ? 23 : hour;
         const effectiveMinute = is24Hour ? 59 : minute;
-
         const baseDate = new Date(2000, 0, 1, effectiveHour, effectiveMinute);
         const randomMinutes = Math.floor(Math.random() * (minuteOffset + 1));
-        
         if (before) {
             baseDate.setMinutes(baseDate.getMinutes() - randomMinutes);
         } else {
             baseDate.setMinutes(baseDate.getMinutes() + randomMinutes);
         }
-
         if(is24Hour && !before) {
              return "23:" + String(50 + Math.floor(Math.random() * 10)).padStart(2, '0');
         }
-
         return baseDate.toTimeString().substring(0, 5);
     }
     
@@ -55,16 +50,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const empName = row[1];
             if (empId && empName) {
                 const dailyRecords = [];
-                for (let i = 1; i <= 31; i++) { // 假設最多31天
+                for (let i = 1; i <= 31; i++) {
                     let shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : '';
                     let clockIn = '';
                     let clockOut = '';
-                    
                     let effectiveShift = shift;
                     if (shift.startsWith('D') && shift !== 'DA' && shift !== 'DD') { effectiveShift = 'D'; } 
                     else if (shift.startsWith('E')) { effectiveShift = 'E'; }
 
-                    // 根據員編或姓名判斷是否為照服員
                     if (empId.toString().startsWith('C') || empName.includes('照服員')) {
                         if (effectiveShift === 'D') effectiveShift = 'D_CAREGIVER';
                         if (effectiveShift === 'N') effectiveShift = 'N_CAREGIVER';
@@ -76,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         clockOut = getRandomTime(shiftInfo.end, 12, false);
                     } else if (['OFF', 'OFH', 'OF', 'V', '病', '公'].includes(shift)) {
                         clockIn = shift;
-                        clockOut = ''; // 休假日時下班欄位留空
+                        clockOut = shift;
                     }
                     dailyRecords.push({ clockIn, clockOut });
                 }
@@ -90,7 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const [year, month] = monthSelect.value.split('-').map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
 
-        let tableHeader = `<tr><th rowspan="2">員編</th><th rowspan="2">姓名</th>`;
+        // **** 關鍵修改：全新的表頭 ****
+        let tableHeader = `<tr><th>員編</th><th>姓名</th><th>項目</th>`;
         for (let i = 1; i <= daysInMonth; i++) {
             tableHeader += `<th>${i}</th>`;
         }
@@ -104,7 +98,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 clockInCells += `<td>${employee.dailyRecords[i].clockIn}</td>`;
                 clockOutCells += `<td>${employee.dailyRecords[i].clockOut}</td>`;
             }
-            tableBody += `<tr><td rowspan="2">${employee.empId}</td><td rowspan="2" style="min-width: 80px;">${employee.empName}</td>${clockInCells}</tr><tr>${clockOutCells}</tr>`;
+            // **** 關鍵修改：使用 rowspan 來合併儲存格 ****
+            tableBody += `
+                <tr>
+                    <td rowspan="2">${employee.empId}</td>
+                    <td rowspan="2" style="min-width: 80px; writing-mode: vertical-rl;">${employee.empName}</td>
+                    <td style="background-color: #f2f2f2;">上班</td>
+                    ${clockInCells}
+                </tr>
+                <tr>
+                    <td style="background-color: #f2f2f2;">下班</td>
+                    ${clockOutCells}
+                </tr>
+            `;
         });
 
         const tableClass = forExport ? '' : 'class="table table-bordered table-sm text-center report-table"';
