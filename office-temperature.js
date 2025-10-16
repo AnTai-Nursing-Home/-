@@ -66,11 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : ''; // 日期從第3欄開始(索引2)
                     let temp = '';
                     
-                    // **** 關鍵修改：智慧判斷邏輯 ****
-                    if (shift === 'OFF' || shift === 'OFH') {
+                    // **** 關鍵修改：加入對 'OF' 的判斷 ****
+                    if (shift === 'OFF' || shift === 'OFH' || shift === 'OF') {
                         temp = shift;
-                    } else if (shift) { // 只要有班別 (不是 OFF/OFH，也不是空白)，就產生體溫
-                        // 現在 "Dd" 也會被包含在此邏輯中
+                    } else if (shift) { // 只要有班別 (不是 OFF/OFH/OF，也不是空白)，就產生體溫
                         temp = (Math.random() * (37.4 - 36.0) + 36.0).toFixed(1);
                     }
                     tableBody += `<td>${temp}</td>`;
