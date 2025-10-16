@@ -163,12 +163,29 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function checkTimePermissions() {
-        const caregiverEnabled = true;
-        const nurseEnabled = true;
-        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => el.disabled = !caregiverEnabled);
-        document.querySelectorAll('#form-view [data-signature="nurse"]').forEach(el => el.disabled = !nurseEnabled);
-    }
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour + currentMinute / 60;
 
+    // 🕒 時間範圍設定
+    const caregiverEnabled = (currentTime >= 10 && currentTime < 14.5); // 10:00~14:30
+    const nurseEnabled = (currentTime >= 14.516 && currentTime <= 16.0); // 14:31~16:00
+
+    // 🧤 照顧員：radio + caregiver 簽名
+    document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+        el.disabled = !caregiverEnabled;
+    });
+
+    // 🩺 護理師：簽名欄位
+    document.querySelectorAll('#form-view [data-signature="nurse"]').forEach(el => {
+        el.disabled = !nurseEnabled;
+    });
+
+    // 🕓 除錯訊息（可刪除）
+    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled} | 護理師填寫:${nurseEnabled}`);
+}
+    
     function generateReportHTML() {
         const residentName = residentNameSelectForm.value;
         const residentData = residentsData[residentName];
