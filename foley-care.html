@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="foley_care_assessment">導尿管照護評估表</title>
+    <title data-i18n="foley_care_assessment"></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -39,64 +39,13 @@
                         </div>
 
                         <div id="form-view" class="d-none">
-                             <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
-                                <button id="back-to-list-btn" class="btn btn-back-menu">
-                                    <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_list"></span>
-                                </button>
-                                <div class="d-flex gap-2">
-                                    <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
-                                    <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
-                                    <button id="print-report-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
-                                </div>
                             </div>
-                            <fieldset class="border p-3 mb-4">
-                                <legend class="float-none w-auto px-2" data-i18n="resident_basic_info"></legend>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="resident-name-select-form" class="form-label" data-i18n="name"></label>
-                                        <select id="resident-name-select-form" class="form-select"></select>
-                                    </div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="bed_number"></label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="gender"></label><input type="text" id="resident-gender" class="form-control" readonly></div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="birthday"></label><input type="text" id="resident-birthday" class="form-control" readonly></div>
-                                    <div class="col-md-3"><label class="form-label" data-i18n="checkin_date"></label><input type="text" id="resident-checkinDate" class="form-control" readonly></div>
-                                    <div class="col-md-3"><label for="foley-placement-date" class="form-label" data-i18n="placement_date"></label><input type="date" id="foley-placement-date" class="form-control"></div>
-                                    <div class="col-md-3"><label for="foley-closing-date" class="form-label" data-i18n="closing_date"></label><input type="date" id="foley-closing-date" class="form-control"></div>
-                                </div>
-                            </fieldset>
-                            <div class="table-responsive">
-                                <h4 id="table-month-title" class="text-center mb-3"></h4>
-                                <table class="table table-bordered table-sm text-center align-middle care-table">
-                                    <thead>
-                                        <tr>
-                                            <th rowspan="2" data-i18n="date"></th>
-                                            <th colspan="6" data-i18n="assessment_items"></th>
-                                            <th colspan="2" data-i18n="signature"></th>
-                                        </tr>
-                                        <tr>
-                                            <th data-i18n="hand_hygiene"></th><th data-i18n="fixed_position"></th><th data-i18n="unobstructed_drainage"></th>
-                                            <th data-i18n="avoid_overfill"></th><th data-i18n="urethral_cleaning"></th><th data-i18n="single_use_container"></th>
-                                            <th data-i18n="caregiver"></th><th data-i18n="nurse"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="care-table-body"></tbody>
-                                </table>
-                            </div>
-                            <div class="text-center mt-4 d-print-none d-flex justify-content-center gap-3">
-                                <button id="delete-care-form-btn" class="btn btn-danger btn-lg d-none" data-i18n="delete_this_care_form"></button>
-                                <button id="save-care-form" class="btn btn-primary btn-lg" data-i18n="save_this_care_form"></button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <footer class="site-footer d-print-none">
-        <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
-        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
-    </footer>
-    
+    <footer class="site-footer d-print-none"></footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
