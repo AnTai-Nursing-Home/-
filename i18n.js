@@ -106,6 +106,7 @@ const translations = {
         'calendar_title_suffix': '月',
         'leave_period_open': '預假/預班開放中！期間：',
         'leave_period_closed': '目前非預假/預班開放期間。下次開放：',
+        'leave_period_open': '預假/預班開放中！期間：',
         'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
         'admin_verification': '管理員驗證',
         'enter_admin_password_for_settings': '請輸入管理員密碼以設定預假期間。',
@@ -164,7 +165,7 @@ const translations = {
         // --- 辦公室系統 ---
         'office_system': '辦公室系統', 'enter_office_password': '請輸入辦公室密碼',
         'auto_temp_system': '自動化體溫紀錄系統', 'auto_clockin_system': '自動化打卡紀錄系統',
-        'temperature_system': '體溫系統', 'clockin_system': '打卡系統',
+        'temperature_system': '體溫系統','temperature_label': '體溫','clockin_system': '打卡系統',
         'select_month': '選擇月份', 'upload_schedule': '上傳班表',
         'upload_and_generate': '上傳班表並生成紀錄', 'reading_schedule_and_generating': '正在讀取班表並生成紀錄...',
         'error_select_month_first': '請先選擇月份！', 'error_read_excel': '讀取 Excel 檔案失敗，請確認檔案格式是否正確。',
@@ -223,7 +224,8 @@ const translations = {
         // --- Leave Request System ---
         'your_name': 'Your Name', 'enter_your_name_to_book': 'Please enter your name to request', 'calendar_title_prefix': '',
         'calendar_title_suffix': '', 'leave_period_open': 'Leave/Shift request period is open! From',
-        'leave_period_closed': 'Leave/Shift request period is currently closed. Next period:', 'week_sun': 'Sun', 'week_mon': 'Mon', 'week_tue': 'Tue', 'week_wed': 'Wed', 'week_thu': 'Thu', 'week_fri': 'Fri', 'week_sat': 'Sat',
+        'leave_period_closed': 'Leave/Shift request period is currently closed. Next period:','leave_period_open': 'Leave scheduling period open! Period:',
+        'week_sun': 'Sun', 'week_mon': 'Mon', 'week_tue': 'Tue', 'week_wed': 'Wed', 'week_thu': 'Thu', 'week_fri': 'Fri', 'week_sat': 'Sat',
         'admin_verification': 'Admin Verification', 'enter_admin_password_for_settings': 'Please enter admin password to set the leave/shift request period.',
         'set_next_month_leave_period': 'Set Leave/Shift Request Period for Next Month', 'start_date': 'Start Date & Time', 'end_date': 'End Date & Time',
         'verification_failed': 'A network error occurred during verification, please check your connection or try again later.',
@@ -251,7 +253,7 @@ const translations = {
         // --- Office System ---
         'office_system': 'Office System', 'enter_office_password': 'Please enter office password',
         'auto_temp_system': 'Automated Temperature Log System', 'auto_clockin_system': 'Automated Clock-in/out System',
-        'temperature_system': 'Temperature System', 'clockin_system': 'Clock-in/out System', 'select_month': 'Select Month',
+        'temperature_label': 'Temperature','temperature_system': 'Temperature System', 'clockin_system': 'Clock-in/out System', 'select_month': 'Select Month',
         'upload_schedule': 'Upload Schedule', 'upload_and_generate': 'Upload Schedule & Generate Records',
         'reading_schedule_and_generating': 'Reading schedule and generating records...', 'error_select_month_first': 'Please select a month first!',
         'error_read_excel': 'Failed to read Excel file. Please check the file format.', 'export_word': 'Export Word',
