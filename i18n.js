@@ -42,7 +42,8 @@ const translations = {
         'contact_us': '聯絡我們',
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
-
+        'office_login': '辦公室登入',
+        
         // --- 預約系統 ---
         'booking_system_title': '預約探視系統',
         'admin_mode_notice': '管理員模式：您現在可以預約今天已過中午的時段。',
@@ -78,7 +79,7 @@ const translations = {
         'please_fill_contact_phone': '請填寫您的聯絡電話。',
         'confirm_booking_info_title': '請確認您的預約資訊',
 
-        // --- 護理師/照服員系統 ---
+        // --- 員工系統 (通用) ---
         'nurse_system': '護理師系統',
         'enter_nurse_password': '請輸入護理師密碼',
         'booking_list_query': '預約名單查詢',
@@ -96,9 +97,6 @@ const translations = {
         'foley_care_assessment_menu': '導尿管照護評估',
 
         // --- 預假/預班系統 ---
-        'leave_system_title': '預假/預班系統',
-        'nurse_leave_system': '護理師 預假/預班系統',
-        'caregiver_leave_system': '照服員 預假/預班系統',
         'your_name': '您的姓名',
         'enter_your_name_to_book': '請輸入您的姓名以預排',
         'calendar_title_prefix': '年',
@@ -111,8 +109,6 @@ const translations = {
         'set_next_month_leave_period': '設定下個月的預假/預班開放期間',
         'start_date': '開始日期與時間',
         'end_date': '結束日期與時間',
-        'employee': '員工',
-        'leave_saved': '的預假已儲存！',
         'save_failed': '儲存失敗，請稍後再試。',
         'verification_failed': '驗證時發生網路錯誤，請檢查網路連線或稍後再試。',
         'set_start_end_date': '請設定開始與結束日期',
@@ -151,8 +147,8 @@ const translations = {
         // --- 導尿管照護評估 ---
         'foley_care_assessment': '導尿管照護評估表',
         'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
-        'please_select_resident': '請選擇住民', 'please_select_resident_first': '請先從上方選擇一位住民！', 'all_residents': '全部住民',
-        'ongoing_care_forms': '進行中的照護單', 'closed_care_forms': '已結案的照護單',
+        'please_select_resident': '請選擇住民', 'please_select_resident_first': '請先從上方選擇一位住民！',
+        'all_residents': '全部住民', 'ongoing_care_forms': '進行中的照護單', 'closed_care_forms': '已結案的照護單',
         'add_new_form': '新增照護單', 'no_care_forms_found': '找不到符合條件的照護單紀錄。',
         'resident_basic_info': '住民基本資料', 'placement_date': '置放日期',
         'closing_date': '結案日期', 'care_period': '照護期間', 'ongoing': '持續中',
@@ -164,6 +160,25 @@ const translations = {
         'load_care_form_failed': '載入照護單失敗，請稍後再試。', 'fill_form_first': '請先選擇住民並填寫置放日期！',
         'care_form_saved': '照護單已成功儲存！', 'confirm_delete_care_form': '您確定要永久刪除此張照護單嗎？\n此操作無法復原！',
         'care_form_deleted': '照護單已成功刪除！', 'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
+
+        // --- 體溫登錄系統 ---
+        'temperature_log_nurse': '護理師體溫登錄',
+        'nurse_temperature_log_title': '護理師每日體溫登錄',
+        'temperature_log_caregiver': '照服員體溫登錄',
+        'caregiver_temperature_log_title': '照服員每日體溫登錄',
+        'log_date': '登錄日期',
+        'export_word': '匯出 Word',
+        'export_excel': '匯出 Excel',
+        'print_report': '列印',
+        'save_today_temps': '儲存本日體溫',
+        'no_employee_data': '員工名冊尚無資料。',
+        'read_employee_list_failed': '讀取員工列表失敗。',
+        'read_temp_records_failed': '讀取本日體溫紀錄失敗！',
+        'error_select_date': '請先選擇登錄日期！',
+        'temp_abnormal_alert': '體溫有異常值(低於36.0或高於37.3)，請確認後再儲存！',
+        'temp_saved_success': '日期 {date} 的體溫紀錄已成功儲存！',
+        'nurse_monthly_temp_report_title': '護理師每月體溫紀錄總表',
+        'caregiver_monthly_temp_report_title': '照服員每月體溫紀錄總表',
     },
     'en': {
         // --- Common ---
@@ -208,6 +223,7 @@ const translations = {
         'contact_us': 'Contact Us',
         'nurse_login': 'Nurse Login',
         'caregiver_login': 'Caregiver Login',
+        'office_login': 'Office Login',
         
         // --- Booking System ---
         'booking_system_title': 'Visit Booking System',
@@ -355,6 +371,25 @@ const translations = {
         'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\nThis action cannot be undone!',
         'care_form_deleted': 'Care form has been deleted successfully!',
         'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
+
+        // --- Temperature Log System ---
+        'temperature_log_nurse': 'Nurse Temperature Log',
+        'nurse_temperature_log_title': 'Nurse Daily Temperature Log',
+        'temperature_log_caregiver': 'Caregiver Temperature Log',
+        'caregiver_temperature_log_title': 'Caregiver Daily Temperature Log',
+        'log_date': 'Log Date',
+        'export_word': 'Export Word',
+        'export_excel': 'Export Excel',
+        'print_report': 'Print',
+        'save_today_temps': 'Save Today\'s Temperatures',
+        'no_employee_data': 'No employee data found in the roster.',
+        'read_employee_list_failed': 'Failed to load employee list.',
+        'read_temp_records_failed': 'Failed to load today\'s temperature records!',
+        'error_select_date': 'Please select a log date first!',
+        'temp_abnormal_alert': 'Abnormal temperature value detected (less than 36.0 or greater than 37.3). Please confirm before saving!',
+        'temp_saved_success': 'Temperature records for {date} have been saved successfully!',
+        'nurse_monthly_temp_report_title': 'Nurse Monthly Temperature Log',
+        'caregiver_monthly_temp_report_title': 'Caregiver Monthly Temperature Log',
     }
 };
 
@@ -362,9 +397,11 @@ function setLanguage(lang) {
     localStorage.setItem('language', lang);
     document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
 }
+
 function getLanguage() {
     return localStorage.getItem('language') || 'zh-TW';
 }
+
 function getText(key, replacements = {}) {
     const lang = getLanguage();
     const langDict = translations[lang] || translations['zh-TW'];
