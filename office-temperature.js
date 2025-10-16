@@ -66,11 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const shift = row[i + 1] ? String(row[i + 1]).toUpperCase() : ''; 
                     let temp = '';
                     
-                    // **** 關鍵修改：將 'PM' 也視為上班，產生體溫 ****
-                    if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V' || shift === '病') {
+                    // **** 關鍵修改：加入對 '公' 的判斷 ****
+                    if (shift === 'OFF' || shift === 'OFH' || shift === 'OF' || shift === 'V' || shift === '病' || shift === '公') {
                         temp = shift;
                     } else if (shift) { 
-                        // 只要有班別 (例如 D, N, E, DA, DD, PM, 8-17 等)，就產生體溫
                         temp = (Math.random() * (37.3 - 36.0) + 36.0).toFixed(1);
                     }
                     tableBody += `<td>${temp}</td>`;
