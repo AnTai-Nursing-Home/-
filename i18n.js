@@ -97,6 +97,7 @@ const translations = {
         'caregiver_leave_system_menu': '預假系統',
         'login_network_error': '登入時發生網路錯誤，請稍後再試。',
         'foley_care_assessment_menu': '導尿管照護評估',
+        'temperature_record_menu': '體溫登錄',
 
         // --- 預假/預班系統 ---
         'your_name': '您的姓名',
@@ -217,6 +218,7 @@ const translations = {
         'employee_data_management': 'Employee Data Management', 'temperature_log': 'Temperature Log', 'caregiver_system': 'Caregiver System',
         'enter_caregiver_password': 'Please enter caregiver password', 'caregiver_leave_system_menu': 'Leave Request System',
         'login_network_error': 'A network error occurred during login, please try again later.', 'foley_care_assessment_menu': 'Foley Care Assessment',
+        'temperature_record_menu': 'Temperature Recording',
 
         // --- Leave Request System ---
         'your_name': 'Your Name', 'enter_your_name_to_book': 'Please enter your name to request', 'calendar_title_prefix': '',
