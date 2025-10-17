@@ -7,23 +7,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.getElementById('loginButton-office');
     const errorMessage = document.getElementById('errorMessage-office');
     
-    // 辦公室系統的密碼，您可以自行修改
-    const CORRECT_PASSWORD = "660216"; // 請務必修改為一個安全的密碼
+    // 檢查 URL 參數，如果指定了儀表板，就直接顯示
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('view') === 'dashboard') {
+        passwordSection.classList.add('d-none');
+        dashboardSection.classList.remove('d-none');
+    }
 
-    function handleLogin() {
+    async function handleLogin() {
         const password = passwordInput.value;
         if (!password) {
             alert('請輸入密碼');
             return;
         }
 
-        // 為了簡單起見，我們先用前端直接比對的方式。
-        // 未來如果需要更高安全性，可以改為後端驗證。
-        if (password === CORRECT_PASSWORD) {
-            passwordSection.classList.add('d-none');
-            dashboardSection.classList.remove('d-none');
-        } else {
-            errorMessage.classList.remove('d-none');
+        // 禁用按鈕並隱藏錯誤訊息
+        loginButton.disabled = true;
+        errorMessage.classList.add('d-none');
+
+        try {
+            // 將密碼傳送到後端 API 進行驗證
+            const response = await fetch('/api/office-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password }),
+            });
+
+            if (response.ok) {
+                // 如果後端回傳成功 (200 OK)
+                passwordSection.classList.add('d-none');
+                dashboardSection.classList.remove('d-none');
+            } else {
+                // 如果後端回傳失敗 (例如 401 密碼錯誤)
+                errorMessage.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('登入時發生錯誤:', error);
+            alert('登入時發生網路錯誤，請稍後再試。');
+        } finally {
+            // 無論成功或失敗，最後都要恢復按鈕
+            loginButton.disabled = false;
         }
     }
 
