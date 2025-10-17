@@ -301,3 +301,16 @@ function getText(key, replacements = {}) {
     }
     return text;
 }
+
+function applyTranslations() {
+    const lang = getLanguage();
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = getText(key);
+        if (el.placeholder !== undefined && el.tagName === 'INPUT') {
+            el.placeholder = text;
+        } else {
+            el.textContent = text;
+        }
+    });
+}
