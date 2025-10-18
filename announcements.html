@@ -111,7 +111,7 @@
 
       try {
         const snapshot = await catRef.get();
-        categoryMap = {}; // 🔹 建立分類對照表
+        categoryMap = {};
         snapshot.forEach(doc => {
           categoryMap[doc.id] = doc.data().name;
         });
@@ -132,7 +132,6 @@
       } catch (err) {
         console.error("❌ 載入分類失敗：", err);
         loader.style.display = "none";
-        listContainer.innerHTML = "<p class='text-danger text-center'>載入分類時發生錯誤。</p>";
       }
     }
 
@@ -159,7 +158,10 @@
         snapshot.forEach(doc => {
           const data = doc.data();
           const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
-          const catName = categoryMap[data.categoryId] || "未分類"; // ✅ 自動比對分類名稱
+
+          // ✅ 優先使用公告內的 category（若有）
+          const catName = data.category || categoryMap[data.categoryId] || "未分類";
+
           const html = `
             <div class="announcement-row">
               <span class="date">${date}</span>
