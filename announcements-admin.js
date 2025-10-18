@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("announcement-form").reset();
       document.getElementById("color-section")?.classList.add("d-none");
       document.getElementById("color-pickers").innerHTML = "";
+      loadCategories(); // 🟡 每次開啟時重新載入分類
       announcementModal.show();
     });
   }
@@ -50,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       alert("✅ 新分類已新增！");
       categoryModal.hide();
+      loadCategories(); // 🟡 重新載入分類
     });
   }
 
@@ -80,7 +82,38 @@ let dbReady = false;
 document.addEventListener("firebase-ready", () => {
   dbReady = true;
   loadAnnouncements();
+  loadCategories(); // 🟡 啟動時就載入分類
 });
+
+// 🟡 載入分類下拉選單
+async function loadCategories() {
+  const select = document.getElementById("category");
+  if (!select) return;
+  select.innerHTML = `<option value="">載入中...</option>`;
+
+  try {
+    const snap = await db.collection("announcement_categories")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    if (snap.empty) {
+      select.innerHTML = `<option value="">目前沒有分類</option>`;
+      return;
+    }
+
+    select.innerHTML = `<option value="">請選擇分類</option>`;
+    snap.forEach(doc => {
+      const d = doc.data();
+      const opt = document.createElement("option");
+      opt.value = d.name;
+      opt.textContent = d.name;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("❌ 無法載入分類：", err);
+    select.innerHTML = `<option value="">載入失敗</option>`;
+  }
+}
 
 // 儲存公告
 async function saveAnnouncement() {
@@ -95,16 +128,15 @@ async function saveAnnouncement() {
     return;
   }
 
-  // 收集跑馬燈顏色
   const colors = Array.from(document.querySelectorAll("#color-pickers input[type=color]"))
     .map(i => i.value);
 
   let imageUrl = "";
 
   try {
-    // ✅ 如果有上傳圖片，先存到 Firebase Storage
+    // ✅ 上傳圖片
     if (imageFile) {
-      if (imageFile.size > 2 * 1024 * 1024) { // 限制 2MB
+      if (imageFile.size > 2 * 1024 * 1024) {
         alert("❌ 圖片檔案太大，請選擇 2MB 以下的圖片！");
         return;
       }
@@ -113,7 +145,6 @@ async function saveAnnouncement() {
       imageUrl = await storageRef.getDownloadURL();
     }
 
-    // ✅ 儲存公告到 Firestore
     await db.collection("announcements").add({
       title,
       content,
@@ -138,7 +169,7 @@ async function saveAnnouncement() {
 // 載入公告
 async function loadAnnouncements() {
   if (!dbReady) return;
-  const list = document.getElementById("announcement-tbody"); // ✅ 對應你的 HTML
+  const list = document.getElementById("announcement-tbody");
   if (!list) {
     console.error("⚠️ 找不到 #announcement-tbody 元素！");
     return;
@@ -169,9 +200,7 @@ async function loadAnnouncements() {
         <td>${d.createdAt?.toDate().toLocaleString("zh-TW") || ""}</td>
         <td>${d.isMarquee ? "✅" : "❌"}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement('${doc.id}')">
-            刪除
-          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement('${doc.id}')">刪除</button>
         </td>
       `;
       list.appendChild(row);
