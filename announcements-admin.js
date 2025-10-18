@@ -10,6 +10,7 @@ document.getElementById("saveCategoryBtn")?.addEventListener("click", saveCatego
 document.getElementById("addAnnouncementBtn")?.addEventListener("click", showAnnouncementModal);
 document.getElementById("saveAnnouncementBtn")?.addEventListener("click", saveAnnouncement);
 
+// 🟦 載入分類
 async function loadCategories() {
   try {
     const snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
@@ -25,7 +26,7 @@ async function loadCategories() {
 
     snap.forEach((doc) => {
       const option = document.createElement("option");
-      option.value = doc.id;
+      option.value = doc.data().name;
       option.textContent = doc.data().name;
       select.appendChild(option);
     });
@@ -36,6 +37,7 @@ async function loadCategories() {
   }
 }
 
+// 🟨 載入公告
 async function loadAnnouncements() {
   try {
     const snap = await db.collection("announcements").orderBy("createdAt", "desc").get();
@@ -48,10 +50,12 @@ async function loadAnnouncements() {
       const data = doc.data();
       const div = document.createElement("div");
       div.classList.add("border", "p-3", "mb-2", "rounded");
+
       div.innerHTML = `
         <h5>${data.title}</h5>
-        <p class="text-muted">${data.categoryName || "未分類"} ｜ ${data.createdAt?.toDate().toLocaleString() || ""}</p>
+        <p class="text-muted">${data.category || "未分類"} ｜ ${data.createdAt?.toDate().toLocaleString() || ""}</p>
         <p>${data.content}</p>
+        ${data.isMarquee ? '<span class="badge bg-warning text-dark">跑馬燈</span>' : ''}
       `;
       list.appendChild(div);
     });
@@ -62,12 +66,14 @@ async function loadAnnouncements() {
   }
 }
 
+// 🟢 顯示分類新增視窗
 function showCategoryModal() {
   const modal = new bootstrap.Modal(document.getElementById("categoryModal"));
   document.getElementById("newCategoryName").value = "";
   modal.show();
 }
 
+// 🟢 儲存分類
 async function saveCategory() {
   const name = document.getElementById("newCategoryName").value.trim();
   if (!name) return alert("請輸入分類名稱");
@@ -86,6 +92,7 @@ async function saveCategory() {
   }
 }
 
+// 🟢 顯示公告新增視窗
 function showAnnouncementModal() {
   const modal = new bootstrap.Modal(document.getElementById("announcementModal"));
   document.getElementById("newAnnouncementTitle").value = "";
@@ -93,27 +100,21 @@ function showAnnouncementModal() {
   modal.show();
 }
 
+// 🟢 儲存公告
 async function saveAnnouncement() {
   const title = document.getElementById("newAnnouncementTitle").value.trim();
   const content = document.getElementById("newAnnouncementContent").value.trim();
-  const categoryId = document.getElementById("category").value;
-  const marquee = document.getElementById("marqueeCheck")?.checked || false;
+  const category = document.getElementById("category").value;
+  const isMarquee = document.getElementById("marqueeCheck")?.checked || false;
 
   if (!title || !content) return alert("請輸入完整內容");
 
   try {
-    let categoryName = "未分類";
-    if (categoryId && categoryId !== "目前沒有分類") {
-      const catDoc = await db.collection("announcementCategories").doc(categoryId).get();
-      if (catDoc.exists) categoryName = catDoc.data().name;
-    }
-
     await db.collection("announcements").add({
       title,
       content,
-      categoryId,
-      categoryName,
-      marquee,
+      category,
+      isMarquee,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
