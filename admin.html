@@ -1,71 +1,112 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="nurse_login"></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="nurse_login">護理師登入</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
-    <div class="container my-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-12">
-                <div class="card shadow">
-                    <div class="card-header text-center bg-dark text-white">
-                        <h2 data-i18n="nurse_system"></h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="password-section">
-                            <h5 class="card-title" data-i18n="enter_nurse_password"></h5>
-                            <div class="input-group mb-3">
-                                <input type="password" id="passwordInput" class="form-control" data-i18n-placeholder="please_enter_password">
-                                <button id="loginButton" class="btn btn-primary" data-i18n="login"></button>
-                            </div>
-                            <div id="errorMessage" class="text-danger d-none" data-i18n="password_error"></div>
-                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home"></a>
-                        </div>
-                        <div id="dashboard-section" class="d-none">
-                            <div class="menu-grid admin-menu-grid">
-                                <a href="#" id="show-bookings-btn" class="menu-item"><i class="fas fa-list-alt fa-3x"></i><span class="menu-item-text" data-i18n="booking_list_query"></span></a>
-                                <a href="booking.html?mode=admin" class="menu-item"><i class="fas fa-pen-to-square fa-3x"></i><span class="menu-item-text" data-i18n="proxy_booking"></span></a>
-                                <a href="supplies.html" class="menu-item"><i class="fas fa-boxes-stacked fa-3x"></i><span class="menu-item-text" data-i18n="supplies_inventory"></span></a>
-                                <a href="leave.html" class="menu-item"><i class="fas fa-calendar-days fa-3x"></i><span class="menu-item-text" data-i18n="leave_system"></span></a>
-                                <a href="residents-admin.html" class="menu-item"><i class="fas fa-users-cog fa-3x"></i><span class="menu-item-text" data-i18n="resident_data_management"></span></a>
-                                <a href="employees-admin.html" class="menu-item"><i class="fas fa-id-card-alt fa-3x"></i><span class="menu-item-text" data-i18n="employee_data_management"></span></a>
-                                <a href="temperature-nurse.html" class="menu-item"><i class="fas fa-thermometer-half fa-3x"></i><span class="menu-item-text" data-i18n="temperature_log"></span></a>
-                                <a href="announcements-admin.html" class="menu-item">
-                                    <i class="fas fa-bullhorn fa-3x"></i>
-                                    <span class="menu-item-text" data-i18n="announcement_management"></span>
-                                </a>
-                            </div>
-                            <div class="text-center mt-4">
-                                <a href="index.html" class="btn btn-outline-secondary"><i class="fas fa-home me-2"></i><span data-i18n="back_to_main_menu"></span></a>
-                            </div>
-                        </div>
-                        <div id="results-section" class="d-none mt-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3 data-i18n="all_booking_records"></h3>
-                                <button id="back-to-dashboard-btn" class="btn btn-secondary" data-i18n="back_to_dashboard"></button>
-                            </div>
-                            <div id="booking-list" class="table-responsive"></div>
-                        </div>
-                    </div>
-                </div>
+  <div class="container my-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-12">
+        <div class="card shadow">
+          <div class="card-header text-center bg-dark text-white">
+            <h2 data-i18n="nurse_system">護理師系統</h2>
+          </div>
+          <div class="card-body">
+
+            <!-- 登入區 -->
+            <div id="password-section">
+              <h5 class="card-title" data-i18n="enter_nurse_password">請輸入護理師密碼</h5>
+              <div class="input-group mb-3">
+                <input type="password" id="passwordInput" class="form-control" data-i18n-placeholder="please_enter_password" placeholder="請輸入密碼">
+                <button id="loginButton" class="btn btn-primary" data-i18n="login">登入</button>
+              </div>
+              <div id="errorMessage" class="text-danger d-none" data-i18n="password_error">密碼錯誤，請重試！</div>
+              <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
             </div>
-        </div>
+
+            <!-- 儀表板 -->
+            <div id="dashboard-section" class="d-none">
+              <div class="menu-grid admin-menu-grid">
+                <a href="#" id="show-bookings-btn" class="menu-item">
+                  <i class="fas fa-list-alt fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="booking_list_query">預約名單查詢</span>
+                </a>
+
+                <a href="booking.html?mode=admin" class="menu-item">
+                  <i class="fas fa-pen-to-square fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="proxy_booking">代客預約</span>
+                </a>
+
+                <a href="supplies.html" class="menu-item">
+                  <i class="fas fa-boxes-stacked fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="supplies_inventory">衛材點班</span>
+                </a>
+
+                <a href="leave.html" class="menu-item">
+                  <i class="fas fa-calendar-days fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="leave_system">預假系統</span>
+                </a>
+
+                <a href="residents-admin.html" class="menu-item">
+                  <i class="fas fa-users-cog fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="resident_data_management">住民資料管理</span>
+                </a>
+
+                <a href="temperature-nurse.html" class="menu-item">
+                  <i class="fas fa-thermometer-half fa-3x"></i>
+                  <span class="menu-item-text" data-i18n="temperature_system">體溫登錄</span>
+                </a>
+              </div>
+
+              <div class="text-center mt-4">
+                <a href="index.html" class="btn btn-outline-secondary">
+                  <i class="fas fa-home me-2"></i>
+                  <span data-i18n="back_to_main_menu">返回首頁選單</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- 預約紀錄區 -->
+            <div id="results-section" class="d-none mt-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 data-i18n="all_booking_records">所有預約紀錄</h3>
+                <button id="back-to-dashboard-btn" class="btn btn-secondary" data-i18n="back_to_dashboard">返回儀表板</button>
+              </div>
+              <div id="booking-list" class="table-responsive"></div>
+            </div>
+
+          </div> <!-- card-body -->
+        </div> <!-- card -->
+      </div>
     </div>
-    <footer class="site-footer">
-        <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
-        © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
-    </footer>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="firebase-init.js"></script>
-    <script src="i18n.js"></script>
-    <script src="main.js"></script>
-    <script src="admin.js"></script>
+  </div>
+
+  <footer class="site-footer">
+    <div class="mb-2">
+      <button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button>
+    </div>
+    © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+  </footer>
+
+  <!-- Firebase + JS -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="i18n.js"></script>
+  <script src="main.js"></script>
+  <script src="admin.js"></script>
+
+  <!-- 初始化翻譯 -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof applyTranslations === 'function') applyTranslations();
+    });
+  </script>
 </body>
 </html>
