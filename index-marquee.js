@@ -1,4 +1,3 @@
-// index-marquee.js
 document.addEventListener("firebase-ready", async () => {
   const marquee = document.getElementById("marquee-text");
   const container = document.getElementById("announcement-marquee");
