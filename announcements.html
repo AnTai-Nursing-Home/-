@@ -83,30 +83,40 @@
     <div id="announcement-list" style="display:none;"></div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
+
+  <!-- 公告載入邏輯 -->
   <script>
     const categoryTabs = document.getElementById('categoryTabs');
     const listContainer = document.getElementById('announcement-list');
     const loader = document.getElementById('loadingIndicator');
-    const dbRef = db.collection("announcements");
-    const catRef = db.collection("announcementCategories");
+
+    let dbRef, catRef;
 
     async function loadCategories() {
       loader.style.display = "block";
       listContainer.style.display = "none";
       categoryTabs.innerHTML = "";
 
+      if (!db) {
+        console.error("❌ Firestore 尚未初始化");
+        return;
+      }
+
+      dbRef = db.collection("announcements");
+      catRef = db.collection("announcementCategories");
+
       try {
-        const snapshot = await catRef.get(); // 不排序，確保全部分類都會顯示
+        const snapshot = await catRef.get();
         if (snapshot.empty) {
           categoryTabs.innerHTML = "<li class='nav-item'><span class='nav-link disabled'>目前沒有分類</span></li>";
           loader.style.display = "none";
           return;
         }
 
-        // 顯示「全部」分類
         const allTab = document.createElement("li");
         allTab.className = "nav-item";
         allTab.innerHTML = `<a class="nav-link active" data-id="all" href="#">全部</a>`;
@@ -116,13 +126,11 @@
           const data = doc.data();
           const li = document.createElement("li");
           li.className = "nav-item";
-          li.innerHTML = `
-            <a class="nav-link" data-id="${doc.id}" href="#">${data.name}</a>
-          `;
+          li.innerHTML = `<a class="nav-link" data-id="${doc.id}" href="#">${data.name}</a>`;
           categoryTabs.appendChild(li);
         });
 
-        loadAnnouncements("all"); // 預設載入全部
+        loadAnnouncements("all");
       } catch (err) {
         console.error("❌ 載入分類失敗：", err);
         loader.style.display = "none";
@@ -172,11 +180,11 @@
       }
     });
 
-    <script>
-      document.addEventListener("firebase-ready", () => {
-        console.log("✅ Firebase ready, now loading categories and announcements...");
-        loadCategories();
-      });
-    </script>
+    // ✅ 等 Firebase 初始化完成後再載入
+    document.addEventListener("firebase-ready", () => {
+      console.log("✅ Firebase ready, now loading categories and announcements...");
+      loadCategories();
+    });
+  </script>
 </body>
 </html>
