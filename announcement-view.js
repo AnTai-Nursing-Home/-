@@ -21,6 +21,13 @@ document.addEventListener("firebase-ready", async () => {
       .replace(/\n/g, "<br>");
     document.getElementById("announcement-meta").textContent =
       `${data.category || "未分類"}　${data.createdAt?.toDate().toLocaleString() || ""}`;
+
+    if (data.imageUrl) {
+      const img = document.createElement("img");
+      img.src = data.imageUrl;
+      img.className = "img-fluid rounded my-3";
+      content.insertBefore(img, document.getElementById("announcement-body"));
+    }
   } catch (err) {
     console.error("❌ 無法載入公告：", err);
     content.innerHTML = "<p>載入公告時發生錯誤。</p>";
