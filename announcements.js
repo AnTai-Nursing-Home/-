@@ -1,4 +1,3 @@
-// 公告列表頁
 let dbReady = false;
 
 document.addEventListener("firebase-ready", () => {
