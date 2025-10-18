@@ -1,4 +1,12 @@
-document.addEventListener("firebase-ready", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // 🔹 確保 Firebase 初始化完成後再執行
+  const waitForFirebase = () =>
+    new Promise((resolve) => {
+      if (typeof db !== "undefined" && db) return resolve();
+      document.addEventListener("firebase-ready", resolve);
+    });
+
+  await waitForFirebase();
   console.log("✅ Firebase ready, loading categories and announcements...");
   await loadCategories();
   await loadAnnouncements();
@@ -11,12 +19,11 @@ document.getElementById("btn-add-announcement")?.addEventListener("click", showA
 document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
 
 //
-// 🟦 載入分類（含錯誤回退）
+// 🟦 載入分類（含沒有 createdAt 的相容處理）
 async function loadCategories() {
   try {
     let snap;
     try {
-      // 嘗試用 createdAt 排序載入
       snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
     } catch (error) {
       console.warn("⚠️ 沒有 createdAt 欄位，改用無排序載入分類");
@@ -59,10 +66,16 @@ async function loadAnnouncements() {
 
     tbody.innerHTML = "";
 
+    if (snap.empty) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="text-center text-muted">目前沒有公告</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
     snap.forEach((doc) => {
       const data = doc.data();
       const tr = document.createElement("tr");
-
       tr.innerHTML = `
         <td>${data.title || "(未命名)"}</td>
         <td>${data.category || "未分類"}</td>
