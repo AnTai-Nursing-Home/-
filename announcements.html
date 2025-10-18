@@ -143,32 +143,38 @@
       listContainer.style.display = "none";
       listContainer.innerHTML = "";
 
-      let query = dbRef.orderBy("createdAt", "desc");
-      if (categoryId !== "all") {
-        query = query.where("categoryId", "==", categoryId).orderBy("createdAt", "desc");
+      try {
+        let query = dbRef.orderBy("createdAt", "desc");
+        if (categoryId !== "all") {
+          query = query.where("categoryId", "==", categoryId);
+        }
+
+        const snapshot = await query.get();
+        loader.style.display = "none";
+        listContainer.style.display = "block";
+
+        if (snapshot.empty) {
+          listContainer.innerHTML = "<p class='text-center text-muted'>目前沒有公告。</p>";
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
+          const html = `
+            <div class="announcement-row">
+              <span class="date">${date}</span>
+              <span class="category">[${data.categoryName || "未分類"}]</span>
+              <a href="announcement-view.html?id=${doc.id}" class="title">${data.title}</a>
+            </div>
+          `;
+          listContainer.insertAdjacentHTML("beforeend", html);
+        });
+      } catch (err) {
+        console.error("❌ 載入公告錯誤：", err);
+        loader.style.display = "none";
+        listContainer.innerHTML = "<p class='text-danger text-center'>載入公告時發生錯誤。</p>";
       }
-
-      const snapshot = await query.get();
-      loader.style.display = "none";
-      listContainer.style.display = "block";
-
-      if (snapshot.empty) {
-        listContainer.innerHTML = "<p class='text-center text-muted'>目前沒有公告。</p>";
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
-        const html = `
-          <div class="announcement-row">
-            <span class="date">${date}</span>
-            <span class="category">[${data.categoryName || "未分類"}]</span>
-            <a href="announcement-view.html?id=${doc.id}" class="title">${data.title}</a>
-          </div>
-        `;
-        listContainer.insertAdjacentHTML("beforeend", html);
-      });
     }
 
     categoryTabs.addEventListener("click", e => {
@@ -180,7 +186,6 @@
       }
     });
 
-    // ✅ 等 Firebase 初始化完成後再載入
     document.addEventListener("firebase-ready", () => {
       console.log("✅ Firebase ready, now loading categories and announcements...");
       loadCategories();
