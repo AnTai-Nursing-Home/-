@@ -245,3 +245,33 @@ async function deleteAnnouncement(id) {
     hideLoader();
   }
 }
+
+// 🟣 編輯分類功能
+document.getElementById("btn-edit-category")?.addEventListener("click", async () => {
+  const oldName = prompt("請輸入要修改的分類名稱：");
+  if (!oldName) return alert("請輸入原分類名稱！");
+
+  const newName = prompt("請輸入新的分類名稱：");
+  if (!newName) return alert("請輸入新分類名稱！");
+
+  showLoader("正在更新分類名稱...");
+
+  try {
+    const snap = await db.collection("announcementCategories").where("name", "==", oldName).get();
+    if (snap.empty) {
+      hideLoader();
+      return alert(`找不到名稱為「${oldName}」的分類！`);
+    }
+
+    const docId = snap.docs[0].id;
+    await db.collection("announcementCategories").doc(docId).update({ name: newName });
+
+    alert(`✅ 分類名稱已從「${oldName}」更新為「${newName}」`);
+    await loadCategories(); // 重新載入分類下拉選單
+  } catch (error) {
+    console.error("❌ 更新分類時發生錯誤：", error);
+    alert("更新失敗，請稍後再試！");
+  } finally {
+    hideLoader();
+  }
+});
