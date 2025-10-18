@@ -94,7 +94,7 @@
     const listContainer = document.getElementById('announcement-list');
     const loader = document.getElementById('loadingIndicator');
 
-    let dbRef, catRef;
+    let dbRef, catRef, categoryMap = {};
 
     async function loadCategories() {
       loader.style.display = "block";
@@ -111,26 +111,24 @@
 
       try {
         const snapshot = await catRef.get();
-        if (snapshot.empty) {
-          categoryTabs.innerHTML = "<li class='nav-item'><span class='nav-link disabled'>目前沒有分類</span></li>";
-          loader.style.display = "none";
-          return;
-        }
+        categoryMap = {}; // 🔹 建立分類對照表
+        snapshot.forEach(doc => {
+          categoryMap[doc.id] = doc.data().name;
+        });
 
         const allTab = document.createElement("li");
         allTab.className = "nav-item";
         allTab.innerHTML = `<a class="nav-link active" data-id="all" href="#">全部</a>`;
         categoryTabs.appendChild(allTab);
 
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        Object.entries(categoryMap).forEach(([id, name]) => {
           const li = document.createElement("li");
           li.className = "nav-item";
-          li.innerHTML = `<a class="nav-link" data-id="${doc.id}" href="#">${data.name}</a>`;
+          li.innerHTML = `<a class="nav-link" data-id="${id}" href="#">${name}</a>`;
           categoryTabs.appendChild(li);
         });
 
-        loadAnnouncements("all");
+        await loadAnnouncements("all");
       } catch (err) {
         console.error("❌ 載入分類失敗：", err);
         loader.style.display = "none";
@@ -161,10 +159,11 @@
         snapshot.forEach(doc => {
           const data = doc.data();
           const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
+          const catName = categoryMap[data.categoryId] || "未分類"; // ✅ 自動比對分類名稱
           const html = `
             <div class="announcement-row">
               <span class="date">${date}</span>
-              <span class="category">[${data.categoryName || "未分類"}]</span>
+              <span class="category">[${catName}]</span>
               <a href="announcement-view.html?id=${doc.id}" class="title">${data.title}</a>
             </div>
           `;
