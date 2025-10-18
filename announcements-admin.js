@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  // 🔹 確保 Firebase 初始化完成後再執行
   const waitForFirebase = () =>
     new Promise((resolve) => {
       if (typeof db !== "undefined" && db) return resolve();
@@ -19,57 +18,104 @@ document.getElementById("btn-add-announcement")?.addEventListener("click", showA
 document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
 
 //
-async function loadCategories() {
-  try {
-    console.log("🚀 嘗試載入分類...");
+// 🟢 顯示 / 隱藏載入提示
+function showLoader(message = "資料載入中，請稍候...") {
+  let loader = document.getElementById("loadingIndicator");
+  if (!loader) {
+    loader = document.createElement("div");
+    loader.id = "loadingIndicator";
+    loader.style = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-size: 18px;
+      z-index: 2000;
+    `;
+    loader.innerHTML = `
+      <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p id="loaderText" class="mt-2">${message}</p>
+    `;
+    document.body.appendChild(loader);
+  }
+  loader.style.display = "flex";
+}
 
+function hideLoader() {
+  const loader = document.getElementById("loadingIndicator");
+  if (loader) loader.style.display = "none";
+}
+
+//
+// 🟧 錯誤提示
+function showError(msg) {
+  const errorBox = document.createElement("div");
+  errorBox.className = "alert alert-danger text-center";
+  errorBox.textContent = msg;
+  errorBox.style.position = "fixed";
+  errorBox.style.top = "10px";
+  errorBox.style.left = "50%";
+  errorBox.style.transform = "translateX(-50%)";
+  errorBox.style.zIndex = "3000";
+  document.body.appendChild(errorBox);
+  setTimeout(() => errorBox.remove(), 3000);
+}
+
+//
+// 🟦 載入分類（含 Loading）
+async function loadCategories() {
+  showLoader("正在載入分類...");
+  try {
     let snap;
     try {
-      // 嘗試用 createdAt 排序
-      snap = await db.collection("announcementCategories")
-        .orderBy("createdAt", "desc")
-        .get();
-      console.log("📦 用 createdAt 排序載入分類:", snap.size);
+      snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
     } catch (error) {
-      // 若沒有 createdAt，就直接載入
-      console.warn("⚠️ 無 createdAt 欄位，改用未排序查詢:", error.message);
+      console.warn("⚠️ 無 createdAt，改用未排序查詢:", error.message);
       snap = await db.collection("announcementCategories").get();
     }
 
     const select = document.getElementById("category");
     if (!select) {
-      console.error("❌ 找不到下拉選單 #category");
+      console.error("❌ 找不到 #category");
       return;
     }
-
     select.innerHTML = "";
 
     if (snap.empty) {
-      console.warn("⚠️ 沒有任何分類文件");
       const option = document.createElement("option");
       option.textContent = "目前沒有分類";
       select.appendChild(option);
-      return;
+    } else {
+      snap.forEach((doc) => {
+        const data = doc.data();
+        const option = document.createElement("option");
+        option.value = data.name || "未命名分類";
+        option.textContent = data.name || "未命名分類";
+        select.appendChild(option);
+      });
     }
 
-    snap.forEach((doc) => {
-      const data = doc.data();
-      console.log("📄 分類文件:", doc.id, data);
-      const option = document.createElement("option");
-      option.value = data.name || "未命名分類";
-      option.textContent = data.name || "未命名分類";
-      select.appendChild(option);
-    });
-
-    console.log("✅ 分類載入完成，共", snap.size, "筆");
+    console.log("✅ 分類載入完成:", snap.size);
   } catch (error) {
-    console.error("❌ 載入分類時出錯:", error);
+    console.error("❌ 載入分類失敗:", error);
+    showError("載入分類時發生錯誤！");
+  } finally {
+    hideLoader();
   }
 }
 
 //
-// 🟨 載入公告
+// 🟨 載入公告（含 Loading）
 async function loadAnnouncements() {
+  showLoader("正在載入公告...");
   try {
     const snap = await db.collection("announcements").orderBy("createdAt", "desc").get();
     const tbody = document.getElementById("announcement-tbody");
@@ -103,7 +149,10 @@ async function loadAnnouncements() {
 
     console.log("📄 Announcements loaded:", snap.size);
   } catch (error) {
-    console.error("❌ Error loading announcements:", error);
+    console.error("❌ 載入公告失敗:", error);
+    showError("載入公告時發生錯誤！");
+  } finally {
+    hideLoader();
   }
 }
 
@@ -121,18 +170,21 @@ async function saveCategory() {
   const name = document.getElementById("new-category-name").value.trim();
   if (!name) return alert("請輸入分類名稱");
 
+  showLoader("正在儲存分類...");
   try {
     await db.collection("announcementCategories").add({
       name,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
     alert("✅ 分類已新增");
     await loadCategories();
     bootstrap.Modal.getInstance(document.getElementById("categoryModal")).hide();
   } catch (error) {
-    console.error("❌ Error saving category:", error);
-    alert("儲存失敗");
+    console.error("❌ 儲存分類失敗:", error);
+    showError("無法儲存分類，請稍後再試！");
+  } finally {
+    hideLoader();
   }
 }
 
@@ -155,21 +207,24 @@ async function saveAnnouncement() {
 
   if (!title || !content) return alert("請輸入完整內容");
 
+  showLoader("正在儲存公告...");
   try {
     await db.collection("announcements").add({
       title,
       content,
       category,
       isMarquee,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
     alert("✅ 公告已新增");
     await loadAnnouncements();
     bootstrap.Modal.getInstance(document.getElementById("announcementModal")).hide();
   } catch (error) {
-    console.error("❌ Error saving announcement:", error);
-    alert("儲存失敗");
+    console.error("❌ 儲存公告失敗:", error);
+    showError("無法儲存公告，請稍後再試！");
+  } finally {
+    hideLoader();
   }
 }
 
@@ -177,11 +232,16 @@ async function saveAnnouncement() {
 // 🗑️ 刪除公告
 async function deleteAnnouncement(id) {
   if (!confirm("確定要刪除此公告嗎？")) return;
+
+  showLoader("正在刪除公告...");
   try {
     await db.collection("announcements").doc(id).delete();
     alert("🗑️ 公告已刪除");
     await loadAnnouncements();
   } catch (error) {
-    console.error("❌ Error deleting announcement:", error);
+    console.error("❌ 刪除公告失敗:", error);
+    showError("無法刪除公告！");
+  } finally {
+    hideLoader();
   }
 }
