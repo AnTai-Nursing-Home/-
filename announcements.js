@@ -24,18 +24,15 @@ async function loadAnnouncements() {
       return;
     }
 
-    // 收集公告
     allAnnouncements = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date()
     }));
 
-    // 🔧 自動生成分類
     const categories = Array.from(new Set(allAnnouncements.map(a => a.category || "未分類")));
     const allCats = ["全部", ...categories];
 
-    // 產生分類標籤
     allCats.forEach(cat => {
       const li = document.createElement("li");
       li.classList.add("nav-item");
@@ -78,7 +75,9 @@ function renderAnnouncements(category) {
     row.className = "announcement-row";
     row.innerHTML = `
       <h5><a href="announcement-view.html?id=${a.id}" class="title">${a.title}</a></h5>
-      <div class="text-muted small">${a.category || "未分類"}　${a.createdAt.toLocaleString("zh-TW")}</div>
+      <div class="text-muted small">${a.category || "未分類"}　
+        ${a.createdAt.toLocaleString("zh-TW")}</div>
+      ${a.imageUrl ? `<img src="${a.imageUrl}" class="img-fluid rounded my-2" style="max-height:200px;">` : ""}
     `;
     list.appendChild(row);
   });
