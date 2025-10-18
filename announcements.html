@@ -172,7 +172,11 @@
       }
     });
 
-    loadCategories();
-  </script>
+    <script>
+      document.addEventListener("firebase-ready", () => {
+        console.log("✅ Firebase ready, now loading categories and announcements...");
+        loadCategories();
+      });
+    </script>
 </body>
 </html>
