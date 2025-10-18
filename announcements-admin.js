@@ -246,32 +246,56 @@ async function deleteAnnouncement(id) {
   }
 }
 
-// 🟣 編輯分類功能
+// 🟣 開啟「編輯分類」Modal 並載入現有分類
 document.getElementById("btn-edit-category")?.addEventListener("click", async () => {
-  const oldName = prompt("請輸入要修改的分類名稱：");
-  if (!oldName) return alert("請輸入原分類名稱！");
-
-  const newName = prompt("請輸入新的分類名稱：");
-  if (!newName) return alert("請輸入新分類名稱！");
-
-  showLoader("正在更新分類名稱...");
+  const select = document.getElementById("edit-category-select");
+  select.innerHTML = "<option disabled selected>載入中...</option>";
 
   try {
-    const snap = await db.collection("announcementCategories").where("name", "==", oldName).get();
+    const snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
+    select.innerHTML = "";
+
     if (snap.empty) {
-      hideLoader();
-      return alert(`找不到名稱為「${oldName}」的分類！`);
+      select.innerHTML = "<option disabled>目前沒有分類</option>";
+    } else {
+      snap.forEach(doc => {
+        const data = doc.data();
+        const option = document.createElement("option");
+        option.value = doc.id;
+        option.textContent = data.name || "未命名分類";
+        select.appendChild(option);
+      });
     }
 
-    const docId = snap.docs[0].id;
-    await db.collection("announcementCategories").doc(docId).update({ name: newName });
-
-    alert(`✅ 分類名稱已從「${oldName}」更新為「${newName}」`);
-    await loadCategories(); // 重新載入分類下拉選單
+    const modal = new bootstrap.Modal(document.getElementById("editCategoryModal"));
+    modal.show();
   } catch (error) {
-    console.error("❌ 更新分類時發生錯誤：", error);
+    console.error("❌ 載入分類失敗：", error);
+    alert("無法載入分類，請稍後再試。");
+  }
+});
+
+// 🟡 儲存分類修改
+document.getElementById("save-edit-category")?.addEventListener("click", async () => {
+  const select = document.getElementById("edit-category-select");
+  const docId = select.value;
+  const newName = document.getElementById("new-category-name-edit").value.trim();
+
+  if (!docId || !newName) {
+    alert("請選擇分類並輸入新名稱！");
+    return;
+  }
+
+  try {
+    await db.collection("announcementCategories").doc(docId).update({ name: newName });
+    alert("✅ 分類名稱已更新！");
+    document.getElementById("new-category-name-edit").value = "";
+    loadCategories();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById("editCategoryModal"));
+    modal.hide();
+  } catch (error) {
+    console.error("❌ 更新分類失敗：", error);
     alert("更新失敗，請稍後再試！");
-  } finally {
-    hideLoader();
   }
 });
