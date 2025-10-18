@@ -56,7 +56,77 @@
     </div>
   </div>
 
-  <!-- 公告與分類 Modal 保持不變 -->
+  <!-- 🟢 新增公告 Modal -->
+  <div class="modal fade" id="announcementModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">新增公告</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="announcement-form">
+            <div class="mb-3">
+              <label class="form-label">標題</label>
+              <input type="text" id="title" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">內容</label>
+              <textarea id="content" class="form-control" rows="4" required></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">分類</label>
+              <select id="category" class="form-select"></select>
+            </div>
+
+            <!-- ✅ 圖片上傳 -->
+            <div class="mb-3">
+              <label for="imageFile" class="form-label">圖片上傳（選填）</label>
+              <input type="file" id="imageFile" class="form-control" accept="image/*" />
+              <div class="form-text text-muted">
+                ※ 可上傳 JPG、PNG、GIF 圖片，大小限 2MB 以下。
+              </div>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="is-marquee" />
+              <label class="form-check-label">設為跑馬燈公告</label>
+            </div>
+            <div id="color-section" class="mb-3 d-none">
+              <label class="form-label">跑馬燈顏色（可多選）</label>
+              <div id="color-pickers" class="d-flex flex-wrap gap-2"></div>
+              <button type="button" id="add-color" class="btn btn-outline-secondary btn-sm mt-2">新增顏色</button>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" id="save-announcement">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🟣 新增分類 Modal -->
+  <div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-secondary text-white">
+          <h5 class="modal-title">新增分類</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="new-category-name" class="form-control" placeholder="輸入分類名稱" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" id="save-category">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase & Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
