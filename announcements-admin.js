@@ -1,4 +1,3 @@
-const db = firebase.firestore();
 const tbody = document.getElementById("announcement-tbody");
 const categorySelect = document.getElementById("announcement-category");
 const colorSection = document.getElementById("color-section");
