@@ -4,13 +4,12 @@ document.addEventListener("firebase-ready", async () => {
   await loadAnnouncements();
 });
 
-// 監聽按鈕事件
-document.getElementById("addCategoryBtn")?.addEventListener("click", showCategoryModal);
-document.getElementById("saveCategoryBtn")?.addEventListener("click", saveCategory);
-document.getElementById("addAnnouncementBtn")?.addEventListener("click", showAnnouncementModal);
-document.getElementById("saveAnnouncementBtn")?.addEventListener("click", saveAnnouncement);
+// 綁定按鈕事件
+document.getElementById("btn-add-category")?.addEventListener("click", showCategoryModal);
+document.getElementById("save-category")?.addEventListener("click", saveCategory);
+document.getElementById("btn-add-announcement")?.addEventListener("click", showAnnouncementModal);
+document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
 
-// 🟦 載入分類
 async function loadCategories() {
   try {
     const snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
@@ -37,27 +36,28 @@ async function loadCategories() {
   }
 }
 
-// 🟨 載入公告
 async function loadAnnouncements() {
   try {
     const snap = await db.collection("announcements").orderBy("createdAt", "desc").get();
-    const list = document.getElementById("announcementList");
-    if (!list) return;
-
-    list.innerHTML = "";
+    const tbody = document.getElementById("announcement-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
 
     snap.forEach((doc) => {
       const data = doc.data();
-      const div = document.createElement("div");
-      div.classList.add("border", "p-3", "mb-2", "rounded");
-
-      div.innerHTML = `
-        <h5>${data.title}</h5>
-        <p class="text-muted">${data.category || "未分類"} ｜ ${data.createdAt?.toDate().toLocaleString() || ""}</p>
-        <p>${data.content}</p>
-        ${data.isMarquee ? '<span class="badge bg-warning text-dark">跑馬燈</span>' : ''}
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${data.title}</td>
+        <td>${data.category || "未分類"}</td>
+        <td>${data.createdAt?.toDate().toLocaleString() || ""}</td>
+        <td>${data.isMarquee ? "✅" : "❌"}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('${doc.id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
       `;
-      list.appendChild(div);
+      tbody.appendChild(tr);
     });
 
     console.log("📄 Announcements loaded:", snap.size);
@@ -66,16 +66,14 @@ async function loadAnnouncements() {
   }
 }
 
-// 🟢 顯示分類新增視窗
 function showCategoryModal() {
   const modal = new bootstrap.Modal(document.getElementById("categoryModal"));
-  document.getElementById("newCategoryName").value = "";
+  document.getElementById("new-category-name").value = "";
   modal.show();
 }
 
-// 🟢 儲存分類
 async function saveCategory() {
-  const name = document.getElementById("newCategoryName").value.trim();
+  const name = document.getElementById("new-category-name").value.trim();
   if (!name) return alert("請輸入分類名稱");
 
   try {
@@ -92,20 +90,18 @@ async function saveCategory() {
   }
 }
 
-// 🟢 顯示公告新增視窗
 function showAnnouncementModal() {
   const modal = new bootstrap.Modal(document.getElementById("announcementModal"));
-  document.getElementById("newAnnouncementTitle").value = "";
-  document.getElementById("newAnnouncementContent").value = "";
+  document.getElementById("title").value = "";
+  document.getElementById("content").value = "";
   modal.show();
 }
 
-// 🟢 儲存公告
 async function saveAnnouncement() {
-  const title = document.getElementById("newAnnouncementTitle").value.trim();
-  const content = document.getElementById("newAnnouncementContent").value.trim();
+  const title = document.getElementById("title").value.trim();
+  const content = document.getElementById("content").value.trim();
   const category = document.getElementById("category").value;
-  const isMarquee = document.getElementById("marqueeCheck")?.checked || false;
+  const isMarquee = document.getElementById("is-marquee")?.checked || false;
 
   if (!title || !content) return alert("請輸入完整內容");
 
@@ -124,5 +120,16 @@ async function saveAnnouncement() {
   } catch (error) {
     console.error("❌ Error saving announcement:", error);
     alert("儲存失敗");
+  }
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm("確定要刪除此公告嗎？")) return;
+  try {
+    await db.collection("announcements").doc(id).delete();
+    alert("🗑️ 公告已刪除");
+    loadAnnouncements();
+  } catch (error) {
+    console.error("❌ Error deleting announcement:", error);
   }
 }
