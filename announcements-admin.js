@@ -22,27 +22,30 @@ document.getElementById("save-announcement")?.addEventListener("click", saveAnno
 async function loadCategories() {
   try {
     console.log("🚀 嘗試載入分類...");
-    console.log("db 狀態:", typeof db, db ? "✅ 有定義" : "❌ 未定義");
 
     let snap;
     try {
-      snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
+      // 嘗試用 createdAt 排序
+      snap = await db.collection("announcementCategories")
+        .orderBy("createdAt", "desc")
+        .get();
+      console.log("📦 用 createdAt 排序載入分類:", snap.size);
     } catch (error) {
-      console.warn("⚠️ 沒有 createdAt 欄位，改用無排序載入分類", error);
+      // 若沒有 createdAt，就直接載入
+      console.warn("⚠️ 無 createdAt 欄位，改用未排序查詢:", error.message);
       snap = await db.collection("announcementCategories").get();
     }
 
-    console.log("📦 撈取到分類筆數:", snap.size);
     const select = document.getElementById("category");
     if (!select) {
-      console.error("❌ 找不到 select#category 元素");
+      console.error("❌ 找不到下拉選單 #category");
       return;
     }
 
     select.innerHTML = "";
 
     if (snap.empty) {
-      console.warn("⚠️ Firestore 沒有分類文件");
+      console.warn("⚠️ 沒有任何分類文件");
       const option = document.createElement("option");
       option.textContent = "目前沒有分類";
       select.appendChild(option);
@@ -50,15 +53,15 @@ async function loadCategories() {
     }
 
     snap.forEach((doc) => {
-      console.log("📄 分類文件:", doc.id, doc.data());
       const data = doc.data();
+      console.log("📄 分類文件:", doc.id, data);
       const option = document.createElement("option");
       option.value = data.name || "未命名分類";
       option.textContent = data.name || "未命名分類";
       select.appendChild(option);
     });
 
-    console.log("✅ 分類載入完成");
+    console.log("✅ 分類載入完成，共", snap.size, "筆");
   } catch (error) {
     console.error("❌ 載入分類時出錯:", error);
   }
