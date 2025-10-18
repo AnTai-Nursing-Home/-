@@ -54,6 +54,12 @@
       text-decoration: underline;
       color: #000;
     }
+    #loadingIndicator {
+      text-align: center;
+      padding: 30px;
+      font-size: 18px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -65,13 +71,108 @@
     <!-- 分類標籤 -->
     <ul class="nav nav-tabs justify-content-center" id="categoryTabs"></ul>
 
+    <!-- 載入提示 -->
+    <div id="loadingIndicator">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p>資料載入中，請稍候...</p>
+    </div>
+
     <!-- 公告列表 -->
-    <div id="announcement-list"></div>
+    <div id="announcement-list" style="display:none;"></div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="announcements.js"></script>
+  <script>
+    const categoryTabs = document.getElementById('categoryTabs');
+    const listContainer = document.getElementById('announcement-list');
+    const loader = document.getElementById('loadingIndicator');
+    const dbRef = db.collection("announcements");
+    const catRef = db.collection("announcementCategories");
+
+    async function loadCategories() {
+      loader.style.display = "block";
+      listContainer.style.display = "none";
+      categoryTabs.innerHTML = "";
+
+      try {
+        const snapshot = await catRef.get(); // 不排序，確保全部分類都會顯示
+        if (snapshot.empty) {
+          categoryTabs.innerHTML = "<li class='nav-item'><span class='nav-link disabled'>目前沒有分類</span></li>";
+          loader.style.display = "none";
+          return;
+        }
+
+        // 顯示「全部」分類
+        const allTab = document.createElement("li");
+        allTab.className = "nav-item";
+        allTab.innerHTML = `<a class="nav-link active" data-id="all" href="#">全部</a>`;
+        categoryTabs.appendChild(allTab);
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const li = document.createElement("li");
+          li.className = "nav-item";
+          li.innerHTML = `
+            <a class="nav-link" data-id="${doc.id}" href="#">${data.name}</a>
+          `;
+          categoryTabs.appendChild(li);
+        });
+
+        loadAnnouncements("all"); // 預設載入全部
+      } catch (err) {
+        console.error("❌ 載入分類失敗：", err);
+        loader.style.display = "none";
+        listContainer.innerHTML = "<p class='text-danger text-center'>載入分類時發生錯誤。</p>";
+      }
+    }
+
+    async function loadAnnouncements(categoryId) {
+      loader.style.display = "block";
+      listContainer.style.display = "none";
+      listContainer.innerHTML = "";
+
+      let query = dbRef.orderBy("createdAt", "desc");
+      if (categoryId !== "all") {
+        query = query.where("categoryId", "==", categoryId).orderBy("createdAt", "desc");
+      }
+
+      const snapshot = await query.get();
+      loader.style.display = "none";
+      listContainer.style.display = "block";
+
+      if (snapshot.empty) {
+        listContainer.innerHTML = "<p class='text-center text-muted'>目前沒有公告。</p>";
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
+        const html = `
+          <div class="announcement-row">
+            <span class="date">${date}</span>
+            <span class="category">[${data.categoryName || "未分類"}]</span>
+            <a href="announcement-view.html?id=${doc.id}" class="title">${data.title}</a>
+          </div>
+        `;
+        listContainer.insertAdjacentHTML("beforeend", html);
+      });
+    }
+
+    categoryTabs.addEventListener("click", e => {
+      if (e.target.classList.contains("nav-link")) {
+        document.querySelectorAll(".nav-link").forEach(tab => tab.classList.remove("active"));
+        e.target.classList.add("active");
+        const id = e.target.getAttribute("data-id");
+        loadAnnouncements(id);
+      }
+    });
+
+    loadCategories();
+  </script>
 </body>
 </html>
