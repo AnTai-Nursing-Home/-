@@ -1,9 +1,23 @@
+let dbReady = false;
 const tbody = document.getElementById("announcement-tbody");
 const categorySelect = document.getElementById("announcement-category");
 const colorSection = document.getElementById("color-section");
 const colorPickers = document.getElementById("color-pickers");
 
-document.addEventListener("DOMContentLoaded", async () => {
+// 等待 firebase 初始化完成後再執行
+document.addEventListener("firebase-ready", () => {
+  dbReady = true;
+  console.log("✅ Firebase 已初始化，可以使用 Firestore");
+  initializeAnnouncementPage();
+});
+
+function initializeAnnouncementPage() {
+  // 確保 db 已準備好
+  if (typeof db === "undefined") {
+    console.error("❌ Firestore 尚未初始化！");
+    return;
+  }
+
   loadCategories();
   loadAnnouncements();
 
@@ -31,9 +45,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("save-category").addEventListener("click", saveCategory);
   document.getElementById("save-announcement").addEventListener("click", saveAnnouncement);
-});
+}
 
+// === Firestore 功能 ===
 async function loadCategories() {
+  if (!dbReady) return;
   categorySelect.innerHTML = "";
   const snap = await db.collection("announcementCategories").get();
   snap.forEach(doc => {
@@ -45,6 +61,7 @@ async function loadCategories() {
 }
 
 async function loadAnnouncements() {
+  if (!dbReady) return;
   tbody.innerHTML = "";
   const snap = await db.collection("announcements").orderBy("createdAt", "desc").get();
   snap.forEach(doc => {
