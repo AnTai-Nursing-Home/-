@@ -19,23 +19,30 @@ document.getElementById("btn-add-announcement")?.addEventListener("click", showA
 document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
 
 //
-// 🟦 載入分類（含沒有 createdAt 的相容處理）
 async function loadCategories() {
   try {
+    console.log("🚀 嘗試載入分類...");
+    console.log("db 狀態:", typeof db, db ? "✅ 有定義" : "❌ 未定義");
+
     let snap;
     try {
       snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
     } catch (error) {
-      console.warn("⚠️ 沒有 createdAt 欄位，改用無排序載入分類");
+      console.warn("⚠️ 沒有 createdAt 欄位，改用無排序載入分類", error);
       snap = await db.collection("announcementCategories").get();
     }
 
+    console.log("📦 撈取到分類筆數:", snap.size);
     const select = document.getElementById("category");
-    if (!select) return;
+    if (!select) {
+      console.error("❌ 找不到 select#category 元素");
+      return;
+    }
 
     select.innerHTML = "";
 
     if (snap.empty) {
+      console.warn("⚠️ Firestore 沒有分類文件");
       const option = document.createElement("option");
       option.textContent = "目前沒有分類";
       select.appendChild(option);
@@ -43,6 +50,7 @@ async function loadCategories() {
     }
 
     snap.forEach((doc) => {
+      console.log("📄 分類文件:", doc.id, doc.data());
       const data = doc.data();
       const option = document.createElement("option");
       option.value = data.name || "未命名分類";
@@ -50,9 +58,9 @@ async function loadCategories() {
       select.appendChild(option);
     });
 
-    console.log("📁 Categories loaded:", snap.size);
+    console.log("✅ 分類載入完成");
   } catch (error) {
-    console.error("❌ Error loading categories:", error);
+    console.error("❌ 載入分類時出錯:", error);
   }
 }
 
