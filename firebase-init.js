@@ -27,3 +27,8 @@ async function initializeFirebase() {
 
 // 執行初始化
 initializeFirebase();
+
+// 若已經初始化成功，也確保 window.db 存在
+if (window.db) {
+  document.dispatchEvent(new Event("firebase-ready"));
+}
