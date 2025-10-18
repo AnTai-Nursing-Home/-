@@ -1,7 +1,8 @@
 // index-marquee.js
 document.addEventListener("firebase-ready", async () => {
   const marquee = document.getElementById("marquee-text");
-  if (!marquee) return;
+  const container = document.getElementById("announcement-marquee");
+  if (!marquee || !container) return;
 
   try {
     const snap = await db.collection("announcements")
@@ -11,7 +12,7 @@ document.addEventListener("firebase-ready", async () => {
       .get();
 
     if (snap.empty) {
-      marquee.textContent = "";
+      container.style.display = "none";
       return;
     }
 
@@ -28,5 +29,6 @@ document.addEventListener("firebase-ready", async () => {
     marquee.innerHTML = html;
   } catch (err) {
     console.error("❌ 載入跑馬燈公告失敗：", err);
+    container.style.display = "none";
   }
 });
