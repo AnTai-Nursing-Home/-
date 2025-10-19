@@ -1,30 +1,58 @@
 document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在 supplies.html 存在的獨特元件，來判斷我們是否在盤點頁面
     const inventoryTableBody = document.getElementById('inventory-table-body');
-    if (!inventoryTableBody) {
-        // 如果找不到表格主體，代表不在盤點頁，直接結束，避免在其他頁面出錯
-        return;
+    if (!inventoryTableBody) return;
+
+    const backButtonGeneral = document.querySelector('.btn-back-menu');
+    if (backButtonGeneral && document.referrer.includes('admin.html')) {
+        backButtonGeneral.href = 'admin.html?view=dashboard';
     }
 
-    // --- 智慧返回按鈕邏輯 ---
-    const backButtonGeneral = document.querySelector('.btn-back-menu');
-    if (backButtonGeneral) {
-        if (document.referrer.includes('admin.html')) {
-            backButtonGeneral.href = 'admin.html?view=dashboard';
-        }
-    }
-    
-    // ===============================================================
-    // ==== 衛材項目資料 ====
-    // ===============================================================
     const inventoryData = [
-        { category: '一、管路相關', items: [ { name: '14FR尿管', threshold: '＜5枝=缺' }, { name: '16FR尿管', threshold: '＜5枝=缺' }, { name: '18FR尿管', threshold: '＜5枝=缺' }, { name: '20FR尿管', threshold: '＜5枝=缺' }, { name: '12FR抽痰管', threshold: '＜3袋=缺' }, { name: '14FR抽痰管', threshold: '＜3袋=缺' }, { name: '18FR鼻胃管', threshold: '＜5條=缺' }, { name: '尿袋', threshold: '＜5個=缺' }, { name: '氧氣鼻導管', threshold: '＜10個=缺' }, { name: '氣切面罩', threshold: '＜10個=缺' }, { name: '氧氣面罩', threshold: '＜10個=缺' }, { name: 'AMBU', threshold: '＜2顆=缺' }, ] },
-        { category: '二、注射與輸液', items: [ { name: '頭皮針(23G)', threshold: '＜1盒=缺' }, { name: '3CC空針', threshold: '＜10枝=缺' }, { name: '5CC空針', threshold: '＜10枝=缺' }, { name: '10CC空針', threshold: '＜10枝=缺' }, { name: '20CC空針', threshold: '＜10枝=缺' }, { name: '灌食空針', threshold: '＜10枝=缺' }, { name: '灌食奶袋', threshold: '＜20袋=缺' }, { name: '注射用水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' }, { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' }, ] },
-        { category: '三、清潔與消毒', items: [ { name: '消毒錠', threshold: '＜1盒=缺' }, { name: '酒精棉片', threshold: '＜1盒=缺' }, { name: '生理沖洗瓶', threshold: '＜10瓶=缺' }, { name: '沖洗棉棒', threshold: '＜2大袋=缺' }, { name: '普通棉棒', threshold: '＜2大袋=缺' }, { name: '口腔棉棒', threshold: '＜2大袋=缺' }, { name: '2*2紗布', threshold: '＜10包=缺' }, { name: '3*3紗布', threshold: '＜10包=缺' }, { name: '4*4紗布', threshold: '＜10包=缺' }, { name: '平紗', threshold: '＜5包=缺' }, ] },
-        { category: '四、輔助耗材', items: [ { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' }, { name: '3M膠布', threshold: '＜1盒=缺' }, { name: '血糖試紙', threshold: '＜1大箱=缺' }, ] }
+        { category: '一、管路相關', items: [ 
+            { name: '14FR尿管', threshold: '＜5枝=缺' },
+            { name: '16FR尿管', threshold: '＜5枝=缺' },
+            { name: '18FR尿管', threshold: '＜5枝=缺' },
+            { name: '20FR尿管', threshold: '＜5枝=缺' },
+            { name: '12FR抽痰管', threshold: '＜3袋=缺' },
+            { name: '14FR抽痰管', threshold: '＜3袋=缺' },
+            { name: '18FR鼻胃管', threshold: '＜5條=缺' },
+            { name: '尿袋', threshold: '＜5個=缺' },
+            { name: '氧氣鼻導管', threshold: '＜10個=缺' },
+            { name: '氣切面罩', threshold: '＜10個=缺' },
+            { name: '氧氣面罩', threshold: '＜10個=缺' },
+            { name: 'AMBU', threshold: '＜2顆=缺' },
+        ]},
+        { category: '二、注射與輸液', items: [
+            { name: '頭皮針(23G)', threshold: '＜1盒=缺' },
+            { name: '3CC空針', threshold: '＜10枝=缺' },
+            { name: '5CC空針', threshold: '＜10枝=缺' },
+            { name: '10CC空針', threshold: '＜10枝=缺' },
+            { name: '20CC空針', threshold: '＜10枝=缺' },
+            { name: '灌食空針', threshold: '＜10枝=缺' },
+            { name: '灌食奶袋', threshold: '＜20袋=缺' },
+            { name: '注射用水(20ML)', threshold: '＜1盒=缺' },
+            { name: '生理食鹽水(20ML)', threshold: '＜1盒=缺' },
+            { name: '生理食鹽水(500ML)', threshold: '＜3瓶=缺' },
+        ]},
+        { category: '三、清潔與消毒', items: [
+            { name: '消毒錠', threshold: '＜1盒=缺' },
+            { name: '酒精棉片', threshold: '＜1盒=缺' },
+            { name: '生理沖洗瓶', threshold: '＜10瓶=缺' },
+            { name: '沖洗棉棒', threshold: '＜2大袋=缺' },
+            { name: '普通棉棒', threshold: '＜2大袋=缺' },
+            { name: '口腔棉棒', threshold: '＜2大袋=缺' },
+            { name: '2*2紗布', threshold: '＜10包=缺' },
+            { name: '3*3紗布', threshold: '＜10包=缺' },
+            { name: '4*4紗布', threshold: '＜10包=缺' },
+            { name: '平紗', threshold: '＜5包=缺' },
+        ]},
+        { category: '四、輔助耗材', items: [
+            { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' },
+            { name: '3M膠布', threshold: '＜1盒=缺' },
+            { name: '血糖試紙', threshold: '＜1大箱=缺' },
+        ]}
     ];
 
-    // --- 元件宣告 ---
     const tableBody = inventoryTableBody;
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
@@ -38,229 +66,156 @@ document.addEventListener('firebase-ready', () => {
     const reportModalElement = document.getElementById('report-modal');
     const reportModal = new bootstrap.Modal(reportModalElement);
     const generateReportBtn = document.getElementById('generate-report-btn');
-    
-    // --- 變數 ---
     const collectionName = 'supplies_inventory';
 
-    // --- 函式定義 ---
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
         try {
-            const docRef = db.collection(collectionName).doc(date);
-            const doc = await docRef.get();
+            const doc = await db.collection(collectionName).doc(date).get();
             const dailyData = doc.exists ? doc.data() : {};
             nurseInput.value = dailyData.header?.nurse || '';
             restockerInput.value = dailyData.header?.restocker || '';
             const itemsStatus = dailyData.items || {};
             tableBody.innerHTML = '';
-            inventoryData.forEach(categoryData => {
-                const categoryRow = document.createElement('tr');
-                categoryRow.innerHTML = `<td colspan="3" class="table-category">${categoryData.category}</td>`;
-                tableBody.appendChild(categoryRow);
-                categoryData.items.forEach(item => {
-                    const itemRow = document.createElement('tr');
-                    itemRow.dataset.itemName = item.name;
-                    const status = itemsStatus[item.name]?.status || '-';
-                    const restockStatus = itemsStatus[item.name]?.restockStatus || '-';
-                    if (status === '缺項') itemRow.classList.add('table-danger');
-                    else if (status === '無缺項') itemRow.classList.add('table-success');
-                    itemRow.innerHTML = `<td>${item.name}<div class="item-threshold">${item.threshold}</div></td><td><select class="form-select" data-field="status"><option value="-" ${status==='-'?'selected':''}>-</option><option value="缺項" ${status==='缺項'?'selected':''}>缺項</option><option value="無缺項" ${status==='無缺項'?'selected':''}>無缺項</option></select></td><td><select class="form-select" data-field="restockStatus"><option value="-" ${restockStatus==='-'?'selected':''}>-</option><option value="已補齊" ${restockStatus==='已補齊'?'selected':''}>已補齊</option><option value="缺貨" ${restockStatus==='缺貨'?'selected':''}>缺貨</option></select></td>`;
-                    tableBody.appendChild(itemRow);
+            inventoryData.forEach(category => {
+                const catRow = document.createElement('tr');
+                catRow.innerHTML = `<td colspan="3" class="table-category">${category.category}</td>`;
+                tableBody.appendChild(catRow);
+                category.items.forEach(item => {
+                    const row = document.createElement('tr');
+                    const s = itemsStatus[item.name]?.status || '-';
+                    const r = itemsStatus[item.name]?.restockStatus || '-';
+                    row.dataset.itemName = item.name;
+                    if (s === '缺項') row.classList.add('table-danger');
+                    else if (s === '無缺項') row.classList.add('table-success');
+                    row.innerHTML = `
+                        <td>${item.name}<div class="item-threshold">${item.threshold}</div></td>
+                        <td><select class="form-select" data-field="status">
+                            <option value="-" ${s==='-'?'selected':''}>-</option>
+                            <option value="缺項" ${s==='缺項'?'selected':''}>缺項</option>
+                            <option value="無缺項" ${s==='無缺項'?'selected':''}>無缺項</option>
+                        </select></td>
+                        <td><select class="form-select" data-field="restockStatus">
+                            <option value="-" ${r==='-'?'selected':''}>-</option>
+                            <option value="已補齊" ${r==='已補齊'?'selected':''}>已補齊</option>
+                            <option value="缺貨" ${r==='缺貨'?'selected':''}>缺貨</option>
+                        </select></td>`;
+                    tableBody.appendChild(row);
                 });
             });
-        } catch (error) {
-            console.error("讀取衛材資料失敗:", error);
-            tableBody.innerHTML = '<tr><td colspan="3"><div class="alert alert-danger">讀取資料失敗，請重新整理頁面。</div></td></tr>';
+        } catch {
+            tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">讀取失敗</td></tr>';
         }
     }
 
     async function saveTodaysData() {
-        const selectedDate = dateInput.value;
-        if (!selectedDate) { alert('錯誤：請選擇盤點日期！'); return; }
-        nurseInput.classList.remove('is-invalid');
-        if (!nurseInput.value.trim()) { alert('錯誤：請填寫「盤點者」姓名！'); nurseInput.classList.add('is-invalid'); return; }
-        let allItemsValid = true;
-        const newItemsStatus = {};
-        tableBody.querySelectorAll('tr.table-row-invalid').forEach(row => row.classList.remove('table-row-invalid'));
-        inventoryData.forEach(categoryData => {
-            categoryData.items.forEach(item => {
+        const date = dateInput.value;
+        if (!date) return alert('請選擇日期');
+        if (!nurseInput.value.trim()) return alert('請填寫盤點者');
+        let valid = true;
+        const items = {};
+        inventoryData.forEach(cat => {
+            cat.items.forEach(item => {
                 const row = tableBody.querySelector(`tr[data-item-name="${item.name}"]`);
-                if (!row) return;
-                const statusSelect = row.querySelector('select[data-field="status"]');
-                const restockSelect = row.querySelector('select[data-field="restockStatus"]');
-                if (statusSelect.value === '-') { allItemsValid = false; row.classList.add('table-row-invalid'); }
-                newItemsStatus[item.name] = { status: statusSelect.value, restockStatus: restockSelect.value };
+                const s = row.querySelector('select[data-field="status"]').value;
+                const r = row.querySelector('select[data-field="restockStatus"]').value;
+                if (s === '-') valid = false;
+                items[item.name] = { status: s, restockStatus: r };
             });
         });
-        if (!allItemsValid) { alert('錯誤：請完成所有「盤點者」欄位的盤點（不可為 "-"）。'); return; }
-        const dataToSave = {
-            header: { date: selectedDate, nurse: nurseInput.value, restocker: restockerInput.value, timestamp: firebase.firestore.FieldValue.serverTimestamp() },
-            items: newItemsStatus
-        };
-        try {
-            saveButton.disabled = true;
-            await db.collection(collectionName).doc(selectedDate).set(dataToSave);
-            alert(`日期 ${selectedDate} 的盤點紀錄已成功儲存！`);
-            loadAndRenderDataForDate(selectedDate);
-        } catch (error) {
-            console.error("儲存失敗:", error);
-            alert("儲存失敗，請稍後再試。");
-        } finally {
-            saveButton.disabled = false;
-        }
-    }
-    
-    function generateExportHTML() {
-        let tableHTML = `<table style="width:100%; border-collapse: collapse;">
-                            <thead style="background-color: #f2f2f2;">
-                                <tr style="text-align: center;">
-                                    <th style="width: 40%; border: 1px solid black; padding: 5px;">品項</th>
-                                    <th style="width: 30%; border: 1px solid black; padding: 5px;">盤點者</th>
-                                    <th style="width: 30%; border: 1px solid black; padding: 5px;">補齊狀態</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-        inventoryData.forEach(categoryData => {
-            tableHTML += `<tr><td colspan="3" style="border: 1px solid black; padding: 5px; background-color: #e9ecef; font-weight: bold; text-align: center;">${categoryData.category}</td></tr>`;
-            categoryData.items.forEach(item => {
-                const originalRow = tableBody.querySelector(`tr[data-item-name="${item.name}"]`);
-                if (originalRow) {
-                    const statusValue = originalRow.querySelector('select[data-field="status"]').value;
-                    const restockValue = originalRow.querySelector('select[data-field="restockStatus"]').value;
-                    const statusStyle = (statusValue === '缺項') ? 'style="color: red; font-weight: bold;"' : '';
-                    const restockStyle = (restockValue === '缺貨') ? 'style="color: red; font-weight: bold;"' : '';
-                    tableHTML += `<tr>
-                                    <td style="border: 1px solid black; padding: 5px; text-align: left;">${item.name}<div style="font-size: 0.8em; color: #666;">${item.threshold}</div></td>
-                                    <td ${statusStyle} style="border: 1px solid black; padding: 5px; text-align: center;">${statusValue}</td>
-                                    <td ${restockStyle} style="border: 1px solid black; padding: 5px; text-align: center;">${restockValue}</td>
-                                  </tr>`;
-                }
-            });
+        if (!valid) return alert('所有項目需完成盤點');
+        await db.collection(collectionName).doc(date).set({
+            header: { date, nurse: nurseInput.value, restocker: restockerInput.value, timestamp: firebase.firestore.FieldValue.serverTimestamp() },
+            items
         });
-        tableHTML += '</tbody></table>';
-        let content = `
-            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-            <head><meta charset='utf-8'><title>衛材盤點表</title></head>
-            <body>
-                <div style="font-family: 'Microsoft JhengHei', sans-serif;">
-                    <h1 style="text-align: center;">安泰醫療社團法人附設安泰護理之家</h1>
-                    <h2 style="text-align: center;">衛材盤點表</h2>
-                    <p><strong>盤點日期:</strong> ${dateInput.value}</p>
-                    <p><strong>盤點者:</strong> ${nurseInput.value}</p>
-                    <p><strong>補齊者:</strong> ${restockerInput.value}</p>
-                    ${tableHTML}
-                </div>
-            </body>
-            </html>
-        `;
-        return content;
+        alert('已儲存');
+        loadAndRenderDataForDate(date);
     }
 
+    // 🔄 改版報表：橫向排列所有日期
     async function generateReport() {
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
-        if (!startDate || !endDate) { alert('請選擇開始日期與結束日期。'); return; }
-        try {
-            const snapshot = await db.collection(collectionName)
-                .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
-                .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
-                .get();
-            const datesInRange = [];
-            snapshot.forEach(doc => datesInRange.push(doc.id));
-            datesInRange.sort();
-            if (datesInRange.length === 0) { alert('您選擇的日期區間內沒有任何盤點紀錄。'); return; }
-            let allDaysHTML = '';
-            for (const date of datesInRange) {
-                const doc = await db.collection(collectionName).doc(date).get();
-                if (doc.exists) {
-                    const dailyData = doc.data();
-                    let dailyTable = '<table><thead><tr><th>品項</th><th>盤點者</th><th>補齊狀態</th></tr></thead><tbody>';
-                    inventoryData.forEach(category => {
-                        dailyTable += `<tr><td colspan="3" class="table-category">${category.category}</td></tr>`;
-                        category.items.forEach(item => {
-                            const itemStatus = dailyData.items[item.name];
-                            const nurseCheck = itemStatus?.status || '-';
-                            const restockCheck = itemStatus?.restockStatus || '-';
-                            const statusClass = nurseCheck === '缺項' ? 'class="status-missing"' : '';
-                            const restockClass = restockCheck === '缺貨' ? 'class="status-outofstock"' : '';
-                            dailyTable += `<tr><td>${item.name}<div class="item-threshold">${item.threshold}</div></td><td ${statusClass}>${nurseCheck}</td><td ${restockClass}>${restockCheck}</td></tr>`;
-                        });
-                    });
-                    dailyTable += '</tbody></table>';
-                    allDaysHTML += `<div class="daily-record"><h3>盤點日期：${date}</h3><p><strong>盤點者：</strong>${dailyData.header.nurse||''} &nbsp;&nbsp;&nbsp; <strong>補齊者：</strong>${dailyData.header.restocker||''}</p>${dailyTable}</div>`;
-                }
-            }
-            let reportHTML = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>衛材盤點區間報表</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}.report-container{width:95%;margin:auto;}h1,h2,h3{text-align:center;}.daily-record{page-break-before:always;margin-top:2rem;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;}th{background-color:#f2f2f2;}.table-category{background-color:#e9ecef;font-weight:bold;}.item-threshold{font-size:0.8em;color:#666;}.status-missing,.status-outofstock{color:red;font-weight:bold;}</style></head><body><div class="report-container"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>衛材盤點區間報表 (${startDate} 至 ${endDate})</h2>${allDaysHTML}</div></body></html>`;
-            reportModal.hide();
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(reportHTML);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); }, 500);
-        } catch (error) {
-            console.error("產生報表失敗:", error);
-            alert("產生報表失敗，請稍後再試。");
-        }
+        const start = document.getElementById('start-date').value;
+        const end = document.getElementById('end-date').value;
+        if (!start || !end) return alert('請選擇日期區間');
+
+        const snapshot = await db.collection(collectionName)
+            .where(firebase.firestore.FieldPath.documentId(), '>=', start)
+            .where(firebase.firestore.FieldPath.documentId(), '<=', end).get();
+
+        const allDates = [];
+        const allData = {};
+        snapshot.forEach(doc => { allDates.push(doc.id); allData[doc.id] = doc.data(); });
+        allDates.sort();
+        if (allDates.length === 0) return alert('沒有資料');
+
+        let html = `
+        <table style="border-collapse:collapse;width:100%;font-family:'Microsoft JhengHei',sans-serif;">
+        <thead>
+            <tr style="background:#f2f2f2;text-align:center;">
+                <th style="border:1px solid black;">品項</th>
+                <th style="border:1px solid black;">基準</th>
+                ${allDates.map(d=>`<th colspan="2" style="border:1px solid black;">${d}</th>`).join('')}
+            </tr>
+            <tr style="background:#f9f9f9;text-align:center;">
+                <th colspan="2"></th>
+                ${allDates.map(()=>`<th style="border:1px solid black;">盤點</th><th style="border:1px solid black;">補齊</th>`).join('')}
+            </tr>
+        </thead><tbody>`;
+
+        inventoryData.forEach(cat=>{
+            html += `<tr><td colspan="${2+allDates.length*2}" style="background:#e9ecef;font-weight:bold;border:1px solid black;text-align:center;">${cat.category}</td></tr>`;
+            cat.items.forEach(item=>{
+                html += `<tr><td style="border:1px solid black;">${item.name}</td><td style="border:1px solid black;">${item.threshold}</td>`;
+                allDates.forEach(d=>{
+                    const data = allData[d]?.items?.[item.name];
+                    const s = data?.status || '-';
+                    const r = data?.restockStatus || '-';
+                    const sStyle = s==='缺項'?'color:red;font-weight:bold;':'';
+                    const rStyle = r==='缺貨'?'color:red;font-weight:bold;':'';
+                    html += `<td style="border:1px solid black;text-align:center;${sStyle}">${s}</td><td style="border:1px solid black;text-align:center;${rStyle}">${r}</td>`;
+                });
+                html += `</tr>`;
+            });
+        });
+
+        html += '</tbody></table>';
+
+        const reportHTML = `
+        <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+        <title>衛材盤點區間報表</title>
+        <style>body{font-family:'Microsoft JhengHei',sans-serif;}table{font-size:12px;}th,td{white-space:nowrap;}</style>
+        </head><body>
+        <h1 style="text-align:center;">安泰醫療社團法人附設安泰護理之家</h1>
+        <h2 style="text-align:center;">衛材盤點區間報表 (${start} 至 ${end})</h2>
+        ${html}</body></html>`;
+
+        reportModal.hide();
+        const win = window.open('', '_blank');
+        win.document.write(reportHTML);
+        win.document.close();
+        setTimeout(()=>win.print(),500);
     }
-    
-    dateInput.addEventListener('change', function() { loadAndRenderDataForDate(this.value); });
-    saveButton.addEventListener('click', saveTodaysData);
-    resetButton.addEventListener('click', async function() {
-        const selectedDate = dateInput.value;
-        if (!selectedDate) { alert('請先選擇要清空的日期。'); return; }
-        if (confirm(`您確定要清空日期 ${selectedDate} 的所有紀錄嗎？`)) {
-            try {
-                resetButton.disabled = true;
-                await db.collection(collectionName).doc(selectedDate).delete();
-                alert(`日期 ${selectedDate} 的紀錄已清空。`);
-                loadAndRenderDataForDate(selectedDate);
-            } catch (error) {
-                console.error("刪除失敗:", error);
-                alert("刪除失敗，請稍後再試。");
-            } finally {
-                resetButton.disabled = false;
-            }
-        }
-    });
-    nurseInput.addEventListener('input', function() { if (nurseInput.classList.contains('is-invalid')) nurseInput.classList.remove('is-invalid'); });
-    
-    printButton.addEventListener('click', function() {
-        const content = generateExportHTML();
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 500);
-    });
 
-    exportWordButton.addEventListener('click', function() {
-        const selectedDate = dateInput.value;
-        if (!selectedDate) { alert('請先選擇日期！'); return; }
-        const content = generateExportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        document.body.appendChild(a); a.style = "display: none"; a.href = url;
-        a.download = `衛材盤點表-${selectedDate}.doc`; a.click();
-        window.URL.revokeObjectURL(url); document.body.removeChild(a);
+    dateInput.addEventListener('change',()=>loadAndRenderDataForDate(dateInput.value));
+    saveButton.addEventListener('click',saveTodaysData);
+    resetButton.addEventListener('click',async()=>{
+        const date=dateInput.value;
+        if(!date)return alert('請選擇日期');
+        if(!confirm(`清空 ${date} 紀錄？`))return;
+        await db.collection(collectionName).doc(date).delete();
+        alert('已清空');
+        loadAndRenderDataForDate(date);
     });
-
-    exportExcelButton.addEventListener('click', function() {
-        const selectedDate = dateInput.value;
-        if (!selectedDate) { alert('請先選擇日期！'); return; }
-        const content = generateExportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        document.body.appendChild(a); a.style = "display: none"; a.href = url;
-        a.download = `衛材盤點表-${selectedDate}.xls`; a.click();
-        window.URL.revokeObjectURL(url); document.body.removeChild(a);
+    printButton.addEventListener('click',()=>{
+        const win=window.open('','_blank');
+        win.document.write(generateExportHTML());
+        win.document.close();
+        setTimeout(()=>win.print(),500);
     });
-    
-    exportRangeBtn.addEventListener('click', () => reportModal.show());
-    generateReportBtn.addEventListener('click', generateReport);
+    exportRangeBtn.addEventListener('click',()=>reportModal.show());
+    generateReportBtn.addEventListener('click',generateReport);
 
-    const todayString = new Date().toISOString().split('T')[0];
-    dateInput.value = todayString;
-    loadAndRenderDataForDate(todayString);
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+    loadAndRenderDataForDate(today);
 });
