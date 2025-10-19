@@ -133,35 +133,48 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // 🔄 改版報表：橫向排列所有日期
+    // === 改良版報表，顯示盤點者與補齊者 ===
+    // === 改良版報表，顯示盤點者與補齊者 ===
     async function generateReport() {
         const start = document.getElementById('start-date').value;
         const end = document.getElementById('end-date').value;
         if (!start || !end) return alert('請選擇日期區間');
-
+    
         const snapshot = await db.collection(collectionName)
             .where(firebase.firestore.FieldPath.documentId(), '>=', start)
             .where(firebase.firestore.FieldPath.documentId(), '<=', end).get();
-
+    
         const allDates = [];
         const allData = {};
         snapshot.forEach(doc => { allDates.push(doc.id); allData[doc.id] = doc.data(); });
         allDates.sort();
         if (allDates.length === 0) return alert('沒有資料');
-
+    
+        // 產生表格標題（日期＋人員）
         let html = `
         <table style="border-collapse:collapse;width:100%;font-family:'Microsoft JhengHei',sans-serif;">
         <thead>
             <tr style="background:#f2f2f2;text-align:center;">
                 <th style="border:1px solid black;">品項</th>
                 <th style="border:1px solid black;">基準</th>
-                ${allDates.map(d=>`<th colspan="2" style="border:1px solid black;">${d}</th>`).join('')}
+                ${allDates.map(d=>{
+                    const h = allData[d]?.header || {};
+                    const nurse = h.nurse || '—';
+                    const restocker = h.restocker || '—';
+                    return `
+                    <th colspan="2" style="border:1px solid black;padding:4px;">
+                        ${d}<br>
+                        <span style="font-size:11px;">盤點：${nurse}</span><br>
+                        <span style="font-size:11px;">補齊：${restocker}</span>
+                    </th>`;
+                }).join('')}
             </tr>
             <tr style="background:#f9f9f9;text-align:center;">
                 <th colspan="2"></th>
                 ${allDates.map(()=>`<th style="border:1px solid black;">盤點</th><th style="border:1px solid black;">補齊</th>`).join('')}
             </tr>
         </thead><tbody>`;
-
+    
         inventoryData.forEach(cat=>{
             html += `<tr><td colspan="${2+allDates.length*2}" style="background:#e9ecef;font-weight:bold;border:1px solid black;text-align:center;">${cat.category}</td></tr>`;
             cat.items.forEach(item=>{
@@ -172,30 +185,36 @@ document.addEventListener('firebase-ready', () => {
                     const r = data?.restockStatus || '-';
                     const sStyle = s==='缺項'?'color:red;font-weight:bold;':'';
                     const rStyle = r==='缺貨'?'color:red;font-weight:bold;':'';
-                    html += `<td style="border:1px solid black;text-align:center;${sStyle}">${s}</td><td style="border:1px solid black;text-align:center;${rStyle}">${r}</td>`;
+                    html += `<td style="border:1px solid black;text-align:center;${sStyle}">${s}</td>`;
+                    html += `<td style="border:1px solid black;text-align:center;${rStyle}">${r}</td>`;
                 });
                 html += `</tr>`;
             });
         });
-
+    
         html += '</tbody></table>';
-
+    
         const reportHTML = `
         <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
         <title>衛材盤點區間報表</title>
-        <style>body{font-family:'Microsoft JhengHei',sans-serif;}table{font-size:12px;}th,td{white-space:nowrap;}</style>
-        </head><body>
-        <h1 style="text-align:center;">安泰醫療社團法人附設安泰護理之家</h1>
-        <h2 style="text-align:center;">衛材盤點區間報表 (${start} 至 ${end})</h2>
-        ${html}</body></html>`;
-
+        <style>
+            body{font-family:'Microsoft JhengHei',sans-serif;}
+            table{font-size:12px;}
+            th,td{white-space:nowrap;}
+        </style></head>
+        <body>
+            <h1 style="text-align:center;">安泰醫療社團法人附設安泰護理之家</h1>
+            <h2 style="text-align:center;">衛材盤點區間報表 (${start} 至 ${end})</h2>
+            ${html}
+        </body></html>`;
+    
         reportModal.hide();
         const win = window.open('', '_blank');
         win.document.write(reportHTML);
         win.document.close();
         setTimeout(()=>win.print(),500);
     }
-
+    
     dateInput.addEventListener('change',()=>loadAndRenderDataForDate(dateInput.value));
     saveButton.addEventListener('click',saveTodaysData);
     resetButton.addEventListener('click',async()=>{
