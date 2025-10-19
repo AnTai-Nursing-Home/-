@@ -88,14 +88,13 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
 
-  <!-- 公告載入邏輯 -->
   <script>
     const categoryTabs = document.getElementById('categoryTabs');
     const listContainer = document.getElementById('announcement-list');
     const loader = document.getElementById('loadingIndicator');
-
     let dbRef, catRef, categoryMap = {};
 
+    /** 🚀 初始化分類 */
     async function loadCategories() {
       loader.style.display = "block";
       listContainer.style.display = "none";
@@ -116,11 +115,13 @@
           categoryMap[doc.id] = doc.data().name;
         });
 
+        // 全部標籤
         const allTab = document.createElement("li");
         allTab.className = "nav-item";
         allTab.innerHTML = `<a class="nav-link active" data-id="all" href="#">全部</a>`;
         categoryTabs.appendChild(allTab);
 
+        // 其他分類標籤
         Object.entries(categoryMap).forEach(([id, name]) => {
           const li = document.createElement("li");
           li.className = "nav-item";
@@ -135,6 +136,7 @@
       }
     }
 
+    /** 📄 載入公告 */
     async function loadAnnouncements(categoryId) {
       loader.style.display = "block";
       listContainer.style.display = "none";
@@ -142,8 +144,18 @@
 
       try {
         let query = dbRef.orderBy("createdAt", "desc");
+
+        // 若不是「全部」
         if (categoryId !== "all") {
-          query = query.where("categoryId", "==", categoryId);
+          const categoryName = categoryMap[categoryId]; // 找出分類名稱
+          query = dbRef.where("category", "==", categoryName); // 以名稱為主查詢
+
+          // 若無結果 → fallback 用 categoryId 再查一次
+          const checkSnapshot = await query.get();
+          if (checkSnapshot.empty) {
+            console.warn(`⚠️ '${categoryName}' 沒找到，用 categoryId 再查一次`);
+            query = dbRef.where("categoryId", "==", categoryId);
+          }
         }
 
         const snapshot = await query.get();
@@ -158,8 +170,6 @@
         snapshot.forEach(doc => {
           const data = doc.data();
           const date = data.createdAt?.toDate?.().toLocaleDateString("zh-TW") || "-";
-
-          // ✅ 優先使用公告內的 category（若有）
           const catName = data.category || categoryMap[data.categoryId] || "未分類";
 
           const html = `
@@ -178,6 +188,7 @@
       }
     }
 
+    /** 🔘 點擊分類切換 */
     categoryTabs.addEventListener("click", e => {
       if (e.target.classList.contains("nav-link")) {
         document.querySelectorAll(".nav-link").forEach(tab => tab.classList.remove("active"));
@@ -187,6 +198,7 @@
       }
     });
 
+    /** 🔥 Firebase 準備完成 */
     document.addEventListener("firebase-ready", () => {
       console.log("✅ Firebase ready, now loading categories and announcements...");
       loadCategories();
