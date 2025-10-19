@@ -17,13 +17,11 @@ document.getElementById("save-category")?.addEventListener("click", saveCategory
 document.getElementById("btn-add-announcement")?.addEventListener("click", showAnnouncementModal);
 document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
 
-//
-// 🟢 跑馬燈顏色顯示控制
+// 跑馬燈顏色顯示控制
 document.getElementById("is-marquee")?.addEventListener("change", (e) => {
   document.getElementById("marqueeColorGroup").style.display = e.target.checked ? "block" : "none";
 });
 
-//
 // 🖼️ 預覽上傳圖片
 const imageInput = document.getElementById("imageUpload");
 const preview = document.getElementById("previewImage");
@@ -41,19 +39,17 @@ if (imageInput) {
   });
 }
 
-//
-// 🟢 顯示 / 隱藏載入提示
+// 🟢 顯示 / 隱藏載入提示（修正版）
 function showLoader(message = "資料載入中，請稍候...") {
   let loader = document.getElementById("loadingIndicator");
+
+  // 若 loader 不存在，建立新的
   if (!loader) {
     loader = document.createElement("div");
     loader.id = "loadingIndicator";
     loader.style = `
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(255,255,255,0.8);
       display: flex;
       align-items: center;
@@ -69,8 +65,18 @@ function showLoader(message = "資料載入中，請稍候...") {
       <p id="loaderText" class="mt-2">${message}</p>
     `;
     document.body.appendChild(loader);
+  } else {
+    // 若已存在，但 loaderText 不存在 → 新增
+    let textNode = loader.querySelector("#loaderText");
+    if (!textNode) {
+      textNode = document.createElement("p");
+      textNode.id = "loaderText";
+      textNode.className = "mt-2";
+      loader.appendChild(textNode);
+    }
+    textNode.textContent = message;
   }
-  loader.querySelector("#loaderText").textContent = message;
+
   loader.style.display = "flex";
 }
 
@@ -79,7 +85,6 @@ function hideLoader() {
   if (loader) loader.style.display = "none";
 }
 
-//
 // 🟦 載入分類
 async function loadCategories() {
   showLoader("正在載入分類...");
@@ -112,7 +117,6 @@ async function loadCategories() {
   }
 }
 
-//
 // 🟨 載入公告
 async function loadAnnouncements() {
   showLoader("正在載入公告...");
@@ -150,7 +154,6 @@ async function loadAnnouncements() {
   }
 }
 
-//
 // 🟢 新增分類
 function showCategoryModal() {
   const modal = new bootstrap.Modal(document.getElementById("categoryModal"));
@@ -176,7 +179,6 @@ async function saveCategory() {
   }
 }
 
-//
 // 🟢 新增公告
 function showAnnouncementModal() {
   const modal = new bootstrap.Modal(document.getElementById("announcementModal"));
@@ -232,7 +234,6 @@ async function saveAnnouncement() {
   }
 }
 
-//
 // 🗑️ 刪除公告
 async function deleteAnnouncement(id) {
   if (!confirm("確定要刪除此公告嗎？")) return;
@@ -243,7 +244,6 @@ async function deleteAnnouncement(id) {
   hideLoader();
 }
 
-//
 // 🟣 編輯分類
 document.getElementById("btn-edit-category")?.addEventListener("click", async () => {
   const select = document.getElementById("edit-category-select");
