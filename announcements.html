@@ -30,7 +30,7 @@
     }
     .announcement-row {
       border-bottom: 1px solid #ddd;
-      padding: 10px 0;
+      padding: 12px 0;
     }
     .announcement-row:hover {
       background-color: #fffce8;
@@ -41,18 +41,19 @@
       width: 100px;
       display: inline-block;
     }
-    .category {
-      color: #0d6efd;
-      font-weight: 600;
-      margin-right: 10px;
-    }
     .title {
       color: #333;
+      font-weight: 600;
       text-decoration: none;
     }
     .title:hover {
       text-decoration: underline;
       color: #000;
+    }
+    .category-line {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-left: 105px;
     }
     #loadingIndicator {
       text-align: center;
@@ -68,10 +69,8 @@
       <i class="fas fa-bullhorn"></i> 公告系統
     </h3>
 
-    <!-- 分類標籤 -->
     <ul class="nav nav-tabs justify-content-center" id="categoryTabs"></ul>
 
-    <!-- 載入提示 -->
     <div id="loadingIndicator">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -79,11 +78,9 @@
       <p>資料載入中，請稍候...</p>
     </div>
 
-    <!-- 公告列表 -->
     <div id="announcement-list" style="display:none;"></div>
   </div>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
@@ -94,16 +91,10 @@
     const loader = document.getElementById('loadingIndicator');
     let dbRef, catRef, categoryMap = {};
 
-    /** 🚀 初始化分類 */
     async function loadCategories() {
       loader.style.display = "block";
       listContainer.style.display = "none";
       categoryTabs.innerHTML = "";
-
-      if (!db) {
-        console.error("❌ Firestore 尚未初始化");
-        return;
-      }
 
       dbRef = db.collection("announcements");
       catRef = db.collection("announcementCategories");
@@ -115,13 +106,11 @@
           categoryMap[doc.id] = doc.data().name;
         });
 
-        // 全部標籤
         const allTab = document.createElement("li");
         allTab.className = "nav-item";
         allTab.innerHTML = `<a class="nav-link active" data-id="all" href="#">全部</a>`;
         categoryTabs.appendChild(allTab);
 
-        // 其他分類標籤
         Object.entries(categoryMap).forEach(([id, name]) => {
           const li = document.createElement("li");
           li.className = "nav-item";
@@ -136,7 +125,6 @@
       }
     }
 
-    /** 📄 載入公告 */
     async function loadAnnouncements(categoryId) {
       loader.style.display = "block";
       listContainer.style.display = "none";
@@ -145,12 +133,9 @@
       try {
         let query = dbRef.orderBy("createdAt", "desc");
 
-        // 若不是「全部」
         if (categoryId !== "all") {
-          const categoryName = categoryMap[categoryId]; // 找出分類名稱
-          query = dbRef.where("category", "==", categoryName); // 以名稱為主查詢
-
-          // 若無結果 → fallback 用 categoryId 再查一次
+          const categoryName = categoryMap[categoryId];
+          query = dbRef.where("category", "==", categoryName);
           const checkSnapshot = await query.get();
           if (checkSnapshot.empty) {
             console.warn(`⚠️ '${categoryName}' 沒找到，用 categoryId 再查一次`);
@@ -175,8 +160,8 @@
           const html = `
             <div class="announcement-row">
               <span class="date">${date}</span>
-              <span class="category">[${catName}]</span>
               <a href="announcement-view.html?id=${doc.id}" class="title">${data.title}</a>
+              <div class="category-line">[${catName}]</div>
             </div>
           `;
           listContainer.insertAdjacentHTML("beforeend", html);
@@ -188,7 +173,6 @@
       }
     }
 
-    /** 🔘 點擊分類切換 */
     categoryTabs.addEventListener("click", e => {
       if (e.target.classList.contains("nav-link")) {
         document.querySelectorAll(".nav-link").forEach(tab => tab.classList.remove("active"));
@@ -198,7 +182,6 @@
       }
     });
 
-    /** 🔥 Firebase 準備完成 */
     document.addEventListener("firebase-ready", () => {
       console.log("✅ Firebase ready, now loading categories and announcements...");
       loadCategories();
