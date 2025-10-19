@@ -16,16 +16,20 @@ document.getElementById("btn-add-category")?.addEventListener("click", showCateg
 document.getElementById("save-category")?.addEventListener("click", saveCategory);
 document.getElementById("btn-add-announcement")?.addEventListener("click", showAnnouncementModal);
 document.getElementById("save-announcement")?.addEventListener("click", saveAnnouncement);
+document.getElementById("btn-edit-category")?.addEventListener("click", showEditCategoryModal);
+document.getElementById("save-edit-category")?.addEventListener("click", saveEditedCategory);
 
 // 跑馬燈顏色顯示控制
 document.getElementById("is-marquee")?.addEventListener("change", (e) => {
   document.getElementById("marqueeColorGroup").style.display = e.target.checked ? "block" : "none";
 });
 
+// 顯示 / 隱藏載入中動畫
 function showLoader(msg = "資料載入中...") {
-  let loader = document.getElementById("loadingIndicator");
-  if (loader) loader.style.display = "block";
-  const text = loader?.querySelector("p");
+  const loader = document.getElementById("loadingIndicator");
+  if (!loader) return;
+  loader.style.display = "block";
+  const text = loader.querySelector("p");
   if (text) text.textContent = msg;
 }
 function hideLoader() {
@@ -153,6 +157,58 @@ async function saveAnnouncement() {
   hideLoader();
   bootstrap.Modal.getInstance(document.getElementById("announcementModal")).hide();
   await loadAnnouncements();
+}
+
+// 🟧 編輯分類（顯示 Modal）
+async function showEditCategoryModal() {
+  const modal = new bootstrap.Modal(document.getElementById("editCategoryModal"));
+  const select = document.getElementById("edit-category-select");
+  select.innerHTML = "";
+
+  showLoader("正在載入分類...");
+
+  try {
+    const snap = await db.collection("announcementCategories").orderBy("createdAt", "desc").get();
+    if (snap.empty) {
+      select.innerHTML = `<option disabled>目前沒有分類可編輯</option>`;
+    } else {
+      snap.forEach((doc) => {
+        const opt = document.createElement("option");
+        opt.value = doc.id;
+        opt.textContent = doc.data().name || "未命名分類";
+        select.appendChild(opt);
+      });
+    }
+    modal.show();
+  } catch (err) {
+    console.error("❌ 載入分類以編輯失敗:", err);
+  } finally {
+    hideLoader();
+  }
+}
+
+// 🟦 儲存修改後的分類名稱
+async function saveEditedCategory() {
+  const select = document.getElementById("edit-category-select");
+  const newName = document.getElementById("new-category-name-edit").value.trim();
+  if (!select.value) return alert("請選擇要修改的分類");
+  if (!newName) return alert("請輸入新的分類名稱");
+
+  showLoader("正在更新分類...");
+
+  try {
+    await db.collection("announcementCategories").doc(select.value).update({
+      name: newName,
+    });
+    alert("✅ 分類名稱已更新！");
+    hideLoader();
+    bootstrap.Modal.getInstance(document.getElementById("editCategoryModal")).hide();
+    await loadCategories();
+  } catch (err) {
+    console.error("❌ 更新分類失敗:", err);
+  } finally {
+    hideLoader();
+  }
 }
 
 // 🗑️ 刪除公告
