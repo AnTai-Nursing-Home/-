@@ -84,6 +84,7 @@ document.addEventListener('firebase-ready', () => {
         tr.innerHTML = `
           <td>${d.item || ''}</td>
           <td>${d.detail || ''}</td>
+          <td>${d.reporter || ''}</td>
           <td>${badge}</td>
           <td>${fmt(d.createdAt)}</td>
           <td style="min-width:240px;">${commentsHtml}</td>
