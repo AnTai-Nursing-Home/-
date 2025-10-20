@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>器材報修（護理師端）</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    .status-badge { font-size: 0.85rem; }
+    .comment { background:#f8f9fa; border-radius:8px; padding:6px 10px; margin-bottom:6px; }
+    .comment time { color:#6c757d; font-size:.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container my-4">
+    <div class="card shadow">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>器材報修（護理師端）</h4>
+        <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+      </div>
+      <div class="card-body">
+
+        <!-- 建單區 -->
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">修繕物品</label>
+            <input type="text" id="item" class="form-control" placeholder="例：抽痰機、血壓計">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">詳細資訊</label>
+            <input type="text" id="detail" class="form-control" placeholder="例：無法開機 / 充電無反應">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">報修人</label>
+            <input type="text" id="reporter" class="form-control" placeholder="護理師姓名">
+          </div>
+          <div class="col-12 d-flex justify-content-end">
+            <button id="btn-create" class="btn btn-primary">
+              <i class="fa-solid fa-paper-plane me-1"></i> 新增報修單
+            </button>
+          </div>
+        </div>
+
+        <hr class="my-4"/>
+
+        <!-- 清單 -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">報修清單</h5>
+          <div id="loading" class="text-muted" style="display:none;">
+            <span class="spinner-border spinner-border-sm"></span> 載入中…
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>修繕物品</th>
+                <th>詳細資訊</th>
+                <th>狀態</th>
+                <th>建立時間</th>
+                <th>註解（只讀）</th>
+              </tr>
+            </thead>
+            <tbody id="req-tbody"></tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="nurse-maintenance.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
