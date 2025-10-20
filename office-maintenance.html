@@ -20,6 +20,7 @@
         <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回辦公室儀表板</a>
       </div>
       <div class="card-body">
+
         <!-- 建單 + 狀態管理 -->
         <div class="row g-3 align-items-end">
           <div class="col-md-3">
@@ -43,17 +44,20 @@
 
         <div class="border-top my-4"></div>
 
+        <!-- 狀態新增 -->
         <div class="row g-3 align-items-end">
           <div class="col-md-4">
             <label class="form-label">新增狀態名稱</label>
             <input type="text" id="new-status" class="form-control" placeholder="例：已報修、維修中、已完成">
           </div>
           <div class="col-md-2 d-grid">
-            <button id="btn-add-status" class="btn btn-secondary"><i class="fa-solid fa-plus me-1"></i> 新增狀態</button>
+            <button id="btn-add-status" class="btn btn-secondary">
+              <i class="fa-solid fa-plus me-1"></i> 新增狀態
+            </button>
           </div>
           <div class="col-md-6">
             <div class="alert alert-info py-2 mb-0">
-              狀態排序：上到下＝由前到後。可刪除不用的狀態。
+              狀態排序：可拖曳調整上下順序，上方為優先。
             </div>
           </div>
         </div>
@@ -75,6 +79,7 @@
               <tr>
                 <th>修繕物品</th>
                 <th>詳細資訊</th>
+                <th>報修人</th>
                 <th>狀態</th>
                 <th>建立時間</th>
                 <th>註解</th>
