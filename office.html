@@ -27,6 +27,7 @@
       text-decoration: none;
       color: #212529;
       transition: all 0.2s ease-in-out;
+      min-height: 120px;
     }
 
     .menu-item:hover {
@@ -36,7 +37,7 @@
     }
 
     .menu-item i {
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     @media (max-width: 992px) {
@@ -71,40 +72,34 @@
               <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3">返回首頁</a>
             </div>
 
-            <div id="dashboard-section-office" class="d-none">
-              <div class="menu-grid admin-menu-grid">
+            <div id="dashboard-section-office" class="d-none mt-3">
+              <div class="menu-grid">
+
                 <a href="office-temperature.html" class="menu-item">
                   <i class="fas fa-thermometer-half fa-2x"></i>
-                  <span class="menu-item-text mt-2">體溫系統</span>
+                  <span>體溫系統</span>
                 </a>
+
                 <a href="office-clockin.html" class="menu-item">
                   <i class="fas fa-user-clock fa-2x"></i>
-                  <span class="menu-item-text mt-2">打卡系統</span>
+                  <span>打卡系統</span>
                 </a>
+
                 <a href="employees-admin.html" class="menu-item">
                   <i class="fas fa-id-card-alt fa-2x"></i>
-                  <span class="menu-item-text mt-2">員工資料管理</span>
+                  <span>員工資料管理</span>
                 </a>
+
                 <a href="office-maintenance.html" class="menu-item">
                   <i class="fas fa-toolbox fa-2x"></i>
-                  <span class="menu-item-text mt-2">器材報修</span>
+                  <span>器材報修</span>
                 </a>
+
                 <a href="announcements-admin.html" class="menu-item">
                   <i class="fas fa-bullhorn fa-2x"></i>
-                  <span class="menu-item-text mt-2">公告管理</span>
+                  <span>公告管理</span>
                 </a>
-                <a href="supplies.html" class="menu-item">
-                  <i class="fas fa-boxes-stacked fa-2x"></i>
-                  <span class="menu-item-text mt-2">衛材盤點</span>
-                </a>
-                <a href="reports.html" class="menu-item">
-                  <i class="fas fa-file-alt fa-2x"></i>
-                  <span class="menu-item-text mt-2">報表查詢</span>
-                </a>
-                <a href="settings.html" class="menu-item">
-                  <i class="fas fa-gear fa-2x"></i>
-                  <span class="menu-item-text mt-2">系統設定</span>
-                </a>
+
               </div>
 
               <div class="text-center mt-4">
@@ -113,13 +108,14 @@
                 </a>
               </div>
             </div>
+
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <footer class="site-footer text-center mt-4 mb-3">
+  <footer class="text-center mt-4 mb-3 text-muted">
     © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
   </footer>
 
