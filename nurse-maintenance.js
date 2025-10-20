@@ -1,0 +1,89 @@
+document.addEventListener('firebase-ready', () => {
+  const colReq = db.collection('maintenance_requests');
+  const colStatus = db.collection('maintenance_status');
+
+  const itemEl = document.getElementById('item');
+  const detailEl = document.getElementById('detail');
+  const reporterEl = document.getElementById('reporter');
+  const btnCreate = document.getElementById('btn-create');
+  const tbody = document.getElementById('req-tbody');
+  const loading = document.getElementById('loading');
+
+  let cachedStatuses = []; // 由辦公室端維護
+
+  async function loadStatuses() {
+    const snap = await colStatus.orderBy('order', 'asc').get().catch(() => colStatus.get());
+    cachedStatuses = snap.docs.map(d => d.id);
+  }
+
+  function nowTs() { return firebase.firestore.FieldValue.serverTimestamp(); }
+  function fmt(ts) {
+    if (!ts || !ts.toDate) return '';
+    const d = ts.toDate();
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  async function createRequest() {
+    const item = itemEl.value.trim();
+    const detail = detailEl.value.trim();
+    const reporter = reporterEl.value.trim();
+    if (!item || !detail || !reporter) return alert('請完整填寫修繕物品、詳細資訊、報修人');
+
+    // 預設狀態：若有自訂狀態，取第一個；否則用「已報修」
+    const defaultStatus = cachedStatuses[0] || '已報修';
+
+    await colReq.add({
+      item, detail, reporter,
+      status: defaultStatus,
+      createdAt: nowTs(),
+      comments: [] // 只讀，辦公室端可新增
+    });
+    itemEl.value = ''; detailEl.value = ''; reporterEl.value = '';
+    alert('報修已送出');
+    loadList();
+  }
+
+  async function loadList() {
+    loading.style.display = 'inline-block';
+    tbody.innerHTML = '';
+    try {
+      const snap = await colReq.orderBy('createdAt', 'desc').get().catch(() => colReq.get());
+      if (snap.empty) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">目前沒有報修單</td></tr>`;
+        return;
+      }
+      snap.forEach(doc => {
+        const d = doc.data();
+        const commentsHtml = (d.comments || [])
+          .sort((a,b)=> (a.time?.seconds||0)-(b.time?.seconds||0))
+          .map(c => `
+            <div class="comment">
+              <div>${c.message || ''}</div>
+              <time>${fmt(c.time)}</time>
+            </div>
+          `).join('') || '<span class="text-muted">—</span>';
+
+        const badge = `<span class="badge bg-secondary status-badge">${d.status || '—'}</span>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${d.item || ''}</td>
+          <td>${d.detail || ''}</td>
+          <td>${badge}</td>
+          <td>${fmt(d.createdAt)}</td>
+          <td style="min-width:240px;">${commentsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  btnCreate.addEventListener('click', createRequest);
+
+  (async () => {
+    await loadStatuses();
+    await loadList();
+  })();
+});
