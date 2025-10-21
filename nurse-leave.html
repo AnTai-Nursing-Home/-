@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>請假 / 調班系統（護理師端）</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+<div class="container my-4">
+  <div class="card shadow">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <h4 class="mb-0"><i class="fa-solid fa-calendar-check me-2"></i>請假 / 調班系統</h4>
+      <a href="admin.html" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+    </div>
+
+    <div class="card-body">
+      <ul class="nav nav-tabs mb-3" id="tabMenu">
+        <li class="nav-item">
+          <button class="nav-link active" id="leave-tab">請假申請</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="shift-tab">調班申請</button>
+        </li>
+      </ul>
+
+      <!-- 請假申請區 -->
+      <div id="leave-section">
+        <div class="row g-3 mb-3">
+          <div class="col-md-3">
+            <label class="form-label">申請日期</label>
+            <input type="date" id="applyDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">申請人</label>
+            <input type="text" id="applicant" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">請假日期</label>
+            <input type="date" id="leaveDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">假別</label>
+            <select id="leaveType" class="form-select">
+              <option value="事假">事假</option>
+              <option value="病假">病假</option>
+              <option value="公假">公假</option>
+              <option value="喪假">喪假</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">班別</label>
+            <input type="text" id="shift" class="form-control" placeholder="例：白班 / 夜班">
+          </div>
+          <div class="col-md-9">
+            <label class="form-label">原由</label>
+            <input type="text" id="reason" class="form-control">
+          </div>
+          <div class="col-12 d-flex justify-content-end">
+            <button id="addLeaveBtn" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>送出申請</button>
+          </div>
+        </div>
+
+        <h5 class="mt-4">📋 目前請假申請</h5>
+        <div id="leaveList" class="table-responsive">
+          <table class="table table-bordered table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>申請日期</th><th>申請人</th><th>請假日期</th>
+                <th>假別</th><th>班別</th><th>原由</th><th>狀態</th>
+              </tr>
+            </thead>
+            <tbody id="leaveTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 調班申請區 -->
+      <div id="shift-section" style="display:none;">
+        <div class="row g-3 mb-3">
+          <div class="col-md-3">
+            <label class="form-label">申請日期</label>
+            <input type="date" id="shiftApplyDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">申請人</label>
+            <input type="text" id="shiftApplicant" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">原班日期</label>
+            <input type="date" id="fromDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">原班班別</label>
+            <input type="text" id="fromShift" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">欲換班日期</label>
+            <input type="date" id="toDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">欲換班班別</label>
+            <input type="text" id="toShift" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">原由</label>
+            <input type="text" id="shiftReason" class="form-control">
+          </div>
+          <div class="col-12 d-flex justify-content-end">
+            <button id="addShiftBtn" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>送出申請</button>
+          </div>
+        </div>
+
+        <h5 class="mt-4">📋 目前調班申請</h5>
+        <div id="shiftList" class="table-responsive">
+          <table class="table table-bordered table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>申請日期</th><th>申請人</th><th>原班日期</th><th>原班別</th>
+                <th>換班日期</th><th>換班別</th><th>原由</th><th>狀態</th>
+              </tr>
+            </thead>
+            <tbody id="shiftTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="firebase-init.js"></script>
+<script src="nurse-leave.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // tab 切換
+  document.getElementById('leave-tab').addEventListener('click', () => {
+    document.getElementById('leave-section').style.display = 'block';
+    document.getElementById('shift-section').style.display = 'none';
+    document.getElementById('leave-tab').classList.add('active');
+    document.getElementById('shift-tab').classList.remove('active');
+  });
+  document.getElementById('shift-tab').addEventListener('click', () => {
+    document.getElementById('leave-section').style.display = 'none';
+    document.getElementById('shift-section').style.display = 'block';
+    document.getElementById('shift-tab').classList.add('active');
+    document.getElementById('leave-tab').classList.remove('active');
+  });
+</script>
+</body>
+</html>
