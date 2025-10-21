@@ -48,15 +48,18 @@ document.addEventListener('firebase-ready', () => {
     loadShiftList();
   }
 
-  // 🔹 載入請假清單
+  // === 載入請假清單 ===
   async function loadLeaveList() {
-    leaveTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>`;
-    const snap = await dbLeave.orderBy('createdAt', 'desc').get();
+    const tbody = document.getElementById('leaveTableBody');
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>`;
+  
+    const snap = await db.collection('nurse_leave_requests').orderBy('createdAt', 'desc').get();
     if (snap.empty) {
-      leaveTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">目前沒有申請紀錄</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有資料</td></tr>`;
       return;
     }
-    leaveTableBody.innerHTML = '';
+  
+    tbody.innerHTML = '';
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement('tr');
@@ -67,20 +70,25 @@ document.addEventListener('firebase-ready', () => {
         <td>${d.leaveType || ''}</td>
         <td>${d.shift || ''}</td>
         <td>${d.reason || ''}</td>
-        <td><span class="badge bg-secondary">${d.status}</span></td>`;
-      leaveTableBody.appendChild(tr);
+        <td>${d.status || ''}</td>
+        <td>${d.comment || ''}</td>
+      `;
+      tbody.appendChild(tr);
     });
   }
-
-  // 🔹 載入調班清單
+  
+  // === 載入調班清單 ===
   async function loadShiftList() {
-    shiftTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>`;
-    const snap = await dbShift.orderBy('createdAt', 'desc').get();
+    const tbody = document.getElementById('shiftTableBody');
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>`;
+  
+    const snap = await db.collection('nurse_shift_requests').orderBy('createdAt', 'desc').get();
     if (snap.empty) {
-      shiftTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有申請紀錄</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
       return;
     }
-    shiftTableBody.innerHTML = '';
+  
+    tbody.innerHTML = '';
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement('tr');
@@ -92,8 +100,10 @@ document.addEventListener('firebase-ready', () => {
         <td>${d.toDate || ''}</td>
         <td>${d.toShift || ''}</td>
         <td>${d.reason || ''}</td>
-        <td><span class="badge bg-secondary">${d.status}</span></td>`;
-      shiftTableBody.appendChild(tr);
+        <td>${d.status || ''}</td>
+        <td>${d.comment || ''}</td>
+      `;
+      tbody.appendChild(tr);
     });
   }
 
