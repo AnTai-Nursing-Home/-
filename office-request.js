@@ -40,7 +40,57 @@ document.addEventListener('firebase-ready', async () => {
     return snap.docs.map(d => d.data().name);
   }
 
-  // === 載入請假清單 ===
+  // === 通用函式：顯示註解列表 ===
+  function renderNotes(notes, docRef, reloadCallback) {
+    if (!notes || notes.length === 0) return '<li class="text-muted">尚無註解</li>';
+
+    return notes
+      .map(
+        (n, i) => `
+      <li>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></span>
+          <div>
+            <button class="btn btn-sm btn-outline-secondary me-1 editNoteBtn" data-idx="${i}">✏️</button>
+            <button class="btn btn-sm btn-outline-danger delNoteBtn" data-idx="${i}">🗑️</button>
+          </div>
+        </div>
+      </li>`
+      )
+      .join('');
+  }
+
+  // === 通用函式：處理註解操作 ===
+  function handleNoteActions(tr, docRef, notes, reloadFn) {
+    tr.querySelectorAll('.editNoteBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = btn.dataset.idx;
+        const note = notes[idx];
+        const newContent = prompt('修改註解內容：', note.content);
+        if (newContent === null || newContent.trim() === '') return;
+
+        notes[idx].content = newContent.trim();
+        notes[idx].timestamp = new Date().toLocaleString();
+        await docRef.update({ notes });
+        alert('✅ 註解已更新');
+        reloadFn();
+      });
+    });
+
+    tr.querySelectorAll('.delNoteBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = btn.dataset.idx;
+        if (!confirm('確定刪除此註解？')) return;
+
+        notes.splice(idx, 1);
+        await docRef.update({ notes });
+        alert('🗑️ 已刪除註解');
+        reloadFn();
+      });
+    });
+  }
+
+  // === 請假清單 ===
   async function loadLeaveList() {
     leaveTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>`;
     const snap = await dbLeave.orderBy('createdAt', 'desc').get();
@@ -51,11 +101,12 @@ document.addEventListener('firebase-ready', async () => {
 
     const statuses = await getStatuses();
     leaveTableBody.innerHTML = '';
+
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement('tr');
       const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
-      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
+      const notesHTML = renderNotes(d.notes, dbLeave.doc(doc.id), loadLeaveList);
 
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
@@ -66,7 +117,7 @@ document.addEventListener('firebase-ready', async () => {
         <td>${d.reason || ''}</td>
         <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
         <td>
-          <ul class="mb-1">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul>
+          <ul class="mb-2">${notesHTML}</ul>
           <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
         </td>
         <td>
@@ -75,36 +126,38 @@ document.addEventListener('firebase-ready', async () => {
         </td>`;
       leaveTableBody.appendChild(tr);
 
+      const docRef = dbLeave.doc(doc.id);
+
       tr.querySelector('.saveBtn').addEventListener('click', async () => {
         const newStatus = tr.querySelector('.statusSelect').value;
         const newNote = tr.querySelector('.noteInput').value.trim();
 
-        const noteObj = newNote
-          ? {
-              author: '辦公室管理員',
-              content: newNote,
-              timestamp: new Date().toLocaleString(),
-            }
-          : null;
-
         const updateData = { status: newStatus };
-        if (noteObj) updateData.notes = firebase.firestore.FieldValue.arrayUnion(noteObj);
+        if (newNote)
+          updateData.notes = firebase.firestore.FieldValue.arrayUnion({
+            author: '辦公室管理員',
+            content: newNote,
+            timestamp: new Date().toLocaleString(),
+          });
 
-        await dbLeave.doc(doc.id).update(updateData);
+        await docRef.update(updateData);
         alert('✅ 已更新');
         loadLeaveList();
       });
 
       tr.querySelector('.delBtn').addEventListener('click', async () => {
         if (confirm('確定刪除此紀錄？')) {
-          await dbLeave.doc(doc.id).delete();
+          await docRef.delete();
           loadLeaveList();
         }
       });
+
+      // 綁定編輯/刪除註解事件
+      handleNoteActions(tr, docRef, d.notes || [], loadLeaveList);
     });
   }
 
-  // === 載入調班清單 ===
+  // === 調班清單 ===
   async function loadShiftList() {
     shiftTableBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>`;
     const snap = await dbShift.orderBy('createdAt', 'desc').get();
@@ -115,11 +168,12 @@ document.addEventListener('firebase-ready', async () => {
 
     const statuses = await getStatuses();
     shiftTableBody.innerHTML = '';
+
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement('tr');
       const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
-      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
+      const notesHTML = renderNotes(d.notes, dbShift.doc(doc.id), loadShiftList);
 
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
@@ -131,7 +185,7 @@ document.addEventListener('firebase-ready', async () => {
         <td>${d.reason || ''}</td>
         <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
         <td>
-          <ul class="mb-1">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul>
+          <ul class="mb-2">${notesHTML}</ul>
           <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
         </td>
         <td>
@@ -140,32 +194,34 @@ document.addEventListener('firebase-ready', async () => {
         </td>`;
       shiftTableBody.appendChild(tr);
 
+      const docRef = dbShift.doc(doc.id);
+
       tr.querySelector('.saveBtn').addEventListener('click', async () => {
         const newStatus = tr.querySelector('.statusSelect').value;
         const newNote = tr.querySelector('.noteInput').value.trim();
 
-        const noteObj = newNote
-          ? {
-              author: '辦公室管理員',
-              content: newNote,
-              timestamp: new Date().toLocaleString(),
-            }
-          : null;
-
         const updateData = { status: newStatus };
-        if (noteObj) updateData.notes = firebase.firestore.FieldValue.arrayUnion(noteObj);
+        if (newNote)
+          updateData.notes = firebase.firestore.FieldValue.arrayUnion({
+            author: '辦公室管理員',
+            content: newNote,
+            timestamp: new Date().toLocaleString(),
+          });
 
-        await dbShift.doc(doc.id).update(updateData);
+        await docRef.update(updateData);
         alert('✅ 已更新');
         loadShiftList();
       });
 
       tr.querySelector('.delBtn').addEventListener('click', async () => {
         if (confirm('確定刪除此紀錄？')) {
-          await dbShift.doc(doc.id).delete();
+          await docRef.delete();
           loadShiftList();
         }
       });
+
+      // 綁定編輯/刪除註解事件
+      handleNoteActions(tr, docRef, d.notes || [], loadShiftList);
     });
   }
 
