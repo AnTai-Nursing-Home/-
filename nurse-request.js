@@ -8,10 +8,8 @@ document.addEventListener('firebase-ready', () => {
 
   const addLeaveBtn = document.getElementById('addLeaveBtn');
   const addShiftBtn = document.getElementById('addShiftBtn');
-  const leaveTableBody = document.getElementById('leaveTableBody');
-  const shiftTableBody = document.getElementById('shiftTableBody');
 
-  // 🔹 新增請假申請
+  // === 新增請假申請 ===
   async function addLeave() {
     const data = {
       applyDate: document.getElementById('applyDate').value,
@@ -21,6 +19,7 @@ document.addEventListener('firebase-ready', () => {
       shift: document.getElementById('shift').value.trim(),
       reason: document.getElementById('reason').value.trim(),
       status: '待審核',
+      notes: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (Object.values(data).some(v => !v)) return alert('⚠️ 請完整填寫請假資料！');
@@ -29,7 +28,7 @@ document.addEventListener('firebase-ready', () => {
     loadLeaveList();
   }
 
-  // 🔹 新增調班申請
+  // === 新增調班申請 ===
   async function addShift() {
     const data = {
       applyDate: document.getElementById('shiftApplyDate').value,
@@ -40,6 +39,7 @@ document.addEventListener('firebase-ready', () => {
       toShift: document.getElementById('toShift').value.trim(),
       reason: document.getElementById('shiftReason').value.trim(),
       status: '待審核',
+      notes: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (Object.values(data).some(v => !v)) return alert('⚠️ 請完整填寫調班資料！');
@@ -48,12 +48,12 @@ document.addEventListener('firebase-ready', () => {
     loadShiftList();
   }
 
-  // === 載入請假清單 ===
+  // === 顯示請假申請 ===
   async function loadLeaveList() {
     const tbody = document.getElementById('leaveTableBody');
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>`;
   
-    const snap = await db.collection('nurse_leave_requests').orderBy('createdAt', 'desc').get();
+    const snap = await dbLeave.orderBy('createdAt', 'desc').get();
     if (snap.empty) {
       tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有資料</td></tr>`;
       return;
@@ -62,6 +62,7 @@ document.addEventListener('firebase-ready', () => {
     tbody.innerHTML = '';
     snap.forEach(doc => {
       const d = doc.data();
+      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
@@ -71,18 +72,17 @@ document.addEventListener('firebase-ready', () => {
         <td>${d.shift || ''}</td>
         <td>${d.reason || ''}</td>
         <td>${d.status || ''}</td>
-        <td>${d.comment || ''}</td>
-      `;
+        <td><ul class="mb-0">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul></td>`;
       tbody.appendChild(tr);
     });
   }
-  
-  // === 載入調班清單 ===
+
+  // === 顯示調班申請 ===
   async function loadShiftList() {
     const tbody = document.getElementById('shiftTableBody');
     tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>`;
   
-    const snap = await db.collection('nurse_shift_requests').orderBy('createdAt', 'desc').get();
+    const snap = await dbShift.orderBy('createdAt', 'desc').get();
     if (snap.empty) {
       tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
       return;
@@ -91,6 +91,7 @@ document.addEventListener('firebase-ready', () => {
     tbody.innerHTML = '';
     snap.forEach(doc => {
       const d = doc.data();
+      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
@@ -101,8 +102,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${d.toShift || ''}</td>
         <td>${d.reason || ''}</td>
         <td>${d.status || ''}</td>
-        <td>${d.comment || ''}</td>
-      `;
+        <td><ul class="mb-0">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul></td>`;
       tbody.appendChild(tr);
     });
   }
