@@ -55,6 +55,8 @@ document.addEventListener('firebase-ready', async () => {
       const d = doc.data();
       const tr = document.createElement('tr');
       const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
+      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
+
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
         <td>${d.applicant || ''}</td>
@@ -63,7 +65,10 @@ document.addEventListener('firebase-ready', async () => {
         <td>${d.shift || ''}</td>
         <td>${d.reason || ''}</td>
         <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
-        <td><input type="text" class="form-control form-control-sm commentInput" placeholder="留言..."></td>
+        <td>
+          <ul class="mb-1">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul>
+          <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
+        </td>
         <td>
           <button class="btn btn-sm btn-success saveBtn">儲存</button>
           <button class="btn btn-sm btn-danger delBtn">刪除</button>
@@ -72,12 +77,22 @@ document.addEventListener('firebase-ready', async () => {
 
       tr.querySelector('.saveBtn').addEventListener('click', async () => {
         const newStatus = tr.querySelector('.statusSelect').value;
-        const comment = tr.querySelector('.commentInput').value.trim();
-        await dbLeave.doc(doc.id).update({
-          status: newStatus,
-          comment: comment ? `${comment}（${new Date().toLocaleString()}）` : ''
-        });
+        const newNote = tr.querySelector('.noteInput').value.trim();
+
+        const noteObj = newNote
+          ? {
+              author: '辦公室管理員',
+              content: newNote,
+              timestamp: new Date().toLocaleString(),
+            }
+          : null;
+
+        const updateData = { status: newStatus };
+        if (noteObj) updateData.notes = firebase.firestore.FieldValue.arrayUnion(noteObj);
+
+        await dbLeave.doc(doc.id).update(updateData);
         alert('✅ 已更新');
+        loadLeaveList();
       });
 
       tr.querySelector('.delBtn').addEventListener('click', async () => {
@@ -104,6 +119,8 @@ document.addEventListener('firebase-ready', async () => {
       const d = doc.data();
       const tr = document.createElement('tr');
       const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
+      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
+
       tr.innerHTML = `
         <td>${d.applyDate || ''}</td>
         <td>${d.applicant || ''}</td>
@@ -113,7 +130,10 @@ document.addEventListener('firebase-ready', async () => {
         <td>${d.toShift || ''}</td>
         <td>${d.reason || ''}</td>
         <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
-        <td><input type="text" class="form-control form-control-sm commentInput" placeholder="留言..."></td>
+        <td>
+          <ul class="mb-1">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul>
+          <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
+        </td>
         <td>
           <button class="btn btn-sm btn-success saveBtn">儲存</button>
           <button class="btn btn-sm btn-danger delBtn">刪除</button>
@@ -122,12 +142,22 @@ document.addEventListener('firebase-ready', async () => {
 
       tr.querySelector('.saveBtn').addEventListener('click', async () => {
         const newStatus = tr.querySelector('.statusSelect').value;
-        const comment = tr.querySelector('.commentInput').value.trim();
-        await dbShift.doc(doc.id).update({
-          status: newStatus,
-          comment: comment ? `${comment}（${new Date().toLocaleString()}）` : ''
-        });
+        const newNote = tr.querySelector('.noteInput').value.trim();
+
+        const noteObj = newNote
+          ? {
+              author: '辦公室管理員',
+              content: newNote,
+              timestamp: new Date().toLocaleString(),
+            }
+          : null;
+
+        const updateData = { status: newStatus };
+        if (noteObj) updateData.notes = firebase.firestore.FieldValue.arrayUnion(noteObj);
+
+        await dbShift.doc(doc.id).update(updateData);
         alert('✅ 已更新');
+        loadShiftList();
       });
 
       tr.querySelector('.delBtn').addEventListener('click', async () => {
@@ -138,41 +168,6 @@ document.addEventListener('firebase-ready', async () => {
       });
     });
   }
-
-  // === 匯出 / 列印功能 ===
-  function exportTableToExcel(tableId, filename) {
-    const table = document.getElementById(tableId);
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
-    XLSX.writeFile(wb, filename + ".xlsx");
-  }
-
-  function exportTableToWord(tableId, filename) {
-    const table = document.getElementById(tableId).outerHTML;
-    const blob = new Blob(['\ufeff' + table], {
-      type: 'application/msword'
-    });
-    saveAs(blob, filename + '.doc');
-  }
-
-  function printTable(tableId) {
-    const printContents = document.getElementById(tableId).outerHTML;
-    const win = window.open('', '', 'height=800,width=1000');
-    win.document.write('<html><head><title>列印</title></head><body>');
-    win.document.write('<h3>報表列印</h3>');
-    win.document.write(printContents);
-    win.document.write('</body></html>');
-    win.document.close();
-    win.print();
-  }
-
-  document.getElementById('printLeave').addEventListener('click', () => printTable('leaveTable'));
-  document.getElementById('printShift').addEventListener('click', () => printTable('shiftTable'));
-
-  document.getElementById('exportLeaveExcel').addEventListener('click', () => exportTableToExcel('leaveTable', '請假清單'));
-  document.getElementById('exportShiftExcel').addEventListener('click', () => exportTableToExcel('shiftTable', '調班清單'));
-
-  document.getElementById('exportLeaveWord').addEventListener('click', () => exportTableToWord('leaveTable', '請假清單'));
-  document.getElementById('exportShiftWord').addEventListener('click', () => exportTableToWord('shiftTable', '調班清單'));
 
   // === 初始化 ===
   loadStatuses();
