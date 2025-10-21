@@ -58,10 +58,8 @@ document.addEventListener('firebase-ready', () => {
   }
 
   async function loadStatuses() {
-    statusListEl.innerHTML = `<div class="text-muted"><span class="spinner-border spinner-border-sm"></span> 載入狀態…</div>`;
     const snap = await colStatus.orderBy('order', 'asc').get().catch(() => colStatus.get());
     statuses = snap.docs.map((d) => d.id);
-
     if (statuses.length === 0) {
       const batch = db.batch();
       [['待處理', 0], ['已請修', 1], ['維修中', 2], ['已完成', 3]].forEach(([name, order]) => {
@@ -70,63 +68,9 @@ document.addEventListener('firebase-ready', () => {
       await batch.commit();
       return loadStatuses();
     }
-
-    statusListEl.innerHTML = '';
-    statuses.forEach((s, idx) => {
-      const div = document.createElement('div');
-      div.className = 'd-flex align-items-center justify-content-between border rounded px-2 py-1 mb-2 bg-light';
-      div.draggable = true;
-      div.dataset.status = s;
-      div.dataset.index = idx;
-      div.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge text-bg-secondary">${idx + 1}</span>
-          <span>${s}</span>
-        </div>
-        <button class="btn btn-sm btn-outline-danger" data-del="${s}">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      `;
-      statusListEl.appendChild(div);
-    });
-
-    statusListEl.querySelectorAll('[data-del]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const name = btn.getAttribute('data-del');
-        if (!confirm(`確定刪除狀態「${name}」？`)) return;
-        await colStatus.doc(name).delete();
-        const snapReq = await colReq.where('status', '==', name).get();
-        const batch = db.batch();
-        snapReq.forEach((d) => batch.update(colReq.doc(d.id), { status: '待處理' }));
-        await batch.commit();
-        await loadStatuses();
-        await loadRequests();
-      });
-    });
-
-    const draggables = statusListEl.querySelectorAll('[draggable]');
-    draggables.forEach((div) => {
-      div.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', e.target.dataset.index);
-        e.target.classList.add('opacity-50');
-      });
-      div.addEventListener('dragend', (e) => e.target.classList.remove('opacity-50'));
-      div.addEventListener('dragover', (e) => e.preventDefault());
-      div.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-        const toIndex = parseInt(e.target.closest('[draggable]').dataset.index);
-        if (fromIndex === toIndex) return;
-        const moved = statuses.splice(fromIndex, 1)[0];
-        statuses.splice(toIndex, 0, moved);
-        const batch = db.batch();
-        statuses.forEach((name, order) => {
-          batch.update(colStatus.doc(name), { order });
-        });
-        await batch.commit();
-        await loadStatuses();
-      });
-    });
+    statusListEl.innerHTML = statuses
+      .map((s, idx) => `<div class="badge bg-secondary me-2 mb-2">${idx + 1}. ${s}</div>`)
+      .join('');
   }
 
   async function addStatus() {
@@ -134,9 +78,7 @@ document.addEventListener('firebase-ready', () => {
     if (!name) return alert('請輸入狀態名稱');
     let max = -1;
     const snap = await colStatus.get();
-    snap.forEach((d) => {
-      max = Math.max(max, d.data().order ?? -1);
-    });
+    snap.forEach((d) => (max = Math.max(max, d.data().order ?? -1)));
     await colStatus.doc(name).set({ order: max + 1 });
     newStatusEl.value = '';
     await loadStatuses();
@@ -151,15 +93,25 @@ document.addEventListener('firebase-ready', () => {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">目前沒有報修單</td></tr>`;
         return;
       }
+      tbody.innerHTML = '';
       snap.forEach((doc) => {
         const d = doc.data();
         const tr = document.createElement('tr');
         const options = statuses.map((s) => `<option value="${s}" ${s === d.status ? 'selected' : ''}>${s}</option>`).join('');
         const selectHtml = `<select class="form-select form-select-sm status-pill" data-id="${doc.id}">${options}</select>`;
+
         const commentsHtml = (d.comments || [])
-          .sort((a, b) => (a.time?.seconds || 0) - (b.time?.seconds || 0))
-          .map((c) => `<div class="comment"><div>${c.message || ''}</div><time>${fmt(c.time)}</time></div>`)
+          .map((c, i) => `
+            <div class="comment border rounded p-2 mb-2">
+              <div>${c.message || ''}</div>
+              <time>${fmt(c.time)}</time>
+              <div class="text-end mt-1">
+                <button class="btn btn-sm btn-outline-secondary me-1 editCommentBtn" data-id="${doc.id}" data-idx="${i}">✏️</button>
+                <button class="btn btn-sm btn-outline-danger delCommentBtn" data-id="${doc.id}" data-idx="${i}">🗑️</button>
+              </div>
+            </div>`)
           .join('') || '<span class="text-muted">—</span>';
+
         tr.innerHTML = `
           <td>${d.item || ''}</td>
           <td>${d.detail || ''}</td>
@@ -169,7 +121,7 @@ document.addEventListener('firebase-ready', () => {
           <td style="min-width:240px;">${commentsHtml}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-primary" data-comment="${doc.id}">
-              <i class="fa-solid fa-message"></i> 註解
+              <i class="fa-solid fa-message"></i> 新增註解
             </button>
             <button class="btn btn-sm btn-outline-danger ms-1" data-delreq="${doc.id}">
               <i class="fa-solid fa-trash"></i>
@@ -179,33 +131,70 @@ document.addEventListener('firebase-ready', () => {
         tbody.appendChild(tr);
       });
 
+      // 狀態更新
       tbody.querySelectorAll('select[data-id]').forEach((sel) => {
         sel.addEventListener('change', async () => {
-          const id = sel.getAttribute('data-id');
-          const val = sel.value;
-          await colReq.doc(id).update({ status: val });
+          await colReq.doc(sel.dataset.id).update({ status: sel.value });
         });
       });
 
+      // 新增註解
       tbody.querySelectorAll('button[data-comment]').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          editingReqId = btn.getAttribute('data-comment');
+          editingReqId = btn.dataset.comment;
           commentInput.value = '';
           const doc = await colReq.doc(editingReqId).get();
           const d = doc.data();
-          commentList.innerHTML = (d.comments || [])
-            .sort((a, b) => (a.time?.seconds || 0) - (b.time?.seconds || 0))
-            .map((c) => `<div class="comment"><div>${c.message || ''}</div><time>${fmt(c.time)}</time></div>`)
-            .join('') || '<div class="text-muted">目前沒有註解</div>';
+          commentList.innerHTML =
+            (d.comments || [])
+              .map((c) => `<div class="comment"><div>${c.message || ''}</div><time>${fmt(c.time)}</time></div>`)
+              .join('') || '<div class="text-muted">目前沒有註解</div>';
           commentModal.show();
         });
       });
 
+      // 刪除報修單
       tbody.querySelectorAll('button[data-delreq]').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-delreq');
           if (!confirm('確定刪除這筆報修單？')) return;
-          await colReq.doc(id).delete();
+          await colReq.doc(btn.dataset.delreq).delete();
+          await loadRequests();
+        });
+      });
+
+      // 編輯註解
+      tbody.querySelectorAll('.editCommentBtn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const idx = parseInt(btn.dataset.idx);
+          const docRef = colReq.doc(id);
+          const snap = await docRef.get();
+          const data = snap.data();
+          const comments = data.comments || [];
+          const oldMsg = comments[idx].message;
+          const newMsg = prompt('修改註解內容：', oldMsg);
+          if (newMsg === null) return;
+          comments[idx].message = newMsg.trim();
+          comments[idx].time = firebase.firestore.Timestamp.now();
+          await docRef.update({ comments });
+          alert('✅ 註解已更新');
+          await loadRequests();
+        });
+      });
+
+      // 刪除註解
+      tbody.querySelectorAll('.delCommentBtn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const idx = parseInt(btn.dataset.idx);
+          if (!confirm('確定刪除此註解？')) return;
+          const docRef = colReq.doc(id);
+          const snap = await docRef.get();
+          const data = snap.data();
+          const comments = data.comments || [];
+          comments.splice(idx, 1);
+          await docRef.update({ comments });
+          alert('🗑️ 註解已刪除');
           await loadRequests();
         });
       });
@@ -226,7 +215,7 @@ document.addEventListener('firebase-ready', () => {
       })
     });
     await loadRequests();
-    alert('註解已新增！');
+    alert('✅ 註解已新增！');
   }
 
   btnCreate.addEventListener('click', createRequest);
