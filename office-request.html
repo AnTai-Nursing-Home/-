@@ -3,96 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>請假 / 調班系統（辦公室端）</title>
+  <title>辦公室端 - 請假與調班管理</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.0.1/docx.min.js"></script>
+  <style>
+    th, td { vertical-align: middle; white-space: pre-wrap; }
+    .export-buttons { text-align: right; margin-bottom: 1rem; }
+  </style>
 </head>
-<body>
+<body class="bg-light">
+
 <div class="container my-4">
-  <div class="card shadow">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <h4 class="mb-0"><i class="fa-solid fa-user-gear me-2"></i>請假 / 調班系統（管理端）</h4>
-      <a href="office.html" class="btn btn-sm btn-outline-light">返回辦公室儀表板</a>
+  <div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <h4 class="mb-0"><i class="fa-solid fa-briefcase me-2"></i>請假與調班管理（辦公室端）</h4>
+      <a href="admin.html" class="btn btn-outline-light btn-sm">返回首頁</a>
     </div>
 
     <div class="card-body">
-      <ul class="nav nav-tabs mb-3" id="tabMenu">
-        <li class="nav-item">
-          <button class="nav-link active" id="leave-tab">請假申請</button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" id="shift-tab">調班申請</button>
-        </li>
+      <ul class="nav nav-tabs mb-3" id="requestTabs">
+        <li class="nav-item"><button class="nav-link active" id="leave-tab" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
+        <li class="nav-item"><button class="nav-link" id="swap-tab" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
       </ul>
 
-      <!-- 狀態管理 -->
-      <div class="mb-4">
-        <h5>⚙️ 審理狀態設定</h5>
-        <div class="d-flex gap-2 mb-2">
-          <input type="text" id="newStatus" class="form-control w-auto" placeholder="新增狀態名稱">
-          <button id="addStatusBtn" class="btn btn-success btn-sm">新增</button>
-        </div>
-        <div id="statusList" class="d-flex flex-wrap gap-2"></div>
-      </div>
+      <div class="tab-content">
+        <!-- 請假申請區 -->
+        <div class="tab-pane fade show active" id="leave">
+          <div class="export-buttons">
+            <button class="btn btn-success btn-sm me-2" id="exportLeaveExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+            <button class="btn btn-primary btn-sm me-2" id="exportLeaveWord"><i class="fa-solid fa-file-word"></i> 匯出 Word</button>
+            <button class="btn btn-secondary btn-sm" id="printLeave"><i class="fa-solid fa-print"></i> 列印</button>
+          </div>
 
-      <!-- 請假申請 -->
-      <div id="leave-section">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5>📋 請假申請清單</h5>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary" id="printLeave"><i class="fa-solid fa-print"></i> 列印</button>
-            <button class="btn btn-sm btn-success" id="exportLeaveExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
-            <button class="btn btn-sm btn-info" id="exportLeaveWord"><i class="fa-solid fa-file-word"></i> 匯出 Word</button>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>申請日期</th>
+                  <th>申請人</th>
+                  <th>假別</th>
+                  <th>請假日期</th>
+                  <th>班別</th>
+                  <th>請假理由</th>
+                  <th>狀態</th>
+                  <th>主管簽名</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="leaveTableBody"></tbody>
+            </table>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover" id="leaveTable">
-            <thead class="table-light">
-              <tr>
-                <th>申請日期</th>
-                <th>申請人</th>
-                <th>請假日期</th>
-                <th>假別</th>
-                <th>班別</th>
-                <th>原由</th>
-                <th>狀態</th>
-                <th>註解</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="leaveTableBody"></tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- 調班申請 -->
-      <div id="shift-section" style="display:none;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5>📋 調班申請清單</h5>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary" id="printShift"><i class="fa-solid fa-print"></i> 列印</button>
-            <button class="btn btn-sm btn-success" id="exportShiftExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
-            <button class="btn btn-sm btn-info" id="exportShiftWord"><i class="fa-solid fa-file-word"></i> 匯出 Word</button>
+        <!-- 調班申請區 -->
+        <div class="tab-pane fade" id="swap">
+          <div class="export-buttons">
+            <button class="btn btn-success btn-sm me-2" id="exportSwapExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+            <button class="btn btn-primary btn-sm me-2" id="exportSwapWord"><i class="fa-solid fa-file-word"></i> 匯出 Word</button>
+            <button class="btn btn-secondary btn-sm" id="printSwap"><i class="fa-solid fa-print"></i> 列印</button>
           </div>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover" id="shiftTable">
-            <thead class="table-light">
-              <tr>
-                <th>申請日期</th>
-                <th>申請人</th>
-                <th>原班日期</th>
-                <th>原班別</th>
-                <th>換班日期</th>
-                <th>換班別</th>
-                <th>原由</th>
-                <th>狀態</th>
-                <th>註解</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="shiftTableBody"></tbody>
-          </table>
+
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>申請日期</th>
+                  <th>申請人</th>
+                  <th>調班日期</th>
+                  <th>原班別</th>
+                  <th>欲換班別</th>
+                  <th>理由</th>
+                  <th>狀態</th>
+                  <th>主管簽名</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="swapTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -104,22 +94,5 @@
 <script src="firebase-init.js"></script>
 <script src="office-request.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-<script>
-  document.getElementById('leave-tab').addEventListener('click', () => {
-    document.getElementById('leave-section').style.display = 'block';
-    document.getElementById('shift-section').style.display = 'none';
-    document.getElementById('leave-tab').classList.add('active');
-    document.getElementById('shift-tab').classList.remove('active');
-  });
-  document.getElementById('shift-tab').addEventListener('click', () => {
-    document.getElementById('leave-section').style.display = 'none';
-    document.getElementById('shift-section').style.display = 'block';
-    document.getElementById('shift-tab').classList.add('active');
-    document.getElementById('leave-tab').classList.remove('active');
-  });
-</script>
 </body>
 </html>
