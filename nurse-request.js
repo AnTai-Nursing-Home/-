@@ -1,115 +1,139 @@
-document.addEventListener('firebase-ready', () => {
-  const dbLeave = db.collection('nurse_leave_requests');
-  const dbShift = db.collection('nurse_shift_requests');
+document.addEventListener("firebase-ready", async () => {
+  const db = firebase.firestore();
+  const leaveCol = db.collection("nurse_leave_requests");
+  const swapCol = db.collection("nurse_shift_requests");
 
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('applyDate').value = today;
-  document.getElementById('shiftApplyDate').value = today;
+  const leaveBody = document.getElementById("leaveTableBody");
+  const swapBody = document.getElementById("swapTableBody");
 
-  const addLeaveBtn = document.getElementById('addLeaveBtn');
-  const addShiftBtn = document.getElementById('addShiftBtn');
-
-  // === 新增請假申請 ===
-  async function addLeave() {
-    const data = {
-      applyDate: document.getElementById('applyDate').value,
-      applicant: document.getElementById('applicant').value.trim(),
-      leaveDate: document.getElementById('leaveDate').value,
-      leaveType: document.getElementById('leaveType').value,
-      shift: document.getElementById('shift').value.trim(),
-      reason: document.getElementById('reason').value.trim(),
-      status: '待審核',
-      notes: [],
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (Object.values(data).some(v => !v)) return alert('⚠️ 請完整填寫請假資料！');
-    await dbLeave.add(data);
-    alert('✅ 已送出請假申請！');
-    loadLeaveList();
-  }
-
-  // === 新增調班申請 ===
-  async function addShift() {
-    const data = {
-      applyDate: document.getElementById('shiftApplyDate').value,
-      applicant: document.getElementById('shiftApplicant').value.trim(),
-      fromDate: document.getElementById('fromDate').value,
-      fromShift: document.getElementById('fromShift').value.trim(),
-      toDate: document.getElementById('toDate').value,
-      toShift: document.getElementById('toShift').value.trim(),
-      reason: document.getElementById('shiftReason').value.trim(),
-      status: '待審核',
-      notes: [],
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (Object.values(data).some(v => !v)) return alert('⚠️ 請完整填寫調班資料！');
-    await dbShift.add(data);
-    alert('✅ 已送出調班申請！');
-    loadShiftList();
-  }
-
-  // === 顯示請假申請 ===
-  async function loadLeaveList() {
-    const tbody = document.getElementById('leaveTableBody');
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>`;
-  
-    const snap = await dbLeave.orderBy('createdAt', 'desc').get();
-    if (snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-  
-    tbody.innerHTML = '';
+  // ===== 載入請假資料 =====
+  async function loadLeaveRequests() {
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
+    leaveBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
-      const tr = document.createElement('tr');
+      const tr = document.createElement("tr");
+
       tr.innerHTML = `
-        <td>${d.applyDate || ''}</td>
-        <td>${d.applicant || ''}</td>
-        <td>${d.leaveDate || ''}</td>
-        <td>${d.leaveType || ''}</td>
-        <td>${d.shift || ''}</td>
-        <td>${d.reason || ''}</td>
-        <td>${d.status || ''}</td>
-        <td><ul class="mb-0">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul></td>`;
-      tbody.appendChild(tr);
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.leaveType || ""}</td>
+        <td>${d.leaveDate || ""}</td>
+        <td>${d.shift || ""}</td>
+        <td style="white-space: pre-wrap;">${d.reason || ""}</td>
+        <td>${d.status || ""}</td>
+        <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
+        <td>${(d.notes || []).map(n => `<div>${n}</div>`).join("")}</td>
+        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>
+      `;
+
+      leaveBody.appendChild(tr);
+
+      // 儲存主管簽名
+      tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
+        await leaveCol.doc(doc.id).update({ supervisorSign: e.target.value });
+      });
+
+      // 刪除
+      tr.querySelector(".btn-del").addEventListener("click", async () => {
+        if (confirm("確定要刪除此請假申請嗎？")) {
+          await leaveCol.doc(doc.id).delete();
+          loadLeaveRequests();
+        }
+      });
     });
   }
 
-  // === 顯示調班申請 ===
-  async function loadShiftList() {
-    const tbody = document.getElementById('shiftTableBody');
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>`;
-  
-    const snap = await dbShift.orderBy('createdAt', 'desc').get();
-    if (snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-  
-    tbody.innerHTML = '';
+  // ===== 載入調班資料 =====
+  async function loadSwapRequests() {
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
+    swapBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const notesHTML = (d.notes || []).map(n => `<li>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></li>`).join('');
-      const tr = document.createElement('tr');
+      const tr = document.createElement("tr");
+
       tr.innerHTML = `
-        <td>${d.applyDate || ''}</td>
-        <td>${d.applicant || ''}</td>
-        <td>${d.fromDate || ''}</td>
-        <td>${d.fromShift || ''}</td>
-        <td>${d.toDate || ''}</td>
-        <td>${d.toShift || ''}</td>
-        <td>${d.reason || ''}</td>
-        <td>${d.status || ''}</td>
-        <td><ul class="mb-0">${notesHTML || '<li class="text-muted">尚無註解</li>'}</ul></td>`;
-      tbody.appendChild(tr);
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.swapDate || ""}</td>
+        <td>${d.originalShift || ""}</td>
+        <td>${d.newShift || ""}</td>
+        <td style="white-space: pre-wrap;">${d.reason || ""}</td>
+        <td>${d.status || ""}</td>
+        <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
+        <td>${(d.notes || []).map(n => `<div>${n}</div>`).join("")}</td>
+        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>
+      `;
+
+      swapBody.appendChild(tr);
+
+      tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
+        await swapCol.doc(doc.id).update({ supervisorSign: e.target.value });
+      });
+
+      tr.querySelector(".btn-del").addEventListener("click", async () => {
+        if (confirm("確定要刪除此調班申請嗎？")) {
+          await swapCol.doc(doc.id).delete();
+          loadSwapRequests();
+        }
+      });
     });
   }
 
-  addLeaveBtn.addEventListener('click', addLeave);
-  addShiftBtn.addEventListener('click', addShift);
+  loadLeaveRequests();
+  loadSwapRequests();
 
-  loadLeaveList();
-  loadShiftList();
+  // ===== 匯出共用函式 =====
+  function exportTableToExcel(tableBody, title) {
+    const rows = [...tableBody.querySelectorAll("tr")];
+    const data = [
+      [`安泰醫療社團法人附設安泰護理之家　${title}`],
+      [`列印日期：${new Date().toLocaleDateString()}`],
+      [],
+    ];
+    const headers = [...tableBody.closest("table").querySelectorAll("th")].map(th => th.innerText);
+    data.push(headers.slice(0, headers.length - 1)); // 不要操作欄
+
+    rows.forEach(r => {
+      const cells = [...r.querySelectorAll("td")].slice(0, headers.length - 1).map(td => td.innerText);
+      data.push(cells);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!rows'] = data.map(() => ({ hpt: 40 }));
+    ws['!cols'] = headers.map(() => ({ wch: 20 }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title);
+    XLSX.writeFile(wb, `${title}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
+  function printTable(title, tableBody) {
+    const printWindow = window.open("", "_blank");
+    const rows = [...tableBody.querySelectorAll("tr")].map(tr => `<tr>${tr.innerHTML}</tr>`).join("");
+    printWindow.document.write(`
+      <html><head><title>${title}</title>
+      <style>
+      body{font-family:'Microsoft JhengHei';}
+      table{width:100%;border-collapse:collapse;}
+      th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
+      th{background:#eee;}
+      @page { size: landscape; }
+      </style>
+      </head><body>
+      <h3 style="text-align:center;">安泰醫療社團法人附設安泰護理之家　${title}</h3>
+      <p style="text-align:right;">列印日期：${new Date().toLocaleDateString()}</p>
+      <table>${tableBody.closest("table").querySelector("thead").outerHTML}${rows}</table>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  }
+
+  // 綁定按鈕
+  document.getElementById("exportLeaveExcel").addEventListener("click", () => exportTableToExcel(leaveBody, "請假申請總表"));
+  document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody, "調班申請總表"));
+
+  document.getElementById("printLeave").addEventListener("click", () => printTable("請假申請總表", leaveBody));
+  document.getElementById("printSwap").addEventListener("click", () => printTable("調班申請總表", swapBody));
 });
