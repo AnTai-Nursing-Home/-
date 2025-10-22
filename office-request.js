@@ -1,19 +1,19 @@
 document.addEventListener("firebase-ready", async () => {
   const db = firebase.firestore();
+  const leaveCol = db.collection("nurse_leave_requests");
+  const swapCol = db.collection("nurse_shift_requests");
+
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
 
-  // === 請假 & 調班集合 ===
-  const leaveCol = db.collection("leaveRequests");
-  const swapCol = db.collection("swapRequests");
-
-  // 載入資料
+  // ===== 載入請假資料 =====
   async function loadLeaveRequests() {
     const snap = await leaveCol.orderBy("applyDate", "desc").get();
     leaveBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
         <td>${d.applicant || ""}</td>
@@ -23,9 +23,10 @@ document.addEventListener("firebase-ready", async () => {
         <td style="white-space: pre-wrap;">${d.reason || ""}</td>
         <td>${d.status || ""}</td>
         <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
-        <td>
-          <button class="btn btn-sm btn-danger btn-del">刪除</button>
-        </td>`;
+        <td>${(d.notes || []).map(n => `<div>${n}</div>`).join("")}</td>
+        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>
+      `;
+
       leaveBody.appendChild(tr);
 
       // 儲存主管簽名
@@ -35,7 +36,7 @@ document.addEventListener("firebase-ready", async () => {
 
       // 刪除
       tr.querySelector(".btn-del").addEventListener("click", async () => {
-        if (confirm("確定要刪除此申請嗎？")) {
+        if (confirm("確定要刪除此請假申請嗎？")) {
           await leaveCol.doc(doc.id).delete();
           loadLeaveRequests();
         }
@@ -43,12 +44,14 @@ document.addEventListener("firebase-ready", async () => {
     });
   }
 
+  // ===== 載入調班資料 =====
   async function loadSwapRequests() {
     const snap = await swapCol.orderBy("applyDate", "desc").get();
     swapBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
         <td>${d.applicant || ""}</td>
@@ -58,7 +61,10 @@ document.addEventListener("firebase-ready", async () => {
         <td style="white-space: pre-wrap;">${d.reason || ""}</td>
         <td>${d.status || ""}</td>
         <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
-        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>`;
+        <td>${(d.notes || []).map(n => `<div>${n}</div>`).join("")}</td>
+        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>
+      `;
+
       swapBody.appendChild(tr);
 
       tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
@@ -66,7 +72,7 @@ document.addEventListener("firebase-ready", async () => {
       });
 
       tr.querySelector(".btn-del").addEventListener("click", async () => {
-        if (confirm("確定要刪除此申請嗎？")) {
+        if (confirm("確定要刪除此調班申請嗎？")) {
           await swapCol.doc(doc.id).delete();
           loadSwapRequests();
         }
@@ -77,7 +83,7 @@ document.addEventListener("firebase-ready", async () => {
   loadLeaveRequests();
   loadSwapRequests();
 
-  // === 匯出 ===
+  // ===== 匯出共用函式 =====
   function exportTableToExcel(tableBody, title) {
     const rows = [...tableBody.querySelectorAll("tr")];
     const data = [
@@ -95,7 +101,7 @@ document.addEventListener("firebase-ready", async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!rows'] = data.map(() => ({ hpt: 40 }));
-    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    ws['!cols'] = headers.map(() => ({ wch: 20 }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, title);
@@ -112,6 +118,7 @@ document.addEventListener("firebase-ready", async () => {
       table{width:100%;border-collapse:collapse;}
       th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
       th{background:#eee;}
+      @page { size: landscape; }
       </style>
       </head><body>
       <h3 style="text-align:center;">安泰醫療社團法人附設安泰護理之家　${title}</h3>
@@ -123,6 +130,7 @@ document.addEventListener("firebase-ready", async () => {
     printWindow.print();
   }
 
+  // 綁定按鈕
   document.getElementById("exportLeaveExcel").addEventListener("click", () => exportTableToExcel(leaveBody, "請假申請總表"));
   document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody, "調班申請總表"));
 
