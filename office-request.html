@@ -102,10 +102,14 @@
       <div class="modal-body">
         <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
         <select class="form-select mb-2" id="leaveType">
-          <option value="病假">病假</option><option value="公假">公假</option><option value="事假">事假</option><option value="喪假">喪假</option>
+          <option value="病假">病假</option>
+          <option value="公假">公假</option>
+          <option value="事假">事假</option>
+          <option value="喪假">喪假</option>
         </select>
+        <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
         <input type="date" class="form-control mb-2" id="leaveDate">
-        <input class="form-control mb-2" id="leaveShift" placeholder="班別">
+        <input class="form-control mb-2" id="leaveShift" placeholder="請假當日班別">
         <textarea class="form-control" rows="3" id="leaveReason" placeholder="請假理由"></textarea>
       </div>
       <div class="modal-footer">
