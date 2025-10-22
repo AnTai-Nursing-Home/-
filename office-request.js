@@ -214,3 +214,23 @@ document.addEventListener("firebase-ready", async () => {
       th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
       th{background:#eee;} @page{size: landscape;}
       </style></head><body
+      <h3 style="text-align:center;">安泰醫療社團法人附設安泰護理之家　${title}</h3>
+      <p style="text-align:right;">列印日期：${new Date().toLocaleDateString()}</p>
+      <table>${tableBody.closest("table").querySelector("thead").outerHTML}${rows}</table>
+      </body></html>
+    `);
+    win.document.close();
+    win.print();
+  }
+
+  // 綁定按鈕
+  document.getElementById("exportLeaveExcel").addEventListener("click", () => exportTableToExcel(leaveBody, "請假申請總表"));
+  document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody, "調班申請總表"));
+  document.getElementById("printLeave").addEventListener("click", () => printTable("請假申請總表", leaveBody));
+  document.getElementById("printSwap").addEventListener("click", () => printTable("調班申請總表", swapBody));
+
+  // 初始化載入
+  loadLeaveRequests();
+  loadSwapRequests();
+});
+
