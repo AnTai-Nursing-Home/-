@@ -1,232 +1,131 @@
-document.addEventListener('firebase-ready', async () => {
-  const dbLeave = db.collection('nurse_leave_requests');
-  const dbShift = db.collection('nurse_shift_requests');
-  const dbStatus = db.collection('request_status_list');
+document.addEventListener("firebase-ready", async () => {
+  const db = firebase.firestore();
+  const leaveBody = document.getElementById("leaveTableBody");
+  const swapBody = document.getElementById("swapTableBody");
 
-  const leaveTableBody = document.getElementById('leaveTableBody');
-  const shiftTableBody = document.getElementById('shiftTableBody');
-  const statusListDiv = document.getElementById('statusList');
-  const addStatusBtn = document.getElementById('addStatusBtn');
-  const newStatusInput = document.getElementById('newStatus');
+  // === 請假 & 調班集合 ===
+  const leaveCol = db.collection("leaveRequests");
+  const swapCol = db.collection("swapRequests");
 
-  // === 狀態管理 ===
-  async function loadStatuses() {
-    statusListDiv.innerHTML = '';
-    const snap = await dbStatus.orderBy('name').get();
-    snap.forEach(doc => {
-      const div = document.createElement('div');
-      div.classList = 'badge bg-secondary p-2';
-      div.textContent = doc.data().name;
-      div.addEventListener('click', async () => {
-        if (confirm(`刪除此狀態 "${doc.data().name}"？`)) {
-          await dbStatus.doc(doc.id).delete();
-          loadStatuses();
-        }
-      });
-      statusListDiv.appendChild(div);
-    });
-  }
-
-  addStatusBtn.addEventListener('click', async () => {
-    const val = newStatusInput.value.trim();
-    if (!val) return alert('請輸入狀態名稱');
-    await dbStatus.add({ name: val });
-    newStatusInput.value = '';
-    loadStatuses();
-  });
-
-  async function getStatuses() {
-    const snap = await dbStatus.get();
-    return snap.docs.map(d => d.data().name);
-  }
-
-  // === 通用函式：顯示註解列表 ===
-  function renderNotes(notes, docRef, reloadCallback) {
-    if (!notes || notes.length === 0) return '<li class="text-muted">尚無註解</li>';
-
-    return notes
-      .map(
-        (n, i) => `
-      <li>
-        <div class="d-flex justify-content-between align-items-center">
-          <span>${n.content} <small class="text-muted">(${n.author} / ${n.timestamp})</small></span>
-          <div>
-            <button class="btn btn-sm btn-outline-secondary me-1 editNoteBtn" data-idx="${i}">✏️</button>
-            <button class="btn btn-sm btn-outline-danger delNoteBtn" data-idx="${i}">🗑️</button>
-          </div>
-        </div>
-      </li>`
-      )
-      .join('');
-  }
-
-  // === 通用函式：處理註解操作 ===
-  function handleNoteActions(tr, docRef, notes, reloadFn) {
-    tr.querySelectorAll('.editNoteBtn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const idx = btn.dataset.idx;
-        const note = notes[idx];
-        const newContent = prompt('修改註解內容：', note.content);
-        if (newContent === null || newContent.trim() === '') return;
-
-        notes[idx].content = newContent.trim();
-        notes[idx].timestamp = new Date().toLocaleString();
-        await docRef.update({ notes });
-        alert('✅ 註解已更新');
-        reloadFn();
-      });
-    });
-
-    tr.querySelectorAll('.delNoteBtn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const idx = btn.dataset.idx;
-        if (!confirm('確定刪除此註解？')) return;
-
-        notes.splice(idx, 1);
-        await docRef.update({ notes });
-        alert('🗑️ 已刪除註解');
-        reloadFn();
-      });
-    });
-  }
-
-  // === 請假清單 ===
-  async function loadLeaveList() {
-    leaveTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>`;
-    const snap = await dbLeave.orderBy('createdAt', 'desc').get();
-    if (snap.empty) {
-      leaveTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-
-    const statuses = await getStatuses();
-    leaveTableBody.innerHTML = '';
-
+  // 載入資料
+  async function loadLeaveRequests() {
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
+    leaveBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const tr = document.createElement('tr');
-      const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
-      const notesHTML = renderNotes(d.notes, dbLeave.doc(doc.id), loadLeaveList);
-
+      const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${d.applyDate || ''}</td>
-        <td>${d.applicant || ''}</td>
-        <td>${d.leaveDate || ''}</td>
-        <td>${d.leaveType || ''}</td>
-        <td>${d.shift || ''}</td>
-        <td>${d.reason || ''}</td>
-        <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.leaveType || ""}</td>
+        <td>${d.leaveDate || ""}</td>
+        <td>${d.shift || ""}</td>
+        <td style="white-space: pre-wrap;">${d.reason || ""}</td>
+        <td>${d.status || ""}</td>
+        <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
         <td>
-          <ul class="mb-2">${notesHTML}</ul>
-          <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
-        </td>
-        <td>
-          <button class="btn btn-sm btn-success saveBtn">儲存</button>
-          <button class="btn btn-sm btn-danger delBtn">刪除</button>
+          <button class="btn btn-sm btn-danger btn-del">刪除</button>
         </td>`;
-      leaveTableBody.appendChild(tr);
+      leaveBody.appendChild(tr);
 
-      const docRef = dbLeave.doc(doc.id);
-
-      tr.querySelector('.saveBtn').addEventListener('click', async () => {
-        const newStatus = tr.querySelector('.statusSelect').value;
-        const newNote = tr.querySelector('.noteInput').value.trim();
-
-        const updateData = { status: newStatus };
-        if (newNote)
-          updateData.notes = firebase.firestore.FieldValue.arrayUnion({
-            author: '辦公室管理員',
-            content: newNote,
-            timestamp: new Date().toLocaleString(),
-          });
-
-        await docRef.update(updateData);
-        alert('✅ 已更新');
-        loadLeaveList();
+      // 儲存主管簽名
+      tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
+        await leaveCol.doc(doc.id).update({ supervisorSign: e.target.value });
       });
 
-      tr.querySelector('.delBtn').addEventListener('click', async () => {
-        if (confirm('確定刪除此紀錄？')) {
-          await docRef.delete();
-          loadLeaveList();
+      // 刪除
+      tr.querySelector(".btn-del").addEventListener("click", async () => {
+        if (confirm("確定要刪除此申請嗎？")) {
+          await leaveCol.doc(doc.id).delete();
+          loadLeaveRequests();
         }
       });
-
-      // 綁定編輯/刪除註解事件
-      handleNoteActions(tr, docRef, d.notes || [], loadLeaveList);
     });
   }
 
-  // === 調班清單 ===
-  async function loadShiftList() {
-    shiftTableBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>`;
-    const snap = await dbShift.orderBy('createdAt', 'desc').get();
-    if (snap.empty) {
-      shiftTableBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-
-    const statuses = await getStatuses();
-    shiftTableBody.innerHTML = '';
-
+  async function loadSwapRequests() {
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
+    swapBody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const tr = document.createElement('tr');
-      const statusOptions = statuses.map(s => `<option ${d.status === s ? 'selected' : ''}>${s}</option>`).join('');
-      const notesHTML = renderNotes(d.notes, dbShift.doc(doc.id), loadShiftList);
-
+      const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${d.applyDate || ''}</td>
-        <td>${d.applicant || ''}</td>
-        <td>${d.fromDate || ''}</td>
-        <td>${d.fromShift || ''}</td>
-        <td>${d.toDate || ''}</td>
-        <td>${d.toShift || ''}</td>
-        <td>${d.reason || ''}</td>
-        <td><select class="form-select form-select-sm statusSelect">${statusOptions}</select></td>
-        <td>
-          <ul class="mb-2">${notesHTML}</ul>
-          <input type="text" class="form-control form-control-sm noteInput" placeholder="新增註解...">
-        </td>
-        <td>
-          <button class="btn btn-sm btn-success saveBtn">儲存</button>
-          <button class="btn btn-sm btn-danger delBtn">刪除</button>
-        </td>`;
-      shiftTableBody.appendChild(tr);
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.swapDate || ""}</td>
+        <td>${d.originalShift || ""}</td>
+        <td>${d.newShift || ""}</td>
+        <td style="white-space: pre-wrap;">${d.reason || ""}</td>
+        <td>${d.status || ""}</td>
+        <td><input type="text" class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
+        <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>`;
+      swapBody.appendChild(tr);
 
-      const docRef = dbShift.doc(doc.id);
-
-      tr.querySelector('.saveBtn').addEventListener('click', async () => {
-        const newStatus = tr.querySelector('.statusSelect').value;
-        const newNote = tr.querySelector('.noteInput').value.trim();
-
-        const updateData = { status: newStatus };
-        if (newNote)
-          updateData.notes = firebase.firestore.FieldValue.arrayUnion({
-            author: '辦公室管理員',
-            content: newNote,
-            timestamp: new Date().toLocaleString(),
-          });
-
-        await docRef.update(updateData);
-        alert('✅ 已更新');
-        loadShiftList();
+      tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
+        await swapCol.doc(doc.id).update({ supervisorSign: e.target.value });
       });
 
-      tr.querySelector('.delBtn').addEventListener('click', async () => {
-        if (confirm('確定刪除此紀錄？')) {
-          await docRef.delete();
-          loadShiftList();
+      tr.querySelector(".btn-del").addEventListener("click", async () => {
+        if (confirm("確定要刪除此申請嗎？")) {
+          await swapCol.doc(doc.id).delete();
+          loadSwapRequests();
         }
       });
-
-      // 綁定編輯/刪除註解事件
-      handleNoteActions(tr, docRef, d.notes || [], loadShiftList);
     });
   }
 
-  // === 初始化 ===
-  loadStatuses();
-  loadLeaveList();
-  loadShiftList();
+  loadLeaveRequests();
+  loadSwapRequests();
+
+  // === 匯出 ===
+  function exportTableToExcel(tableBody, title) {
+    const rows = [...tableBody.querySelectorAll("tr")];
+    const data = [
+      [`安泰醫療社團法人附設安泰護理之家　${title}`],
+      [`列印日期：${new Date().toLocaleDateString()}`],
+      [],
+    ];
+    const headers = [...tableBody.closest("table").querySelectorAll("th")].map(th => th.innerText);
+    data.push(headers.slice(0, headers.length - 1)); // 不要操作欄
+
+    rows.forEach(r => {
+      const cells = [...r.querySelectorAll("td")].slice(0, headers.length - 1).map(td => td.innerText);
+      data.push(cells);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!rows'] = data.map(() => ({ hpt: 40 }));
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title);
+    XLSX.writeFile(wb, `${title}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
+  function printTable(title, tableBody) {
+    const printWindow = window.open("", "_blank");
+    const rows = [...tableBody.querySelectorAll("tr")].map(tr => `<tr>${tr.innerHTML}</tr>`).join("");
+    printWindow.document.write(`
+      <html><head><title>${title}</title>
+      <style>
+      body{font-family:'Microsoft JhengHei';}
+      table{width:100%;border-collapse:collapse;}
+      th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
+      th{background:#eee;}
+      </style>
+      </head><body>
+      <h3 style="text-align:center;">安泰醫療社團法人附設安泰護理之家　${title}</h3>
+      <p style="text-align:right;">列印日期：${new Date().toLocaleDateString()}</p>
+      <table>${tableBody.closest("table").querySelector("thead").outerHTML}${rows}</table>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  }
+
+  document.getElementById("exportLeaveExcel").addEventListener("click", () => exportTableToExcel(leaveBody, "請假申請總表"));
+  document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody, "調班申請總表"));
+
+  document.getElementById("printLeave").addEventListener("click", () => printTable("請假申請總表", leaveBody));
+  document.getElementById("printSwap").addEventListener("click", () => printTable("調班申請總表", swapBody));
 });
