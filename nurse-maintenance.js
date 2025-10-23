@@ -7,7 +7,7 @@ document.addEventListener('firebase-ready', () => {
   const reporterEl = document.getElementById('reporter');
   const btnCreate = document.getElementById('btn-create');
   const tbody = document.getElementById('req-tbody');
-  const loading = document.getElementById('loading'); // 顯示「讀取中...」
+  const loading = document.getElementById('loading'); // 不再用顯示區塊，改由表格內文字提示
 
   let cachedStatuses = []; // 狀態由辦公室端維護
 
@@ -52,15 +52,15 @@ document.addEventListener('firebase-ready', () => {
   }
 
   async function loadList() {
-    // 顯示「讀取中...」
-    loading.style.display = 'block';
-    loading.textContent = '讀取中...';
-    tbody.innerHTML = '';
+    // 讀取中提示顯示於表格中央
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>`;
 
     try {
       const snap = await colReq.orderBy('createdAt', 'desc').get().catch(() => colReq.get());
+      tbody.innerHTML = "";
+
       if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">目前沒有報修單</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
         return;
       }
 
@@ -71,11 +71,10 @@ document.addEventListener('firebase-ready', () => {
             .sort((a, b) => (a.time?.seconds || 0) - (b.time?.seconds || 0))
             .map(
               c => `
-              <div class="comment">
-                <div>${c.message || ''}</div>
-                <time>${fmt(c.time)}</time>
-              </div>
-            `
+                <div class="comment">
+                  <div>${c.message || ''}</div>
+                  <time>${fmt(c.time)}</time>
+                </div>`
             )
             .join('') || '<span class="text-muted">—</span>';
 
@@ -87,16 +86,12 @@ document.addEventListener('firebase-ready', () => {
           <td>${d.reporter || ''}</td>
           <td>${badge}</td>
           <td>${fmt(d.createdAt)}</td>
-          <td style="min-width:240px;">${commentsHtml}</td>
-        `;
+          <td style="min-width:240px;">${commentsHtml}</td>`;
         tbody.appendChild(tr);
       });
     } catch (err) {
       console.error('❌ 載入報修清單錯誤：', err);
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">資料載入失敗，請稍後重試</td></tr>`;
-    } finally {
-      // 載入完成隱藏提示
-      loading.style.display = 'none';
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">資料載入失敗，請稍後重試</td></tr>`;
     }
   }
 
