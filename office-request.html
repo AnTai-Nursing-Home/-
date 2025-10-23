@@ -22,7 +22,7 @@
     </div>
 
     <div class="card-body">
-      <ul class="nav nav-tabs mb-3" id="requestTabs">
+      <ul class="nav nav-tabs mb-3">
         <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
       </ul>
@@ -46,7 +46,7 @@
                   <th>申請人</th>
                   <th>假別</th>
                   <th>請假日期</th>
-                  <th>班別</th>
+                  <th>請假當日班別</th>
                   <th>請假理由</th>
                   <th>狀態</th>
                   <th>主管簽名</th>
@@ -54,7 +54,9 @@
                   <th>操作</th>
                 </tr>
               </thead>
-              <tbody id="leaveTableBody"></tbody>
+              <tbody id="leaveTableBody">
+                <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -85,7 +87,9 @@
                   <th>操作</th>
                 </tr>
               </thead>
-              <tbody id="swapTableBody"></tbody>
+              <tbody id="swapTableBody">
+                <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -102,10 +106,7 @@
       <div class="modal-body">
         <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
         <select class="form-select mb-2" id="leaveType">
-          <option value="病假">病假</option>
-          <option value="公假">公假</option>
-          <option value="事假">事假</option>
-          <option value="喪假">喪假</option>
+          <option value="病假">病假</option><option value="公假">公假</option><option value="事假">事假</option><option value="喪假">喪假</option>
         </select>
         <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
         <input type="date" class="form-control mb-2" id="leaveDate">
@@ -127,6 +128,7 @@
       <div class="modal-header"><h5 class="modal-title">新增調班單</h5></div>
       <div class="modal-body">
         <input class="form-control mb-2" id="swapApplicant" placeholder="申請人">
+        <label for="swapDate" class="form-label fw-bold">欲換班別日期（非申請日）</label>
         <input type="date" class="form-control mb-2" id="swapDate">
         <input class="form-control mb-2" id="swapOldShift" placeholder="原班別">
         <input class="form-control mb-2" id="swapNewShift" placeholder="欲換班別">
