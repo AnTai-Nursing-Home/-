@@ -15,7 +15,6 @@ document.addEventListener("firebase-ready", async () => {
 
   let statuses = [];
 
-  // ===== 格式化時間 =====
   function fmt(ts) {
     if (!ts || !ts.toDate) return "";
     const d = ts.toDate();
@@ -23,15 +22,13 @@ document.addEventListener("firebase-ready", async () => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // ===== 顯示讀取中 =====
   function showLoading() {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
-  // ===== 載入狀態 =====
   async function loadStatuses() {
     const snap = await colStatus.orderBy("order", "asc").get().catch(() => colStatus.get());
-    statuses = snap.docs.map(d => ({ name: d.id, ...d.data() }));
+    statuses = snap.docs.map(d => ({ id: d.id, name: d.id, ...d.data() }));
 
     if (statuses.length === 0) {
       const batch = db.batch();
@@ -43,34 +40,37 @@ document.addEventListener("firebase-ready", async () => {
     }
 
     statusListEl.innerHTML = statuses.map((s, idx) => `
-      <span class="badge me-2 mb-2" style="background:${s.color || "#6c757d"};color:#fff;">
-        ${idx + 1}. ${s.name}
-      </span>
+      <li class="list-group-item d-flex justify-content-between align-items-center" data-id="${s.id}">
+        <div>
+          <span class="badge me-2 mb-0" style="background:${s.color || "#6c757d"};color:#fff;">
+            ${s.name}
+          </span>
+        </div>
+        <div>
+          <button class="btn btn-sm btn-outline-danger btn-del-status" data-id="${s.id}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </li>
     `).join("");
 
-    // 更新 modal 下拉選單
     statusSelect.innerHTML = statuses.map(s => `
-      <option value="${s.name}" style="background:${s.color || "#6c757d"};color:#fff;">${s.name}</option>
+      <option value="${s.name}" style="background:${s.color || "#6c757d"};color:#fff;">
+        ${s.name}
+      </option>
     `).join("");
+
+    // 加刪除按鈕監聽
+    document.querySelectorAll(".btn-del-status").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        if (!confirm(`確定刪除狀態「${id}」嗎？所有使用此狀態的報修單將保留但狀態文字可能無法對應。`)) return;
+        await colStatus.doc(id).delete();
+        await loadStatuses();
+      });
+    });
   }
 
-  // ===== 新增狀態 =====
-  addStatusBtn.addEventListener("click", async () => {
-    const name = newStatusEl.value.trim();
-    const color = newStatusColorEl.value.trim() || "#6c757d";
-    if (!name) return alert("請輸入狀態名稱");
-
-    let max = -1;
-    const snap = await colStatus.get();
-    snap.forEach(d => (max = Math.max(max, d.data().order ?? -1)));
-
-    await colStatus.doc(name).set({ order: max + 1, color });
-    newStatusEl.value = "";
-    newStatusColorEl.value = "#007bff";
-    await loadStatuses();
-  });
-
-  // ===== 載入報修清單 =====
   async function loadRequests() {
     showLoading();
     try {
@@ -87,7 +87,9 @@ document.addEventListener("firebase-ready", async () => {
         const color = statusObj ? statusObj.color : "#6c757d";
 
         const options = statuses.map(
-          s => `<option value="${s.name}" ${s.name === d.status ? "selected" : ""} style="background:${s.color};color:#fff;">${s.name}</option>`
+          s => `<option value="${s.name}" ${s.name === d.status ? "selected" : ""} style="background:${s.color};color:#fff;">
+                  ${s.name}
+                </option>`
         ).join("");
 
         const commentsHtml = (d.comments || []).map((c, i) => `
@@ -126,11 +128,10 @@ document.addEventListener("firebase-ready", async () => {
         tbody.appendChild(tr);
       });
     } finally {
-      // 結束讀取中提示
+      // 無動畫
     }
   }
 
-  // ===== 新增報修單 =====
   addRequestBtn.addEventListener("click", () => {
     document.getElementById("item").value = "";
     document.getElementById("detail").value = "";
@@ -161,7 +162,21 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ===== 初始化 =====
+  addStatusBtn.addEventListener("click", async () => {
+    const name = newStatusEl.value.trim();
+    const color = newStatusColorEl.value.trim() || "#6c757d";
+    if (!name) return alert("請輸入狀態名稱");
+
+    let max = -1;
+    const snap = await colStatus.get();
+    snap.forEach(d => (max = Math.max(max, d.data().order ?? -1)));
+
+    await colStatus.doc(name).set({ order: max + 1, color });
+    newStatusEl.value = "";
+    newStatusColorEl.value = "#007bff";
+    await loadStatuses();
+  });
+
   await loadStatuses();
   await loadRequests();
 });
