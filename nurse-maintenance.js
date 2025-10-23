@@ -7,7 +7,7 @@ document.addEventListener("firebase-ready", async () => {
   const addRequestBtn = document.getElementById("addRequestBtn");
   const saveRequestBtn = document.getElementById("saveRequestBtn");
   const addModal = new bootstrap.Modal(document.getElementById("addRequestModal"));
-  const statusColorMap = {}; // 狀態顏色對應表
+  const statusColorMap = {};
 
   // ===== 格式化時間 =====
   function fmt(ts) {
@@ -53,21 +53,21 @@ document.addEventListener("firebase-ready", async () => {
           </div>
         `).join("") || `<span class="text-muted">—</span>`;
 
+        const noteHtml = d.note ? `<div class="border rounded p-2 bg-light">${d.note}</div>` : `<span class="text-muted">—</span>`;
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${d.item || ""}</td>
           <td>${d.detail || ""}</td>
           <td>${d.reporter || ""}</td>
-          <td>
-            <span class="badge text-white" style="background:${color};">${d.status || "—"}</span>
-          </td>
+          <td><span class="badge text-white" style="background:${color};">${d.status || "—"}</span></td>
           <td>${fmt(d.createdAt)}</td>
-          <td style="min-width:240px;">${commentsHtml}</td>
+          <td style="min-width:200px;">${noteHtml}</td>
         `;
         tbody.appendChild(tr);
       });
     } finally {
-      // 無動畫讀取
+      // 無動畫
     }
   }
 
@@ -76,7 +76,6 @@ document.addEventListener("firebase-ready", async () => {
     document.getElementById("item").value = "";
     document.getElementById("detail").value = "";
     document.getElementById("reporter").value = "";
-    document.getElementById("note").value = "";
     addModal.show();
   });
 
@@ -84,7 +83,6 @@ document.addEventListener("firebase-ready", async () => {
     const item = document.getElementById("item").value.trim();
     const detail = document.getElementById("detail").value.trim();
     const reporter = document.getElementById("reporter").value.trim();
-    const note = document.getElementById("note").value.trim();
     if (!item || !detail || !reporter) return alert("請輸入完整資料");
 
     await colReq.add({
@@ -92,7 +90,7 @@ document.addEventListener("firebase-ready", async () => {
       detail,
       reporter,
       status: "待處理",
-      note,
+      note: "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       comments: []
     });
