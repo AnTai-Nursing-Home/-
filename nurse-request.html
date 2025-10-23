@@ -11,126 +11,127 @@
     .note-item { background: #f8f9fa; padding: 2px 4px; border-radius: 3px; margin-bottom: 3px; }
   </style>
 </head>
-
 <body class="bg-light">
-  <div class="container my-4">
-    <div class="card shadow-sm">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h4 class="mb-0"><i class="fa-solid fa-user-nurse me-2"></i>請假與調班管理（護理師端）</h4>
-        <a href="admin.html" class="btn btn-outline-light btn-sm">返回首頁</a>
-      </div>
+<div class="container my-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h4 class="mb-0"><i class="fa-solid fa-user-nurse me-2"></i>請假與調班管理（護理師端）</h4>
+      <a href="admin.html" class="btn btn-outline-light btn-sm">返回首頁</a>
+    </div>
 
-      <div class="card-body">
-        <ul class="nav nav-tabs mb-3" id="requestTabs">
-          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
-          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
-        </ul>
+    <div class="card-body">
+      <ul class="nav nav-tabs mb-3">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
+      </ul>
 
-        <div class="tab-content">
-          <!-- ===== 請假申請區 ===== -->
-          <div class="tab-pane fade show active" id="leave">
-            <div class="mb-3 text-end">
-              <button class="btn btn-outline-primary btn-sm" id="addLeaveBtn"><i class="fa-solid fa-plus"></i> 新增請假單</button>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>申請日期</th>
-                    <th>申請人</th>
-                    <th>假別</th>
-                    <th>請假日期</th>
-                    <th>請假當日班別</th>
-                    <th>請假理由</th>
-                    <th>狀態</th>
-                    <th>主管簽名</th>
-                    <th>註解</th>
-                  </tr>
-                </thead>
-                <tbody id="leaveTableBody"></tbody>
-              </table>
-            </div>
+      <div class="tab-content">
+        <!-- 請假 -->
+        <div class="tab-pane fade show active" id="leave">
+          <div class="mb-3 text-end">
+            <button class="btn btn-outline-primary btn-sm" id="addLeaveBtn"><i class="fa-solid fa-plus"></i> 新增請假單</button>
           </div>
-
-          <!-- ===== 調班申請區 ===== -->
-          <div class="tab-pane fade" id="swap">
-            <div class="mb-3 text-end">
-              <button class="btn btn-outline-primary btn-sm" id="addSwapBtn"><i class="fa-solid fa-plus"></i> 新增調班單</button>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>申請日期</th>
-                    <th>申請人</th>
-                    <th>調班日期</th>
-                    <th>原班別</th>
-                    <th>欲換班別</th>
-                    <th>理由</th>
-                    <th>狀態</th>
-                    <th>主管簽名</th>
-                    <th>註解</th>
-                  </tr>
-                </thead>
-                <tbody id="swapTableBody"></tbody>
-              </table>
-            </div>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>申請日期</th>
+                  <th>申請人</th>
+                  <th>假別</th>
+                  <th>請假日期</th>
+                  <th>請假當日班別</th>
+                  <th>請假理由</th>
+                  <th>狀態</th>
+                  <th>主管簽名</th>
+                  <th>註解</th>
+                </tr>
+              </thead>
+              <tbody id="leaveTableBody">
+                <tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ===== 新增請假單 Modal ===== -->
-  <div class="modal fade" id="leaveModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">新增請假單</h5></div>
-        <div class="modal-body">
-          <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
-          <select class="form-select mb-2" id="leaveType">
-            <option value="病假">病假</option>
-            <option value="公假">公假</option>
-            <option value="事假">事假</option>
-            <option value="喪假">喪假</option>
-          </select>
-          <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
-          <input type="date" class="form-control mb-2" id="leaveDate">
-          <input class="form-control mb-2" id="leaveShift" placeholder="請假當日班別">
-          <textarea class="form-control" rows="3" id="leaveReason" placeholder="請假理由"></textarea>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-          <button class="btn btn-primary btn-sm" id="saveLeave">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== 新增調班單 Modal ===== -->
-  <div class="modal fade" id="swapModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">新增調班單</h5></div>
-        <div class="modal-body">
-          <input class="form-control mb-2" id="swapApplicant" placeholder="申請人">
-          <input type="date" class="form-control mb-2" id="swapDate" placeholder="調班日期">
-          <input class="form-control mb-2" id="swapOldShift" placeholder="原班別">
-          <input class="form-control mb-2" id="swapNewShift" placeholder="欲換班別">
-          <textarea class="form-control" rows="3" id="swapReason" placeholder="調班理由"></textarea>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-          <button class="btn btn-primary btn-sm" id="saveSwap">儲存</button>
+        <!-- 調班 -->
+        <div class="tab-pane fade" id="swap">
+          <div class="mb-3 text-end">
+            <button class="btn btn-outline-primary btn-sm" id="addSwapBtn"><i class="fa-solid fa-plus"></i> 新增調班單</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>申請日期</th>
+                  <th>申請人</th>
+                  <th>調班日期</th>
+                  <th>原班別</th>
+                  <th>欲換班別</th>
+                  <th>理由</th>
+                  <th>狀態</th>
+                  <th>主管簽名</th>
+                  <th>註解</th>
+                </tr>
+              </thead>
+              <tbody id="swapTableBody">
+                <tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="firebase-init.js"></script>
-  <script src="nurse-request.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- 新增請假單 -->
+<div class="modal fade" id="leaveModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增請假單</h5></div>
+      <div class="modal-body">
+        <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
+        <select class="form-select mb-2" id="leaveType">
+          <option value="病假">病假</option><option value="公假">公假</option><option value="事假">事假</option><option value="喪假">喪假</option>
+        </select>
+        <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
+        <input type="date" class="form-control mb-2" id="leaveDate">
+        <input class="form-control mb-2" id="leaveShift" placeholder="請假當日班別">
+        <textarea class="form-control" rows="3" id="leaveReason" placeholder="請假理由"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+        <button class="btn btn-primary btn-sm" id="saveLeave">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增調班單 -->
+<div class="modal fade" id="swapModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增調班單</h5></div>
+      <div class="modal-body">
+        <input class="form-control mb-2" id="swapApplicant" placeholder="申請人">
+        <label for="swapDate" class="form-label fw-bold">欲換班別日期（非申請日）</label>
+        <input type="date" class="form-control mb-2" id="swapDate">
+        <input class="form-control mb-2" id="swapOldShift" placeholder="原班別">
+        <input class="form-control mb-2" id="swapNewShift" placeholder="欲換班別">
+        <textarea class="form-control" rows="3" id="swapReason" placeholder="調班理由"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+        <button class="btn btn-primary btn-sm" id="saveSwap">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="firebase-init.js"></script>
+<script src="nurse-request.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
