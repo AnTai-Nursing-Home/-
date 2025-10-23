@@ -1,18 +1,27 @@
 document.addEventListener("firebase-ready", async () => {
   const db = firebase.firestore();
   const leaveCol = db.collection("nurse_leave_requests");
-  const swapCol = db.collection("nurse_shift_requests");
+  const swapCol  = db.collection("nurse_shift_requests");
 
   const leaveBody = document.getElementById("leaveTableBody");
-  const swapBody = document.getElementById("swapTableBody");
+  const swapBody  = document.getElementById("swapTableBody");
 
   const leaveModal = new bootstrap.Modal(document.getElementById("leaveModal"));
-  const swapModal = new bootstrap.Modal(document.getElementById("swapModal"));
+  const swapModal  = new bootstrap.Modal(document.getElementById("swapModal"));
 
-  // ===== 請假資料 =====
+  function showLoading(tbody, colspan){
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中...</td></tr>`;
+  }
+
+  // ===== 讀取請假資料（唯讀：簽名/註解顯示） =====
   async function loadLeaveRequests() {
+    showLoading(leaveBody, 9);
     const snap = await leaveCol.orderBy("applyDate", "desc").get();
     leaveBody.innerHTML = "";
+    if (snap.empty) {
+      leaveBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -30,10 +39,15 @@ document.addEventListener("firebase-ready", async () => {
     });
   }
 
-  // ===== 調班資料 =====
+  // ===== 讀取調班資料（唯讀：簽名/註解顯示） =====
   async function loadSwapRequests() {
+    showLoading(swapBody, 9);
     const snap = await swapCol.orderBy("applyDate", "desc").get();
     swapBody.innerHTML = "";
+    if (snap.empty) {
+      swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -51,7 +65,7 @@ document.addEventListener("firebase-ready", async () => {
     });
   }
 
-  // ===== 新增請假 =====
+  // ===== 新增請假（送審） =====
   document.getElementById("addLeaveBtn").addEventListener("click", () => {
     document.getElementById("leaveApplicant").value = "";
     document.getElementById("leaveType").value = "病假";
@@ -60,10 +74,9 @@ document.addEventListener("firebase-ready", async () => {
     document.getElementById("leaveReason").value = "";
     leaveModal.show();
   });
-
   document.getElementById("saveLeave").addEventListener("click", async () => {
     await leaveCol.add({
-      applyDate: new Date().toISOString().slice(0, 10),
+      applyDate: new Date().toISOString().slice(0,10),
       applicant: document.getElementById("leaveApplicant").value,
       leaveType: document.getElementById("leaveType").value,
       leaveDate: document.getElementById("leaveDate").value,
@@ -77,7 +90,7 @@ document.addEventListener("firebase-ready", async () => {
     loadLeaveRequests();
   });
 
-  // ===== 新增調班 =====
+  // ===== 新增調班（送審） =====
   document.getElementById("addSwapBtn").addEventListener("click", () => {
     document.getElementById("swapApplicant").value = "";
     document.getElementById("swapDate").value = "";
@@ -86,10 +99,9 @@ document.addEventListener("firebase-ready", async () => {
     document.getElementById("swapReason").value = "";
     swapModal.show();
   });
-
   document.getElementById("saveSwap").addEventListener("click", async () => {
     await swapCol.add({
-      applyDate: new Date().toISOString().slice(0, 10),
+      applyDate: new Date().toISOString().slice(0,10),
       applicant: document.getElementById("swapApplicant").value,
       swapDate: document.getElementById("swapDate").value,
       originalShift: document.getElementById("swapOldShift").value,
