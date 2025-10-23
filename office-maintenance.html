@@ -20,6 +20,32 @@
 
 <body class="bg-light">
   <div class="container my-4">
+
+    <!-- 狀態管理 放在上方 -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">狀態管理</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-md-4">
+            <label class="form-label">新增狀態名稱</label>
+            <input type="text" id="new-status" class="form-control" placeholder="例：待處理、維修中、已完成">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">顏色</label>
+            <input type="color" id="new-status-color" class="form-control form-control-color" value="#007bff" title="選擇顏色">
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="btn-add-status" class="btn btn-secondary">
+              <i class="fa-solid fa-plus me-1"></i> 新增狀態
+            </button>
+          </div>
+        </div>
+        <ul class="list-group" id="statusList"></ul>
+      </div>
+    </div>
+
     <div class="card shadow-sm">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h4 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>器材報修管理（辦公室端）</h4>
@@ -53,68 +79,44 @@
       </div>
     </div>
 
-    <!-- 狀態管理 -->
-    <div class="card shadow-sm mt-4">
-      <div class="card-header bg-secondary text-white">
-        <h5 class="mb-0">狀態管理</h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-3 align-items-end mb-3">
-          <div class="col-md-4">
-            <label class="form-label">新增狀態名稱</label>
-            <input type="text" id="new-status" class="form-control" placeholder="例：待處理、維修中、已完成">
+    <!-- 新增報修單 Modal -->
+    <div class="modal fade" id="addRequestModal" tabindex="-1" aria-labelledby="addRequestModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="col-md-2">
-            <label class="form-label">顏色</label>
-            <input type="color" id="new-status-color" class="form-control form-control-color" value="#007bff" title="選擇顏色">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">報修物品</label>
+              <input type="text" id="item" class="form-control" placeholder="請輸入報修物品">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">詳細資訊</label>
+              <textarea id="detail" class="form-control" placeholder="請輸入詳細資訊"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">報修人</label>
+              <input type="text" id="reporter" class="form-control" placeholder="請輸入報修人姓名">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">狀態</label>
+              <select id="statusSelect" class="form-select"></select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">備註</label>
+              <textarea id="note" class="form-control" placeholder="可選填"></textarea>
+            </div>
           </div>
-          <div class="col-md-2 d-grid">
-            <button id="btn-add-status" class="btn btn-secondary">
-              <i class="fa-solid fa-plus me-1"></i> 新增狀態
-            </button>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button class="btn btn-primary" id="saveRequestBtn">儲存</button>
           </div>
         </div>
-        <div id="statusList" class="mt-2"></div>
       </div>
     </div>
-  </div>
 
-  <!-- 新增報修單 Modal -->
-  <div class="modal fade" id="addRequestModal" tabindex="-1" aria-labelledby="addRequestModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">報修物品</label>
-            <input type="text" id="item" class="form-control" placeholder="請輸入報修物品">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">詳細資訊</label>
-            <textarea id="detail" class="form-control" placeholder="請輸入詳細資訊"></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">報修人</label>
-            <input type="text" id="reporter" class="form-control" placeholder="請輸入報修人姓名">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">狀態</label>
-            <select id="statusSelect" class="form-select"></select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">備註</label>
-            <textarea id="note" class="form-control" placeholder="可選填"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-          <button class="btn btn-primary" id="saveRequestBtn">儲存</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
