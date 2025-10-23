@@ -151,6 +151,15 @@ document.addEventListener("firebase-ready", async () => {
       `;
       tbody.appendChild(tr);
     });
+    // 綁定狀態變更事件
+    tbody.querySelectorAll(".status-pill").forEach(sel => {
+      sel.addEventListener("change", async (e) => {
+        const id = e.target.dataset.id;
+        const newStatus = e.target.value;
+        await colReq.doc(id).update({ status: newStatus });
+        await loadRequests(); // 重新載入清單以更新顏色與顯示
+      });
+    });
   }
 
   async function loadRequests() {
