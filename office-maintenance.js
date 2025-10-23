@@ -14,6 +14,7 @@ document.addEventListener("firebase-ready", async () => {
   const addModal = new bootstrap.Modal(document.getElementById("addRequestModal"));
 
   let statuses = [];
+  let allRequests = [];
 
   function fmt(ts) {
     if (!ts || !ts.toDate) return "";
@@ -60,77 +61,119 @@ document.addEventListener("firebase-ready", async () => {
       </option>
     `).join("");
 
-    // 加刪除按鈕監聽
+    // 建立篩選選單
+    setupFilterSelect();
+
     document.querySelectorAll(".btn-del-status").forEach(btn => {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
-        if (!confirm(`確定刪除狀態「${id}」嗎？所有使用此狀態的報修單將保留但狀態文字可能無法對應。`)) return;
+        if (!confirm(`確定刪除狀態「${id}」嗎？`)) return;
         await colStatus.doc(id).delete();
         await loadStatuses();
+        await loadRequests();
       });
+    });
+  }
+
+  function setupFilterSelect() {
+    const existingFilter = document.getElementById("statusFilter");
+    if (existingFilter) existingFilter.remove();
+
+    const filterContainer = document.createElement("div");
+    filterContainer.className = "mb-3 d-flex align-items-center";
+    filterContainer.innerHTML = `
+      <label class="form-label fw-bold me-2 mb-0">狀態篩選：</label>
+      <select id="statusFilter" class="form-select" style="width:auto;display:inline-block;">
+        <option value="all">全部</option>
+        ${statuses.map(s => `<option value="${s.name}">${s.name}</option>`).join("")}
+      </select>
+    `;
+
+    const cardBody = document.querySelector(".card-body");
+    cardBody.insertBefore(filterContainer, cardBody.firstChild);
+
+    document.getElementById("statusFilter").addEventListener("change", e => {
+      renderRequests(e.target.value);
+    });
+  }
+
+  function renderRequests(filter = "all") {
+    tbody.innerHTML = "";
+    const filtered = filter === "all" ? allRequests : allRequests.filter(r => r.status === filter);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">目前沒有報修單</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(entry => {
+      const d = entry;
+      const color = statuses.find(s => s.name === d.status)?.color || "#6c757d";
+
+      const options = statuses.map(
+        s => `<option value="${s.name}" ${s.name === d.status ? "selected" : ""} style="background:${s.color};color:#fff;">
+                ${s.name}
+              </option>`
+      ).join("");
+
+      const commentsHtml = (d.comments || []).map((c, i) => `
+        <div class="comment border rounded p-2 mb-2">
+          <div>${c.message || ""}</div>
+          <time>${fmt(c.time)}</time>
+          <div class="text-end mt-1">
+            <button class="btn btn-sm btn-outline-secondary me-1 editCommentBtn" data-id="${d.id}" data-idx="${i}">✏️</button>
+            <button class="btn btn-sm btn-outline-danger delCommentBtn" data-id="${d.id}" data-idx="${i}">🗑️</button>
+          </div>
+        </div>
+      `).join("") || `<span class="text-muted">—</span>`;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.item || ""}</td>
+        <td>${d.detail || ""}</td>
+        <td>${d.reporter || ""}</td>
+        <td>
+          <span class="badge text-white mb-1" style="background:${color};">${d.status || "—"}</span>
+          <select class="form-select form-select-sm status-pill" data-id="${d.id}">
+            ${options}
+          </select>
+        </td>
+        <td>${fmt(d.createdAt)}</td>
+        <td style="min-width:240px;">${commentsHtml}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-primary" data-comment="${d.id}">
+            <i class="fa-solid fa-message"></i> 新增註解
+          </button>
+          <button class="btn btn-sm btn-outline-danger ms-1" data-delreq="${d.id}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
   }
 
   async function loadRequests() {
     showLoading();
-    try {
-      const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
-      if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">目前沒有報修單</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = "";
-      snap.forEach(doc => {
-        const d = doc.data();
-        const statusObj = statuses.find(s => s.name === d.status);
-        const color = statusObj ? statusObj.color : "#6c757d";
-
-        const options = statuses.map(
-          s => `<option value="${s.name}" ${s.name === d.status ? "selected" : ""} style="background:${s.color};color:#fff;">
-                  ${s.name}
-                </option>`
-        ).join("");
-
-        const commentsHtml = (d.comments || []).map((c, i) => `
-          <div class="comment border rounded p-2 mb-2">
-            <div>${c.message || ""}</div>
-            <time>${fmt(c.time)}</time>
-            <div class="text-end mt-1">
-              <button class="btn btn-sm btn-outline-secondary me-1 editCommentBtn" data-id="${doc.id}" data-idx="${i}">✏️</button>
-              <button class="btn btn-sm btn-outline-danger delCommentBtn" data-id="${doc.id}" data-idx="${i}">🗑️</button>
-            </div>
-          </div>
-        `).join("") || `<span class="text-muted">—</span>`;
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${d.item || ""}</td>
-          <td>${d.detail || ""}</td>
-          <td>${d.reporter || ""}</td>
-          <td>
-            <span class="badge text-white mb-1" style="background:${color};">${d.status || "—"}</span>
-            <select class="form-select form-select-sm status-pill" data-id="${doc.id}">
-              ${options}
-            </select>
-          </td>
-          <td>${fmt(d.createdAt)}</td>
-          <td style="min-width:240px;">${commentsHtml}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-primary" data-comment="${doc.id}">
-              <i class="fa-solid fa-message"></i> 新增註解
-            </button>
-            <button class="btn btn-sm btn-outline-danger ms-1" data-delreq="${doc.id}">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } finally {
-      // 無動畫
-    }
+    const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
+    allRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderRequests(document.getElementById("statusFilter")?.value || "all");
   }
+
+  addStatusBtn.addEventListener("click", async () => {
+    const name = newStatusEl.value.trim();
+    const color = newStatusColorEl.value.trim() || "#6c757d";
+    if (!name) return alert("請輸入狀態名稱");
+
+    let max = -1;
+    const snap = await colStatus.get();
+    snap.forEach(d => (max = Math.max(max, d.data().order ?? -1)));
+
+    await colStatus.doc(name).set({ order: max + 1, color });
+    newStatusEl.value = "";
+    newStatusColorEl.value = "#007bff";
+    await loadStatuses();
+  });
 
   addRequestBtn.addEventListener("click", () => {
     document.getElementById("item").value = "";
@@ -160,21 +203,6 @@ document.addEventListener("firebase-ready", async () => {
 
     addModal.hide();
     await loadRequests();
-  });
-
-  addStatusBtn.addEventListener("click", async () => {
-    const name = newStatusEl.value.trim();
-    const color = newStatusColorEl.value.trim() || "#6c757d";
-    if (!name) return alert("請輸入狀態名稱");
-
-    let max = -1;
-    const snap = await colStatus.get();
-    snap.forEach(d => (max = Math.max(max, d.data().order ?? -1)));
-
-    await colStatus.doc(name).set({ order: max + 1, color });
-    newStatusEl.value = "";
-    newStatusColorEl.value = "#007bff";
-    await loadStatuses();
   });
 
   await loadStatuses();
