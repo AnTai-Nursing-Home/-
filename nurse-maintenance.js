@@ -70,8 +70,18 @@ document.addEventListener("firebase-ready", async () => {
         </div>
       `).join("") || `<span class="text-muted">—</span>`;
 
-      const noteHtml = d.note ? `<div class="border rounded p-2 bg-light">${d.note}</div>` : `<span class="text-muted">—</span>`;
-
+      const hasNote = d.note && d.note.trim() !== "";
+      const noteSection = hasNote
+        ? `<div><strong>備註：</strong><div class="border rounded p-2 bg-light">${d.note}</div></div>`
+        : "";
+      
+      const commentsHtml = (d.comments || []).map(c => `
+        <div class="comment border rounded p-2 mb-2">
+          <div>${c.message || ""}</div>
+          <time class="text-muted small">${fmt(c.time)}</time>
+        </div>
+      `).join("") || `<span class="text-muted">—</span>`;
+      
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.item || ""}</td>
@@ -80,7 +90,7 @@ document.addEventListener("firebase-ready", async () => {
         <td><span class="badge text-white" style="background:${color};">${d.status || "—"}</span></td>
         <td>${fmt(d.createdAt)}</td>
         <td style="min-width:200px;">
-          <div><strong>備註：</strong>${noteHtml}</div>
+          ${noteSection}
           <div class="mt-2"><strong>註解：</strong>${commentsHtml}</div>
         </td>
       `;
