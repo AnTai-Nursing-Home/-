@@ -75,13 +75,6 @@ document.addEventListener("firebase-ready", async () => {
         ? `<div><strong>備註：</strong><div class="border rounded p-2 bg-light">${d.note}</div></div>`
         : "";
       
-      const commentsHtml = (d.comments || []).map(c => `
-        <div class="comment border rounded p-2 mb-2">
-          <div>${c.message || ""}</div>
-          <time class="text-muted small">${fmt(c.time)}</time>
-        </div>
-      `).join("") || `<span class="text-muted">—</span>`;
-      
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.item || ""}</td>
