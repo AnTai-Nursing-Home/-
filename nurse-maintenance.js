@@ -1,104 +1,107 @@
-document.addEventListener('firebase-ready', () => {
-  const colReq = db.collection('maintenance_requests');
-  const colStatus = db.collection('maintenance_status');
+document.addEventListener("firebase-ready", async () => {
+  const db = firebase.firestore();
+  const colReq = db.collection("maintenance_requests");
+  const colStatus = db.collection("maintenance_status");
 
-  const itemEl = document.getElementById('item');
-  const detailEl = document.getElementById('detail');
-  const reporterEl = document.getElementById('reporter');
-  const btnCreate = document.getElementById('btn-create');
-  const tbody = document.getElementById('req-tbody');
-  const loading = document.getElementById('loading'); // 不再用顯示區塊，改由表格內文字提示
+  const tbody = document.getElementById("maintenanceTableBody");
+  const addRequestBtn = document.getElementById("addRequestBtn");
+  const saveRequestBtn = document.getElementById("saveRequestBtn");
+  const addModal = new bootstrap.Modal(document.getElementById("addRequestModal"));
+  const statusColorMap = {}; // 狀態顏色對應表
 
-  let cachedStatuses = []; // 狀態由辦公室端維護
-
-  async function loadStatuses() {
-    const snap = await colStatus.orderBy('order', 'asc').get().catch(() => colStatus.get());
-    cachedStatuses = snap.docs.map(d => d.id);
-  }
-
-  function nowTs() {
-    return firebase.firestore.FieldValue.serverTimestamp();
-  }
-
+  // ===== 格式化時間 =====
   function fmt(ts) {
-    if (!ts || !ts.toDate) return '';
+    if (!ts || !ts.toDate) return "";
     const d = ts.toDate();
-    const pad = n => String(n).padStart(2, '0');
+    const pad = n => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  async function createRequest() {
-    const item = itemEl.value.trim();
-    const detail = detailEl.value.trim();
-    const reporter = reporterEl.value.trim();
-    if (!item || !detail || !reporter) return alert('請完整填寫修繕物品、詳細資訊、報修人');
-
-    const defaultStatus = cachedStatuses[0] || '已報修';
-
-    await colReq.add({
-      item,
-      detail,
-      reporter,
-      status: defaultStatus,
-      createdAt: nowTs(),
-      comments: [] // 只讀，辦公室端可新增
-    });
-
-    itemEl.value = '';
-    detailEl.value = '';
-    reporterEl.value = '';
-    alert('報修已送出');
-    loadList();
+  // ===== 顯示讀取中 =====
+  function showLoading() {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
-  async function loadList() {
-    // 讀取中提示顯示於表格中央
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>`;
+  // ===== 載入狀態顏色 =====
+  async function loadStatusColors() {
+    const snap = await colStatus.get();
+    snap.forEach(doc => {
+      const data = doc.data();
+      statusColorMap[doc.id] = data.color || "#6c757d";
+    });
+  }
 
+  // ===== 載入報修清單 =====
+  async function loadRequests() {
+    showLoading();
     try {
-      const snap = await colReq.orderBy('createdAt', 'desc').get().catch(() => colReq.get());
-      tbody.innerHTML = "";
-
+      const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
       if (snap.empty) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
         return;
       }
 
+      tbody.innerHTML = "";
       snap.forEach(doc => {
         const d = doc.data();
-        const commentsHtml =
-          (d.comments || [])
-            .sort((a, b) => (a.time?.seconds || 0) - (b.time?.seconds || 0))
-            .map(
-              c => `
-                <div class="comment">
-                  <div>${c.message || ''}</div>
-                  <time>${fmt(c.time)}</time>
-                </div>`
-            )
-            .join('') || '<span class="text-muted">—</span>';
+        const color = statusColorMap[d.status] || "#6c757d";
 
-        const badge = `<span class="badge bg-secondary status-badge">${d.status || '—'}</span>`;
-        const tr = document.createElement('tr');
+        const commentsHtml = (d.comments || []).map(c => `
+          <div class="comment border rounded p-2 mb-2">
+            <div>${c.message || ""}</div>
+            <time>${fmt(c.time)}</time>
+          </div>
+        `).join("") || `<span class="text-muted">—</span>`;
+
+        const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${d.item || ''}</td>
-          <td>${d.detail || ''}</td>
-          <td>${d.reporter || ''}</td>
-          <td>${badge}</td>
+          <td>${d.item || ""}</td>
+          <td>${d.detail || ""}</td>
+          <td>${d.reporter || ""}</td>
+          <td>
+            <span class="badge text-white" style="background:${color};">${d.status || "—"}</span>
+          </td>
           <td>${fmt(d.createdAt)}</td>
-          <td style="min-width:240px;">${commentsHtml}</td>`;
+          <td style="min-width:240px;">${commentsHtml}</td>
+        `;
         tbody.appendChild(tr);
       });
-    } catch (err) {
-      console.error('❌ 載入報修清單錯誤：', err);
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">資料載入失敗，請稍後重試</td></tr>`;
+    } finally {
+      // 無動畫讀取
     }
   }
 
-  btnCreate.addEventListener('click', createRequest);
+  // ===== 新增報修單 =====
+  addRequestBtn.addEventListener("click", () => {
+    document.getElementById("item").value = "";
+    document.getElementById("detail").value = "";
+    document.getElementById("reporter").value = "";
+    document.getElementById("note").value = "";
+    addModal.show();
+  });
 
-  (async () => {
-    await loadStatuses();
-    await loadList();
-  })();
+  saveRequestBtn.addEventListener("click", async () => {
+    const item = document.getElementById("item").value.trim();
+    const detail = document.getElementById("detail").value.trim();
+    const reporter = document.getElementById("reporter").value.trim();
+    const note = document.getElementById("note").value.trim();
+    if (!item || !detail || !reporter) return alert("請輸入完整資料");
+
+    await colReq.add({
+      item,
+      detail,
+      reporter,
+      status: "待處理",
+      note,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      comments: []
+    });
+
+    addModal.hide();
+    await loadRequests();
+  });
+
+  // ===== 初始化 =====
+  await loadStatusColors();
+  await loadRequests();
 });
