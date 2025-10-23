@@ -4,15 +4,25 @@ document.addEventListener("firebase-ready", async () => {
   const swapCol = db.collection("nurse_shift_requests");
 
   const leaveBody = document.getElementById("leaveTableBody");
-  const swapBody = document.getElementById("swapTableBody");
+  const swapBody  = document.getElementById("swapTableBody");
 
   const leaveModal = new bootstrap.Modal(document.getElementById("leaveModal"));
-  const swapModal = new bootstrap.Modal(document.getElementById("swapModal"));
+  const swapModal  = new bootstrap.Modal(document.getElementById("swapModal"));
 
-  // ===== 載入請假 =====
+  // ===== 共用：渲染「讀取中…」 =====
+  function showLoading(tbody, colspan) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中...</td></tr>`;
+  }
+
+  // ===== 請假：載入 =====
   async function loadLeaveRequests() {
+    showLoading(leaveBody, 10);
     const snap = await leaveCol.orderBy("applyDate", "desc").get();
     leaveBody.innerHTML = "";
+    if (snap.empty) {
+      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -24,10 +34,10 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.shift || ""}</td>
         <td>${d.reason || ""}</td>
         <td>${d.status || ""}</td>
-        <td><input class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
+        <td><input class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}" placeholder="簽名"></td>
         <td>
           ${(d.notes || []).map((n, i) => `
-            <div class="note-item d-flex justify-content-between">
+            <div class="note-item d-flex justify-content-between align-items-center">
               <span>${n}</span>
               <button class="btn btn-sm btn-outline-danger btn-del-note" data-i="${i}" data-id="${doc.id}">×</button>
             </div>`).join("")}
@@ -37,42 +47,49 @@ document.addEventListener("firebase-ready", async () => {
         <td><button class="btn btn-sm btn-danger btn-del">刪除</button></td>`;
       leaveBody.appendChild(tr);
 
+      // 主管簽名
       tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
         await leaveCol.doc(doc.id).update({ supervisorSign: e.target.value });
       });
-
+      // 刪除單
       tr.querySelector(".btn-del").addEventListener("click", async () => {
         if (confirm("確定刪除此請假單？")) {
           await leaveCol.doc(doc.id).delete();
           loadLeaveRequests();
         }
       });
-
-      tr.querySelector(".btn-add-note").addEventListener("click", async (e) => {
-        const noteText = tr.querySelector(".newNoteInput").value.trim();
-        if (!noteText) return;
+      // 新增註解
+      tr.querySelector(".btn-add-note").addEventListener("click", async () => {
+        const input = tr.querySelector(".newNoteInput");
+        const val = input.value.trim();
+        if (!val) return;
         await leaveCol.doc(doc.id).update({
-          notes: firebase.firestore.FieldValue.arrayUnion(noteText)
+          notes: firebase.firestore.FieldValue.arrayUnion(val)
         });
         loadLeaveRequests();
       });
-
+      // 刪除註解
       tr.querySelectorAll(".btn-del-note").forEach(btn => {
         btn.addEventListener("click", async () => {
           const i = parseInt(btn.dataset.i);
-          const data = d.notes || [];
-          data.splice(i, 1);
-          await leaveCol.doc(doc.id).update({ notes: data });
+          const arr = d.notes || [];
+          arr.splice(i, 1);
+          await leaveCol.doc(doc.id).update({ notes: arr });
           loadLeaveRequests();
         });
       });
     });
   }
 
-  // ===== 載入調班 =====
+  // ===== 調班：載入 =====
   async function loadSwapRequests() {
+    showLoading(swapBody, 10);
     const snap = await swapCol.orderBy("applyDate", "desc").get();
     swapBody.innerHTML = "";
+    if (snap.empty) {
+      swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -84,10 +101,10 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.newShift || ""}</td>
         <td>${d.reason || ""}</td>
         <td>${d.status || ""}</td>
-        <td><input class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}"></td>
+        <td><input class="form-control form-control-sm supervisorInput" value="${d.supervisorSign || ""}" placeholder="簽名"></td>
         <td>
           ${(d.notes || []).map((n, i) => `
-            <div class="note-item d-flex justify-content-between">
+            <div class="note-item d-flex justify-content-between align-items-center">
               <span>${n}</span>
               <button class="btn btn-sm btn-outline-danger btn-del-note" data-i="${i}" data-id="${doc.id}">×</button>
             </div>`).join("")}
@@ -100,29 +117,27 @@ document.addEventListener("firebase-ready", async () => {
       tr.querySelector(".supervisorInput").addEventListener("change", async (e) => {
         await swapCol.doc(doc.id).update({ supervisorSign: e.target.value });
       });
-
       tr.querySelector(".btn-del").addEventListener("click", async () => {
         if (confirm("確定刪除此調班單？")) {
           await swapCol.doc(doc.id).delete();
           loadSwapRequests();
         }
       });
-
       tr.querySelector(".btn-add-note").addEventListener("click", async () => {
-        const noteText = tr.querySelector(".newNoteInput").value.trim();
-        if (!noteText) return;
+        const input = tr.querySelector(".newNoteInput");
+        const val = input.value.trim();
+        if (!val) return;
         await swapCol.doc(doc.id).update({
-          notes: firebase.firestore.FieldValue.arrayUnion(noteText)
+          notes: firebase.firestore.FieldValue.arrayUnion(val)
         });
         loadSwapRequests();
       });
-
       tr.querySelectorAll(".btn-del-note").forEach(btn => {
         btn.addEventListener("click", async () => {
           const i = parseInt(btn.dataset.i);
-          const data = d.notes || [];
-          data.splice(i, 1);
-          await swapCol.doc(doc.id).update({ notes: data });
+          const arr = d.notes || [];
+          arr.splice(i, 1);
+          await swapCol.doc(doc.id).update({ notes: arr });
           loadSwapRequests();
         });
       });
@@ -138,10 +153,9 @@ document.addEventListener("firebase-ready", async () => {
     document.getElementById("leaveReason").value = "";
     leaveModal.show();
   });
-
   document.getElementById("saveLeave").addEventListener("click", async () => {
     await leaveCol.add({
-      applyDate: new Date().toISOString().slice(0, 10),
+      applyDate: new Date().toISOString().slice(0,10),
       applicant: document.getElementById("leaveApplicant").value,
       leaveType: document.getElementById("leaveType").value,
       leaveDate: document.getElementById("leaveDate").value,
@@ -164,10 +178,9 @@ document.addEventListener("firebase-ready", async () => {
     document.getElementById("swapReason").value = "";
     swapModal.show();
   });
-
   document.getElementById("saveSwap").addEventListener("click", async () => {
     await swapCol.add({
-      applyDate: new Date().toISOString().slice(0, 10),
+      applyDate: new Date().toISOString().slice(0,10),
       applicant: document.getElementById("swapApplicant").value,
       swapDate: document.getElementById("swapDate").value,
       originalShift: document.getElementById("swapOldShift").value,
@@ -181,16 +194,16 @@ document.addEventListener("firebase-ready", async () => {
     loadSwapRequests();
   });
 
-  // ===== 匯出與列印 =====
-  function exportTableToExcel(tableBody, title) {
-    const rows = [...tableBody.querySelectorAll("tr")];
+  // ===== 匯出與列印（橫列） =====
+  function exportTableToExcel(tbody, title) {
+    const rows = [...tbody.querySelectorAll("tr")];
+    const headers = [...tbody.closest("table").querySelectorAll("th")].map(th => th.innerText);
     const data = [
       [`安泰醫療社團法人附設安泰護理之家　${title}`],
       [`列印日期：${new Date().toLocaleDateString()}`],
       [],
+      headers.slice(0, headers.length - 1) // 去掉「操作」
     ];
-    const headers = [...tableBody.closest("table").querySelectorAll("th")].map(th => th.innerText);
-    data.push(headers.slice(0, headers.length - 1));
     rows.forEach(r => {
       const cells = [...r.querySelectorAll("td")].slice(0, headers.length - 1).map(td => td.innerText);
       data.push(cells);
@@ -202,35 +215,36 @@ document.addEventListener("firebase-ready", async () => {
     XLSX.utils.book_append_sheet(wb, ws, title);
     XLSX.writeFile(wb, `${title}_${new Date().toISOString().slice(0,10)}.xlsx`);
   }
-
-  function printTable(title, tableBody) {
-    const rows = [...tableBody.querySelectorAll("tr")].map(tr => `<tr>${tr.innerHTML}</tr>`).join("");
+  function printTable(title, tbody) {
+    const rowsHTML = [...tbody.querySelectorAll("tr")].map(tr => `<tr>${tr.innerHTML}</tr>`).join("");
     const win = window.open("", "_blank");
     win.document.write(`
       <html><head><title>${title}</title>
       <style>
-      body{font-family:'Microsoft JhengHei';}
-      table{width:100%;border-collapse:collapse;}
-      th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
-      th{background:#eee;} @page{size: landscape;}
-      </style></head><body
+        body{font-family:'Microsoft JhengHei';}
+        table{width:100%;border-collapse:collapse;}
+        th,td{border:1px solid #000;padding:4px;white-space:pre-wrap;word-break:break-all;}
+        th{background:#eee;}
+        @page{size: landscape;}
+      </style></head><body>
       <h3 style="text-align:center;">安泰醫療社團法人附設安泰護理之家　${title}</h3>
       <p style="text-align:right;">列印日期：${new Date().toLocaleDateString()}</p>
-      <table>${tableBody.closest("table").querySelector("thead").outerHTML}${rows}</table>
+      <table>
+        ${tbody.closest("table").querySelector("thead").outerHTML}
+        <tbody>${rowsHTML}</tbody>
+      </table>
       </body></html>
     `);
     win.document.close();
     win.print();
   }
 
-  // 綁定按鈕
   document.getElementById("exportLeaveExcel").addEventListener("click", () => exportTableToExcel(leaveBody, "請假申請總表"));
-  document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody, "調班申請總表"));
+  document.getElementById("exportSwapExcel").addEventListener("click", () => exportTableToExcel(swapBody,  "調班申請總表"));
   document.getElementById("printLeave").addEventListener("click", () => printTable("請假申請總表", leaveBody));
-  document.getElementById("printSwap").addEventListener("click", () => printTable("調班申請總表", swapBody));
+  document.getElementById("printSwap").addEventListener("click",  () => printTable("調班申請總表",  swapBody));
 
-  // 初始化載入
+  // 初次載入
   loadLeaveRequests();
   loadSwapRequests();
 });
-
