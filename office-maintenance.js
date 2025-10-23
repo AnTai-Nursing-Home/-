@@ -12,6 +12,7 @@ document.addEventListener("firebase-ready", async () => {
 
   let cachedStatuses = [];
 
+  // ===== 共用 =====
   function showLoading() {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>`;
   }
@@ -49,10 +50,12 @@ document.addEventListener("firebase-ready", async () => {
   // ===== 新增狀態 =====
   addStatusBtn.addEventListener("click", async () => {
     const name = newStatusName.value.trim();
-    const color = newStatusColor.value.trim();
+    const color = newStatusColor.value.trim() || "#6c757d";
     if (!name) return alert("請輸入狀態名稱");
     const order = cachedStatuses.length + 1;
+
     await colStatus.add({ name, order, color });
+
     newStatusName.value = "";
     newStatusColor.value = "#007bff";
     loadStatuses();
