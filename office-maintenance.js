@@ -86,7 +86,6 @@ document.addEventListener("firebase-ready", async () => {
         const statusObj = statuses.find(s => s.name === d.status);
         const color = statusObj ? statusObj.color : "#6c757d";
 
-        // 狀態下拉顯示顏色
         const options = statuses.map(
           s => `<option value="${s.name}" ${s.name === d.status ? "selected" : ""} style="background:${s.color};color:#fff;">${s.name}</option>`
         ).join("");
@@ -127,7 +126,7 @@ document.addEventListener("firebase-ready", async () => {
         tbody.appendChild(tr);
       });
     } finally {
-      // 無動畫，靜默結束
+      // 結束讀取中提示
     }
   }
 
