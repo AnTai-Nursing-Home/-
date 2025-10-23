@@ -74,7 +74,7 @@ document.addEventListener("firebase-ready", async () => {
       const noteSection = hasNote
         ? `<div><strong>備註：</strong><div class="border rounded p-2 bg-light">${d.note}</div></div>`
         : "";
-      
+
       const commentsHtml = (d.comments || []).map(c => `
         <div class="comment border rounded p-2 mb-2">
           <div>${c.message || ""}</div>
