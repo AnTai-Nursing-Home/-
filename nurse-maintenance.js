@@ -8,6 +8,7 @@ document.addEventListener("firebase-ready", async () => {
   const saveRequestBtn = document.getElementById("saveRequestBtn");
   const addModal = new bootstrap.Modal(document.getElementById("addRequestModal"));
   const statusColorMap = {};
+  let allRequests = [];
 
   // ===== 格式化時間 =====
   function fmt(ts) {
@@ -29,6 +30,62 @@ document.addEventListener("firebase-ready", async () => {
       const data = doc.data();
       statusColorMap[doc.id] = data.color || "#6c757d";
     });
+
+    // 建立篩選選單
+    const filterContainer = document.createElement("div");
+    filterContainer.className = "mb-3";
+    filterContainer.innerHTML = `
+      <label class="form-label fw-bold me-2">狀態篩選：</label>
+      <select id="statusFilter" class="form-select d-inline-block" style="width:auto; display:inline-block;">
+        <option value="all">全部</option>
+        ${Object.keys(statusColorMap)
+          .map(s => `<option value="${s}">${s}</option>`)
+          .join("")}
+      </select>
+    `;
+    const cardBody = document.querySelector(".card-body");
+    cardBody.insertBefore(filterContainer, cardBody.firstChild);
+
+    document.getElementById("statusFilter").addEventListener("change", e => {
+      renderRequests(e.target.value);
+    });
+  }
+
+  // ===== 渲染報修清單（含篩選） =====
+  function renderRequests(filter = "all") {
+    tbody.innerHTML = "";
+    const filtered = filter === "all" ? allRequests : allRequests.filter(d => d.status === filter);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(d => {
+      const color = statusColorMap[d.status] || "#6c757d";
+      const commentsHtml = (d.comments || []).map(c => `
+        <div class="comment border rounded p-2 mb-2">
+          <div>${c.message || ""}</div>
+          <time class="text-muted small">${fmt(c.time)}</time>
+        </div>
+      `).join("") || `<span class="text-muted">—</span>`;
+
+      const noteHtml = d.note ? `<div class="border rounded p-2 bg-light">${d.note}</div>` : `<span class="text-muted">—</span>`;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.item || ""}</td>
+        <td>${d.detail || ""}</td>
+        <td>${d.reporter || ""}</td>
+        <td><span class="badge text-white" style="background:${color};">${d.status || "—"}</span></td>
+        <td>${fmt(d.createdAt)}</td>
+        <td style="min-width:200px;">
+          <div><strong>備註：</strong>${noteHtml}</div>
+          <div class="mt-2"><strong>註解：</strong>${commentsHtml}</div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
   // ===== 載入報修清單 =====
@@ -36,36 +93,8 @@ document.addEventListener("firebase-ready", async () => {
     showLoading();
     try {
       const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
-      if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = "";
-      snap.forEach(doc => {
-        const d = doc.data();
-        const color = statusColorMap[d.status] || "#6c757d";
-
-        const commentsHtml = (d.comments || []).map(c => `
-          <div class="comment border rounded p-2 mb-2">
-            <div>${c.message || ""}</div>
-            <time>${fmt(c.time)}</time>
-          </div>
-        `).join("") || `<span class="text-muted">—</span>`;
-
-        const noteHtml = d.note ? `<div class="border rounded p-2 bg-light">${d.note}</div>` : `<span class="text-muted">—</span>`;
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${d.item || ""}</td>
-          <td>${d.detail || ""}</td>
-          <td>${d.reporter || ""}</td>
-          <td><span class="badge text-white" style="background:${color};">${d.status || "—"}</span></td>
-          <td>${fmt(d.createdAt)}</td>
-          <td style="min-width:200px;">${noteHtml}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+      allRequests = snap.docs.map(d => d.data());
+      renderRequests();
     } finally {
       // 無動畫
     }
