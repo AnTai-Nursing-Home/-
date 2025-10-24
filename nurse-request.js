@@ -23,7 +23,7 @@ document.addEventListener("firebase-ready", async () => {
     console.log("✅ 狀態清單載入完成：", statusList);
   }
 
-  // ===== 顯示狀態（帶顏色） =====
+  // ===== 顯示狀態（含顏色與自動判斷亮度） =====
   function getStatusStyle(statusName) {
     const found = statusList.find(s => s.name === statusName);
     if (!found) {
@@ -45,6 +45,15 @@ document.addEventListener("firebase-ready", async () => {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
+  // ===== 自動修正舊狀態 =====
+  async function fixOldStatus(colRef, doc, data) {
+    if (data.status === "審核中") {
+      console.log("🛠️ 自動修正舊資料：", doc.id, "→ 待審核");
+      await colRef.doc(doc.id).update({ status: "待審核" });
+      data.status = "待審核";
+    }
+  }
+
   // ===== 請假申請載入 =====
   async function loadLeaveRequests() {
     showLoading(leaveBody, 8);
@@ -55,8 +64,10 @@ document.addEventListener("firebase-ready", async () => {
       return;
     }
 
-    snap.forEach(doc => {
+    for (const doc of snap.docs) {
       const d = doc.data();
+      await fixOldStatus(leaveCol, doc, d);
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -69,7 +80,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.supervisorSign || ""}</td>
       `;
       leaveBody.appendChild(tr);
-    });
+    }
   }
 
   // ===== 調班申請載入 =====
@@ -82,8 +93,10 @@ document.addEventListener("firebase-ready", async () => {
       return;
     }
 
-    snap.forEach(doc => {
+    for (const doc of snap.docs) {
       const d = doc.data();
+      await fixOldStatus(swapCol, doc, d);
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -96,7 +109,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.supervisorSign || ""}</td>
       `;
       swapBody.appendChild(tr);
-    });
+    }
   }
 
   // ===== 新增請假申請 =====
@@ -110,7 +123,7 @@ document.addEventListener("firebase-ready", async () => {
       leaveDate: form.leaveDate.value.trim(),
       shift: form.shift.value.trim(),
       reason: form.reason.value.trim(),
-      status: "待審核", // ✅ 改這裡
+      status: "待審核", // ✅ 預設狀態
       notes: [],
     };
     await leaveCol.add(data);
@@ -130,7 +143,7 @@ document.addEventListener("firebase-ready", async () => {
       originalShift: form.originalShift.value.trim(),
       newShift: form.newShift.value.trim(),
       reason: form.reason.value.trim(),
-      status: "待審核", // ✅ 這裡也改
+      status: "待審核", // ✅ 預設狀態
       notes: [],
     };
     await swapCol.add(data);
@@ -147,5 +160,5 @@ document.addEventListener("firebase-ready", async () => {
   // ===== 即時同步 =====
   leaveCol.onSnapshot(() => loadLeaveRequests());
   swapCol.onSnapshot(() => loadSwapRequests());
-  statusCol.onSnapshot(() => loadStatuses()); // 若顏色有變，會即時刷新
+  statusCol.onSnapshot(() => loadStatuses());
 });
