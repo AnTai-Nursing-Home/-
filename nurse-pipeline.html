@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <style>
-    /* ✅ 標題列固定 */
+    /* ✅ 表頭固定（捲動時不消失） */
     thead th {
       position: sticky;
       top: 0;
@@ -17,7 +17,6 @@
       border-bottom: 2px solid #dee2e6;
     }
 
-    /* ✅ 主體樣式 */
     body {
       background-color: #f8f9fa;
       font-family: "Microsoft JhengHei", sans-serif;
@@ -28,6 +27,7 @@
       margin: 12mm;
     }
 
+    /* ✅ 列印樣式 */
     @media print {
       html, body {
         width: 297mm;
@@ -35,47 +35,68 @@
         margin: 0;
         padding: 0;
         background: #fff !important;
+        font-family: "Microsoft JhengHei", sans-serif;
         -webkit-print-color-adjust: exact;
       }
 
-      /* ✅ 置中內容 */
+      /* ✅ 整頁水平置中 */
       body {
         display: flex;
         justify-content: center;
+        align-items: flex-start;
       }
 
       .container {
-        width: 95%;
+        width: 90%;
         text-align: center;
+        margin: 0 auto;
       }
 
-      /* ✅ 列印抬頭 */
+      /* ✅ 抬頭與表格整體對齊置中 */
       body::before {
         content: "安泰醫療社團法人附設安泰護理之家\n住民管路總表";
         display: block;
+        width: 90%;
         text-align: center;
         font-weight: 700;
         font-size: 18px;
         white-space: pre-line;
-        margin-bottom: 10px;
+        margin: 0 auto 10px auto;
       }
 
-      /* ✅ 隱藏互動按鈕（但保留checkbox邏輯） */
+      /* ✅ 隱藏互動按鈕 */
       button, .btn, .no-print {
         display: none !important;
       }
 
-      /* ✅ 表格容器展開 */
+      /* ✅ checkbox 列印時顯示✔ */
+      body.printing input[type="checkbox"] {
+        visibility: hidden;
+        position: relative;
+      }
+      body.printing input[type="checkbox"]:checked::after {
+        content: "✔";
+        position: absolute;
+        left: 0;
+        top: -2px;
+        font-size: 14px;
+        color: #000;
+        visibility: visible;
+      }
+
+      /* ✅ 表格真正水平置中 */
       #pipelineTableContainer {
         width: 100%;
         overflow: visible !important;
         height: auto !important;
+        display: flex;
+        justify-content: center;
       }
 
       table {
-        width: 100% !important;
-        min-width: 270mm;
         border-collapse: collapse !important;
+        width: 100%;
+        max-width: 270mm;
         margin: 0 auto;
         font-size: 12px;
         table-layout: fixed;
@@ -111,23 +132,9 @@
       th:nth-child(7), td:nth-child(7) { width: 10%; }
       th:nth-child(8), td:nth-child(8) { width: 24%; }
 
+      /* ✅ 防止統計被切頁 */
       tfoot {
         page-break-inside: avoid;
-      }
-
-      /* ✅ 列印模式下的checkbox顯示✔ */
-      body.printing input[type="checkbox"] {
-        visibility: hidden;
-        position: relative;
-      }
-      body.printing input[type="checkbox"]:checked::after {
-        content: "✔";
-        position: absolute;
-        left: 0;
-        top: -2px;
-        font-size: 14px;
-        color: #000;
-        visibility: visible;
       }
     }
   </style>
@@ -147,7 +154,6 @@
       </div>
 
       <div class="card-body">
-        <!-- ✅ 滾動時標題固定 -->
         <div id="pipelineTableContainer" class="table-responsive" style="max-height:80vh; overflow-y:auto;">
           <table class="table table-bordered table-hover align-middle">
             <thead class="table-light">
