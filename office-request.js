@@ -9,6 +9,8 @@ document.addEventListener("firebase-ready", async () => {
   const statusListBody = document.getElementById("statusListBody");
 
   let statusList = [];
+  let isLoading = false;
+  let initialized = false; // 防止首次 onSnapshot 重複載入
 
   // ===== 狀態清單載入 =====
   async function loadStatuses() {
@@ -32,7 +34,9 @@ document.addEventListener("firebase-ready", async () => {
         <td>${s.name}</td>
         <td><span class="badge" style="background:${s.color};">${s.color}</span></td>
         <td>
-          <button class="btn btn-sm btn-outline-danger delete-status" data-id="${s.id}"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn btn-sm btn-outline-danger delete-status" data-id="${s.id}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </td>
       `;
       statusListBody.appendChild(tr);
@@ -80,8 +84,11 @@ document.addEventListener("firebase-ready", async () => {
     return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
   }
 
-  // ===== 請假/調班資料載入 =====
+  // ===== 資料載入（防重複） =====
   async function loadRequests() {
+    if (isLoading) return;
+    isLoading = true;
+
     leaveBody.innerHTML = "";
     swapBody.innerHTML = "";
 
@@ -89,6 +96,9 @@ document.addEventListener("firebase-ready", async () => {
       leaveCol.orderBy("applyDate", "desc").get(),
       swapCol.orderBy("applyDate", "desc").get()
     ]);
+
+    leaveBody.innerHTML = "";
+    swapBody.innerHTML = "";
 
     leaveSnap.forEach(doc => {
       const d = doc.data();
@@ -121,9 +131,11 @@ document.addEventListener("firebase-ready", async () => {
       `;
       swapBody.appendChild(tr);
     });
+
+    isLoading = false;
   }
 
-  // ===== 匯出 Excel（含日期區間） =====
+  // ===== 匯出 Excel =====
   function exportTableToExcel(tableId, fileTitle, startDate, endDate) {
     const table = document.getElementById(tableId);
     if (!table) return alert("找不到表格");
@@ -133,7 +145,7 @@ document.addEventListener("firebase-ready", async () => {
     XLSX.writeFile(wb, fileName);
   }
 
-  // ===== 列印功能（正式橫式） =====
+  // ===== 列印（橫式） =====
   function printSection(tableId, title, startDate, endDate) {
     const table = document.getElementById(tableId);
     if (!table) return alert("找不到表格");
@@ -164,7 +176,7 @@ document.addEventListener("firebase-ready", async () => {
     printWindow.print();
   }
 
-  // ===== 綁定匯出與列印按鈕 =====
+  // ===== 匯出與列印按鈕綁定 =====
   document.getElementById("exportLeaveExcel")?.addEventListener("click", () => {
     const start = document.getElementById("startDate")?.value || "";
     const end = document.getElementById("endDate")?.value || "";
@@ -189,12 +201,18 @@ document.addEventListener("firebase-ready", async () => {
     printSection("swapTable", "調班總表", start, end);
   });
 
-  // ===== 初始化 =====
+  // ===== 初始化與監聽 =====
   await loadStatuses();
   await loadRequests();
 
-  // 即時同步
-  leaveCol.onSnapshot(() => loadRequests());
-  swapCol.onSnapshot(() => loadRequests());
+  // 只在第一次載入後啟用即時監聽，避免重複載入
+  leaveCol.onSnapshot(() => {
+    if (initialized) loadRequests();
+    initialized = true;
+  });
+  swapCol.onSnapshot(() => {
+    if (initialized) loadRequests();
+    initialized = true;
+  });
   statusCol.onSnapshot(() => loadStatuses());
 });
