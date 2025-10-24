@@ -25,7 +25,7 @@ document.addEventListener("firebase-ready", async () => {
     const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
     statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // UI顯示
+    // 狀態清單 UI
     statusListEl.innerHTML = statusList.map(s => `
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <div>
@@ -104,7 +104,18 @@ document.addEventListener("firebase-ready", async () => {
     `;
   }
 
-  // ===== 載入資料（可篩選） =====
+  // ===== 日期篩選工具 =====
+  function inDateRange(targetDate, start, end) {
+    if (!targetDate) return true;
+    const t = new Date(targetDate);
+    const s = start ? new Date(start) : null;
+    const e = end ? new Date(end) : null;
+    if (s && t < s) return false;
+    if (e && t > e) return false;
+    return true;
+  }
+
+  // ===== 載入資料（含日期 / 狀態篩選） =====
   async function loadRequests() {
     if (isLoading) return;
     isLoading = true;
@@ -118,11 +129,17 @@ document.addEventListener("firebase-ready", async () => {
 
     const leaveFilter = leaveStatusFilter.value || "";
     const swapFilter = swapStatusFilter.value || "";
+    const leaveStart = document.getElementById("leaveStartDate").value;
+    const leaveEnd = document.getElementById("leaveEndDate").value;
+    const swapStart = document.getElementById("swapStartDate").value;
+    const swapEnd = document.getElementById("swapEndDate").value;
 
-    // 請假
+    // 請假資料
     leaveSnap.forEach(doc => {
       const d = doc.data();
       if (leaveFilter && d.status !== leaveFilter) return;
+      if (!inDateRange(d.leaveDate, leaveStart, leaveEnd)) return;
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -141,10 +158,12 @@ document.addEventListener("firebase-ready", async () => {
       leaveBody.appendChild(tr);
     });
 
-    // 調班
+    // 調班資料
     swapSnap.forEach(doc => {
       const d = doc.data();
       if (swapFilter && d.status !== swapFilter) return;
+      if (!inDateRange(d.swapDate, swapStart, swapEnd)) return;
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -163,7 +182,7 @@ document.addEventListener("firebase-ready", async () => {
       swapBody.appendChild(tr);
     });
 
-    // 狀態變更監聽
+    // 狀態下拉監聽
     document.querySelectorAll(".status-dropdown").forEach(sel => {
       sel.addEventListener("change", async (e) => {
         const id = e.target.dataset.id;
@@ -178,19 +197,24 @@ document.addEventListener("firebase-ready", async () => {
     isLoading = false;
   }
 
-  // ===== 篩選功能 =====
+  // ===== 狀態 / 日期篩選按鈕 =====
   document.getElementById("filterLeaveBtn")?.addEventListener("click", loadRequests);
   document.getElementById("resetLeaveFilterBtn")?.addEventListener("click", async () => {
     leaveStatusFilter.value = "";
-    await loadRequests();
-  });
-  document.getElementById("filterSwapBtn")?.addEventListener("click", loadRequests);
-  document.getElementById("resetSwapFilterBtn")?.addEventListener("click", async () => {
-    swapStatusFilter.value = "";
+    document.getElementById("leaveStartDate").value = "";
+    document.getElementById("leaveEndDate").value = "";
     await loadRequests();
   });
 
-  // ===== Firestore 更新函式 =====
+  document.getElementById("filterSwapBtn")?.addEventListener("click", loadRequests);
+  document.getElementById("resetSwapFilterBtn")?.addEventListener("click", async () => {
+    swapStatusFilter.value = "";
+    document.getElementById("swapStartDate").value = "";
+    document.getElementById("swapEndDate").value = "";
+    await loadRequests();
+  });
+
+  // ===== 更新欄位 =====
   async function updateField(collection, id, field, value) {
     const updateObj = {};
     updateObj[field] = value;
@@ -219,7 +243,7 @@ document.addEventListener("firebase-ready", async () => {
   addEditListener(leaveBody, leaveCol, "editable-sign", "supervisorSign");
   addEditListener(swapBody, swapCol, "editable-sign", "supervisorSign");
 
-  // 清除按鈕
+  // ===== 清除註解 / 簽名 =====
   function setupClearButtons(body, collection) {
     body.addEventListener("click", async (e) => {
       const clearNote = e.target.closest(".clear-note");
@@ -237,7 +261,7 @@ document.addEventListener("firebase-ready", async () => {
   setupClearButtons(leaveBody, leaveCol);
   setupClearButtons(swapBody, swapCol);
 
-  // ===== 列印（正式格式） =====
+  // ===== 列印（正式文件版） =====
   function printSection(tableId, title) {
     const table = document.getElementById(tableId);
     if (!table) return alert("找不到表格");
@@ -273,13 +297,14 @@ document.addEventListener("firebase-ready", async () => {
     printSection("swapTable", "調班總表")
   );
 
-  // 匯出 Excel
+  // ===== 匯出 Excel =====
   function exportTableToExcel(tableId, fileTitle) {
     const table = document.getElementById(tableId);
     if (!table) return alert("找不到表格");
     const wb = XLSX.utils.table_to_book(table, { sheet: "資料" });
     XLSX.writeFile(wb, `${fileTitle}.xlsx`);
   }
+
   document.getElementById("exportLeaveExcel")?.addEventListener("click", () =>
     exportTableToExcel("leaveTable", "安泰護理之家_請假總表")
   );
