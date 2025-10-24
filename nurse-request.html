@@ -73,12 +73,7 @@
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">班別</label>
-                  <select class="form-select" name="shift" required>
-                    <option value="">請選擇</option>
-                    <option value="早班">早班</option>
-                    <option value="小夜班">小夜班</option>
-                    <option value="大夜班">大夜班</option>
-                  </select>
+                  <input type="text" class="form-control" name="shift" placeholder="例：早班 / 大夜 / 夜早班" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">請假理由</label>
@@ -122,21 +117,11 @@
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">原班別</label>
-                  <select class="form-select" name="originalShift" required>
-                    <option value="">請選擇</option>
-                    <option value="早班">早班</option>
-                    <option value="小夜班">小夜班</option>
-                    <option value="大夜班">大夜班</option>
-                  </select>
+                  <input type="text" class="form-control" name="originalShift" placeholder="例：早班 / 大夜班" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">欲換班別</label>
-                  <select class="form-select" name="newShift" required>
-                    <option value="">請選擇</option>
-                    <option value="早班">早班</option>
-                    <option value="小夜班">小夜班</option>
-                    <option value="大夜班">大夜班</option>
-                  </select>
+                  <input type="text" class="form-control" name="newShift" placeholder="例：小夜 / 夜早班" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">理由</label>
@@ -170,9 +155,9 @@
             </div>
           </div>
 
-          <!-- ====== 申請紀錄（之後擴充） ====== -->
+          <!-- ====== 申請紀錄（預留） ====== -->
           <div class="tab-pane fade" id="recordTab">
-            <div class="text-center text-muted p-4">敬請期待 - 即將支援個人歷史申請查詢</div>
+            <div class="text-center text-muted p-4">敬請期待 - 將支援個人歷史申請查詢</div>
           </div>
 
         </div><!-- /tab-content -->
