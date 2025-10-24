@@ -33,7 +33,7 @@ document.addEventListener("firebase-ready", async () => {
     return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
   }
 
-  // ===== 顯示註解欄位（含修改時間） =====
+  // ===== 顯示註解欄位（含清除按鈕與修改時間） =====
   function renderNoteCell(docId, note, updatedBy, updatedAt) {
     let info = "";
     if (updatedAt) {
@@ -41,8 +41,11 @@ document.addEventListener("firebase-ready", async () => {
       info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
     }
     return `
-      <div contenteditable="true" class="editable-note" data-id="${docId}" data-original="${note || ""}">
-        ${note || ""}
+      <div class="d-flex align-items-start gap-2">
+        <div contenteditable="true" class="editable-note flex-grow-1" data-id="${docId}" data-original="${note || ""}">
+          ${note || ""}
+        </div>
+        <button class="btn btn-outline-secondary btn-sm clear-note" data-id="${docId}" title="清除註解">🗑</button>
       </div>
       ${info}
     `;
@@ -56,8 +59,11 @@ document.addEventListener("firebase-ready", async () => {
       info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
     }
     return `
-      <div contenteditable="true" class="editable-sign" data-id="${docId}" data-original="${sign || ""}">
-        ${sign || ""}
+      <div class="d-flex align-items-start gap-2">
+        <div contenteditable="true" class="editable-sign flex-grow-1" data-id="${docId}" data-original="${sign || ""}">
+          ${sign || ""}
+        </div>
+        <button class="btn btn-outline-secondary btn-sm clear-sign" data-id="${docId}" title="清除簽名">🗑</button>
       </div>
       ${info}
     `;
@@ -131,7 +137,6 @@ document.addEventListener("firebase-ready", async () => {
       noteUpdatedBy: currentUser,
       noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`📝 註解已更新 (${id})`);
     loadRequests();
   }
 
@@ -142,7 +147,6 @@ document.addEventListener("firebase-ready", async () => {
       supervisorSignUpdatedBy: currentUser,
       supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`✍️ 主管簽名已更新 (${id})`);
     loadRequests();
   }
 
@@ -154,8 +158,8 @@ document.addEventListener("firebase-ready", async () => {
         const original = e.target.dataset.original || "";
         const newText = e.target.innerText.trim();
 
-        // 只有文字真的改變才更新
-        if (newText !== original) {
+        // 即使清空文字也允許更新
+        if (newText !== original || newText === "") {
           e.target.dataset.original = newText;
           updater(collection, id, newText);
         }
@@ -168,7 +172,54 @@ document.addEventListener("firebase-ready", async () => {
   addEditListener(leaveBody, leaveCol, "editable-sign", updateSign);
   addEditListener(swapBody, swapCol, "editable-sign", updateSign);
 
-  // ===== 刪除功能 =====
+  // ===== 清除註解 / 簽名 =====
+  leaveBody.addEventListener("click", async (e) => {
+    const noteBtn = e.target.closest(".clear-note");
+    const signBtn = e.target.closest(".clear-sign");
+    if (noteBtn) {
+      const id = noteBtn.dataset.id;
+      await leaveCol.doc(id).update({
+        note: "",
+        noteUpdatedBy: currentUser,
+        noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      loadRequests();
+    }
+    if (signBtn) {
+      const id = signBtn.dataset.id;
+      await leaveCol.doc(id).update({
+        supervisorSign: "",
+        supervisorSignUpdatedBy: currentUser,
+        supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      loadRequests();
+    }
+  });
+
+  swapBody.addEventListener("click", async (e) => {
+    const noteBtn = e.target.closest(".clear-note");
+    const signBtn = e.target.closest(".clear-sign");
+    if (noteBtn) {
+      const id = noteBtn.dataset.id;
+      await swapCol.doc(id).update({
+        note: "",
+        noteUpdatedBy: currentUser,
+        noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      loadRequests();
+    }
+    if (signBtn) {
+      const id = signBtn.dataset.id;
+      await swapCol.doc(id).update({
+        supervisorSign: "",
+        supervisorSignUpdatedBy: currentUser,
+        supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      loadRequests();
+    }
+  });
+
+  // ===== 刪除資料 =====
   leaveBody.addEventListener("click", async (e) => {
     if (e.target.closest(".delete-btn")) {
       const id = e.target.closest(".delete-btn").dataset.id;
