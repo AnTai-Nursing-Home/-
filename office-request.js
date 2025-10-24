@@ -6,6 +6,10 @@ document.addEventListener("firebase-ready", async () => {
 
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
+  const statusBody = document.getElementById("statusTableBody");
+
+  const leaveStatusFilter = document.getElementById("leaveStatusFilter");
+  const swapStatusFilter = document.getElementById("swapStatusFilter");
 
   const leaveStatusSelect = document.getElementById("leaveStatusSelect");
   const swapStatusSelect = document.getElementById("swapStatusSelect");
@@ -17,23 +21,43 @@ document.addEventListener("firebase-ready", async () => {
     const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
     statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // 填入新增表單的狀態選單
-    [leaveStatusSelect, swapStatusSelect].forEach(sel => {
-      if (!sel) return;
-      sel.innerHTML = statusList
-        .map(s => `<option value="${s.name}">${s.name}</option>`)
-        .join("");
+    // 更新選單
+    const optionHTML = statusList.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+    [leaveStatusSelect, swapStatusSelect, leaveStatusFilter, swapStatusFilter].forEach(sel => {
+      if (sel) sel.innerHTML = `<option value="">全部</option>${optionHTML}`;
     });
+
+    // 顯示在狀態管理表
+    statusBody.innerHTML = statusList.map(s => `
+      <tr>
+        <td>${s.name}</td>
+        <td><span class="badge" style="background:${s.color};color:#fff;">${s.color}</span></td>
+      </tr>
+    `).join("");
   }
 
-  function getStatusBadge(statusName) {
-    const found = statusList.find(s => s.name === statusName);
-    return found
-      ? `<span class="badge" style="background:${found.color};color:#fff;">${found.name}</span>`
-      : `<span class="badge bg-secondary">${statusName || ""}</span>`;
+  // ====== 新增狀態 ======
+  document.getElementById("addStatusForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      name: form.name.value.trim(),
+      color: form.color.value
+    };
+    if (!data.name) return alert("請輸入狀態名稱");
+    await statusCol.add(data);
+    form.reset();
+    alert("✅ 已新增狀態");
+    await loadStatuses();
+  });
+
+  // ====== 狀態顯示樣式 ======
+  function getStatusBadge(name) {
+    const s = statusList.find(x => x.name === name);
+    return s ? `<span class="badge" style="background:${s.color};color:#fff;">${s.name}</span>` : `<span class="badge bg-secondary">${name || ""}</span>`;
   }
 
-  // ====== 日期範圍工具 ======
+  // ====== 日期範圍判斷 ======
   function inDateRange(targetDate, start, end) {
     if (!targetDate) return true;
     const t = new Date(targetDate);
@@ -48,141 +72,125 @@ document.addEventListener("firebase-ready", async () => {
   async function loadLeaveRequests() {
     leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
     const snap = await leaveCol.orderBy("applyDate", "desc").get();
+    const start = document.getElementById("leaveStartDate").value;
+    const end = document.getElementById("leaveEndDate").value;
+    const filterStatus = leaveStatusFilter.value;
 
-    if (snap.empty) {
-      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-
-    leaveBody.innerHTML = "";
+    let rows = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${d.applyDate || ""}</td>
-        <td>${d.applicant || ""}</td>
-        <td>${d.leaveType || ""}</td>
-        <td>${d.leaveDate || ""}</td>
-        <td>${d.shift || ""}</td>
-        <td>${d.reason || ""}</td>
-        <td>${getStatusBadge(d.status)}</td>
-        <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
-        <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-        <td class="no-print text-center">
-          <button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button>
-        </td>
-      `;
-      leaveBody.appendChild(tr);
+      if (!inDateRange(d.leaveDate, start, end)) return;
+      if (filterStatus && d.status !== filterStatus) return;
+      rows += `
+        <tr>
+          <td>${d.applyDate || ""}</td>
+          <td>${d.applicant || ""}</td>
+          <td>${d.leaveType || ""}</td>
+          <td>${d.leaveDate || ""}</td>
+          <td>${d.shift || ""}</td>
+          <td>${d.reason || ""}</td>
+          <td>${getStatusBadge(d.status)}</td>
+          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
+          <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
+        </tr>`;
     });
+    leaveBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
   }
 
   // ====== 載入調班資料 ======
   async function loadSwapRequests() {
     swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
     const snap = await swapCol.orderBy("applyDate", "desc").get();
+    const start = document.getElementById("swapStartDate").value;
+    const end = document.getElementById("swapEndDate").value;
+    const filterStatus = swapStatusFilter.value;
 
-    if (snap.empty) {
-      swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
-      return;
-    }
-
-    swapBody.innerHTML = "";
+    let rows = "";
     snap.forEach(doc => {
       const d = doc.data();
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${d.applyDate || ""}</td>
-        <td>${d.applicant || ""}</td>
-        <td>${d.swapDate || ""}</td>
-        <td>${d.originalShift || ""}</td>
-        <td>${d.newShift || ""}</td>
-        <td>${d.reason || ""}</td>
-        <td>${getStatusBadge(d.status)}</td>
-        <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
-        <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-        <td class="no-print text-center">
-          <button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button>
-        </td>
-      `;
-      swapBody.appendChild(tr);
+      if (!inDateRange(d.swapDate, start, end)) return;
+      if (filterStatus && d.status !== filterStatus) return;
+      rows += `
+        <tr>
+          <td>${d.applyDate || ""}</td>
+          <td>${d.applicant || ""}</td>
+          <td>${d.swapDate || ""}</td>
+          <td>${d.originalShift || ""}</td>
+          <td>${d.newShift || ""}</td>
+          <td>${d.reason || ""}</td>
+          <td>${getStatusBadge(d.status)}</td>
+          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
+          <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
+        </tr>`;
     });
+    swapBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
   }
 
+  // ====== 篩選按鈕 ======
+  document.getElementById("filterLeave")?.addEventListener("click", loadLeaveRequests);
+  document.getElementById("filterSwap")?.addEventListener("click", loadSwapRequests);
+
   // ====== 新增請假單 ======
-  document.getElementById("addLeaveForm")?.addEventListener("submit", async (e) => {
+  document.getElementById("addLeaveForm")?.addEventListener("submit", async e => {
     e.preventDefault();
-    const form = e.target;
-
+    const f = e.target;
     const data = {
-      applicant: form.applicant.value,
+      applicant: f.applicant.value,
       applyDate: new Date().toISOString().split("T")[0],
-      leaveType: form.leaveType.value,
-      leaveDate: form.leaveDate.value,
-      shift: form.shift.value,
-      reason: form.reason.value,
-      status: form.status.value,
+      leaveType: f.leaveType.value,
+      leaveDate: f.leaveDate.value,
+      shift: f.shift.value,
+      reason: f.reason.value,
+      status: f.status.value,
       note: "",
-      supervisorSign: "主管"
+      supervisorSign: ""
     };
-
     await leaveCol.add(data);
-    form.reset();
-    alert("✅ 已新增請假單！");
+    f.reset();
+    alert("✅ 已新增請假單");
   });
 
   // ====== 新增調班單 ======
-  document.getElementById("addSwapForm")?.addEventListener("submit", async (e) => {
+  document.getElementById("addSwapForm")?.addEventListener("submit", async e => {
     e.preventDefault();
-    const form = e.target;
-
+    const f = e.target;
     const data = {
-      applicant: form.applicant.value,
+      applicant: f.applicant.value,
       applyDate: new Date().toISOString().split("T")[0],
-      swapDate: form.swapDate.value,
-      originalShift: form.originalShift.value,
-      newShift: form.newShift.value,
-      reason: form.reason.value,
-      status: form.status.value,
+      swapDate: f.swapDate.value,
+      originalShift: f.originalShift.value,
+      newShift: f.newShift.value,
+      reason: f.reason.value,
+      status: f.status.value,
       note: "",
-      supervisorSign: "主管"
+      supervisorSign: ""
     };
-
     await swapCol.add(data);
-    form.reset();
-    alert("✅ 已新增調班單！");
+    f.reset();
+    alert("✅ 已新增調班單");
   });
-
-  // ====== 即時更新監聽 ======
-  leaveCol.onSnapshot(loadLeaveRequests);
-  swapCol.onSnapshot(loadSwapRequests);
 
   // ====== 刪除功能 ======
-  document.addEventListener("click", async (e) => {
-    if (e.target.closest(".delete-leave")) {
-      const id = e.target.closest(".delete-leave").dataset.id;
-      if (confirm("確定要刪除此請假單？")) await leaveCol.doc(id).delete();
-    }
-    if (e.target.closest(".delete-swap")) {
-      const id = e.target.closest(".delete-swap").dataset.id;
-      if (confirm("確定要刪除此調班單？")) await swapCol.doc(id).delete();
-    }
+  document.addEventListener("click", async e => {
+    const btnLeave = e.target.closest(".delete-leave");
+    const btnSwap = e.target.closest(".delete-swap");
+    if (btnLeave && confirm("確定要刪除此請假單？")) await leaveCol.doc(btnLeave.dataset.id).delete();
+    if (btnSwap && confirm("確定要刪除此調班單？")) await swapCol.doc(btnSwap.dataset.id).delete();
   });
 
-  // ====== 主管簽名 / 註解即時更新 ======
-  document.addEventListener("input", async (e) => {
+  // ====== 即時更新：主管簽名與註解 ======
+  document.addEventListener("input", async e => {
+    const id = e.target.dataset.id;
     if (e.target.classList.contains("supervisor-sign")) {
-      const id = e.target.dataset.id;
       const value = e.target.value;
       await Promise.all([
         leaveCol.doc(id).update({ supervisorSign: value }).catch(() => {}),
         swapCol.doc(id).update({ supervisorSign: value }).catch(() => {})
       ]);
     }
-
     if (e.target.classList.contains("note-area")) {
-      const id = e.target.dataset.id;
       const value = e.target.value;
       await Promise.all([
         leaveCol.doc(id).update({ note: value }).catch(() => {}),
@@ -191,8 +199,22 @@ document.addEventListener("firebase-ready", async () => {
     }
   });
 
+  // ====== 匯出 Excel ======
+  document.getElementById("exportExcel")?.addEventListener("click", () => {
+    const wb = XLSX.utils.book_new();
+    const leaveTable = XLSX.utils.table_to_sheet(document.getElementById("leaveTable"));
+    const swapTable = XLSX.utils.table_to_sheet(document.getElementById("swapTable"));
+    XLSX.utils.book_append_sheet(wb, leaveTable, "請假單");
+    XLSX.utils.book_append_sheet(wb, swapTable, "調班單");
+    XLSX.writeFile(wb, "請假與調班紀錄.xlsx");
+  });
+
   // ====== 初始化 ======
   await loadStatuses();
   await loadLeaveRequests();
   await loadSwapRequests();
+
+  // 即時監聽更新
+  leaveCol.onSnapshot(loadLeaveRequests);
+  swapCol.onSnapshot(loadSwapRequests);
 });
