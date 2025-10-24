@@ -1,27 +1,43 @@
 document.addEventListener("firebase-ready", async () => {
   const db = firebase.firestore();
   const leaveCol = db.collection("nurse_leave_requests");
-  const swapCol  = db.collection("nurse_shift_requests");
+  const swapCol = db.collection("nurse_shift_requests");
+  const statusCol = db.collection("request_status_list");
 
   const leaveBody = document.getElementById("leaveTableBody");
-  const swapBody  = document.getElementById("swapTableBody");
+  const swapBody = document.getElementById("swapTableBody");
 
-  const leaveModal = new bootstrap.Modal(document.getElementById("leaveModal"));
-  const swapModal  = new bootstrap.Modal(document.getElementById("swapModal"));
+  let statusList = [];
 
-  function showLoading(tbody, colspan){
+  // ===== 載入狀態設定（共用顏色表） =====
+  async function loadStatuses() {
+    const snap = await statusCol.orderBy("name").get();
+    statusList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  function getStatusStyle(statusName) {
+    const found = statusList.find(s => s.name === statusName);
+    if (!found) return `<span>${statusName || ""}</span>`;
+    const color = found.color || "#6c757d";
+    return `<span class="badge" style="background:${color};">${found.name}</span>`;
+  }
+
+  function showLoading(tbody, colspan) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
-  // ===== 讀取請假資料（唯讀：簽名/註解顯示） =====
-  async function loadLeaveRequests() {
-    showLoading(leaveBody, 9);
-    const snap = await leaveCol.orderBy("applyDate", "desc").get();
+  // ===== 請假申請載入 =====
+  async function loadLeaveRequests(userFilter = "") {
+    showLoading(leaveBody, 8);
+    let query = leaveCol.orderBy("applyDate", "desc");
+    if (userFilter) query = query.where("applicant", "==", userFilter);
+    const snap = await query.get();
     leaveBody.innerHTML = "";
     if (snap.empty) {
-      leaveBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
+      leaveBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有請假資料</td></tr>`;
       return;
     }
+
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -32,22 +48,25 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.leaveDate || ""}</td>
         <td>${d.shift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>${d.status || ""}</td>
+        <td>${getStatusStyle(d.status)}</td>
         <td>${d.supervisorSign || ""}</td>
-        <td>${(d.notes || []).map(n => `<div class="note-item">${n}</div>`).join("")}</td>`;
+      `;
       leaveBody.appendChild(tr);
     });
   }
 
-  // ===== 讀取調班資料（唯讀：簽名/註解顯示） =====
-  async function loadSwapRequests() {
-    showLoading(swapBody, 9);
-    const snap = await swapCol.orderBy("applyDate", "desc").get();
+  // ===== 調班申請載入 =====
+  async function loadSwapRequests(userFilter = "") {
+    showLoading(swapBody, 8);
+    let query = swapCol.orderBy("applyDate", "desc");
+    if (userFilter) query = query.where("applicant", "==", userFilter);
+    const snap = await query.get();
     swapBody.innerHTML = "";
     if (snap.empty) {
-      swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有資料</td></tr>`;
+      swapBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有調班資料</td></tr>`;
       return;
     }
+
     snap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -58,63 +77,59 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.originalShift || ""}</td>
         <td>${d.newShift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>${d.status || ""}</td>
+        <td>${getStatusStyle(d.status)}</td>
         <td>${d.supervisorSign || ""}</td>
-        <td>${(d.notes || []).map(n => `<div class="note-item">${n}</div>`).join("")}</td>`;
+      `;
       swapBody.appendChild(tr);
     });
   }
 
-  // ===== 新增請假（送審） =====
-  document.getElementById("addLeaveBtn").addEventListener("click", () => {
-    document.getElementById("leaveApplicant").value = "";
-    document.getElementById("leaveType").value = "病假";
-    document.getElementById("leaveDate").value = "";
-    document.getElementById("leaveShift").value = "";
-    document.getElementById("leaveReason").value = "";
-    leaveModal.show();
-  });
-  document.getElementById("saveLeave").addEventListener("click", async () => {
-    await leaveCol.add({
-      applyDate: new Date().toISOString().slice(0,10),
-      applicant: document.getElementById("leaveApplicant").value,
-      leaveType: document.getElementById("leaveType").value,
-      leaveDate: document.getElementById("leaveDate").value,
-      shift: document.getElementById("leaveShift").value,
-      reason: document.getElementById("leaveReason").value,
+  // ===== 新增請假申請 =====
+  document.getElementById("addLeaveForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      applyDate: new Date().toISOString().split("T")[0],
+      applicant: form.applicant.value.trim(),
+      leaveType: form.leaveType.value.trim(),
+      leaveDate: form.leaveDate.value.trim(),
+      shift: form.shift.value.trim(),
+      reason: form.reason.value.trim(),
       status: "審核中",
-      supervisorSign: "",
-      notes: []
-    });
-    leaveModal.hide();
-    loadLeaveRequests();
+      notes: [],
+    };
+    await leaveCol.add(data);
+    alert("✅ 已送出請假申請");
+    form.reset();
+    loadLeaveRequests(form.applicant.value.trim());
   });
 
-  // ===== 新增調班（送審） =====
-  document.getElementById("addSwapBtn").addEventListener("click", () => {
-    document.getElementById("swapApplicant").value = "";
-    document.getElementById("swapDate").value = "";
-    document.getElementById("swapOldShift").value = "";
-    document.getElementById("swapNewShift").value = "";
-    document.getElementById("swapReason").value = "";
-    swapModal.show();
-  });
-  document.getElementById("saveSwap").addEventListener("click", async () => {
-    await swapCol.add({
-      applyDate: new Date().toISOString().slice(0,10),
-      applicant: document.getElementById("swapApplicant").value,
-      swapDate: document.getElementById("swapDate").value,
-      originalShift: document.getElementById("swapOldShift").value,
-      newShift: document.getElementById("swapNewShift").value,
-      reason: document.getElementById("swapReason").value,
+  // ===== 新增調班申請 =====
+  document.getElementById("addSwapForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      applyDate: new Date().toISOString().split("T")[0],
+      applicant: form.applicant.value.trim(),
+      swapDate: form.swapDate.value.trim(),
+      originalShift: form.originalShift.value.trim(),
+      newShift: form.newShift.value.trim(),
+      reason: form.reason.value.trim(),
       status: "審核中",
-      supervisorSign: "",
-      notes: []
-    });
-    swapModal.hide();
-    loadSwapRequests();
+      notes: [],
+    };
+    await swapCol.add(data);
+    alert("✅ 已送出調班申請");
+    form.reset();
+    loadSwapRequests(form.applicant.value.trim());
   });
 
-  loadLeaveRequests();
-  loadSwapRequests();
+  // ===== 初次載入 =====
+  await loadStatuses();
+  await loadLeaveRequests();
+  await loadSwapRequests();
+
+  // ===== 即時同步（狀態有變更時自動更新顯示） =====
+  leaveCol.onSnapshot(() => loadLeaveRequests());
+  swapCol.onSnapshot(() => loadSwapRequests());
 });
