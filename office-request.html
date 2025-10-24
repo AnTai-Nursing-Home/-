@@ -76,7 +76,16 @@
               <div class="card-body">
                 <form id="addLeaveForm" class="row g-3">
                   <div class="col-md-2"><label class="form-label">申請人</label><input type="text" name="applicant" class="form-control" required></div>
-                  <div class="col-md-2"><label class="form-label">假別</label><input type="text" name="leaveType" class="form-control" required></div>
+                  <div class="col-md-2">
+                    <label class="form-label">假別</label>
+                    <select name="leaveType" class="form-select" required>
+                      <option value="">請選擇</option>
+                      <option value="事假">事假</option>
+                      <option value="病假">病假</option>
+                      <option value="公假">公假</option>
+                      <option value="喪假">喪假</option>
+                    </select>
+                  </div>
                   <div class="col-md-2"><label class="form-label">請假日期</label><input type="date" name="leaveDate" class="form-control" required></div>
                   <div class="col-md-2"><label class="form-label">班別</label><input type="text" name="shift" class="form-control" required></div>
                   <div class="col-md-2"><label class="form-label">理由</label><input type="text" name="reason" class="form-control" required></div>
