@@ -1,34 +1,40 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>護理師端 - 請假與調班管理</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>護理師端 - 請假與調班申請</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <style>
-    th, td { vertical-align: middle; white-space: pre-wrap; word-break: break-all; }
-    .note-item { background: #f8f9fa; padding: 2px 4px; border-radius: 3px; margin-bottom: 3px; }
+    body { background-color: #f8f9fa; }
+    th, td { vertical-align: middle; }
+    .badge {
+      font-size: 0.9rem;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
   </style>
 </head>
-<body class="bg-light">
+<body>
 <div class="container my-4">
   <div class="card shadow-sm">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <h4 class="mb-0"><i class="fa-solid fa-user-nurse me-2"></i>請假與調班管理（護理師端）</h4>
-      <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+      <h4 class="mb-0"><i class="fa-solid fa-user-nurse me-2"></i>護理師端 - 請假與調班申請</h4>
+      <a href="index.html" class="btn btn-outline-light btn-sm">返回首頁</a>
     </div>
 
     <div class="card-body">
       <ul class="nav nav-tabs mb-3">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leaveTab">請假申請</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swapTab">調班申請</button></li>
       </ul>
 
       <div class="tab-content">
-        <!-- 請假 -->
-        <div class="tab-pane fade show active" id="leave">
-          <div class="mb-3 text-end">
+        <!-- ===== 請假申請 ===== -->
+        <div class="tab-pane fade show active" id="leaveTab">
+          <div class="d-flex justify-content-between mb-2">
             <button class="btn btn-outline-primary btn-sm" id="addLeaveBtn"><i class="fa-solid fa-plus"></i> 新增請假單</button>
           </div>
           <div class="table-responsive">
@@ -43,19 +49,18 @@
                   <th>請假理由</th>
                   <th>狀態</th>
                   <th>主管簽名</th>
-                  <th>註解</th>
                 </tr>
               </thead>
               <tbody id="leaveTableBody">
-                <tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>
+                <tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- 調班 -->
-        <div class="tab-pane fade" id="swap">
-          <div class="mb-3 text-end">
+        <!-- ===== 調班申請 ===== -->
+        <div class="tab-pane fade" id="swapTab">
+          <div class="d-flex justify-content-between mb-2">
             <button class="btn btn-outline-primary btn-sm" id="addSwapBtn"><i class="fa-solid fa-plus"></i> 新增調班單</button>
           </div>
           <div class="table-responsive">
@@ -70,11 +75,10 @@
                   <th>理由</th>
                   <th>狀態</th>
                   <th>主管簽名</th>
-                  <th>註解</th>
                 </tr>
               </thead>
               <tbody id="swapTableBody">
-                <tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>
+                <tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>
               </tbody>
             </table>
           </div>
@@ -84,54 +88,75 @@
   </div>
 </div>
 
-<!-- 新增請假單 -->
+<!-- ===== 新增請假單 ===== -->
 <div class="modal fade" id="leaveModal">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">新增請假單</h5></div>
-      <div class="modal-body">
-        <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
-        <select class="form-select mb-2" id="leaveType">
-          <option value="病假">病假</option><option value="公假">公假</option><option value="事假">事假</option><option value="喪假">喪假</option>
-        </select>
-        <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
-        <input type="date" class="form-control mb-2" id="leaveDate">
-        <input class="form-control mb-2" id="leaveShift" placeholder="請假當日班別">
-        <textarea class="form-control" rows="3" id="leaveReason" placeholder="請假理由"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-        <button class="btn btn-primary btn-sm" id="saveLeave">儲存</button>
-      </div>
+      <form id="addLeaveForm">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">新增請假單</h5>
+        </div>
+        <div class="modal-body">
+          <input class="form-control mb-2" name="applicant" placeholder="申請人" required>
+          <select class="form-select mb-2" name="leaveType" required>
+            <option value="病假">病假</option>
+            <option value="公假">公假</option>
+            <option value="事假">事假</option>
+            <option value="喪假">喪假</option>
+          </select>
+          <label class="form-label fw-bold">請假日期</label>
+          <input type="date" class="form-control mb-2" name="leaveDate" required>
+          <input class="form-control mb-2" name="shift" placeholder="請假當日班別">
+          <textarea class="form-control" rows="3" name="reason" placeholder="請假理由"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary btn-sm" type="submit">送出</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
-<!-- 新增調班單 -->
+<!-- ===== 新增調班單 ===== -->
 <div class="modal fade" id="swapModal">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">新增調班單</h5></div>
-      <div class="modal-body">
-        <input class="form-control mb-2" id="swapApplicant" placeholder="申請人">
-        <label for="swapDate" class="form-label fw-bold">欲換班別日期（非申請日）</label>
-        <input type="date" class="form-control mb-2" id="swapDate">
-        <input class="form-control mb-2" id="swapOldShift" placeholder="原班別">
-        <input class="form-control mb-2" id="swapNewShift" placeholder="欲換班別">
-        <textarea class="form-control" rows="3" id="swapReason" placeholder="調班理由"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-        <button class="btn btn-primary btn-sm" id="saveSwap">儲存</button>
-      </div>
+      <form id="addSwapForm">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">新增調班單</h5>
+        </div>
+        <div class="modal-body">
+          <input class="form-control mb-2" name="applicant" placeholder="申請人" required>
+          <label class="form-label fw-bold">欲換班別日期</label>
+          <input type="date" class="form-control mb-2" name="swapDate" required>
+          <input class="form-control mb-2" name="originalShift" placeholder="原班別" required>
+          <input class="form-control mb-2" name="newShift" placeholder="欲換班別" required>
+          <textarea class="form-control" rows="3" name="reason" placeholder="調班理由"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary btn-sm" type="submit">送出</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
+<!-- ===== Script ===== -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="firebase-init.js"></script>
 <script src="nurse-request.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.getElementById("addLeaveBtn").addEventListener("click", () => {
+  new bootstrap.Modal(document.getElementById("leaveModal")).show();
+});
+document.getElementById("addSwapBtn").addEventListener("click", () => {
+  new bootstrap.Modal(document.getElementById("swapModal")).show();
+});
+</script>
 </body>
 </html>
