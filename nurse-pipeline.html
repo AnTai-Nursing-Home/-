@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <style>
-    /* ✅ 表頭固定 */
+    /* ✅ 表頭固定在捲動時 */
     thead th {
       position: sticky;
       top: 0;
@@ -19,27 +19,20 @@
 
     @page {
       size: A4 landscape;
-      margin: 15mm;
+      margin: 12mm;
     }
 
     @media print {
-      /* ✅ 讓整張表格展開印出 */
-      #pipelineTableContainer {
-        overflow: visible !important;
-        height: auto !important;
-      }
-
-      /* ✅ 隱藏互動元素 */
-      select, button, input, .btn, .no-print {
-        display: none !important;
-      }
-
-      /* ✅ 列印方向橫向 */
+      /* ✅ 強制整張橫向展開 */
       html, body {
-        width: 100%;
-        -webkit-print-color-adjust: exact;
+        width: 297mm;
+        height: 210mm;
+        margin: 0;
+        padding: 0;
         background: #fff !important;
         font-family: "Microsoft JhengHei", sans-serif;
+        -webkit-print-color-adjust: exact;
+        zoom: 0.95; /* 可依實際紙張邊界微調 */
       }
 
       /* ✅ 文件抬頭 */
@@ -53,6 +46,11 @@
         margin-bottom: 10px;
       }
 
+      /* ✅ 隱藏互動元件 */
+      select, button, input, .btn, .no-print {
+        display: none !important;
+      }
+
       /* ✅ 顯示勾勾符號 */
       input[type="checkbox"]:checked::after {
         content: "✔";
@@ -63,11 +61,18 @@
         left: 2px;
       }
 
-      /* ✅ 表格樣式 */
+      /* ✅ 表格調整：真正橫向展開 */
+      #pipelineTableContainer {
+        overflow: visible !important;
+        width: 100% !important;
+        height: auto !important;
+      }
+
       table {
-        width: 100%;
+        width: 100% !important;
+        min-width: 270mm;
         border-collapse: collapse !important;
-        font-size: 13px;
+        font-size: 12px;
         table-layout: fixed;
       }
 
@@ -79,6 +84,7 @@
         vertical-align: middle;
         padding: 6px 8px !important;
         word-wrap: break-word;
+        white-space: normal;
       }
 
       th {
@@ -92,16 +98,22 @@
         color: #000;
       }
 
-      /* ✅ 調整欄寬 */
-      th:nth-child(1), td:nth-child(1) { width: 8%; }
-      th:nth-child(2), td:nth-child(2) { width: 12%; }
+      /* ✅ 欄位比例調整：配合橫向紙面 */
+      th:nth-child(1), td:nth-child(1) { width: 7%; }   /* 床號 */
+      th:nth-child(2), td:nth-child(2) { width: 12%; }  /* 姓名 */
       th:nth-child(3), td:nth-child(3),
       th:nth-child(4), td:nth-child(4),
       th:nth-child(5), td:nth-child(5),
       th:nth-child(6), td:nth-child(6),
-      th:nth-child(7), td:nth-child(7) { width: 10%; }
-      th:nth-child(8), td:nth-child(8) { width: 25%; }
+      th:nth-child(7), td:nth-child(7) { width: 10%; }  /* 管路類別 */
+      th:nth-child(8), td:nth-child(8) { width: 24%; }  /* 特殊管路 */
 
+      /* ✅ 移除 Bootstrap 外距 */
+      .table {
+        margin: 0 !important;
+      }
+
+      /* ✅ 防止統計被切頁 */
       tfoot {
         page-break-inside: avoid;
       }
@@ -123,7 +135,7 @@
       </div>
 
       <div class="card-body">
-        <!-- ✅ 移除 max-height 與 overflow，防止被截斷 -->
+        <!-- ✅ 移除 overflow 限制以防被截斷 -->
         <div id="pipelineTableContainer" class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
             <thead class="table-light">
