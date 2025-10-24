@@ -167,4 +167,4 @@ document.addEventListener('firebase-ready', async () => {
       el.style.display = "";
     });
   });
-});
+}
