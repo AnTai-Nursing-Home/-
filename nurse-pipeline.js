@@ -162,4 +162,22 @@ document.addEventListener('firebase-ready', async () => {
   }
 
   loadResidents();
+
+  // ✅ 列印時隱藏互動元素（checkbox、按鈕、下拉）
+  window.addEventListener("beforeprint", () => {
+    document.querySelectorAll(
+      ".pipeCheck, .specialSelect, .btn-remove-special, input, select, button"
+    ).forEach(el => {
+      el.style.display = "none";
+    });
+  });
+
+  // ✅ 列印結束後恢復
+  window.addEventListener("afterprint", () => {
+    document.querySelectorAll(
+      ".pipeCheck, .specialSelect, .btn-remove-special, input, select, button"
+    ).forEach(el => {
+      el.style.display = "";
+    });
+  });
 });
