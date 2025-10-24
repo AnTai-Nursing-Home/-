@@ -230,23 +230,44 @@ document.addEventListener("firebase-ready", async () => {
 
   // ====== 匯出請假紀錄 ======
   document.getElementById("exportLeaveExcel")?.addEventListener("click", () => {
+    const clone = document.getElementById("leaveTable").cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+    clone.querySelectorAll("select, input, textarea").forEach(el => {
+      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
+      el.replaceWith(document.createTextNode(text));
+    });
+  
     const wb = XLSX.utils.book_new();
-    const leaveTable = XLSX.utils.table_to_sheet(document.getElementById("leaveTable"));
-    XLSX.utils.book_append_sheet(wb, leaveTable, "請假紀錄");
+    const ws = XLSX.utils.table_to_sheet(clone);
+    XLSX.utils.book_append_sheet(wb, ws, "請假紀錄");
     XLSX.writeFile(wb, "請假紀錄.xlsx");
   });
 
   // ====== 匯出調班紀錄 ======
   document.getElementById("exportSwapExcel")?.addEventListener("click", () => {
+    const clone = document.getElementById("swapTable").cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+    clone.querySelectorAll("select, input, textarea").forEach(el => {
+      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
+      el.replaceWith(document.createTextNode(text));
+    });
+  
     const wb = XLSX.utils.book_new();
-    const swapTable = XLSX.utils.table_to_sheet(document.getElementById("swapTable"));
-    XLSX.utils.book_append_sheet(wb, swapTable, "調班紀錄");
+    const ws = XLSX.utils.table_to_sheet(clone);
+    XLSX.utils.book_append_sheet(wb, ws, "調班紀錄");
     XLSX.writeFile(wb, "調班紀錄.xlsx");
   });
 
   // ====== 列印請假紀錄 ======
   document.getElementById("printLeaveTable")?.addEventListener("click", () => {
-    const content = document.getElementById("leaveTable").outerHTML;
+    const clone = document.getElementById("leaveTable").cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+    clone.querySelectorAll("select, input, textarea").forEach(el => {
+      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
+      el.replaceWith(document.createTextNode(text));
+    });
+  
+    const content = clone.outerHTML;
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
       <html><head><title>請假紀錄</title>
@@ -270,7 +291,14 @@ document.addEventListener("firebase-ready", async () => {
 
   // ====== 列印調班紀錄 ======
   document.getElementById("printSwapTable")?.addEventListener("click", () => {
-    const content = document.getElementById("swapTable").outerHTML;
+    const clone = document.getElementById("swapTable").cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+    clone.querySelectorAll("select, input, textarea").forEach(el => {
+      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
+      el.replaceWith(document.createTextNode(text));
+    });
+  
+    const content = clone.outerHTML;
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
       <html><head><title>調班紀錄</title>
