@@ -7,8 +7,6 @@ document.addEventListener("firebase-ready", async () => {
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
 
-  const currentUser = localStorage.getItem("username") || "未命名護理師";
-
   let statusList = [];
 
   // ===== 狀態樣式顯示 =====
@@ -87,20 +85,22 @@ document.addEventListener("firebase-ready", async () => {
     e.preventDefault();
     const form = e.target;
 
+    const applicantName = form.applicant?.value?.trim() || "未命名護理師";
+
     const data = {
-      applicant: currentUser,
+      applicant: applicantName,
       applyDate: new Date().toISOString().split("T")[0],
       leaveType: form.leaveType.value,
       leaveDate: form.leaveDate.value,
       shift: form.shift.value,
       reason: form.reason.value,
       status: "待審核",
-      note: "", // ✅ 與辦公室端一致（單數）
+      note: "",
       supervisorSign: ""
     };
 
     await leaveCol.add(data);
-    alert("✅ 已送出請假申請！");
+    alert(`✅ 已送出請假申請！（申請人：${applicantName}）`);
     form.reset();
   });
 
@@ -109,8 +109,10 @@ document.addEventListener("firebase-ready", async () => {
     e.preventDefault();
     const form = e.target;
 
+    const applicantName = form.applicant?.value?.trim() || "未命名護理師";
+
     const data = {
-      applicant: currentUser,
+      applicant: applicantName,
       applyDate: new Date().toISOString().split("T")[0],
       swapDate: form.swapDate.value,
       originalShift: form.originalShift.value,
@@ -122,7 +124,7 @@ document.addEventListener("firebase-ready", async () => {
     };
 
     await swapCol.add(data);
-    alert("✅ 已送出調班申請！");
+    alert(`✅ 已送出調班申請！（申請人：${applicantName}）`);
     form.reset();
   });
 
