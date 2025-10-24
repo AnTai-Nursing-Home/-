@@ -33,7 +33,7 @@ document.addEventListener("firebase-ready", async () => {
     return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
   }
 
-  // ===== 顯示註解欄位（含清除按鈕與修改時間） =====
+  // ===== 顯示註解欄位 =====
   function renderNoteCell(docId, note, updatedBy, updatedAt) {
     let info = "";
     if (updatedAt) {
@@ -51,7 +51,7 @@ document.addEventListener("firebase-ready", async () => {
     `;
   }
 
-  // ===== 顯示主管簽名欄位（可編輯） =====
+  // ===== 顯示主管簽名欄位 =====
   function renderSupervisorCell(docId, sign, updatedBy, updatedAt) {
     let info = "";
     if (updatedAt) {
@@ -69,7 +69,7 @@ document.addEventListener("firebase-ready", async () => {
     `;
   }
 
-  // ===== 載入資料 =====
+  // ===== 載入請假 / 調班資料 =====
   async function loadRequests() {
     if (isLoading) return;
     isLoading = true;
@@ -81,7 +81,6 @@ document.addEventListener("firebase-ready", async () => {
       swapCol.orderBy("applyDate", "desc").get()
     ]);
 
-    // 請假表
     leaveSnap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -95,16 +94,11 @@ document.addEventListener("firebase-ready", async () => {
         <td>${getStatusStyle(d.status)}</td>
         <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${doc.id}">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </td>
+        <td><button class="btn btn-sm btn-outline-danger delete-btn" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
       `;
       leaveBody.appendChild(tr);
     });
 
-    // 調班表
     swapSnap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -118,11 +112,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${getStatusStyle(d.status)}</td>
         <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-danger delete-swap" data-id="${doc.id}">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </td>
+        <td><button class="btn btn-sm btn-outline-danger delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
       `;
       swapBody.appendChild(tr);
     });
@@ -130,7 +120,7 @@ document.addEventListener("firebase-ready", async () => {
     isLoading = false;
   }
 
-  // ===== 更新註解 =====
+  // ===== Firestore 更新函式 =====
   async function updateNote(collection, id, note) {
     await collection.doc(id).update({
       note,
@@ -140,7 +130,6 @@ document.addEventListener("firebase-ready", async () => {
     loadRequests();
   }
 
-  // ===== 更新主管簽名 =====
   async function updateSign(collection, id, sign) {
     await collection.doc(id).update({
       supervisorSign: sign,
@@ -150,21 +139,23 @@ document.addEventListener("firebase-ready", async () => {
     loadRequests();
   }
 
-  // ===== 編輯事件監聽 =====
+  // ===== 編輯防重機制 =====
+  let editTimeout;
   function addEditListener(container, collection, selector, updater) {
-    container.addEventListener("blur", (e) => {
+    container.addEventListener("input", (e) => {
       if (e.target.classList.contains(selector)) {
-        const id = e.target.dataset.id;
-        const original = e.target.dataset.original || "";
-        const newText = e.target.innerText.trim();
-
-        // 即使清空文字也允許更新
-        if (newText !== original || newText === "") {
-          e.target.dataset.original = newText;
-          updater(collection, id, newText);
-        }
+        clearTimeout(editTimeout);
+        editTimeout = setTimeout(() => {
+          const id = e.target.dataset.id;
+          const original = e.target.dataset.original || "";
+          const newText = e.target.innerText.trim();
+          if (newText !== original || newText === "") {
+            e.target.dataset.original = newText;
+            updater(collection, id, newText);
+          }
+        }, 800); // 0.8 秒內無輸入才更新
       }
-    }, true);
+    });
   }
 
   addEditListener(leaveBody, leaveCol, "editable-note", updateNote);
@@ -173,53 +164,35 @@ document.addEventListener("firebase-ready", async () => {
   addEditListener(swapBody, swapCol, "editable-sign", updateSign);
 
   // ===== 清除註解 / 簽名 =====
-  leaveBody.addEventListener("click", async (e) => {
-    const noteBtn = e.target.closest(".clear-note");
-    const signBtn = e.target.closest(".clear-sign");
-    if (noteBtn) {
-      const id = noteBtn.dataset.id;
-      await leaveCol.doc(id).update({
-        note: "",
-        noteUpdatedBy: currentUser,
-        noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      loadRequests();
-    }
-    if (signBtn) {
-      const id = signBtn.dataset.id;
-      await leaveCol.doc(id).update({
-        supervisorSign: "",
-        supervisorSignUpdatedBy: currentUser,
-        supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      loadRequests();
-    }
-  });
+  function setupClearButtons(body, collection) {
+    body.addEventListener("click", async (e) => {
+      const noteBtn = e.target.closest(".clear-note");
+      const signBtn = e.target.closest(".clear-sign");
+      if (noteBtn) {
+        const id = noteBtn.dataset.id;
+        await collection.doc(id).update({
+          note: "",
+          noteUpdatedBy: currentUser,
+          noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        loadRequests();
+      }
+      if (signBtn) {
+        const id = signBtn.dataset.id;
+        await collection.doc(id).update({
+          supervisorSign: "",
+          supervisorSignUpdatedBy: currentUser,
+          supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        loadRequests();
+      }
+    });
+  }
 
-  swapBody.addEventListener("click", async (e) => {
-    const noteBtn = e.target.closest(".clear-note");
-    const signBtn = e.target.closest(".clear-sign");
-    if (noteBtn) {
-      const id = noteBtn.dataset.id;
-      await swapCol.doc(id).update({
-        note: "",
-        noteUpdatedBy: currentUser,
-        noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      loadRequests();
-    }
-    if (signBtn) {
-      const id = signBtn.dataset.id;
-      await swapCol.doc(id).update({
-        supervisorSign: "",
-        supervisorSignUpdatedBy: currentUser,
-        supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      loadRequests();
-    }
-  });
+  setupClearButtons(leaveBody, leaveCol);
+  setupClearButtons(swapBody, swapCol);
 
-  // ===== 刪除資料 =====
+  // ===== 刪除 =====
   leaveBody.addEventListener("click", async (e) => {
     if (e.target.closest(".delete-btn")) {
       const id = e.target.closest(".delete-btn").dataset.id;
