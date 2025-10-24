@@ -162,9 +162,4 @@ document.addEventListener('firebase-ready', async () => {
   }
 
   loadResidents();
-
-    document.querySelectorAll(".specialSelect, .btn-remove-special, button, select").forEach(el => {
-      el.style.display = "";
-    });
-  });
-}
+});
