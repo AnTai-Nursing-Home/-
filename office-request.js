@@ -51,7 +51,7 @@ document.addEventListener("firebase-ready", async () => {
     await loadStatuses();
   });
 
-  // ====== 狀態顯示樣式 ======
+  // ====== 狀態 badge 顯示 ======
   function getStatusBadge(name) {
     const s = statusList.find(x => x.name === name);
     return s ? `<span class="badge" style="background:${s.color};color:#fff;">${s.name}</span>` : `<span class="badge bg-secondary">${name || ""}</span>`;
@@ -81,6 +81,7 @@ document.addEventListener("firebase-ready", async () => {
       const d = doc.data();
       if (!inDateRange(d.leaveDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
+
       rows += `
         <tr>
           <td>${d.applyDate || ""}</td>
@@ -89,7 +90,11 @@ document.addEventListener("firebase-ready", async () => {
           <td>${d.leaveDate || ""}</td>
           <td>${d.shift || ""}</td>
           <td>${d.reason || ""}</td>
-          <td>${getStatusBadge(d.status)}</td>
+          <td>
+            <select class="form-select form-select-sm status-select" data-id="${doc.id}">
+              ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
+            </select>
+          </td>
           <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
@@ -111,6 +116,7 @@ document.addEventListener("firebase-ready", async () => {
       const d = doc.data();
       if (!inDateRange(d.swapDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
+
       rows += `
         <tr>
           <td>${d.applyDate || ""}</td>
@@ -119,7 +125,11 @@ document.addEventListener("firebase-ready", async () => {
           <td>${d.originalShift || ""}</td>
           <td>${d.newShift || ""}</td>
           <td>${d.reason || ""}</td>
-          <td>${getStatusBadge(d.status)}</td>
+          <td>
+            <select class="form-select form-select-sm status-select" data-id="${doc.id}">
+              ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
+            </select>
+          </td>
           <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
@@ -178,6 +188,18 @@ document.addEventListener("firebase-ready", async () => {
     const btnSwap = e.target.closest(".delete-swap");
     if (btnLeave && confirm("確定要刪除此請假單？")) await leaveCol.doc(btnLeave.dataset.id).delete();
     if (btnSwap && confirm("確定要刪除此調班單？")) await swapCol.doc(btnSwap.dataset.id).delete();
+  });
+
+  // ====== 狀態更新 ======
+  document.addEventListener("change", async (e) => {
+    if (e.target.classList.contains("status-select")) {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      await Promise.all([
+        leaveCol.doc(id).update({ status: value }).catch(() => {}),
+        swapCol.doc(id).update({ status: value }).catch(() => {})
+      ]);
+    }
   });
 
   // ====== 即時更新：主管簽名與註解 ======
