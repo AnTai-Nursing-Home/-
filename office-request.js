@@ -33,28 +33,40 @@ document.addEventListener("firebase-ready", async () => {
     return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
   }
 
-  // ===== 顯示註解內容（含修改時間） =====
+  // ===== 顯示註解欄位（含修改時間） =====
   function renderNoteCell(docId, note, updatedBy, updatedAt) {
     let info = "";
     if (updatedAt) {
-      const date = new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", {
-        hour12: false,
-      });
+      const date = new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false });
       info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
     }
     return `
-      <div contenteditable="true" class="editable-note" data-id="${docId}">
+      <div contenteditable="true" class="editable-note" data-id="${docId}" data-original="${note || ""}">
         ${note || ""}
       </div>
       ${info}
     `;
   }
 
-  // ===== 資料載入 =====
+  // ===== 顯示主管簽名欄位（可編輯） =====
+  function renderSupervisorCell(docId, sign, updatedBy, updatedAt) {
+    let info = "";
+    if (updatedAt) {
+      const date = new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false });
+      info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
+    }
+    return `
+      <div contenteditable="true" class="editable-sign" data-id="${docId}" data-original="${sign || ""}">
+        ${sign || ""}
+      </div>
+      ${info}
+    `;
+  }
+
+  // ===== 載入資料 =====
   async function loadRequests() {
     if (isLoading) return;
     isLoading = true;
-
     leaveBody.innerHTML = "";
     swapBody.innerHTML = "";
 
@@ -75,7 +87,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.shift || ""}</td>
         <td>${d.reason || ""}</td>
         <td>${getStatusStyle(d.status)}</td>
-        <td>${d.supervisorSign || ""}</td>
+        <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
         <td>
           <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${doc.id}">
@@ -98,7 +110,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.newShift || ""}</td>
         <td>${d.reason || ""}</td>
         <td>${getStatusStyle(d.status)}</td>
-        <td>${d.supervisorSign || ""}</td>
+        <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
         <td>
           <button class="btn btn-sm btn-outline-danger delete-swap" data-id="${doc.id}">
@@ -112,33 +124,49 @@ document.addEventListener("firebase-ready", async () => {
     isLoading = false;
   }
 
-  // ===== 編輯註解（自動紀錄時間與人名） =====
+  // ===== 更新註解 =====
   async function updateNote(collection, id, note) {
     await collection.doc(id).update({
       note,
       noteUpdatedBy: currentUser,
       noteUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`📝 已更新註解 ${id}`);
-    loadRequests(); // 重新載入顯示修改時間
+    console.log(`📝 註解已更新 (${id})`);
+    loadRequests();
   }
 
-  // ===== 事件監聽：請假與調班註解 =====
-  leaveBody.addEventListener("blur", (e) => {
-    if (e.target.classList.contains("editable-note")) {
-      const id = e.target.dataset.id;
-      const note = e.target.innerText.trim();
-      updateNote(leaveCol, id, note);
-    }
-  }, true);
+  // ===== 更新主管簽名 =====
+  async function updateSign(collection, id, sign) {
+    await collection.doc(id).update({
+      supervisorSign: sign,
+      supervisorSignUpdatedBy: currentUser,
+      supervisorSignUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`✍️ 主管簽名已更新 (${id})`);
+    loadRequests();
+  }
 
-  swapBody.addEventListener("blur", (e) => {
-    if (e.target.classList.contains("editable-note")) {
-      const id = e.target.dataset.id;
-      const note = e.target.innerText.trim();
-      updateNote(swapCol, id, note);
-    }
-  }, true);
+  // ===== 編輯事件監聽 =====
+  function addEditListener(container, collection, selector, updater) {
+    container.addEventListener("blur", (e) => {
+      if (e.target.classList.contains(selector)) {
+        const id = e.target.dataset.id;
+        const original = e.target.dataset.original || "";
+        const newText = e.target.innerText.trim();
+
+        // 只有文字真的改變才更新
+        if (newText !== original) {
+          e.target.dataset.original = newText;
+          updater(collection, id, newText);
+        }
+      }
+    }, true);
+  }
+
+  addEditListener(leaveBody, leaveCol, "editable-note", updateNote);
+  addEditListener(swapBody, swapCol, "editable-note", updateNote);
+  addEditListener(leaveBody, leaveCol, "editable-sign", updateSign);
+  addEditListener(swapBody, swapCol, "editable-sign", updateSign);
 
   // ===== 刪除功能 =====
   leaveBody.addEventListener("click", async (e) => {
@@ -171,7 +199,7 @@ document.addEventListener("firebase-ready", async () => {
     XLSX.writeFile(wb, `${fileTitle}.xlsx`);
   }
 
-  // ===== 列印（橫式） =====
+  // ===== 列印 =====
   function printSection(tableId, title) {
     const table = document.getElementById(tableId);
     if (!table) return alert("找不到表格");
@@ -195,7 +223,6 @@ document.addEventListener("firebase-ready", async () => {
     win.print();
   }
 
-  // ===== 匯出與列印按鈕 =====
   document.getElementById("exportLeaveExcel")?.addEventListener("click", () =>
     exportTableToExcel("leaveTable", "安泰護理之家_請假總表")
   );
@@ -209,7 +236,6 @@ document.addEventListener("firebase-ready", async () => {
     printSection("swapTable", "調班總表")
   );
 
-  // ===== 初始化 =====
   await loadStatuses();
   await loadRequests();
 
