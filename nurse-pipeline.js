@@ -163,39 +163,6 @@ document.addEventListener('firebase-ready', async () => {
 
   loadResidents();
 
-  // ✅ 列印前：顯示勾勾與純文字
-  window.addEventListener("beforeprint", () => {
-    document.querySelectorAll(".pipeCheck").forEach(chk => {
-      if (chk.checked) {
-        const td = chk.parentElement;
-        td.dataset.originalHTML = td.innerHTML;
-        td.innerHTML = "✔";
-      } else {
-        const td = chk.parentElement;
-        td.dataset.originalHTML = td.innerHTML;
-        td.innerHTML = "";
-      }
-    });
-
-    document.querySelectorAll(".specialSelect, .btn-remove-special, button, select").forEach(el => {
-      el.style.display = "none";
-    });
-
-    document.querySelectorAll("td").forEach(td => {
-      if (!td.textContent.trim()) td.textContent = "無";
-    });
-  });
-
-  // ✅ 列印後恢復
-  window.addEventListener("afterprint", () => {
-    document.querySelectorAll(".pipeCheck").forEach(chk => {
-      const td = chk.parentElement;
-      if (td.dataset.originalHTML) {
-        td.innerHTML = td.dataset.originalHTML;
-        delete td.dataset.originalHTML;
-      }
-    });
-
     document.querySelectorAll(".specialSelect, .btn-remove-special, button, select").forEach(el => {
       el.style.display = "";
     });
