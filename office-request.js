@@ -51,10 +51,10 @@ document.addEventListener("firebase-ready", async () => {
     await loadStatuses();
   });
 
-  // ====== 狀態 badge 顯示 ======
-  function getStatusBadge(name) {
+  // ====== 狀態樣式輔助 ======
+  function getStatusColor(name) {
     const s = statusList.find(x => x.name === name);
-    return s ? `<span class="badge" style="background:${s.color};color:#fff;">${s.name}</span>` : `<span class="badge bg-secondary">${name || ""}</span>`;
+    return s ? s.color : "#6c757d"; // 預設灰色
   }
 
   // ====== 日期範圍判斷 ======
@@ -81,6 +81,7 @@ document.addEventListener("firebase-ready", async () => {
       const d = doc.data();
       if (!inDateRange(d.leaveDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
+      const color = getStatusColor(d.status);
 
       rows += `
         <tr>
@@ -91,7 +92,8 @@ document.addEventListener("firebase-ready", async () => {
           <td>${d.shift || ""}</td>
           <td>${d.reason || ""}</td>
           <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}">
+            <select class="form-select form-select-sm status-select" data-id="${doc.id}"
+              style="background:${color};color:#fff;">
               ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
@@ -116,6 +118,7 @@ document.addEventListener("firebase-ready", async () => {
       const d = doc.data();
       if (!inDateRange(d.swapDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
+      const color = getStatusColor(d.status);
 
       rows += `
         <tr>
@@ -126,7 +129,8 @@ document.addEventListener("firebase-ready", async () => {
           <td>${d.newShift || ""}</td>
           <td>${d.reason || ""}</td>
           <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}">
+            <select class="form-select form-select-sm status-select" data-id="${doc.id}"
+              style="background:${color};color:#fff;">
               ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
@@ -195,6 +199,9 @@ document.addEventListener("firebase-ready", async () => {
     if (e.target.classList.contains("status-select")) {
       const id = e.target.dataset.id;
       const value = e.target.value;
+      const color = getStatusColor(value);
+      e.target.style.background = color;
+      e.target.style.color = "#fff";
       await Promise.all([
         leaveCol.doc(id).update({ status: value }).catch(() => {}),
         swapCol.doc(id).update({ status: value }).catch(() => {})
