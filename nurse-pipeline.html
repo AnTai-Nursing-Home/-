@@ -8,13 +8,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <style>
-    /* ✅ 表頭固定在捲動時 */
     thead th {
       position: sticky;
       top: 0;
       background: #f8f9fa;
       z-index: 2;
-      border-bottom: 2px solid #dee2e6;
     }
 
     @page {
@@ -23,19 +21,28 @@
     }
 
     @media print {
-      /* ✅ 強制整張橫向展開 */
       html, body {
         width: 297mm;
         height: 210mm;
         margin: 0;
         padding: 0;
-        background: #fff !important;
         font-family: "Microsoft JhengHei", sans-serif;
+        background: #fff;
         -webkit-print-color-adjust: exact;
-        zoom: 0.95; /* 可依實際紙張邊界微調 */
       }
 
-      /* ✅ 文件抬頭 */
+      /* ✅ 置中整個區塊 */
+      body {
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        width: 95%;
+        text-align: center;
+      }
+
+      /* ✅ 列印抬頭 */
       body::before {
         content: "安泰醫療社團法人附設安泰護理之家\n住民管路總表";
         display: block;
@@ -46,25 +53,30 @@
         margin-bottom: 10px;
       }
 
-      /* ✅ 隱藏互動元件 */
-      select, button, input, .btn, .no-print {
+      /* ✅ 隱藏互動按鈕，但不影響系統邏輯 */
+      button, .btn, .no-print {
         display: none !important;
       }
 
-      /* ✅ 顯示勾勾符號 */
+      /* ✅ checkbox 可在系統中使用，但列印時改為✔ */
+      input[type="checkbox"] {
+        visibility: hidden;
+        position: relative;
+      }
       input[type="checkbox"]:checked::after {
         content: "✔";
-        font-size: 16px;
-        color: #000;
-        position: relative;
+        position: absolute;
+        left: 0;
         top: -2px;
-        left: 2px;
+        font-size: 14px;
+        color: #000;
+        visibility: visible;
       }
 
-      /* ✅ 表格調整：真正橫向展開 */
+      /* ✅ 表格展開與置中 */
       #pipelineTableContainer {
+        width: 100%;
         overflow: visible !important;
-        width: 100% !important;
         height: auto !important;
       }
 
@@ -72,8 +84,8 @@
         width: 100% !important;
         min-width: 270mm;
         border-collapse: collapse !important;
+        margin: 0 auto;
         font-size: 12px;
-        table-layout: fixed;
       }
 
       th, td {
@@ -84,7 +96,6 @@
         vertical-align: middle;
         padding: 6px 8px !important;
         word-wrap: break-word;
-        white-space: normal;
       }
 
       th {
@@ -92,28 +103,11 @@
         font-weight: 600;
       }
 
-      /* ✅ 空白格顯示「無」 */
       td:empty::after {
         content: "無";
         color: #000;
       }
 
-      /* ✅ 欄位比例調整：配合橫向紙面 */
-      th:nth-child(1), td:nth-child(1) { width: 7%; }   /* 床號 */
-      th:nth-child(2), td:nth-child(2) { width: 12%; }  /* 姓名 */
-      th:nth-child(3), td:nth-child(3),
-      th:nth-child(4), td:nth-child(4),
-      th:nth-child(5), td:nth-child(5),
-      th:nth-child(6), td:nth-child(6),
-      th:nth-child(7), td:nth-child(7) { width: 10%; }  /* 管路類別 */
-      th:nth-child(8), td:nth-child(8) { width: 24%; }  /* 特殊管路 */
-
-      /* ✅ 移除 Bootstrap 外距 */
-      .table {
-        margin: 0 !important;
-      }
-
-      /* ✅ 防止統計被切頁 */
       tfoot {
         page-break-inside: avoid;
       }
@@ -135,7 +129,6 @@
       </div>
 
       <div class="card-body">
-        <!-- ✅ 移除 overflow 限制以防被截斷 -->
         <div id="pipelineTableContainer" class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
             <thead class="table-light">
