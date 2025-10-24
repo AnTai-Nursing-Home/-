@@ -35,37 +35,33 @@ document.addEventListener("firebase-ready", async () => {
 
   // ===== 顯示註解欄位 =====
   function renderNoteCell(docId, note, updatedBy, updatedAt) {
-    let info = "";
-    if (updatedAt) {
-      const date = new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false });
-      info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
-    }
+    const updatedInfo = updatedAt
+      ? `<div class="cell-meta">上次修改：${updatedBy || "—"} ${new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false })}</div>`
+      : "";
     return `
-      <div class="d-flex align-items-start gap-2">
-        <div contenteditable="true" class="editable-note flex-grow-1" data-id="${docId}" data-original="${note || ""}">
+      <div class="note-cell">
+        <div contenteditable="true" class="editable-note" data-id="${docId}" data-original="${note || ""}">
           ${note || ""}
         </div>
-        <button class="btn btn-outline-secondary btn-sm clear-note" data-id="${docId}" title="清除註解">🗑</button>
+        <button class="clear-note" data-id="${docId}">清除</button>
+        ${updatedInfo}
       </div>
-      ${info}
     `;
   }
 
   // ===== 顯示主管簽名欄位 =====
   function renderSupervisorCell(docId, sign, updatedBy, updatedAt) {
-    let info = "";
-    if (updatedAt) {
-      const date = new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false });
-      info = `<div class="text-muted small">上次修改：${updatedBy || "—"} ${date}</div>`;
-    }
+    const updatedInfo = updatedAt
+      ? `<div class="cell-meta">上次修改：${updatedBy || "—"} ${new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false })}</div>`
+      : "";
     return `
-      <div class="d-flex align-items-start gap-2">
-        <div contenteditable="true" class="editable-sign flex-grow-1" data-id="${docId}" data-original="${sign || ""}">
+      <div class="sign-cell">
+        <div contenteditable="true" class="editable-sign" data-id="${docId}" data-original="${sign || ""}">
           ${sign || ""}
         </div>
-        <button class="btn btn-outline-secondary btn-sm clear-sign" data-id="${docId}" title="清除簽名">🗑</button>
+        <button class="clear-sign" data-id="${docId}">清除</button>
+        ${updatedInfo}
       </div>
-      ${info}
     `;
   }
 
@@ -153,7 +149,7 @@ document.addEventListener("firebase-ready", async () => {
             e.target.dataset.original = newText;
             updater(collection, id, newText);
           }
-        }, 800); // 0.8 秒內無輸入才更新
+        }, 800); // 停止輸入 0.8 秒後更新
       }
     });
   }
