@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <style>
-    /* ✅ 表格標題固定 */
+    /* ✅ 表頭固定 */
     thead th {
       position: sticky;
       top: 0;
@@ -23,13 +23,26 @@
     }
 
     @media print {
-      body {
-        background: #fff !important;
+      /* ✅ 讓整張表格展開印出 */
+      #pipelineTableContainer {
+        overflow: visible !important;
+        height: auto !important;
+      }
+
+      /* ✅ 隱藏互動元素 */
+      select, button, input, .btn, .no-print {
+        display: none !important;
+      }
+
+      /* ✅ 列印方向橫向 */
+      html, body {
+        width: 100%;
         -webkit-print-color-adjust: exact;
+        background: #fff !important;
         font-family: "Microsoft JhengHei", sans-serif;
       }
 
-      /* ✅ 正式抬頭 */
+      /* ✅ 文件抬頭 */
       body::before {
         content: "安泰醫療社團法人附設安泰護理之家\n住民管路總表";
         display: block;
@@ -40,12 +53,7 @@
         margin-bottom: 10px;
       }
 
-      /* ✅ 隱藏互動元素 */
-      select, button, input[type="checkbox"], .btn, .no-print {
-        display: none !important;
-      }
-
-      /* ✅ 印出勾勾符號 */
+      /* ✅ 顯示勾勾符號 */
       input[type="checkbox"]:checked::after {
         content: "✔";
         font-size: 16px;
@@ -55,7 +63,7 @@
         left: 2px;
       }
 
-      /* ✅ 表格設計 */
+      /* ✅ 表格樣式 */
       table {
         width: 100%;
         border-collapse: collapse !important;
@@ -78,7 +86,13 @@
         font-weight: 600;
       }
 
-      /* ✅ 欄寬平均 */
+      /* ✅ 空白格顯示「無」 */
+      td:empty::after {
+        content: "無";
+        color: #000;
+      }
+
+      /* ✅ 調整欄寬 */
       th:nth-child(1), td:nth-child(1) { width: 8%; }
       th:nth-child(2), td:nth-child(2) { width: 12%; }
       th:nth-child(3), td:nth-child(3),
@@ -87,12 +101,6 @@
       th:nth-child(6), td:nth-child(6),
       th:nth-child(7), td:nth-child(7) { width: 10%; }
       th:nth-child(8), td:nth-child(8) { width: 25%; }
-
-      /* ✅ 若為空顯示「無」 */
-      td:empty::after {
-        content: "無";
-        color: #000;
-      }
 
       tfoot {
         page-break-inside: avoid;
@@ -115,7 +123,8 @@
       </div>
 
       <div class="card-body">
-        <div id="pipelineTableContainer" class="table-responsive" style="max-height:80vh; overflow-y:auto;">
+        <!-- ✅ 移除 max-height 與 overflow，防止被截斷 -->
+        <div id="pipelineTableContainer" class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
             <thead class="table-light">
               <tr>
