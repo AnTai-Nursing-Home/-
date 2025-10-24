@@ -51,6 +51,26 @@
       max-height: 80vh;
       overflow-y: auto;
     }
+
+    /* ✅ 統計區塊樣式 */
+    .stats-box {
+      background: #e9ecef;
+      border: 1px solid #dee2e6;
+      border-top: none;
+      border-radius: 0 0 0.5rem 0.5rem;
+      padding: 10px 15px;
+      font-weight: 600;
+    }
+
+    .stats-box span {
+      margin-right: 12px;
+    }
+
+    .stats-total {
+      text-align: center;
+      margin-top: 8px;
+      font-weight: 700;
+    }
   </style>
 </head>
 
@@ -82,21 +102,20 @@
             <tbody id="pipelineTableBody">
               <tr><td colspan="8" class="text-center text-muted">載入中...</td></tr>
             </tbody>
-            <tfoot class="table-secondary fw-bold">
-              <tr>
-                <td colspan="2">統計：</td>
-                <td id="count-maker">製氧機：0</td>
-                <td id="count-central">中央氧氣：0</td>
-                <td id="count-tracheostomy">氣切：0</td>
-                <td id="count-ngtube">鼻胃管：0</td>
-                <td id="count-urine">尿管：0</td>
-                <td id="count-special">特殊管路：0</td>
-              </tr>
-              <tr>
-                <td colspan="8" class="text-center">住民總數：<span id="count-total">0</span> 人</td>
-              </tr>
-            </tfoot>
           </table>
+        </div>
+
+        <!-- ✅ 統計區塊（移出表格） -->
+        <div class="stats-box mt-2">
+          <span id="count-maker">製氧機：0</span>
+          <span id="count-central">中央氧氣：0</span>
+          <span id="count-tracheostomy">氣切：0</span>
+          <span id="count-ngtube">鼻胃管：0</span>
+          <span id="count-urine">尿管：0</span>
+          <span id="count-special">特殊管路：0</span>
+        </div>
+        <div class="stats-total text-muted">
+          住民總數：<span id="count-total">0</span> 人
         </div>
       </div>
     </div>
