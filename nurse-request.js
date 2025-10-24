@@ -9,29 +9,39 @@ document.addEventListener("firebase-ready", async () => {
 
   let statusList = [];
 
-  // ===== 載入狀態設定（共用顏色表） =====
+  // ===== 狀態清單載入 =====
   async function loadStatuses() {
-    const snap = await statusCol.orderBy("name").get();
-    statusList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snap = await statusCol.get();
+    statusList = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        color: data.color || data.colour || data.colorCode || "#6c757d"
+      };
+    });
+    console.log("✅ 狀態清單載入完成：", statusList);
   }
 
+  // ===== 顯示狀態（帶顏色） =====
   function getStatusStyle(statusName) {
     const found = statusList.find(s => s.name === statusName);
-    if (!found) return `<span>${statusName || ""}</span>`;
-    const color = found.color || "#6c757d";
-    return `<span class="badge" style="background:${color};">${found.name}</span>`;
+    if (!found) {
+      console.warn("⚠️ 未找到顏色設定：", statusName);
+      return `<span class="badge bg-secondary">${statusName || ""}</span>`;
+    }
+    return `<span class="badge" style="background:${found.color};">${found.name}</span>`;
   }
 
+  // ===== 顯示載入中 =====
   function showLoading(tbody, colspan) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
   // ===== 請假申請載入 =====
-  async function loadLeaveRequests(userFilter = "") {
+  async function loadLeaveRequests() {
     showLoading(leaveBody, 8);
-    let query = leaveCol.orderBy("applyDate", "desc");
-    if (userFilter) query = query.where("applicant", "==", userFilter);
-    const snap = await query.get();
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
     leaveBody.innerHTML = "";
     if (snap.empty) {
       leaveBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有請假資料</td></tr>`;
@@ -56,11 +66,9 @@ document.addEventListener("firebase-ready", async () => {
   }
 
   // ===== 調班申請載入 =====
-  async function loadSwapRequests(userFilter = "") {
+  async function loadSwapRequests() {
     showLoading(swapBody, 8);
-    let query = swapCol.orderBy("applyDate", "desc");
-    if (userFilter) query = query.where("applicant", "==", userFilter);
-    const snap = await query.get();
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
     swapBody.innerHTML = "";
     if (snap.empty) {
       swapBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有調班資料</td></tr>`;
@@ -101,7 +109,7 @@ document.addEventListener("firebase-ready", async () => {
     await leaveCol.add(data);
     alert("✅ 已送出請假申請");
     form.reset();
-    loadLeaveRequests(form.applicant.value.trim());
+    loadLeaveRequests();
   });
 
   // ===== 新增調班申請 =====
@@ -121,7 +129,7 @@ document.addEventListener("firebase-ready", async () => {
     await swapCol.add(data);
     alert("✅ 已送出調班申請");
     form.reset();
-    loadSwapRequests(form.applicant.value.trim());
+    loadSwapRequests();
   });
 
   // ===== 初次載入 =====
@@ -129,7 +137,8 @@ document.addEventListener("firebase-ready", async () => {
   await loadLeaveRequests();
   await loadSwapRequests();
 
-  // ===== 即時同步（狀態有變更時自動更新顯示） =====
+  // ===== 即時同步 =====
   leaveCol.onSnapshot(() => loadLeaveRequests());
   swapCol.onSnapshot(() => loadSwapRequests());
+  statusCol.onSnapshot(() => loadStatuses()); // 若顏色有變，會即時刷新
 });
