@@ -30,7 +30,14 @@ document.addEventListener("firebase-ready", async () => {
       console.warn("⚠️ 未找到顏色設定：", statusName);
       return `<span class="badge bg-secondary">${statusName || ""}</span>`;
     }
-    return `<span class="badge" style="background:${found.color};">${found.name}</span>`;
+
+    const bg = found.color;
+    const rgb = parseInt(bg.replace("#", ""), 16);
+    const brightness =
+      ((rgb >> 16) * 299 + ((rgb >> 8) & 255) * 587 + (rgb & 255) * 114) / 1000;
+    const textColor = brightness > 140 ? "#000" : "#fff";
+
+    return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
   }
 
   // ===== 顯示載入中 =====
@@ -103,7 +110,7 @@ document.addEventListener("firebase-ready", async () => {
       leaveDate: form.leaveDate.value.trim(),
       shift: form.shift.value.trim(),
       reason: form.reason.value.trim(),
-      status: "審核中",
+      status: "待審核", // ✅ 改這裡
       notes: [],
     };
     await leaveCol.add(data);
@@ -123,7 +130,7 @@ document.addEventListener("firebase-ready", async () => {
       originalShift: form.originalShift.value.trim(),
       newShift: form.newShift.value.trim(),
       reason: form.reason.value.trim(),
-      status: "審核中",
+      status: "待審核", // ✅ 這裡也改
       notes: [],
     };
     await swapCol.add(data);
