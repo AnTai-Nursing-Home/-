@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <style>
-    /* ✅ 表頭固定 */
+    /* ✅ 標題列固定 */
     thead th {
       position: sticky;
       top: 0;
@@ -22,118 +22,34 @@
       font-family: "Microsoft JhengHei", sans-serif;
     }
 
-    @page {
-      size: A4 landscape;
-      margin: 12mm;
+    table {
+      border-collapse: collapse !important;
+      width: 100%;
+      font-size: 14px;
+      table-layout: fixed;
     }
 
-    /* ✅ 列印樣式 */
-    @media print {
-      html, body {
-        width: 297mm;
-        height: 210mm;
-        margin: 0;
-        padding: 0;
-        background: #fff !important;
-        font-family: "Microsoft JhengHei", sans-serif;
-        -webkit-print-color-adjust: exact;
-      }
+    th, td {
+      border: 1px solid #dee2e6;
+      text-align: center;
+      vertical-align: middle;
+      padding: 6px 8px !important;
+      word-wrap: break-word;
+    }
 
-      /* ✅ 讓整份文件水平垂直置中 */
-      body {
-        display: grid;
-        place-items: start center;
-      }
+    th {
+      background: #e9ecef;
+      font-weight: 600;
+    }
 
-      .container {
-        width: 90%;
-        margin: 0 auto;
-        text-align: center;
-      }
+    td:empty::after {
+      content: "無";
+      color: #6c757d;
+    }
 
-      /* ✅ 抬頭與表格整體置中 */
-      body::before {
-        content: "安泰醫療社團法人附設安泰護理之家\\A住民管路總表";
-        display: block;
-        width: 90%;
-        text-align: center;
-        font-weight: 700;
-        font-size: 18px;
-        white-space: pre-line;
-        margin-bottom: 10px;
-      }
-
-      /* ✅ 隱藏按鈕區塊 */
-      .no-print, button, .btn {
-        display: none !important;
-      }
-
-      /* ✅ checkbox 改為 ✔ 顯示 */
-      body.printing input[type="checkbox"] {
-        visibility: hidden;
-      }
-      body.printing input[type="checkbox"]:checked::after {
-        content: "✔";
-        position: absolute;
-        font-size: 14px;
-        color: #000;
-        left: 0;
-        top: -2px;
-        visibility: visible;
-      }
-
-      /* ✅ 表格置中展開 */
-      #pipelineTableContainer {
-        width: 100%;
-        overflow: visible !important;
-        height: auto !important;
-        display: flex;
-        justify-content: center;
-      }
-
-      table {
-        border-collapse: collapse !important;
-        width: 100%;
-        max-width: 270mm;
-        margin: 0 auto;
-        font-size: 12px;
-        table-layout: fixed;
-      }
-
-      th, td {
-        border: 1px solid #000 !important;
-        color: #000 !important;
-        background: #fff !important;
-        text-align: center;
-        vertical-align: middle;
-        padding: 6px 8px !important;
-        word-wrap: break-word;
-      }
-
-      th {
-        background: #f2f2f2 !important;
-        font-weight: 600;
-      }
-
-      td:empty::after {
-        content: "無";
-        color: #000;
-      }
-
-      /* ✅ 欄寬比例 */
-      th:nth-child(1), td:nth-child(1) { width: 7%; }
-      th:nth-child(2), td:nth-child(2) { width: 12%; }
-      th:nth-child(3), td:nth-child(3),
-      th:nth-child(4), td:nth-child(4),
-      th:nth-child(5), td:nth-child(5),
-      th:nth-child(6), td:nth-child(6),
-      th:nth-child(7), td:nth-child(7) { width: 10%; }
-      th:nth-child(8), td:nth-child(8) { width: 24%; }
-
-      /* ✅ 防止統計被切頁 */
-      tfoot {
-        page-break-inside: avoid;
-      }
+    #pipelineTableContainer {
+      max-height: 80vh;
+      overflow-y: auto;
     }
   </style>
 </head>
@@ -144,15 +60,12 @@
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center sticky-top">
         <h4 class="mb-0"><i class="fa-solid fa-wind me-2"></i>住民管路管理</h4>
         <div>
-          <button class="btn btn-light btn-sm me-2 no-print" onclick="window.print()">
-            <i class="fa-solid fa-print me-1"></i>列印
-          </button>
-          <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light no-print">返回護理師儀表板</a>
+          <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
         </div>
       </div>
 
       <div class="card-body">
-        <div id="pipelineTableContainer" class="table-responsive" style="max-height:80vh; overflow-y:auto;">
+        <div id="pipelineTableContainer" class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
             <thead class="table-light">
               <tr>
@@ -195,22 +108,5 @@
   <script src="firebase-init.js"></script>
   <script src="nurse-pipeline.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- ✅ 列印前後控制 -->
-  <script>
-    window.addEventListener("beforeprint", () => {
-      document.body.classList.add("printing");
-    });
-
-    window.addEventListener("afterprint", () => {
-      // ✅ 強制延遲恢復，解決 Chrome 隱藏問題
-      setTimeout(() => {
-        document.body.classList.remove("printing");
-        document.querySelectorAll("input[type='checkbox']").forEach(chk => {
-          chk.style.visibility = "visible";
-        });
-      }, 800);
-    });
-  </script>
 </body>
 </html>
