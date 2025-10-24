@@ -2,203 +2,282 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>辦公室端 - 請假與調班管理</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>請假與調班管理（辦公室端）</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+
+  <!-- 表格/可編輯欄位樣式（保留原有排版 + 新增簽名/註解欄） -->
   <style>
-    th, td { vertical-align: middle; white-space: pre-wrap; word-break: break-all; }
-    .export-buttons { text-align: right; margin-bottom: 1rem; }
-    .note-item { background: #f8f9fa; padding: 2px 4px; border-radius: 3px; margin-bottom: 3px; }
-    .status-badge { display:inline-block; padding:2px 6px; border-radius:4px; color:#fff; font-weight:bold; }
-    .filter-bar { display: flex; justify-content: flex-end; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+    body { background:#f8f9fa; }
+    th, td { vertical-align: middle; white-space: pre-wrap; word-break: break-word; }
+    .export-buttons { text-align: right; }
+
+    /* 可編輯欄位（註解／主管簽名） */
+    .editable-note,
+    .editable-sign {
+      min-width: 150px;
+      max-width: 220px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid transparent;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .editable-note:focus,
+    .editable-sign:focus {
+      border: 1px solid #0d6efd;
+      outline: none;
+      background-color: #f8f9fa;
+    }
+
+    /* 清除按鈕 */
+    .clear-note, .clear-sign {
+      color: #dc3545;
+      border: 1px solid #dc3545;
+      font-size: 0.8rem;
+      padding: 2px 6px;
+      line-height: 1;
+    }
+    .clear-note:hover, .clear-sign:hover {
+      background-color: #dc3545;
+      color: #fff;
+    }
+
+    /* 狀態設定 Modal 內色塊 */
+    .color-chip { display:inline-block; width:18px; height:18px; border-radius:4px; border:1px solid #ddd; vertical-align:middle; }
+
     @media print {
-      .btn, .nav, .filter-bar { display: none !important; }
+      .btn, .nav, .export-buttons, .filter-bar { display: none !important; }
       th, td { border: 1px solid #000 !important; }
+      body { background:#fff; }
     }
   </style>
 </head>
-<body class="bg-light">
-<div class="container my-4">
-  <div class="card shadow-sm">
-    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-      <h4 class="mb-0"><i class="fa-solid fa-briefcase me-2"></i>請假與調班管理（辦公室端）</h4>
-      <div>
-        <button class="btn btn-sm btn-outline-light me-2" id="openStatusSettings"><i class="fa-solid fa-gear"></i> 狀態設定</button>
-        <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回儀表板</a>
+<body>
+  <div class="container my-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fa-solid fa-briefcase me-2"></i>請假與調班管理（辦公室端）</h4>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm btn-outline-light" id="openStatusSettings"><i class="fa-solid fa-gear"></i> 狀態設定</button>
+          <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回儀表板</a>
+        </div>
       </div>
-    </div>
 
-    <div class="card-body">
-      <ul class="nav nav-tabs mb-3">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leave">請假</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swap">調班</button></li>
-      </ul>
+      <div class="card-body">
+        <ul class="nav nav-tabs mb-3">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leaveTab">請假</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#swapTab">調班</button>
+          </li>
+        </ul>
 
-      <div class="tab-content">
-        <!-- ===== 請假申請 ===== -->
-        <div class="tab-pane fade show active" id="leave">
-          <div class="filter-bar">
-            <label>起：</label><input type="date" id="leaveStartDate" class="form-control form-control-sm w-auto">
-            <label>迄：</label><input type="date" id="leaveEndDate" class="form-control form-control-sm w-auto">
-            <button class="btn btn-sm btn-outline-primary" id="filterLeaveBtn"><i class="fa-solid fa-filter"></i> 篩選</button>
-          </div>
-          <div class="d-flex justify-content-between mb-2">
-            <button class="btn btn-outline-primary btn-sm" id="addLeaveBtn"><i class="fa-solid fa-plus"></i> 新增請假單</button>
-            <div class="export-buttons">
-              <button class="btn btn-success btn-sm me-2" id="exportLeaveExcel"><i class="fa-solid fa-file-excel"></i> Excel</button>
-              <button class="btn btn-secondary btn-sm" id="printLeave"><i class="fa-solid fa-print"></i> 列印</button>
+        <div class="tab-content">
+          <!-- ===== 請假分頁 ===== -->
+          <div class="tab-pane fade show active" id="leaveTab">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="addLeaveBtn"><i class="fa-solid fa-plus"></i> 新增請假單</button>
+              </div>
+              <div class="export-buttons">
+                <button class="btn btn-success btn-sm me-2" id="exportLeaveExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+                <button class="btn btn-secondary btn-sm" id="printLeave"><i class="fa-solid fa-print"></i> 列印</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-bordered align-middle" id="leaveTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>申請日期</th>
+                    <th>申請人</th>
+                    <th>假別</th>
+                    <th>請假日期</th>
+                    <th>請假當日班別</th>
+                    <th>請假理由</th>
+                    <th>狀態</th>
+                    <th>主管簽名</th>
+                    <th>註解</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="leaveTableBody">
+                  <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
+
+          <!-- ===== 調班分頁 ===== -->
+          <div class="tab-pane fade" id="swapTab">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="addSwapBtn"><i class="fa-solid fa-plus"></i> 新增調班單</button>
+              </div>
+              <div class="export-buttons">
+                <button class="btn btn-success btn-sm me-2" id="exportSwapExcel"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+                <button class="btn btn-secondary btn-sm" id="printSwap"><i class="fa-solid fa-print"></i> 列印</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-bordered align-middle" id="swapTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>申請日期</th>
+                    <th>申請人</th>
+                    <th>調班日期</th>
+                    <th>原班別</th>
+                    <th>欲換班別</th>
+                    <th>理由</th>
+                    <th>狀態</th>
+                    <th>主管簽名</th>
+                    <th>註解</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="swapTableBody">
+                  <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /tab-content -->
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+  </div><!-- /container -->
+
+  <!-- ========== 新增請假單 Modal ========== -->
+  <div class="modal fade" id="leaveModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="addLeaveForm">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">新增請假單</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+          </div>
+          <div class="modal-body">
+            <input class="form-control mb-2" name="applicant" placeholder="申請人" required>
+            <select class="form-select mb-2" name="leaveType" required>
+              <option value="病假">病假</option>
+              <option value="公假">公假</option>
+              <option value="事假">事假</option>
+              <option value="喪假">喪假</option>
+            </select>
+            <label class="form-label fw-bold">請假日期</label>
+            <input type="date" class="form-control mb-2" name="leaveDate" required>
+            <input class="form-control mb-2" name="shift" placeholder="請假當日班別">
+            <textarea class="form-control" rows="3" name="reason" placeholder="請假理由"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal" type="button">取消</button>
+            <button class="btn btn-primary btn-sm" type="submit">送出</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 新增調班單 Modal ========== -->
+  <div class="modal fade" id="swapModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="addSwapForm">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">新增調班單</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+          </div>
+          <div class="modal-body">
+            <input class="form-control mb-2" name="applicant" placeholder="申請人" required>
+            <label class="form-label fw-bold">調班日期</label>
+            <input type="date" class="form-control mb-2" name="swapDate" required>
+            <input class="form-control mb-2" name="originalShift" placeholder="原班別" required>
+            <input class="form-control mb-2" name="newShift" placeholder="欲換班別" required>
+            <textarea class="form-control" rows="3" name="reason" placeholder="調班理由"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal" type="button">取消</button>
+            <button class="btn btn-primary btn-sm" type="submit">送出</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 狀態設定 Modal ========== -->
+  <div class="modal fade" id="statusSettingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title"><i class="fa-solid fa-gear me-2"></i>狀態設定</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addStatusForm" class="row g-2 mb-3">
+            <div class="col-md-5">
+              <input type="text" class="form-control" name="statusName" placeholder="狀態名稱（例如：待審核）" required>
+            </div>
+            <div class="col-md-3 d-flex align-items-center gap-2">
+              <input type="color" class="form-control form-control-color" name="statusColor" value="#ff0000" title="選擇顏色">
+              <span class="small text-muted">顏色</span>
+            </div>
+            <div class="col-md-4 text-end">
+              <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-plus"></i> 新增狀態</button>
+            </div>
+          </form>
+
           <div class="table-responsive">
             <table class="table table-bordered align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>申請日期</th>
-                  <th>申請人</th>
-                  <th>假別</th>
-                  <th>請假日期</th>
-                  <th>請假當日班別</th>
-                  <th>請假理由</th>
-                  <th>狀態</th>
-                  <th>主管簽名</th>
-                  <th>註解</th>
+                  <th>名稱</th>
+                  <th>顏色</th>
                   <th>操作</th>
                 </tr>
               </thead>
-              <tbody id="leaveTableBody">
-                <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+              <tbody id="statusListBody">
+                <tr><td colspan="3" class="text-center text-muted">讀取中...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
-
-        <!-- ===== 調班申請 ===== -->
-        <div class="tab-pane fade" id="swap">
-          <div class="filter-bar">
-            <label>起：</label><input type="date" id="swapStartDate" class="form-control form-control-sm w-auto">
-            <label>迄：</label><input type="date" id="swapEndDate" class="form-control form-control-sm w-auto">
-            <button class="btn btn-sm btn-outline-primary" id="filterSwapBtn"><i class="fa-solid fa-filter"></i> 篩選</button>
-          </div>
-          <div class="d-flex justify-content-between mb-2">
-            <button class="btn btn-outline-primary btn-sm" id="addSwapBtn"><i class="fa-solid fa-plus"></i> 新增調班單</button>
-            <div class="export-buttons">
-              <button class="btn btn-success btn-sm me-2" id="exportSwapExcel"><i class="fa-solid fa-file-excel"></i> Excel</button>
-              <button class="btn btn-secondary btn-sm" id="printSwap"><i class="fa-solid fa-print"></i> 列印</button>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-bordered align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>申請日期</th>
-                  <th>申請人</th>
-                  <th>調班日期</th>
-                  <th>原班別</th>
-                  <th>欲換班別</th>
-                  <th>理由</th>
-                  <th>狀態</th>
-                  <th>主管簽名</th>
-                  <th>註解</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="swapTableBody">
-                <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal" type="button">關閉</button>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ===== 狀態設定 Modal ===== -->
-<div class="modal fade" id="statusSettingsModal">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="fa-solid fa-gear me-2"></i>狀態設定</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex mb-3">
-          <input type="text" class="form-control me-2" id="newStatusName" placeholder="新增狀態名稱">
-          <input type="color" id="newStatusColor" value="#007bff" class="form-control form-control-color me-2" title="選擇顏色">
-          <button class="btn btn-primary" id="addStatusBtn"><i class="fa-solid fa-plus"></i> 新增</button>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>狀態名稱</th>
-                <th>顏色</th>
-                <th>預覽</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="statusTableBody">
-              <tr><td colspan="4" class="text-center text-muted">載入中...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <!-- ===== 必要 Scripts（順序很重要） ===== -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<!-- ===== 其他原有的 Modal ===== -->
-<div class="modal fade" id="leaveModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">新增請假單</h5></div>
-      <div class="modal-body">
-        <input class="form-control mb-2" id="leaveApplicant" placeholder="申請人">
-        <select class="form-select mb-2" id="leaveType">
-          <option value="病假">病假</option><option value="公假">公假</option><option value="事假">事假</option><option value="喪假">喪假</option>
-        </select>
-        <label for="leaveDate" class="form-label fw-bold">請假當天日期</label>
-        <input type="date" class="form-control mb-2" id="leaveDate">
-        <input class="form-control mb-2" id="leaveShift" placeholder="請假當日班別">
-        <textarea class="form-control" rows="3" id="leaveReason" placeholder="請假理由"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-        <button class="btn btn-primary btn-sm" id="saveLeave">儲存</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <!-- 你的 Firebase 初始化 -->
+  <script src="firebase-init.js"></script>
 
-<div class="modal fade" id="swapModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">新增調班單</h5></div>
-      <div class="modal-body">
-        <input class="form-control mb-2" id="swapApplicant" placeholder="申請人">
-        <label for="swapDate" class="form-label fw-bold">欲換班別日期（非申請日）</label>
-        <input type="date" class="form-control mb-2" id="swapDate">
-        <input class="form-control mb-2" id="swapOldShift" placeholder="原班別">
-        <input class="form-control mb-2" id="swapNewShift" placeholder="欲換班別">
-        <textarea class="form-control" rows="3" id="swapReason" placeholder="調班理由"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-        <button class="btn btn-primary btn-sm" id="saveSwap">儲存</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <!-- 主程式：請使用你目前最新的 office-request.js（已支援簽名/註解可編輯 & 清除） -->
+  <script src="office-request.js"></script>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="firebase-init.js"></script>
-<script src="office-request.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Bootstrap JS 放最後，確保 Modal 正常 -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 開啟三個 modal 的觸發（維持既有操作） -->
+  <script>
+    document.getElementById("addLeaveBtn")?.addEventListener("click", () => {
+      new bootstrap.Modal(document.getElementById("leaveModal")).show();
+    });
+    document.getElementById("addSwapBtn")?.addEventListener("click", () => {
+      new bootstrap.Modal(document.getElementById("swapModal")).show();
+    });
+    document.getElementById("openStatusSettings")?.addEventListener("click", () => {
+      new bootstrap.Modal(document.getElementById("statusSettingsModal")).show();
+    });
+  </script>
 </body>
 </html>
