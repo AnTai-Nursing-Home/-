@@ -6,67 +6,26 @@ document.addEventListener("firebase-ready", async () => {
 
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
-  const leaveStatusFilter = document.getElementById("leaveStatusFilter");
-  const swapStatusFilter = document.getElementById("swapStatusFilter");
 
-  // 狀態設定相關元素
-  const statusListEl = document.getElementById("statusList");
-  const newStatusEl = document.getElementById("new-status");
-  const newStatusColorEl = document.getElementById("new-status-color");
-  const addStatusBtn = document.getElementById("btn-add-status");
+  const leaveStatusSelect = document.getElementById("leaveStatusSelect");
+  const swapStatusSelect = document.getElementById("swapStatusSelect");
 
   let statusList = [];
-  let isLoading = false;
-  let initialized = false;
-  const currentUser = localStorage.getItem("username") || "管理員";
 
-  // ===== 狀態清單載入 =====
+  // ====== 載入狀態清單 ======
   async function loadStatuses() {
     const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
     statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // 狀態清單 UI
-    statusListEl.innerHTML = statusList.map(s => `
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div>
-          <span class="badge me-2" style="background:${s.color || "#6c757d"}">${s.name}</span>
-        </div>
-        <button class="btn btn-sm btn-outline-danger del-status" data-id="${s.id}">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </li>
-    `).join("");
-
-    // 狀態下拉篩選更新
-    [leaveStatusFilter, swapStatusFilter].forEach(sel => {
-      sel.innerHTML = `<option value="">全部狀態</option>` +
-        statusList.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
-    });
-
-    // 綁定刪除狀態
-    statusListEl.querySelectorAll(".del-status").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.dataset.id;
-        if (confirm(`確定刪除狀態「${id}」？`)) {
-          await statusCol.doc(id).delete();
-          await loadStatuses();
-        }
-      });
+    // 填入新增表單的狀態選單
+    [leaveStatusSelect, swapStatusSelect].forEach(sel => {
+      if (!sel) return;
+      sel.innerHTML = statusList
+        .map(s => `<option value="${s.name}">${s.name}</option>`)
+        .join("");
     });
   }
 
-  // 新增狀態
-  addStatusBtn.addEventListener("click", async () => {
-    const name = newStatusEl.value.trim();
-    const color = newStatusColorEl.value.trim() || "#6c757d";
-    if (!name) return alert("請輸入狀態名稱");
-    await statusCol.doc(name).set({ name, color });
-    newStatusEl.value = "";
-    newStatusColorEl.value = "#007bff";
-    await loadStatuses();
-  });
-
-  // ===== 狀態徽章樣式 =====
   function getStatusBadge(statusName) {
     const found = statusList.find(s => s.name === statusName);
     return found
@@ -74,37 +33,7 @@ document.addEventListener("firebase-ready", async () => {
       : `<span class="badge bg-secondary">${statusName || ""}</span>`;
   }
 
-  // 狀態下拉 HTML
-  function getStatusDropdown(current, docId, type) {
-    return `
-      <select class="form-select form-select-sm status-dropdown" data-id="${docId}" data-type="${type}">
-        ${statusList.map(s => `
-          <option value="${s.name}" ${s.name === current ? "selected" : ""} style="background:${s.color};color:#fff;">
-            ${s.name}
-          </option>`).join("")}
-      </select>
-    `;
-  }
-
-  // ===== 註解 / 簽名欄位 =====
-  function renderEditableCell(docId, text, updatedBy, updatedAt, type) {
-    const label = type === "sign" ? "editable-sign" : "editable-note";
-    const clearLabel = type === "sign" ? "clear-sign" : "clear-note";
-    const updatedInfo = updatedAt
-      ? `<div class="cell-meta">上次修改：${updatedBy || "—"} ${new Date(updatedAt.seconds * 1000).toLocaleString("zh-TW", { hour12: false })}</div>`
-      : "";
-    return `
-      <div class="${label}-cell">
-        <div contenteditable="true" class="${label}" data-id="${docId}" data-original="${text || ""}">
-          ${text || ""}
-        </div>
-        <button class="${clearLabel}" data-id="${docId}">清除</button>
-        ${updatedInfo}
-      </div>
-    `;
-  }
-
-  // ===== 日期篩選工具 =====
+  // ====== 日期範圍工具 ======
   function inDateRange(targetDate, start, end) {
     if (!targetDate) return true;
     const t = new Date(targetDate);
@@ -115,32 +44,21 @@ document.addEventListener("firebase-ready", async () => {
     return true;
   }
 
-  // ===== 載入資料（含日期 / 狀態篩選） =====
-  async function loadRequests() {
-    if (isLoading) return;
-    isLoading = true;
+  // ====== 載入請假資料 ======
+  async function loadLeaveRequests() {
+    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
+
+    if (snap.empty) {
+      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
+
     leaveBody.innerHTML = "";
-    swapBody.innerHTML = "";
-
-    const [leaveSnap, swapSnap] = await Promise.all([
-      leaveCol.orderBy("applyDate", "desc").get(),
-      swapCol.orderBy("applyDate", "desc").get()
-    ]);
-
-    const leaveFilter = leaveStatusFilter.value || "";
-    const swapFilter = swapStatusFilter.value || "";
-    const leaveStart = document.getElementById("leaveStartDate").value;
-    const leaveEnd = document.getElementById("leaveEndDate").value;
-    const swapStart = document.getElementById("swapStartDate").value;
-    const swapEnd = document.getElementById("swapEndDate").value;
-
-    // 請假資料
-    leaveSnap.forEach(doc => {
+    snap.forEach(doc => {
       const d = doc.data();
-      if (leaveFilter && d.status !== leaveFilter) return;
-      if (!inDateRange(d.leaveDate, leaveStart, leaveEnd)) return;
-
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
         <td>${d.applicant || ""}</td>
@@ -148,23 +66,32 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.leaveDate || ""}</td>
         <td>${d.shift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>
-          ${getStatusBadge(d.status)}<br>${getStatusDropdown(d.status, doc.id, "leave")}
+        <td>${getStatusBadge(d.status)}</td>
+        <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+        <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
+        <td class="no-print text-center">
+          <button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button>
         </td>
-        <td>${renderEditableCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt, "sign")}</td>
-        <td>${renderEditableCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt, "note")}</td>
-        <td><button class="btn btn-sm btn-outline-danger delete-btn" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
       `;
       leaveBody.appendChild(tr);
     });
+  }
 
-    // 調班資料
-    swapSnap.forEach(doc => {
+  // ====== 載入調班資料 ======
+  async function loadSwapRequests() {
+    swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
+
+    if (snap.empty) {
+      swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有資料</td></tr>`;
+      return;
+    }
+
+    swapBody.innerHTML = "";
+    snap.forEach(doc => {
       const d = doc.data();
-      if (swapFilter && d.status !== swapFilter) return;
-      if (!inDateRange(d.swapDate, swapStart, swapEnd)) return;
-
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
         <td>${d.applicant || ""}</td>
@@ -172,151 +99,100 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.originalShift || ""}</td>
         <td>${d.newShift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>
-          ${getStatusBadge(d.status)}<br>${getStatusDropdown(d.status, doc.id, "swap")}
+        <td>${getStatusBadge(d.status)}</td>
+        <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+        <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
+        <td class="no-print text-center">
+          <button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button>
         </td>
-        <td>${renderEditableCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt, "sign")}</td>
-        <td>${renderEditableCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt, "note")}</td>
-        <td><button class="btn btn-sm btn-outline-danger delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
       `;
       swapBody.appendChild(tr);
     });
-
-    // 狀態下拉監聽
-    document.querySelectorAll(".status-dropdown").forEach(sel => {
-      sel.addEventListener("change", async (e) => {
-        const id = e.target.dataset.id;
-        const newStatus = e.target.value;
-        const type = e.target.dataset.type;
-        const targetCol = type === "leave" ? leaveCol : swapCol;
-        await targetCol.doc(id).update({ status: newStatus });
-        loadRequests();
-      });
-    });
-
-    isLoading = false;
   }
 
-  // ===== 狀態 / 日期篩選按鈕 =====
-  document.getElementById("filterLeaveBtn")?.addEventListener("click", loadRequests);
-  document.getElementById("resetLeaveFilterBtn")?.addEventListener("click", async () => {
-    leaveStatusFilter.value = "";
-    document.getElementById("leaveStartDate").value = "";
-    document.getElementById("leaveEndDate").value = "";
-    await loadRequests();
+  // ====== 新增請假單 ======
+  document.getElementById("addLeaveForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    const data = {
+      applicant: form.applicant.value,
+      applyDate: new Date().toISOString().split("T")[0],
+      leaveType: form.leaveType.value,
+      leaveDate: form.leaveDate.value,
+      shift: form.shift.value,
+      reason: form.reason.value,
+      status: form.status.value,
+      note: "",
+      supervisorSign: "主管"
+    };
+
+    await leaveCol.add(data);
+    form.reset();
+    alert("✅ 已新增請假單！");
   });
 
-  document.getElementById("filterSwapBtn")?.addEventListener("click", loadRequests);
-  document.getElementById("resetSwapFilterBtn")?.addEventListener("click", async () => {
-    swapStatusFilter.value = "";
-    document.getElementById("swapStartDate").value = "";
-    document.getElementById("swapEndDate").value = "";
-    await loadRequests();
+  // ====== 新增調班單 ======
+  document.getElementById("addSwapForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    const data = {
+      applicant: form.applicant.value,
+      applyDate: new Date().toISOString().split("T")[0],
+      swapDate: form.swapDate.value,
+      originalShift: form.originalShift.value,
+      newShift: form.newShift.value,
+      reason: form.reason.value,
+      status: form.status.value,
+      note: "",
+      supervisorSign: "主管"
+    };
+
+    await swapCol.add(data);
+    form.reset();
+    alert("✅ 已新增調班單！");
   });
 
-  // ===== 更新欄位 =====
-  async function updateField(collection, id, field, value) {
-    const updateObj = {};
-    updateObj[field] = value;
-    updateObj[`${field}UpdatedBy`] = currentUser;
-    updateObj[`${field}UpdatedAt`] = firebase.firestore.FieldValue.serverTimestamp();
-    await collection.doc(id).update(updateObj);
-    loadRequests();
-  }
+  // ====== 即時更新監聽 ======
+  leaveCol.onSnapshot(loadLeaveRequests);
+  swapCol.onSnapshot(loadSwapRequests);
 
-  let editTimeout;
-  function addEditListener(container, collection, selector, field) {
-    container.addEventListener("input", (e) => {
-      if (e.target.classList.contains(selector)) {
-        clearTimeout(editTimeout);
-        editTimeout = setTimeout(() => {
-          const id = e.target.dataset.id;
-          const newText = e.target.innerText.trim();
-          updateField(collection, id, field, newText);
-        }, 800);
-      }
-    });
-  }
+  // ====== 刪除功能 ======
+  document.addEventListener("click", async (e) => {
+    if (e.target.closest(".delete-leave")) {
+      const id = e.target.closest(".delete-leave").dataset.id;
+      if (confirm("確定要刪除此請假單？")) await leaveCol.doc(id).delete();
+    }
+    if (e.target.closest(".delete-swap")) {
+      const id = e.target.closest(".delete-swap").dataset.id;
+      if (confirm("確定要刪除此調班單？")) await swapCol.doc(id).delete();
+    }
+  });
 
-  addEditListener(leaveBody, leaveCol, "editable-note", "note");
-  addEditListener(swapBody, swapCol, "editable-note", "note");
-  addEditListener(leaveBody, leaveCol, "editable-sign", "supervisorSign");
-  addEditListener(swapBody, swapCol, "editable-sign", "supervisorSign");
+  // ====== 主管簽名 / 註解即時更新 ======
+  document.addEventListener("input", async (e) => {
+    if (e.target.classList.contains("supervisor-sign")) {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      await Promise.all([
+        leaveCol.doc(id).update({ supervisorSign: value }).catch(() => {}),
+        swapCol.doc(id).update({ supervisorSign: value }).catch(() => {})
+      ]);
+    }
 
-  // ===== 清除註解 / 簽名 =====
-  function setupClearButtons(body, collection) {
-    body.addEventListener("click", async (e) => {
-      const clearNote = e.target.closest(".clear-note");
-      const clearSign = e.target.closest(".clear-sign");
-      if (clearNote) {
-        const id = clearNote.dataset.id;
-        await updateField(collection, id, "note", "");
-      }
-      if (clearSign) {
-        const id = clearSign.dataset.id;
-        await updateField(collection, id, "supervisorSign", "");
-      }
-    });
-  }
-  setupClearButtons(leaveBody, leaveCol);
-  setupClearButtons(swapBody, swapCol);
+    if (e.target.classList.contains("note-area")) {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      await Promise.all([
+        leaveCol.doc(id).update({ note: value }).catch(() => {}),
+        swapCol.doc(id).update({ note: value }).catch(() => {})
+      ]);
+    }
+  });
 
-  // ===== 列印（正式文件版） =====
-  function printSection(tableId, title) {
-    const table = document.getElementById(tableId);
-    if (!table) return alert("找不到表格");
-    const now = new Date().toLocaleString("zh-TW", { hour12: false });
-    const cleanTable = table.cloneNode(true);
-    cleanTable.querySelectorAll("button, .status-dropdown, .cell-meta").forEach(el => el.remove());
-
-    const win = window.open("", "_blank");
-    win.document.write(`
-      <html><head><title>${title}</title>
-      <style>
-        @page { size: A4 landscape; margin: 12mm; }
-        body { font-family:"Microsoft JhengHei"; padding:20px; color:#000; }
-        h2,h4{text-align:center;margin:0;}
-        .header-info { text-align:right; font-size:12px; margin-bottom:10px; }
-        table { border-collapse: collapse; width:100%; margin-top:10px; }
-        th,td { border:1px solid #000; padding:6px 8px; text-align:center; }
-      </style></head><body>
-      <h2>安泰醫療社團法人附設安泰護理之家</h2>
-      <h4>${title}</h4>
-      <div class="header-info">列印日期：${now}</div>
-      ${cleanTable.outerHTML}
-      </body></html>
-    `);
-    win.document.close();
-    win.print();
-  }
-
-  document.getElementById("printLeave")?.addEventListener("click", () =>
-    printSection("leaveTable", "請假總表")
-  );
-  document.getElementById("printSwap")?.addEventListener("click", () =>
-    printSection("swapTable", "調班總表")
-  );
-
-  // ===== 匯出 Excel =====
-  function exportTableToExcel(tableId, fileTitle) {
-    const table = document.getElementById(tableId);
-    if (!table) return alert("找不到表格");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "資料" });
-    XLSX.writeFile(wb, `${fileTitle}.xlsx`);
-  }
-
-  document.getElementById("exportLeaveExcel")?.addEventListener("click", () =>
-    exportTableToExcel("leaveTable", "安泰護理之家_請假總表")
-  );
-  document.getElementById("exportSwapExcel")?.addEventListener("click", () =>
-    exportTableToExcel("swapTable", "安泰護理之家_調班總表")
-  );
-
-  // ===== 初始化 =====
+  // ====== 初始化 ======
   await loadStatuses();
-  await loadRequests();
-
-  leaveCol.onSnapshot(() => { if (initialized) loadRequests(); initialized = true; });
-  swapCol.onSnapshot(() => { if (initialized) loadRequests(); initialized = true; });
-  statusCol.onSnapshot(() => loadStatuses());
+  await loadLeaveRequests();
+  await loadSwapRequests();
 });
