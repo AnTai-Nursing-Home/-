@@ -7,6 +7,12 @@ document.addEventListener("firebase-ready", async () => {
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
 
+  // 狀態設定相關元素
+  const statusListEl = document.getElementById("statusList");
+  const newStatusEl = document.getElementById("new-status");
+  const newStatusColorEl = document.getElementById("new-status-color");
+  const addStatusBtn = document.getElementById("btn-add-status");
+
   let statusList = [];
   let isLoading = false;
   let initialized = false;
@@ -14,23 +20,73 @@ document.addEventListener("firebase-ready", async () => {
 
   // ===== 狀態清單載入 =====
   async function loadStatuses() {
-    const snap = await statusCol.get();
-    statusList = snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      color: doc.data().color || "#6c757d"
-    }));
+    const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
+    statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (statusList.length === 0) {
+      const defaultList = [
+        { name: "待審核", color: "#6c757d" },
+        { name: "批准", color: "#28a745" },
+        { name: "退回", color: "#dc3545" }
+      ];
+      const batch = db.batch();
+      defaultList.forEach(s => batch.set(statusCol.doc(s.name), s));
+      await batch.commit();
+      return loadStatuses();
+    }
+
+    // 狀態清單 UI
+    statusListEl.innerHTML = statusList.map(s => `
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <span class="badge me-2" style="background:${s.color || "#6c757d"}">${s.name}</span>
+        </div>
+        <button class="btn btn-sm btn-outline-danger del-status" data-id="${s.id}">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </li>
+    `).join("");
+
+    // 綁定刪除狀態
+    statusListEl.querySelectorAll(".del-status").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        if (confirm(`確定刪除狀態「${id}」？`)) {
+          await statusCol.doc(id).delete();
+          await loadStatuses();
+        }
+      });
+    });
   }
+
+  // 新增狀態
+  addStatusBtn.addEventListener("click", async () => {
+    const name = newStatusEl.value.trim();
+    const color = newStatusColorEl.value.trim() || "#6c757d";
+    if (!name) return alert("請輸入狀態名稱");
+    await statusCol.doc(name).set({ name, color });
+    newStatusEl.value = "";
+    newStatusColorEl.value = "#007bff";
+    await loadStatuses();
+  });
 
   // ===== 狀態徽章樣式 =====
   function getStatusStyle(statusName) {
     const found = statusList.find(s => s.name === statusName);
     if (!found) return `<span class="badge bg-secondary">${statusName || ""}</span>`;
-    const bg = found.color;
-    const rgb = parseInt(bg.replace("#", ""), 16);
-    const brightness = ((rgb >> 16) * 299 + ((rgb >> 8) & 255) * 587 + (rgb & 255) * 114) / 1000;
-    const textColor = brightness > 140 ? "#000" : "#fff";
-    return `<span class="badge" style="background:${bg};color:${textColor};">${found.name}</span>`;
+    return `<span class="badge" style="background:${found.color};color:#fff;">${found.name}</span>`;
+  }
+
+  // 狀態下拉 HTML
+  function getStatusDropdown(current, docId, type) {
+    return `
+      <select class="form-select form-select-sm status-dropdown" data-id="${docId}" data-type="${type}">
+        ${statusList.map(s => `
+          <option value="${s.name}" ${s.name === current ? "selected" : ""} style="background:${s.color};color:#fff;">
+            ${s.name}
+          </option>`).join("")}
+      </select>
+    `;
   }
 
   // ===== 顯示註解欄位 =====
@@ -77,6 +133,7 @@ document.addEventListener("firebase-ready", async () => {
       swapCol.orderBy("applyDate", "desc").get()
     ]);
 
+    // 請假資料
     leaveSnap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -87,7 +144,9 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.leaveDate || ""}</td>
         <td>${d.shift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>${getStatusStyle(d.status)}</td>
+        <td>
+          ${getStatusStyle(d.status)}<br>${getStatusDropdown(d.status, doc.id, "leave")}
+        </td>
         <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
         <td><button class="btn btn-sm btn-outline-danger delete-btn" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
@@ -95,6 +154,7 @@ document.addEventListener("firebase-ready", async () => {
       leaveBody.appendChild(tr);
     });
 
+    // 調班資料
     swapSnap.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -105,12 +165,26 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.originalShift || ""}</td>
         <td>${d.newShift || ""}</td>
         <td>${d.reason || ""}</td>
-        <td>${getStatusStyle(d.status)}</td>
+        <td>
+          ${getStatusStyle(d.status)}<br>${getStatusDropdown(d.status, doc.id, "swap")}
+        </td>
         <td>${renderSupervisorCell(doc.id, d.supervisorSign, d.supervisorSignUpdatedBy, d.supervisorSignUpdatedAt)}</td>
         <td>${renderNoteCell(doc.id, d.note, d.noteUpdatedBy, d.noteUpdatedAt)}</td>
         <td><button class="btn btn-sm btn-outline-danger delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
       `;
       swapBody.appendChild(tr);
+    });
+
+    // 狀態變更監聽
+    document.querySelectorAll(".status-dropdown").forEach(sel => {
+      sel.addEventListener("change", async (e) => {
+        const id = e.target.dataset.id;
+        const newStatus = e.target.value;
+        const type = e.target.dataset.type;
+        const targetCol = type === "leave" ? leaveCol : swapCol;
+        await targetCol.doc(id).update({ status: newStatus });
+        loadRequests();
+      });
     });
 
     isLoading = false;
@@ -149,7 +223,7 @@ document.addEventListener("firebase-ready", async () => {
             e.target.dataset.original = newText;
             updater(collection, id, newText);
           }
-        }, 800); // 停止輸入 0.8 秒後更新
+        }, 800);
       }
     });
   }
@@ -256,9 +330,11 @@ document.addEventListener("firebase-ready", async () => {
     printSection("swapTable", "調班總表")
   );
 
+  // ===== 初始化 =====
   await loadStatuses();
   await loadRequests();
 
+  // 即時監聽
   leaveCol.onSnapshot(() => {
     if (initialized) loadRequests();
     initialized = true;
@@ -267,4 +343,5 @@ document.addEventListener("firebase-ready", async () => {
     if (initialized) loadRequests();
     initialized = true;
   });
+  statusCol.onSnapshot(() => loadStatuses());
 });
