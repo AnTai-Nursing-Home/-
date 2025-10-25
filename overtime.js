@@ -27,10 +27,10 @@ document.addEventListener('firebase-ready', () => {
   const modalEntry = new bootstrap.Modal(document.getElementById('entry-modal'));
   const modalStatus = new bootstrap.Modal(document.getElementById('status-modal'));
 
-  // ======= 讀取員工名單 =======
+  // ======= 讀取員工名單（只讀）=======
   async function loadEmployees() {
     const select = document.getElementById('employee-select');
-    select.innerHTML = `<option value="">讀取中...</option>`;
+    select.innerHTML = '<option value="">讀取中...</option>';
     try {
       const [nursesSnap, caregiversSnap] = await Promise.all([
         db.collection(nursesCollection).orderBy('sortOrder').get(),
@@ -48,19 +48,18 @@ document.addEventListener('firebase-ready', () => {
       select.innerHTML = html;
     } catch (err) {
       console.error('讀取員工資料失敗', err);
-      select.innerHTML = `<option value="">讀取失敗</option>`;
+      select.innerHTML = '<option value="">讀取失敗</option>';
     }
   }
 
   // ======= 儲存單筆 =======
   async function saveEntry() {
-    const type = document.getElementById('form-type').value;
+    const type = document.getElementById('form-type').value;   // 'ot' | 'deduct'
     const editId = document.getElementById('edit-id').value;
     const name = document.getElementById('employee-select').value;
     const employeeOption = document.querySelector(`#employee-select option[value="${name}"]`);
     const id = employeeOption ? employeeOption.dataset.id : '';
-    const applyDate = document.getElementById('apply-date-input').value 
-      || new Date().toISOString().slice(0,10);
+    const applyDate = document.getElementById('apply-date-input').value || new Date().toISOString().slice(0, 10);
     const date = document.getElementById('date-input').value;
     const hours = parseFloat(document.getElementById('hours-input').value);
     const reason = document.getElementById('reason-input').value.trim();
@@ -74,7 +73,7 @@ document.addEventListener('firebase-ready', () => {
       return;
     }
 
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
     const ref = db.collection(coll);
     const payload = {
       name, id, applyDate, date, hours, reason, status, signName, note,
@@ -83,8 +82,11 @@ document.addEventListener('firebase-ready', () => {
 
     const saveToDB = async (imgData) => {
       if (imgData) payload.signImage = imgData;
-      if (editId) await ref.doc(editId).set(payload, { merge: true });
-      else await ref.add(payload);
+      if (editId) {
+        await ref.doc(editId).set(payload, { merge: true });
+      } else {
+        await ref.add(payload);
+      }
       modalEntry.hide();
       renderTable(type);
     };
@@ -101,15 +103,15 @@ document.addEventListener('firebase-ready', () => {
   // ======= 渲染表格 =======
   async function renderTable(type) {
     const tbody = document.querySelector(`#table-${type === 'ot' ? 'ot' : 'deduct'} tbody`);
-    tbody.innerHTML = `<tr><td colspan="10" class="text-center">讀取中...</td></tr>`;
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center">讀取中...</td></tr>';
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
 
     try {
       const statusFilter = document.getElementById(`filter-status-${type}`).value || '';
       const from = document.getElementById(`filter-from-${type}`).value;
       const to = document.getElementById(`filter-to-${type}`).value;
-      let query = db.collection(coll).orderBy('date', 'desc');
-      const snapshot = await query.get();
+
+      const snapshot = await db.collection(coll).orderBy('date', 'desc').get();
       let rows = '';
       const statuses = getStatuses(type);
       let idx = 1;
@@ -123,37 +125,38 @@ document.addEventListener('firebase-ready', () => {
         const s = statuses.find(x => x.name === e.status);
         const color = s ? s.color : '#999999';
         const signBlock = `
-          ${e.signName ? `<div>${e.signName}</div>` : ''}
+          ${e.signName ? `<div>${escapeHTML(e.signName)}</div>` : ''}
           ${e.signImage ? `<img src="${e.signImage}" class="signature-img">` : ''}
         `;
+
         rows += `
           <tr>
             <td>${idx++}</td>
-            <td>${e.name || ''}</td>
-            <td>${e.applyDate || ''}</td>
-            <td>${e.date || ''}</td>
+            <td>${escapeHTML(e.name || '')}</td>
+            <td>${escapeHTML(e.applyDate || '')}</td>
+            <td>${escapeHTML(e.date || '')}</td>
             <td>${e.hours || ''}</td>
             <td>${escapeHTML(e.reason || '')}</td>
-            <td><span class="badge-status" style="color:${color};background:${hexToRgba(color,0.15)};">${e.status || ''}</span></td>
+            <td><span class="badge-status" style="color:${color};background:${hexToRgba(color,0.15)};">${escapeHTML(e.status || '')}</span></td>
             <td>${signBlock}</td>
             <td>${escapeHTML(e.note || '')}</td>
             <td class="no-print">
               <button class="btn btn-sm btn-outline-primary me-1" onclick="editEntry('${type}','${doc.id}')"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteEntry('${type}','${doc.id}')"><i class="fa-solid fa-trash"></i></button>
             </td>
-          </tr>
-        `;
+          </tr>`;
       });
-      tbody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">尚無資料</td></tr>`;
+
+      tbody.innerHTML = rows || '<tr><td colspan="10" class="text-center text-muted">尚無資料</td></tr>';
     } catch (err) {
       console.error('載入資料失敗', err);
-      tbody.innerHTML = `<tr><td colspan="10" class="text-danger text-center">讀取失敗</td></tr>`;
+      tbody.innerHTML = '<tr><td colspan="10" class="text-danger text-center">讀取失敗</td></tr>';
     }
   }
 
   // ======= 編輯與刪除 =======
-  window.editEntry = async function(type, docId) {
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+  window.editEntry = async function (type, docId) {
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
     const doc = await db.collection(coll).doc(docId).get();
     if (!doc.exists) return;
     const data = doc.data();
@@ -165,7 +168,7 @@ document.addEventListener('firebase-ready', () => {
 
     await loadEmployees();
     document.getElementById('employee-select').value = data.name || '';
-    document.getElementById('apply-date-input').value = data.applyDate || new Date().toISOString().slice(0,10);
+    document.getElementById('apply-date-input').value = data.applyDate || new Date().toISOString().slice(0, 10);
     document.getElementById('date-input').value = data.date || '';
     document.getElementById('hours-input').value = data.hours || '';
     document.getElementById('reason-input').value = data.reason || '';
@@ -176,9 +179,9 @@ document.addEventListener('firebase-ready', () => {
     modalEntry.show();
   };
 
-  window.deleteEntry = async function(type, docId) {
+  window.deleteEntry = async function (type, docId) {
     if (!confirm('確定要刪除此筆資料嗎？')) return;
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
     await db.collection(coll).doc(docId).delete();
     renderTable(type);
   };
@@ -209,7 +212,7 @@ document.addEventListener('firebase-ready', () => {
     });
   }
 
-  window.editStatus = function(type, i) {
+  window.editStatus = function (type, i) {
     const list = getStatuses(type);
     const s = list[i];
     const newName = prompt('修改狀態名稱', s.name);
@@ -221,7 +224,7 @@ document.addEventListener('firebase-ready', () => {
     renderStatusList(type);
   };
 
-  window.deleteStatus = function(type, i) {
+  window.deleteStatus = function (type, i) {
     const list = getStatuses(type);
     if (!confirm(`刪除狀態「${list[i].name}」？`)) return;
     list.splice(i, 1);
@@ -267,7 +270,7 @@ document.addEventListener('firebase-ready', () => {
 
   // ======= 匯出 Excel =======
   async function exportExcel(type) {
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
     const snapshot = await db.collection(coll).orderBy('date', 'desc').get();
     const data = [];
     snapshot.forEach(doc => {
@@ -286,53 +289,65 @@ document.addEventListener('firebase-ready', () => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, type === 'ot' ? '加班單' : '扣班單');
-    XLSX.writeFile(wb, (type === 'ot' ? '加班單' : '扣班單') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    XLSX.writeFile(wb, (type === 'ot' ? '加班單' : '扣班單') + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
   }
 
-  // ======= 正式列印報表 =======
+  // ======= 正式列印報表（橫向 A4）=======
   async function printFormalTable(type) {
-    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    const coll = type === 'ot' ? overtimeCollection : deductCollection;
     const title = type === 'ot' ? '加班單' : '扣班單';
-    const snapshot = await db.collection(coll).orderBy('date', 'asc').get();
-    if (snapshot.empty) {
-      alert('目前沒有資料可列印');
+
+    // 依目前篩選條件列印（狀態、日期）
+    const statusFilter = document.getElementById(`filter-status-${type}`).value || '';
+    const from = document.getElementById(`filter-from-${type}`).value || '';
+    const to = document.getElementById(`filter-to-${type}`).value || '';
+
+    const allSnap = await db.collection(coll).orderBy('date', 'asc').get();
+    const rows = [];
+    allSnap.forEach(doc => {
+      const e = doc.data();
+      if (statusFilter && e.status !== statusFilter) return;
+      if (from && e.date < from) return;
+      if (to && e.date > to) return;
+      rows.push(e);
+    });
+
+    if (rows.length === 0) {
+      alert('目前沒有符合篩選條件的資料可列印');
       return;
     }
 
     let html = `
-    <html><head><meta charset="utf-8">
-    <title>${title}</title>
-    <style>
-      @page { size: A4 landscape; margin: 15mm; }
-      body { font-family: "Microsoft JhengHei", sans-serif; text-align: center; }
-      h1 { font-size: 20px; margin-bottom: 4px; }
-      h2 { font-size: 18px; margin: 6px 0 15px; }
-      table { width: 100%; border-collapse: collapse; margin: 0 auto; font-size: 14px; }
-      th, td { border: 1px solid #000; padding: 6px 8px; text-align: center; vertical-align: middle; }
-      th { background: #f5f5f5; font-weight: bold; }
-    </style></head><body>
-    <h1>安泰醫療社團法人附設安泰護理之家</h1>
-    <h2>${title}</h2>
-    <table><thead><tr>
-      <th>序號</th><th>姓名</th><th>申請日</th><th>${type === 'ot' ? '加班日' : '扣班日'}</th>
-      <th>時數</th><th>原因</th><th>狀態</th><th>主管簽名</th><th>注解</th>
-    </tr></thead><tbody>`;
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  @page { size: A4 landscape; margin: 15mm; }
+  body { font-family: "Microsoft JhengHei", sans-serif; text-align: center; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  h2 { font-size: 18px; margin: 6px 0 15px; }
+  table { width: 100%; border-collapse: collapse; margin: 0 auto; font-size: 14px; }
+  th, td { border: 1px solid #000; padding: 6px 8px; text-align: center; vertical-align: middle; }
+  th { background: #f5f5f5; font-weight: bold; }
+</style></head><body>
+<h1>安泰醫療社團法人附設安泰護理之家</h1>
+<h2>${title}</h2>
+<table><thead><tr>
+  <th>序號</th><th>姓名</th><th>申請日</th><th>${type === 'ot' ? '加班日' : '扣班日'}</th>
+  <th>時數</th><th>原因</th><th>狀態</th><th>主管簽名</th><th>注解</th>
+</tr></thead><tbody>`;
 
-    let idx = 1;
-    snapshot.forEach(doc => {
-      const e = doc.data();
+    rows.forEach((e, i) => {
       html += `
-        <tr>
-          <td>${idx++}</td>
-          <td>${e.name || ''}</td>
-          <td>${e.applyDate || ''}</td>
-          <td>${e.date || ''}</td>
-          <td>${e.hours || ''}</td>
-          <td>${e.reason || ''}</td>
-          <td>${e.status || ''}</td>
-          <td>${e.signName || ''}</td>
-          <td>${e.note || ''}</td>
-        </tr>`;
+<tr>
+  <td>${i + 1}</td>
+  <td>${escapeHTML(e.name || '')}</td>
+  <td>${escapeHTML(e.applyDate || '')}</td>
+  <td>${escapeHTML(e.date || '')}</td>
+  <td>${e.hours || ''}</td>
+  <td>${escapeHTML(e.reason || '')}</td>
+  <td>${escapeHTML(e.status || '')}</td>
+  <td>${escapeHTML(e.signName || '')}</td>
+  <td>${escapeHTML(e.note || '')}</td>
+</tr>`;
     });
 
     html += `</tbody></table></body></html>`;
@@ -344,14 +359,16 @@ document.addEventListener('firebase-ready', () => {
     w.print();
   }
 
-  // ======= 工具 =======
+  // ======= 小工具 =======
   function escapeHTML(str) {
-    return str ? str.replace(/[&<>"']/g, m => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[m])) : '';
+    return str ? str.replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    }) : '';
   }
   function hexToRgba(hex, alpha) {
-    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
@@ -364,11 +381,51 @@ document.addEventListener('firebase-ready', () => {
     fillStatusSelect('ot');
     document.getElementById('form-type').value = 'ot';
     document.getElementById('entry-form').reset();
-    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
+    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0, 10);
     document.getElementById('entry-modal-title').textContent = '新增加班單';
     document.getElementById('date-label').textContent = '加班日';
     modalEntry.show();
   });
   document.getElementById('btn-status-ot').addEventListener('click', () => openStatusManager('ot'));
   document.getElementById('btn-export-ot').addEventListener('click', () => exportExcel('ot'));
-  document.getElementById('btn-print-ot').addEventListener('click
+  document.getElementById('btn-print-ot').addEventListener('click', () => printFormalTable('ot'));
+  document.getElementById('btn-clear-ot').addEventListener('click', () => {
+    document.getElementById('filter-status-ot').value = '';
+    document.getElementById('filter-from-ot').value = '';
+    document.getElementById('filter-to-ot').value = '';
+    renderTable('ot');
+  });
+  ['filter-status-ot', 'filter-from-ot', 'filter-to-ot'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => renderTable('ot'));
+  });
+
+  // 扣班單
+  document.getElementById('btn-new-deduct').addEventListener('click', async () => {
+    await loadEmployees();
+    fillStatusSelect('deduct');
+    document.getElementById('form-type').value = 'deduct';
+    document.getElementById('entry-form').reset();
+    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('entry-modal-title').textContent = '新增扣班單';
+    document.getElementById('date-label').textContent = '扣班日';
+    modalEntry.show();
+  });
+  document.getElementById('btn-status-deduct').addEventListener('click', () => openStatusManager('deduct'));
+  document.getElementById('btn-export-deduct').addEventListener('click', () => exportExcel('deduct'));
+  document.getElementById('btn-print-deduct').addEventListener('click', () => printFormalTable('deduct'));
+  document.getElementById('btn-clear-deduct').addEventListener('click', () => {
+    document.getElementById('filter-status-deduct').value = '';
+    document.getElementById('filter-from-deduct').value = '';
+    document.getElementById('filter-to-deduct').value = '';
+    renderTable('deduct');
+  });
+  ['filter-status-deduct', 'filter-from-deduct', 'filter-to-deduct'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => renderTable('deduct'));
+  });
+
+  // ======= 初始化 =======
+  fillFilterOptions('ot');
+  fillFilterOptions('deduct');
+  renderTable('ot');
+  renderTable('deduct');
+});
