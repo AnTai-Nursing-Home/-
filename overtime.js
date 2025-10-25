@@ -139,7 +139,7 @@ document.addEventListener('firebase-ready', () => {
             <td>${escapeHTML(e.note || '')}</td>
             <td class="no-print">
               <button class="btn btn-sm btn-outline-primary me-1" onclick="editEntry('${type}','${doc.id}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteEntry('${type}','${doc.id}')"><i class="fa-solid fa-trash"></i></button>
+              <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteEntry('${type}','${doc.id}')"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
         `;
@@ -185,7 +185,6 @@ document.addEventListener('firebase-ready', () => {
 
   // ======= 狀態管理 =======
   let currentStatusType = 'ot';
-  const modalStatusEl = document.getElementById('status-modal');
 
   function openStatusManager(type) {
     currentStatusType = type;
@@ -290,7 +289,62 @@ document.addEventListener('firebase-ready', () => {
     XLSX.writeFile(wb, (type === 'ot' ? '加班單' : '扣班單') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
   }
 
-  // ======= 公用工具 =======
+  // ======= 正式列印報表 =======
+  async function printFormalTable(type) {
+    const coll = (type === 'ot') ? overtimeCollection : deductCollection;
+    const title = type === 'ot' ? '加班單' : '扣班單';
+    const snapshot = await db.collection(coll).orderBy('date', 'asc').get();
+    if (snapshot.empty) {
+      alert('目前沒有資料可列印');
+      return;
+    }
+
+    let html = `
+    <html><head><meta charset="utf-8">
+    <title>${title}</title>
+    <style>
+      @page { size: A4 landscape; margin: 15mm; }
+      body { font-family: "Microsoft JhengHei", sans-serif; text-align: center; }
+      h1 { font-size: 20px; margin-bottom: 4px; }
+      h2 { font-size: 18px; margin: 6px 0 15px; }
+      table { width: 100%; border-collapse: collapse; margin: 0 auto; font-size: 14px; }
+      th, td { border: 1px solid #000; padding: 6px 8px; text-align: center; vertical-align: middle; }
+      th { background: #f5f5f5; font-weight: bold; }
+    </style></head><body>
+    <h1>安泰醫療社團法人附設安泰護理之家</h1>
+    <h2>${title}</h2>
+    <table><thead><tr>
+      <th>序號</th><th>姓名</th><th>申請日</th><th>${type === 'ot' ? '加班日' : '扣班日'}</th>
+      <th>時數</th><th>原因</th><th>狀態</th><th>主管簽名</th><th>注解</th>
+    </tr></thead><tbody>`;
+
+    let idx = 1;
+    snapshot.forEach(doc => {
+      const e = doc.data();
+      html += `
+        <tr>
+          <td>${idx++}</td>
+          <td>${e.name || ''}</td>
+          <td>${e.applyDate || ''}</td>
+          <td>${e.date || ''}</td>
+          <td>${e.hours || ''}</td>
+          <td>${e.reason || ''}</td>
+          <td>${e.status || ''}</td>
+          <td>${e.signName || ''}</td>
+          <td>${e.note || ''}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table></body></html>`;
+
+    const w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  // ======= 工具 =======
   function escapeHTML(str) {
     return str ? str.replace(/[&<>"']/g, m => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -317,44 +371,4 @@ document.addEventListener('firebase-ready', () => {
   });
   document.getElementById('btn-status-ot').addEventListener('click', () => openStatusManager('ot'));
   document.getElementById('btn-export-ot').addEventListener('click', () => exportExcel('ot'));
-  document.getElementById('btn-print-ot').addEventListener('click', () => window.print());
-  document.getElementById('btn-clear-ot').addEventListener('click', () => { 
-    document.getElementById('filter-status-ot').value='';
-    document.getElementById('filter-from-ot').value='';
-    document.getElementById('filter-to-ot').value='';
-    renderTable('ot');
-  });
-  ['filter-status-ot','filter-from-ot','filter-to-ot'].forEach(id=>{
-    document.getElementById(id).addEventListener('change',()=>renderTable('ot'));
-  });
-
-  // 扣班單
-  document.getElementById('btn-new-deduct').addEventListener('click', async () => {
-    await loadEmployees();
-    fillStatusSelect('deduct');
-    document.getElementById('form-type').value = 'deduct';
-    document.getElementById('entry-form').reset();
-    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
-    document.getElementById('entry-modal-title').textContent = '新增扣班單';
-    document.getElementById('date-label').textContent = '扣班日';
-    modalEntry.show();
-  });
-  document.getElementById('btn-status-deduct').addEventListener('click', () => openStatusManager('deduct'));
-  document.getElementById('btn-export-deduct').addEventListener('click', () => exportExcel('deduct'));
-  document.getElementById('btn-print-deduct').addEventListener('click', () => window.print());
-  document.getElementById('btn-clear-deduct').addEventListener('click', () => { 
-    document.getElementById('filter-status-deduct').value='';
-    document.getElementById('filter-from-deduct').value='';
-    document.getElementById('filter-to-deduct').value='';
-    renderTable('deduct');
-  });
-  ['filter-status-deduct','filter-from-deduct','filter-to-deduct'].forEach(id=>{
-    document.getElementById(id).addEventListener('change',()=>renderTable('deduct'));
-  });
-
-  // ======= 初始化 =======
-  fillFilterOptions('ot');
-  fillFilterOptions('deduct');
-  renderTable('ot');
-  renderTable('deduct');
-});
+  document.getElementById('btn-print-ot').addEventListener('click
