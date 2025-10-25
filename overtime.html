@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>安泰護理之家｜加班／扣班系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: "Microsoft JhengHei", sans-serif;
+    }
+    .card {
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .tab-pane {
+      margin-top: 20px;
+    }
+    .badge-status {
+      border: 1px solid rgba(0,0,0,.1);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .signature-img {
+      max-height: 40px;
+    }
+    .status-color {
+      width: 24px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    /* 列印設定 */
+    @media print {
+      @page { size: A4 landscape; margin: 15mm; }
+      .no-print { display: none !important; }
+      body { background: #fff; }
+      .table thead th { background: #eee !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container my-5">
+    <div class="card shadow">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fa-solid fa-clock-rotate-left me-2"></i>加班／扣班系統</h4>
+        <a href="admin.html?view=dashboard" class="btn btn-outline-light btn-sm no-print"><i class="fa-solid fa-arrow-left me-1"></i> 返回儀表板</a>
+      </div>
+
+      <div class="card-body">
+        <!-- 分頁選單 -->
+        <ul class="nav nav-tabs no-print" id="overtimeTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="ot-tab" data-bs-toggle="tab" data-bs-target="#ot-panel" type="button" role="tab">
+              <i class="fa-solid fa-business-time me-1"></i>加班單
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="deduct-tab" data-bs-toggle="tab" data-bs-target="#deduct-panel" type="button" role="tab">
+              <i class="fa-solid fa-user-minus me-1"></i>扣班單
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="overtimeTabsContent">
+          <!-- ===== 加班單 ===== -->
+          <div class="tab-pane fade show active" id="ot-panel" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 my-3 no-print">
+              <button class="btn btn-primary" id="btn-new-ot"><i class="fa-solid fa-plus me-1"></i> 新增加班單</button>
+              <button class="btn btn-outline-secondary" id="btn-status-ot"><i class="fa-solid fa-tags me-1"></i> 管理狀態</button>
+              <button class="btn btn-outline-success" id="btn-export-ot"><i class="fa-solid fa-file-excel me-1"></i> 匯出 Excel</button>
+              <button class="btn btn-outline-dark" id="btn-print-ot"><i class="fa-solid fa-print me-1"></i> 列印</button>
+            </div>
+
+            <div class="row g-3 no-print">
+              <div class="col-md-3">
+                <label class="form-label">狀態篩選</label>
+                <select id="filter-status-ot" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">起始日期</label>
+                <input type="date" id="filter-from-ot" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">結束日期</label>
+                <input type="date" id="filter-to-ot" class="form-control">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" id="btn-clear-ot"><i class="fa-solid fa-eraser me-1"></i> 清除篩選</button>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="table table-hover align-middle" id="table-ot">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>姓名</th>
+                    <th>加班日</th>
+                    <th>時數</th>
+                    <th>原因</th>
+                    <th>狀態</th>
+                    <th>主管簽名</th>
+                    <th>注解</th>
+                    <th class="no-print">操作</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ===== 扣班單 ===== -->
+          <div class="tab-pane fade" id="deduct-panel" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 my-3 no-print">
+              <button class="btn btn-primary" id="btn-new-deduct"><i class="fa-solid fa-plus me-1"></i> 新增扣班單</button>
+              <button class="btn btn-outline-secondary" id="btn-status-deduct"><i class="fa-solid fa-tags me-1"></i> 管理狀態</button>
+              <button class="btn btn-outline-success" id="btn-export-deduct"><i class="fa-solid fa-file-excel me-1"></i> 匯出 Excel</button>
+              <button class="btn btn-outline-dark" id="btn-print-deduct"><i class="fa-solid fa-print me-1"></i> 列印</button>
+            </div>
+
+            <div class="row g-3 no-print">
+              <div class="col-md-3">
+                <label class="form-label">狀態篩選</label>
+                <select id="filter-status-deduct" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">起始日期</label>
+                <input type="date" id="filter-from-deduct" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">結束日期</label>
+                <input type="date" id="filter-to-deduct" class="form-control">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" id="btn-clear-deduct"><i class="fa-solid fa-eraser me-1"></i> 清除篩選</button>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="table table-hover align-middle" id="table-deduct">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>姓名</th>
+                    <th>扣班日</th>
+                    <th>時數</th>
+                    <th>原因</th>
+                    <th>狀態</th>
+                    <th>主管簽名</th>
+                    <th>注解</th>
+                    <th class="no-print">操作</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 新增／編輯表單 Modal ====== -->
+  <div class="modal fade" id="entry-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="entry-modal-title">新增</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="entry-form" class="row g-3">
+            <input type="hidden" id="form-type">
+            <input type="hidden" id="edit-id">
+
+            <div class="col-md-4">
+              <label class="form-label">姓名</label>
+              <select id="employee-select" class="form-select" required></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" id="date-label">日期</label>
+              <input type="date" id="date-input" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">時數</label>
+              <input type="number" min="0" step="0.5" id="hours-input" class="form-control" required>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">原因</label>
+              <textarea id="reason-input" class="form-control" rows="2" required></textarea>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">狀態</label>
+              <select id="status-select" class="form-select" required></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">主管簽名（文字）</label>
+              <input type="text" id="sign-name-input" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">主管簽名（圖片）</label>
+              <input type="file" id="sign-image-input" class="form-control" accept="image/*">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">注解</label>
+              <textarea id="note-input" class="form-control" rows="2"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+          <button type="button" class="btn btn-primary" id="btn-save-entry">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 狀態管理 Modal ===== -->
+  <div class="modal fade" id="status-modal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">狀態管理</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">新增狀態名稱</label>
+            <input type="text" id="status-name" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">顏色</label>
+            <input type="color" id="status-color" class="form-control form-control-color" value="#0d6efd">
+          </div>
+          <button class="btn btn-primary w-100 mb-3" id="btn-add-status"><i class="fa-solid fa-plus me-1"></i> 新增狀態</button>
+          <div id="status-list" class="vstack gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase & Script -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="overtime.js"></script>
+</body>
+</html>
