@@ -59,6 +59,8 @@ document.addEventListener('firebase-ready', () => {
     const name = document.getElementById('employee-select').value;
     const employeeOption = document.querySelector(`#employee-select option[value="${name}"]`);
     const id = employeeOption ? employeeOption.dataset.id : '';
+    const applyDate = document.getElementById('apply-date-input').value 
+      || new Date().toISOString().slice(0,10);
     const date = document.getElementById('date-input').value;
     const hours = parseFloat(document.getElementById('hours-input').value);
     const reason = document.getElementById('reason-input').value.trim();
@@ -75,7 +77,7 @@ document.addEventListener('firebase-ready', () => {
     const coll = (type === 'ot') ? overtimeCollection : deductCollection;
     const ref = db.collection(coll);
     const payload = {
-      name, id, date, hours, reason, status, signName, note,
+      name, id, applyDate, date, hours, reason, status, signName, note,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -99,7 +101,7 @@ document.addEventListener('firebase-ready', () => {
   // ======= 渲染表格 =======
   async function renderTable(type) {
     const tbody = document.querySelector(`#table-${type === 'ot' ? 'ot' : 'deduct'} tbody`);
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center">讀取中...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center">讀取中...</td></tr>`;
     const coll = (type === 'ot') ? overtimeCollection : deductCollection;
 
     try {
@@ -128,6 +130,7 @@ document.addEventListener('firebase-ready', () => {
           <tr>
             <td>${idx++}</td>
             <td>${e.name || ''}</td>
+            <td>${e.applyDate || ''}</td>
             <td>${e.date || ''}</td>
             <td>${e.hours || ''}</td>
             <td>${escapeHTML(e.reason || '')}</td>
@@ -141,10 +144,10 @@ document.addEventListener('firebase-ready', () => {
           </tr>
         `;
       });
-      tbody.innerHTML = rows || `<tr><td colspan="9" class="text-center text-muted">尚無資料</td></tr>`;
+      tbody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">尚無資料</td></tr>`;
     } catch (err) {
       console.error('載入資料失敗', err);
-      tbody.innerHTML = `<tr><td colspan="9" class="text-danger text-center">讀取失敗</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-danger text-center">讀取失敗</td></tr>`;
     }
   }
 
@@ -162,6 +165,7 @@ document.addEventListener('firebase-ready', () => {
 
     await loadEmployees();
     document.getElementById('employee-select').value = data.name || '';
+    document.getElementById('apply-date-input').value = data.applyDate || new Date().toISOString().slice(0,10);
     document.getElementById('date-input').value = data.date || '';
     document.getElementById('hours-input').value = data.hours || '';
     document.getElementById('reason-input').value = data.reason || '';
@@ -180,6 +184,9 @@ document.addEventListener('firebase-ready', () => {
   };
 
   // ======= 狀態管理 =======
+  let currentStatusType = 'ot';
+  const modalStatusEl = document.getElementById('status-modal');
+
   function openStatusManager(type) {
     currentStatusType = type;
     renderStatusList(type);
@@ -268,6 +275,7 @@ document.addEventListener('firebase-ready', () => {
       const e = doc.data();
       data.push({
         姓名: e.name,
+        申請日: e.applyDate,
         日期: e.date,
         時數: e.hours,
         原因: e.reason,
@@ -302,6 +310,7 @@ document.addEventListener('firebase-ready', () => {
     fillStatusSelect('ot');
     document.getElementById('form-type').value = 'ot';
     document.getElementById('entry-form').reset();
+    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
     document.getElementById('entry-modal-title').textContent = '新增加班單';
     document.getElementById('date-label').textContent = '加班日';
     modalEntry.show();
@@ -325,6 +334,7 @@ document.addEventListener('firebase-ready', () => {
     fillStatusSelect('deduct');
     document.getElementById('form-type').value = 'deduct';
     document.getElementById('entry-form').reset();
+    document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
     document.getElementById('entry-modal-title').textContent = '新增扣班單';
     document.getElementById('date-label').textContent = '扣班日';
     modalEntry.show();
@@ -343,7 +353,6 @@ document.addEventListener('firebase-ready', () => {
   });
 
   // ======= 初始化 =======
-  let currentStatusType = 'ot';
   fillFilterOptions('ot');
   fillFilterOptions('deduct');
   renderTable('ot');
