@@ -384,19 +384,34 @@ document.addEventListener('firebase-ready', () => {
   
   // 載入員工資料（讀 employee 名單）
   async function loadStatEmployees() {
-    const empSelect = document.getElementById("stat-employee");
-    if (!empSelect) return; // 保險
-    empSelect.innerHTML = `<option value="">全部員工</option>`;
-    try {
-      const empSnap = await db.collection("employees").get();
-      empSnap.forEach(docSnap => {
-        const emp = docSnap.data();
-        const opt = document.createElement("option");
-        opt.value = emp.name;
-        opt.textContent = emp.name;
-        empSelect.appendChild(opt);
-      });
-    } catch (e) {
+  const empSelect = document.getElementById("stat-employee");
+  empSelect.innerHTML = `<option value="">全部員工</option>`;
+
+  // 從兩個資料庫抓取員工資料
+  const [nSnap, cSnap] = await Promise.all([
+    db.collection("nurses").orderBy("sortOrder").get(),
+    db.collection("caregivers").orderBy("sortOrder").get()
+  ]);
+
+  // 護理師
+  nSnap.forEach(docSnap => {
+    const emp = docSnap.data();
+    const opt = document.createElement("option");
+    opt.value = emp.name;
+    opt.textContent = emp.name + "（護理師）";
+    empSelect.appendChild(opt);
+  });
+
+  // 照服員
+  cSnap.forEach(docSnap => {
+    const emp = docSnap.data();
+    const opt = document.createElement("option");
+    opt.value = emp.name;
+    opt.textContent = emp.name + "（照服員）";
+    empSelect.appendChild(opt);
+  });
+}
+      catch (e) {
       console.error("載入員工失敗", e);
     }
   }
