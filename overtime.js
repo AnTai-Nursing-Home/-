@@ -485,12 +485,29 @@ document.addEventListener('firebase-ready', () => {
   const btnStatPrint = document.getElementById("btn-stat-print");
   if (btnStatPrint) {
     btnStatPrint.addEventListener("click", () => {
+      const from = document.getElementById("stat-from").value;
+      const to   = document.getElementById("stat-to").value;
+  
+      // 預設副標題
+      let subtitle = "加／扣班統計表";
+  
+      // ✅ 若選了區間，副標題改成「YYYY年MM月DD日 - YYYY年MM月DD日 加／扣班統計表」
+      if (from && to) {
+        const formatDate = d => {
+          const date = new Date(d);
+          return `${date.getFullYear()}年${(date.getMonth() + 1)
+            .toString()
+            .padStart(2, "0")}月${date.getDate().toString().padStart(2, "0")}日`;
+        };
+        subtitle = `${formatDate(from)} - ${formatDate(to)} 加／扣班統計表`;
+      }
+  
       const printWindow = window.open("", "_blank");
       const content = `
         <html>
         <head>
           <meta charset="utf-8">
-          <title>安泰護理之家 - 加／扣班統計表</title>
+          <title>安泰護理之家 - ${subtitle}</title>
           <style>
             @page { size: A4 landscape; margin: 12mm; }
             body { font-family: "Microsoft JhengHei"; }
@@ -502,7 +519,7 @@ document.addEventListener('firebase-ready', () => {
         </head>
         <body>
           <h2>安泰醫療社團法人附設安泰護理之家</h2>
-          <h4>加／扣班統計表</h4>
+          <h4>${subtitle}</h4>
           ${document.getElementById("stat-table").outerHTML}
         </body>
         </html>
