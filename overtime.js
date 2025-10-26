@@ -501,5 +501,5 @@ document.addEventListener('firebase-ready', () => {
     renderTable('ot');
     renderTable('deduct');
   });
-}
+});
 
