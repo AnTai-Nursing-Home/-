@@ -332,7 +332,7 @@ document.addEventListener('firebase-ready', () => {
   document.getElementById('btn-save-entry').addEventListener('click', saveEntry);
 
   // 加班
-  document.getElementById('btn-add-ot').addEventListener('click', async ()=>{
+  document.getElementById("btn-new-ot").addEventListener('click', async ()=>{
     await loadEmployees(); fillStatusSelect('ot');
     document.getElementById('form-type').value='ot';
     document.getElementById('entry-form').reset();
@@ -355,7 +355,7 @@ document.addEventListener('firebase-ready', () => {
   });
 
   // 扣班
-  document.getElementById('btn-add-deduct').addEventListener('click', async ()=>{
+  document.getElementById("btn-new-deduct").addEventListener('click', async ()=>{
     await loadEmployees(); fillStatusSelect('deduct');
     document.getElementById('form-type').value='deduct';
     document.getElementById('entry-form').reset();
