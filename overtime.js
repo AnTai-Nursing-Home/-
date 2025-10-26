@@ -379,13 +379,11 @@ document.addEventListener('firebase-ready', () => {
 
     // ====================== 加／扣班統計功能 ======================
   
-  import { getDocs, query, where, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  
   // 載入員工資料
   async function loadStatEmployees() {
     const empSelect = document.getElementById("stat-employee");
     empSelect.innerHTML = `<option value="">全部員工</option>`;
-    const empSnap = await getDocs(collection(db, "employees"));
+    const empSnap = await db.collection("employees").get();
     empSnap.forEach(docSnap => {
       const emp = docSnap.data();
       const opt = document.createElement("option");
@@ -402,8 +400,8 @@ document.addEventListener('firebase-ready', () => {
     const from = document.getElementById("stat-from").value ? new Date(document.getElementById("stat-from").value) : null;
     const to = document.getElementById("stat-to").value ? new Date(document.getElementById("stat-to").value) : null;
   
-    const otSnap = await getDocs(collection(db, "overtime_requests"));
-    const deductSnap = await getDocs(collection(db, "deduct_requests"));
+    const otSnap = await db.collection("overtime_requests").get();
+    const deductSnap = await db.collection("deduct_requests").get();
   
     const summary = {};
   
@@ -413,7 +411,6 @@ document.addEventListener('firebase-ready', () => {
       const date = new Date(d.date);
       if (from && date < from) return;
       if (to && date > to) return;
-  
       if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0 };
       summary[d.name].ot += Number(d.hours || 0);
     });
@@ -424,7 +421,6 @@ document.addEventListener('firebase-ready', () => {
       const date = new Date(d.date);
       if (from && date < from) return;
       if (to && date > to) return;
-  
       if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0 };
       summary[d.name].deduct += Number(d.hours || 0);
     });
@@ -476,7 +472,6 @@ document.addEventListener('firebase-ready', () => {
     printWindow.document.close();
     printWindow.print();
   });
-
 
   // ==== 初始化 ====
   fillFilterOptions('ot'); fillFilterOptions('deduct');
