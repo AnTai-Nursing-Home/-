@@ -495,13 +495,12 @@ document.addEventListener('firebase-ready', () => {
     });
   }
 
-    // ==== 初始化 ====
+        // ==== 初始化 ====
     fillFilterOptions('ot');
     fillFilterOptions('deduct');
     renderTable('ot');
     renderTable('deduct');
-  });
-
+    
     // ==== 分頁切換顯示正確資料 ====
     document.querySelectorAll('.nav-link').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -513,4 +512,4 @@ document.addEventListener('firebase-ready', () => {
         }
       });
     });
-
+    }); // ← 注意這是 document.addEventListener 的結尾
