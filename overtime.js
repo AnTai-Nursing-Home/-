@@ -239,9 +239,12 @@ document.addEventListener('firebase-ready', () => {
     const rows = [];
     all.forEach(doc=>{
       const e=doc.data();
-      if(statusFilter && e.status!==statusFilter) return;
-      if(from && e.date<from) return;
-      if(to && e.date>to) return;
+      // 狀態篩選（若有設定才套用）
+      if (statusFilter && (e.status || '').trim() !== statusFilter.trim()) return;
+      
+      // 日期篩選（確保正確比對日期字串）
+      if (from && new Date(e.date) < new Date(from)) return;
+      if (to && new Date(e.date) > new Date(to)) return;
       rows.push(e);
     });
     if(rows.length===0) return showAlert('提示','目前沒有符合篩選條件的資料可列印','warning');
