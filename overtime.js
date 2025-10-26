@@ -444,16 +444,18 @@ document.addEventListener('firebase-ready', () => {
           const date = new Date(d.date);
           if (from && date < from) return;
           if (to && date > to) return;
+          if (d.status !== "核准") return; // ✅ 只統計核准的
           if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0, id: d.id || "-" };
           summary[d.name].ot += Number(d.hours || 0);
         });
-  
+        
         deductSnap.forEach(docSnap => {
           const d = docSnap.data();
           if (name && d.name !== name) return;
           const date = new Date(d.date);
           if (from && date < from) return;
           if (to && date > to) return;
+          if (d.status !== "核准") return; // ✅ 只統計核准的
           if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0, id: d.id || "-" };
           summary[d.name].deduct += Number(d.hours || 0);
         });
