@@ -496,11 +496,10 @@ document.addEventListener('firebase-ready', () => {
   }
 
     // ==== 初始化 ====
-  window.addEventListener("DOMContentLoaded", () => {
     fillFilterOptions('ot');
     fillFilterOptions('deduct');
     renderTable('ot');
     renderTable('deduct');
   });
-});
+}
 
