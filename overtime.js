@@ -377,6 +377,107 @@ document.addEventListener('firebase-ready', () => {
     document.getElementById(id).addEventListener('change', ()=> renderTable('deduct'));
   });
 
+    // ====================== 加／扣班統計功能 ======================
+  
+  import { getDocs, query, where, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  
+  // 載入員工資料
+  async function loadStatEmployees() {
+    const empSelect = document.getElementById("stat-employee");
+    empSelect.innerHTML = `<option value="">全部員工</option>`;
+    const empSnap = await getDocs(collection(db, "employees"));
+    empSnap.forEach(docSnap => {
+      const emp = docSnap.data();
+      const opt = document.createElement("option");
+      opt.value = emp.name;
+      opt.textContent = emp.name;
+      empSelect.appendChild(opt);
+    });
+  }
+  loadStatEmployees();
+  
+  // 查詢統計資料
+  document.getElementById("btn-stat-search").addEventListener("click", async () => {
+    const name = document.getElementById("stat-employee").value;
+    const from = document.getElementById("stat-from").value ? new Date(document.getElementById("stat-from").value) : null;
+    const to = document.getElementById("stat-to").value ? new Date(document.getElementById("stat-to").value) : null;
+  
+    const otSnap = await getDocs(collection(db, "overtime_requests"));
+    const deductSnap = await getDocs(collection(db, "deduct_requests"));
+  
+    const summary = {};
+  
+    otSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      if (name && d.name !== name) return;
+      const date = new Date(d.date);
+      if (from && date < from) return;
+      if (to && date > to) return;
+  
+      if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0 };
+      summary[d.name].ot += Number(d.hours || 0);
+    });
+  
+    deductSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      if (name && d.name !== name) return;
+      const date = new Date(d.date);
+      if (from && date < from) return;
+      if (to && date > to) return;
+  
+      if (!summary[d.name]) summary[d.name] = { ot: 0, deduct: 0 };
+      summary[d.name].deduct += Number(d.hours || 0);
+    });
+  
+    const tbody = document.querySelector("#stat-table tbody");
+    tbody.innerHTML = "";
+  
+    const names = Object.keys(summary);
+    if (names.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">查無資料</td></tr>`;
+      return;
+    }
+  
+    names.forEach(n => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>-</td>
+        <td>${n}</td>
+        <td>${summary[n].ot.toFixed(1)}</td>
+        <td>${summary[n].deduct.toFixed(1)}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  });
+  
+  // 列印功能
+  document.getElementById("btn-stat-print").addEventListener("click", () => {
+    const printWindow = window.open("", "_blank");
+    const content = `
+      <html>
+      <head>
+        <title>安泰護理之家 - 加／扣班統計表</title>
+        <style>
+          body { font-family: "Microsoft JhengHei"; margin: 20px; }
+          h2, h4 { text-align: center; margin: 0; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th, td { border: 1px solid #333; padding: 6px; text-align: center; }
+          th { background: #f0f0f0; }
+        </style>
+      </head>
+      <body>
+        <h2>安泰醫療社團法人附設安泰護理之家</h2>
+        <h4>加／扣班統計表</h4>
+        ${document.getElementById("stat-table").outerHTML}
+      </body>
+      </html>
+    `;
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.print();
+  });
+
+
   // ==== 初始化 ====
   fillFilterOptions('ot'); fillFilterOptions('deduct');
   renderTable('ot'); renderTable('deduct');
