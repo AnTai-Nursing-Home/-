@@ -501,3 +501,16 @@ document.addEventListener('firebase-ready', () => {
     renderTable('ot');
     renderTable('deduct');
   });
+
+    // ==== 分頁切換顯示正確資料 ====
+    document.querySelectorAll('.nav-link').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const tabId = e.target.id;
+        if (tabId === 'ot-tab') {
+          renderTable('ot');
+        } else if (tabId === 'deduct-tab') {
+          renderTable('deduct');
+        }
+      });
+    });
+
