@@ -186,56 +186,6 @@
           </div>
         </div>
       </div>
-        
-          <!-- ===== 加／扣班統計 ===== -->
-          <div class="tab-pane fade" id="stat-panel" role="tabpanel">
-            <div class="card mt-3">
-              <div class="card-body">
-                <div class="d-flex flex-wrap gap-2 mb-3 no-print">
-                  <button class="btn btn-outline-success" id="btn-stat-search">
-                    <i class="fa-solid fa-magnifying-glass me-1"></i> 查詢
-                  </button>
-                  <button class="btn btn-outline-dark" id="btn-stat-print">
-                    <i class="fa-solid fa-print me-1"></i> 列印
-                  </button>
-                </div>
-        
-                <div class="row g-3 no-print">
-                  <div class="col-md-3">
-                    <label class="form-label">員工姓名</label>
-                    <select id="stat-employee" class="form-select">
-                      <option value="">全部員工</option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">起始日期</label>
-                    <input type="date" id="stat-from" class="form-control">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">結束日期</label>
-                    <input type="date" id="stat-to" class="form-control">
-                  </div>
-                </div>
-        
-                <div class="table-responsive mt-3">
-                  <table class="table table-hover align-middle" id="stat-table">
-                    <thead class="table-light">
-                      <tr>
-                        <th>員編</th>
-                        <th>姓名</th>
-                        <th>加班時數（小時）</th>
-                        <th>扣班時數（小時）</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="4" class="text-center text-muted">尚未查詢</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
   <!-- ====== 新增／編輯表單 Modal ====== -->
   <div class="modal fade" id="entry-modal" tabindex="-1">
