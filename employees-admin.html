@@ -56,6 +56,9 @@
                                                 <th class="sortable-header" data-sort="sortOrder">排序</th>
                                                 <th class="sortable-header" data-sort="id">員編</th>
                                                 <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>生日</th>
+                                                <th>身分證字號</th>
+                                                <th>入職日期</th>
                                                 <th>操作</th>
                                             </tr>
                                         </thead>
@@ -71,6 +74,9 @@
                                                 <th class="sortable-header" data-sort="sortOrder">排序</th>
                                                 <th class="sortable-header" data-sort="id">員編</th>
                                                 <th class="sortable-header" data-sort="name">姓名</th>
+                                                <th>生日</th>
+                                                <th>身分證字號</th>
+                                                <th>入職日期</th>
                                                 <th>操作</th>
                                             </tr>
                                         </thead>
@@ -107,6 +113,19 @@
                             <label for="employee-name" class="form-label">姓名</label>
                             <input type="text" class="form-control" id="employee-name" required>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">生日</label>
+                            <input type="date" id="employeeBirthday" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">身分證字號</label>
+                            <input type="text" id="employeeIdCard" class="form-control" minlength="10" maxlength="10" placeholder="請輸入身分證字號">
+                        </div>
+                            <div class="mb-3">
+                              <label class="form-label">入職日期</label>
+                              <input type="date" id="employeeHireDate" class="form-control">
+                            </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
