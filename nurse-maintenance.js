@@ -109,30 +109,44 @@ document.addEventListener("firebase-ready", async () => {
 
   tbody.addEventListener("click", async e => {
     if (!e.target.classList.contains("btn-add-comment")) return;
-
+  
     const row = e.target.closest("tr");
     const id = row.dataset.id;
-
+  
     const authorInput = row.querySelector(".comment-author");
     const msgInput = row.querySelector(".comment-input");
     const author = authorInput.value.trim();
     const message = msgInput.value.trim();
-
+  
     if (!author) return alert("請輸入留言者名稱！");
     if (!message) return alert("請輸入註解內容！");
-
-    tempInputs.delete(id+"-author");
-    tempInputs.delete(id+"-msg");
-
-    await colReq.doc(id).update({
-      comments: firebase.firestore.FieldValue.arrayUnion({
-        author,
-        message,
-        role: "nurse", // ✅ NEW
-        time: firebase.firestore.FieldValue.serverTimestamp()
-      })
+  
+    tempInputs.delete(id + "-author");
+    tempInputs.delete(id + "-msg");
+  
+    const newComment = {
+      author,
+      message,
+      role: "nurse",
+      time: null // ✅ 先以 null 佔位
+    };
+  
+    const docRef = colReq.doc(id);
+  
+    // ✅ 第一步：先加入註解物件
+    await docRef.update({
+      comments: firebase.firestore.FieldValue.arrayUnion(newComment)
     });
-
+  
+    // ✅ 第二步：更新這筆註解的時間戳記
+    await docRef.update({
+      comments: firebase.firestore.FieldValue.arrayRemove(newComment)
+    });
+    newComment.time = firebase.firestore.FieldValue.serverTimestamp();
+    await docRef.update({
+      comments: firebase.firestore.FieldValue.arrayUnion(newComment)
+    });
+  
     alert("註解新增成功 ✅");
     await loadRequests();
   });
