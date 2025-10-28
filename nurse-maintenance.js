@@ -10,108 +10,106 @@ document.addEventListener("firebase-ready", async () => {
   const statusColorMap = {};
   let allRequests = [];
 
-  // ✅ 用來暫存每筆未送出的留言內容
   const tempInputs = new Map();
 
-  // ✅ 格式化時間
   function fmt(ts) {
     if (!ts || !ts.toDate) return "";
     const d = ts.toDate();
-    const pad = n => String(n).padStart(2, "0");
+    const pad = n => String(n).padStart(2,"0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // ✅ 載入狀態顏色與篩選(不動原功能)
   async function loadStatusColors() {
     const snap = await colStatus.get();
     snap.forEach(doc => {
-      const data = doc.data();
-      statusColorMap[doc.id] = data.color || "#6c757d";
+      statusColorMap[doc.id] = doc.data().color || "#6c757d";
     });
   }
 
-  // ✅ 渲染報修單
-  function renderRequests(filter="all") {
+  function renderRequests() {
     tbody.innerHTML = "";
-    const filtered = allRequests;
 
-    if (filtered.length === 0) {
+    if (allRequests.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
       return;
     }
 
-    filtered.forEach(req => {
+    allRequests.forEach(req => {
       const reqId = req._id;
       const color = statusColorMap[req.status] || "#6c757d";
 
-      const commentsHtml = (req.comments || []).map(c => `
-        <div class="comment border rounded p-2 mb-1 d-flex justify-content-between align-items-center">
+      const commentsHtml = (req.comments || []).map(c => {
+        const role = c.role || "admin"; // 舊資料保護
+        const roleLabel = role === "nurse" ? "護理師" : "管理端";
+
+        return `
+        <div class="comment border rounded p-2 mb-1">
           <div>
-            <strong>${c.author || "未紀錄"}</strong>：${c.message}
+            <strong>${roleLabel}：${c.author || "未紀錄"}</strong><br>
+            ${c.message}
             <div class="text-muted small">${fmt(c.time)}</div>
           </div>
-          <button 
-            class="btn btn-sm btn-outline-danger btn-del-comment"
-            data-msg="${encodeURIComponent(c.message)}"
-            data-author="${encodeURIComponent(c.author)}"
-            data-time="${c.time?.seconds || ''}"
-          >
-            刪除
-          </button>
-        </div>
-      `).join("") || `<span class="text-muted">—</span>`;
 
-      const savedAuthor = tempInputs.get(reqId + "-author") || "";
-      const savedMsg = tempInputs.get(reqId + "-msg") || "";
+          ${role === "nurse" ? `
+            <div class="text-end">
+              <button class="btn btn-sm btn-outline-danger btn-del-comment"
+                data-msg="${encodeURIComponent(c.message)}"
+                data-author="${encodeURIComponent(c.author)}"
+                data-time="${c.time?.seconds || ''}">
+                刪除
+              </button>
+            </div>
+          ` : ""}
+        </div>`;
+      }).join("") || `<span class="text-muted">—</span>`;
+
+      const savedAuthor = tempInputs.get(reqId+"-author") || "";
+      const savedMsg = tempInputs.get(reqId+"-msg") || "";
 
       const tr = document.createElement("tr");
       tr.dataset.id = reqId;
 
       tr.innerHTML = `
-        <td>${req.item || ""}</td>
-        <td>${req.detail || ""}</td>
-        <td>${req.reporter || ""}</td>
+        <td>${req.item}</td>
+        <td>${req.detail}</td>
+        <td>${req.reporter}</td>
         <td><span class="badge" style="background:${color}">${req.status}</span></td>
         <td>${fmt(req.createdAt)}</td>
-        <td>
+        <td style="min-width:260px;">
           <strong>註解：</strong>
           <div class="mb-2">${commentsHtml}</div>
 
-          <input type="text" class="form-control form-control-sm comment-author mb-1" 
+          <input type="text" class="form-control form-control-sm comment-author mb-1"
             placeholder="留言者名稱" value="${savedAuthor}">
-          <textarea class="form-control form-control-sm comment-input mb-1" 
+          <textarea class="form-control form-control-sm comment-input mb-1"
             placeholder="輸入註解..." >${savedMsg}</textarea>
+
           <button class="btn btn-sm btn-secondary btn-add-comment">新增註解</button>
         </td>
       `;
-
       tbody.appendChild(tr);
     });
 
-    // ✅ 記錄輸入框內容避免刷新 clears
     document.querySelectorAll(".comment-author, .comment-input").forEach(input => {
       input.addEventListener("input", e => {
-        const row = e.target.closest("tr");
-        const id = row.dataset.id;
-        if (e.target.classList.contains("comment-author")) {
-          tempInputs.set(id + "-author", e.target.value);
-        } else {
-          tempInputs.set(id + "-msg", e.target.value);
-        }
+        const id = e.target.closest("tr").dataset.id;
+        tempInputs.set(
+          id + (e.target.classList.contains("comment-author") ? "-author" : "-msg"),
+          e.target.value
+        );
       });
     });
   }
 
-  // ✅ 載入資料
   async function loadRequests() {
-    const snap = await colReq.orderBy("createdAt", "desc").get().catch(()=> colReq.get());
+    const snap = await colReq.orderBy("createdAt","desc").get().catch(()=>colReq.get());
     allRequests = snap.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
     renderRequests();
   }
 
-  // ✅ 新增註解
   tbody.addEventListener("click", async e => {
     if (!e.target.classList.contains("btn-add-comment")) return;
+
     const row = e.target.closest("tr");
     const id = row.dataset.id;
 
@@ -123,14 +121,14 @@ document.addEventListener("firebase-ready", async () => {
     if (!author) return alert("請輸入留言者名稱！");
     if (!message) return alert("請輸入註解內容！");
 
-    // ✅ 清除暫存
-    tempInputs.delete(id + "-author");
-    tempInputs.delete(id + "-msg");
+    tempInputs.delete(id+"-author");
+    tempInputs.delete(id+"-msg");
 
     await colReq.doc(id).update({
       comments: firebase.firestore.FieldValue.arrayUnion({
         author,
         message,
+        role: "nurse", // ✅ NEW
         time: firebase.firestore.FieldValue.serverTimestamp()
       })
     });
@@ -139,9 +137,10 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ✅ 刪除註解（僅可刪自己新增的）
   tbody.addEventListener("click", async e => {
     if (!e.target.classList.contains("btn-del-comment")) return;
+
+    if (!confirm("確定要刪除此註解？")) return;
 
     const row = e.target.closest("tr");
     const id = row.dataset.id;
@@ -150,12 +149,11 @@ document.addEventListener("firebase-ready", async () => {
     const author = decodeURIComponent(e.target.dataset.author);
     const seconds = parseInt(e.target.dataset.time);
 
-    if (!confirm("確定要刪除此註解？")) return;
-
     await colReq.doc(id).update({
       comments: firebase.firestore.FieldValue.arrayRemove({
         author,
         message,
+        role: "nurse", // ✅ 只能刪「護理師新增」的
         time: seconds ? new firebase.firestore.Timestamp(seconds, 0) : null
       })
     });
@@ -164,7 +162,6 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ✅ 原本新增報修單功能保持不變
   addRequestBtn.onclick = () => {
     document.getElementById("item").value = "";
     document.getElementById("detail").value = "";
