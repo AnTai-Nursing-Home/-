@@ -1,11 +1,7 @@
 document.addEventListener('firebase-ready', () => {
-    // 透過尋找一個只在 employees-admin.html 存在的獨特元件，來判斷我們是否在正確的頁面
     const nursesTableBody = document.getElementById('nurses-table-body');
-    if (!nursesTableBody) {
-        return; // 如果找不到，代表不在員工管理頁，直接結束
-    }
+    if (!nursesTableBody) return;
 
-    // --- 元件宣告 ---
     const caregiversTableBody = document.getElementById('caregivers-table-body');
     const addEmployeeBtn = document.getElementById('add-employee-btn');
     const employeeModalEl = document.getElementById('employee-modal');
@@ -13,10 +9,15 @@ document.addEventListener('firebase-ready', () => {
     const employeeModalTitle = document.getElementById('employee-modal-title');
     const saveEmployeeBtn = document.getElementById('save-employee-btn');
     const employeeForm = document.getElementById('employee-form');
+
     const employeeIdInput = document.getElementById('employee-id');
     const employeeNameInput = document.getElementById('employee-name');
+    const employeeBirthdayInput = document.getElementById('employee-birthday');
+    const employeeIdCardInput = document.getElementById('employee-idCard');
+    const employeeHireDateInput = document.getElementById('employee-hireDate');
     const employeeTypeInput = document.getElementById('employee-type');
     const employeeSortOrderInput = document.getElementById('employee-sortOrder');
+
     const tableHeaders = document.querySelectorAll('.sortable-header');
     const exportWordBtn = document.getElementById('export-word-btn');
     const exportExcelBtn = document.getElementById('export-excel-btn');
@@ -24,43 +25,68 @@ document.addEventListener('firebase-ready', () => {
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
     const importStatus = document.getElementById('import-status');
-    
-    // --- 變數 ---
+
     const nursesCollection = 'nurses';
     const caregiversCollection = 'caregivers';
     let currentEditingId = null;
-    let sortConfig = { key: 'sortOrder', order: 'asc' }; // 預設使用自訂排序
+    let sortConfig = { key: 'sortOrder', order: 'asc' };
 
-    // --- 函式定義 ---
+    function formatDateInput(v) {
+        if (!v) return "";
+        v = v.replace(/\./g, "/").replace(/-/g, "/");
+        const parts = v.split("/");
+        if (parts.length === 3) {
+            let [y, mm, dd] = parts;
+            mm = mm.padStart(2, "0");
+            dd = dd.padStart(2, "0");
+            return `${y}/${mm}/${dd}`;
+        }
+        return v;
+    }
+
     async function loadAndRenderEmployees(collectionName, tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="text-center">讀取中...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center">讀取中...</td></tr>`;
         try {
             const snapshot = await db.collection(collectionName)
                 .orderBy(sortConfig.key, sortConfig.order)
-                .orderBy('id', 'asc') // 當 sortOrder 相同時，用員編做次要排序
+                .orderBy('id', 'asc')
                 .get();
+
             if (snapshot.empty) {
-                tableBody.innerHTML = `<tr><td colspan="4" class="text-center">尚無資料。</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center">尚無資料。</td></tr>`;
                 return;
             }
+
             let html = '';
             snapshot.forEach(doc => {
-                const employee = doc.data();
-                html += `<tr data-id="${doc.id}"><td>${employee.sortOrder || 999}</td><td>${employee.id}</td><td>${employee.name}</td><td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td></tr>`;
+                const e = doc.data();
+                html += `
+                <tr data-id="${doc.id}">
+                    <td>${e.sortOrder || 999}</td>
+                    <td>${e.id}</td>
+                    <td>${e.name}</td>
+                    <td>${e.birthday || ''}</td>
+                    <td>${e.idCard || ''}</td>
+                    <td>${e.hireDate || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary btn-edit">編輯</button>
+                        <button class="btn btn-sm btn-danger btn-delete">刪除</button>
+                    </td>
+                </tr>`;
             });
             tableBody.innerHTML = html;
         } catch (error) {
-            console.error(`讀取 ${collectionName} 資料失敗:`, error);
-            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">讀取失敗！</td></tr>`;
+            console.error("讀取錯誤:", error);
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">讀取失敗！</td></tr>`;
         }
     }
 
     function updateHeaderSortUI() {
-        tableHeaders.forEach(header => {
-            const sortKey = header.dataset.sort;
-            header.classList.remove('sort-asc', 'sort-desc');
+        tableHeaders.forEach(h => {
+            const sortKey = h.dataset.sort;
+            h.classList.remove('sort-asc', 'sort-desc');
             if (sortKey === sortConfig.key) {
-                header.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
+                h.classList.add(sortConfig.order === 'asc' ? 'sort-asc' : 'sort-desc');
             }
         });
     }
@@ -76,22 +102,33 @@ document.addEventListener('firebase-ready', () => {
     async function handleSave() {
         const id = employeeIdInput.value.trim();
         const name = employeeNameInput.value.trim();
-        const sortOrder = parseInt(employeeSortOrderInput.value) || 999;
+        const birthday = formatDateInput(employeeBirthdayInput.value.trim());
+        const idCard = employeeIdCardInput.value.trim().toUpperCase();
+        const hireDate = formatDateInput(employeeHireDateInput.value.trim());
         const type = employeeTypeInput.value;
-        if (!id || !name) { alert('請填寫員編和姓名！'); return; }
+        const sortOrder = parseInt(employeeSortOrderInput.value) || 999;
+
+        if (!id || !name) {
+            alert("請填寫員編與姓名！");
+            return;
+        }
 
         const collectionName = (type === 'nurse') ? nursesCollection : caregiversCollection;
-        
+
         saveEmployeeBtn.disabled = true;
         try {
             if (currentEditingId && currentEditingId !== id) {
                 await db.collection(collectionName).doc(currentEditingId).delete();
             }
-            await db.collection(collectionName).doc(id).set({ id, name, sortOrder });
+
+            await db.collection(collectionName).doc(id).set({
+                id, name, birthday, idCard, hireDate, sortOrder
+            });
+
             employeeModal.hide();
             loadAll();
-        } catch (error) {
-            alert('儲存失敗！');
+        } catch {
+            alert("儲存失敗！");
         } finally {
             saveEmployeeBtn.disabled = false;
         }
@@ -103,189 +140,190 @@ document.addEventListener('firebase-ready', () => {
         updateHeaderSortUI();
     }
 
-    async function generateEmployeeReportHTML() {
+    async function generateReportHTML() {
         const activeTab = document.querySelector('#employeeTabs .nav-link.active');
         const isNurses = activeTab.id === 'nurses-tab';
-        const collectionName = isNurses ? nursesCollection : caregiversCollection;
-        const reportTitle = isNurses ? '護理師名冊' : '照服員名冊';
+        const name = isNurses ? "護理師" : "照服員";
+        const collection = isNurses ? nursesCollection : caregiversCollection;
 
-        const snapshot = await db.collection(collectionName).orderBy('sortOrder', 'asc').orderBy('id', 'asc').get();
-        
-        let tableHTML = `<table style="width: 60%; margin: 20px auto; border-collapse: collapse; text-align: center;">
-                            <thead>
-                                <tr style="background-color: #f2f2f2;">
-                                    <th style="border: 1px solid black; padding: 8px;">員編</th>
-                                    <th style="border: 1px solid black; padding: 8px;">姓名</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-        
+        const snapshot = await db.collection(collection)
+            .orderBy("sortOrder")
+            .orderBy("id", "asc")
+            .get();
+
+        let rows = "";
         snapshot.forEach(doc => {
-            const employee = doc.data();
-            tableHTML += `<tr>
-                            <td style="border: 1px solid black; padding: 8px;">${employee.id}</td>
-                            <td style="border: 1px solid black; padding: 8px;">${employee.name}</td>
-                          </tr>`;
+            const e = doc.data();
+            rows += `
+                <tr>
+                    <td>${e.id}</td>
+                    <td>${e.name}</td>
+                    <td>${e.birthday || ''}</td>
+                    <td>${e.idCard || ''}</td>
+                    <td>${e.hireDate || ''}</td>
+                </tr>`;
         });
-        tableHTML += '</tbody></table>';
 
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${reportTitle}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4;margin:20mm;}h1,h2{text-align:center;margin:5px 0;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${reportTitle}</h2>${tableHTML}</body></html>`;
+        return `
+        <!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><title>${name}名冊</title>
+        <style>table{width:85%;margin:auto;border-collapse:collapse;text-align:center;font-size:14px;}
+        td,th{border:1px solid #000;padding:6px;}h1,h2{text-align:center;}</style>
+        </head><body>
+        <h1>安泰醫療社團法人附設安泰護理之家</h1>
+        <h2>${name}名冊</h2>
+        <table><thead><tr>
+            <th>員編</th><th>姓名</th><th>生日</th><th>身分證字號</th><th>入職日期</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+        </body></html>`;
     }
 
-    async function handleExcelImport(event) {
-        const file = event.target.files[0];
+    async function handleExcelImport(e) {
+        const file = e.target.files[0];
         if (!file) return;
 
         const activeTab = document.querySelector('#employeeTabs .nav-link.active');
         const isNurses = activeTab.id === 'nurses-tab';
         const collectionName = isNurses ? nursesCollection : caregiversCollection;
-        const employeeTypeText = isNurses ? '護理師' : '照服員';
+        const label = isNurses ? "護理師" : "照服員";
 
-        importStatus.className = 'alert alert-info';
+        importStatus.className = "alert alert-info";
         importStatus.classList.remove('d-none');
-        importStatus.textContent = `正在讀取檔案並匯入至「${employeeTypeText}」名冊...`;
+        importStatus.textContent = "讀取與匯入中…";
 
         const reader = new FileReader();
-        reader.onload = async (e) => {
+        reader.onload = async (event) => {
             try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const employees = XLSX.utils.sheet_to_json(worksheet);
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const list = XLSX.utils.sheet_to_json(sheet);
 
-                if (employees.length === 0) {
-                    importStatus.textContent = '錯誤：Excel 檔案中沒有資料。';
+                if (list.length === 0) {
+                    importStatus.textContent = "錯誤：沒有資料！";
                     return;
                 }
 
-                if (!employees[0].hasOwnProperty('員編') || !employees[0].hasOwnProperty('姓名')) {
-                    importStatus.textContent = '錯誤：Excel 檔案缺少必要的「員編」或「姓名」欄位，請確認第一列的欄位標題是否正確。';
-                    return;
-                }
-
-                importStatus.textContent = `偵測到 ${employees.length} 筆資料，正在批次寫入雲端...`;
-                const batch = db.batch();
-                employees.forEach((emp) => {
-                    const id = String(emp.員編).trim();
-                    const name = String(emp.姓名).trim();
-                    if (id && name) {
-                        const docRef = db.collection(collectionName).doc(id);
-                        batch.set(docRef, {
-                            id: id,
-                            name: name,
-                            sortOrder: parseInt(emp.排序) || 999
-                        });
+                const requireCols = ["排序","員編","姓名","生日","身分證字號","入職日期"];
+                for (const c of requireCols) {
+                    if (!list[0].hasOwnProperty(c)) {
+                        importStatus.textContent = `缺少欄位：${c}`;
+                        return;
                     }
+                }
+
+                const batch = db.batch();
+                list.forEach((row) => {
+                    const id = String(row.員編).trim();
+                    if (!id) return;
+                    const ref = db.collection(collectionName).doc(id);
+                    batch.set(ref, {
+                        id,
+                        name: String(row.姓名).trim(),
+                        birthday: formatDateInput(String(row.生日)),
+                        idCard: String(row.身分證字號).trim().toUpperCase(),
+                        hireDate: formatDateInput(String(row.入職日期)),
+                        sortOrder: parseInt(row.排序) || 999
+                    });
                 });
 
                 await batch.commit();
+                importStatus.className = "alert alert-success";
+                importStatus.textContent = `成功！頁面將重新整理`;
+                setTimeout(() => window.location.reload(), 1800);
 
-                importStatus.className = 'alert alert-success';
-                importStatus.textContent = `成功匯入 ${employees.length} 筆資料至「${employeeTypeText}」名冊！頁面將重新整理。`;
-                
-                setTimeout(() => window.location.reload(), 2000);
-
-            } catch (error) {
-                console.error("Excel 匯入失敗:", error);
-                importStatus.className = 'alert alert-danger';
-                importStatus.textContent = '匯入失敗，請檢查檔案格式或聯繫管理員。';
+            } catch (err) {
+                console.error(err);
+                importStatus.className = "alert alert-danger";
+                importStatus.textContent = "Excel匯入失敗！";
             } finally {
-                excelFileInput.value = '';
+                excelFileInput.value = "";
             }
         };
+
         reader.readAsArrayBuffer(file);
     }
-    
-    // --- 事件監聽器 ---
-    addEmployeeBtn.addEventListener('click', () => {
+
+    addEmployeeBtn.onclick = () => {
         const activeTab = document.querySelector('#employeeTabs .nav-link.active');
-        employeeTypeInput.value = (activeTab.id === 'nurses-tab') ? 'nurse' : 'caregiver';
+        employeeTypeInput.value = activeTab.id === 'nurses-tab' ? "nurse" : "caregiver";
         openModalForNew();
-    });
+    };
 
-    nursesTableBody.addEventListener('click', (e) => handleTableClick(e, nursesCollection));
-    caregiversTableBody.addEventListener('click', (e) => handleTableClick(e, caregiversCollection));
-
-    async function handleTableClick(e, collectionName) {
-        const target = e.target;
-        const row = target.closest('tr');
+    function tableHandler(e, col) {
+        const t = e.target;
+        const row = t.closest("tr");
         if (!row) return;
-        const docId = row.dataset.id;
-        
-        if (target.classList.contains('btn-edit')) {
-            const employeeData = { 
-                sortOrder: row.cells[0].textContent,
-                id: row.cells[1].textContent, 
-                name: row.cells[2].textContent 
-            };
-            currentEditingId = docId;
-            employeeModalTitle.textContent = '編輯員工';
-            employeeSortOrderInput.value = employeeData.sortOrder;
-            employeeIdInput.value = employeeData.id;
-            employeeNameInput.value = employeeData.name;
-            employeeTypeInput.value = (collectionName === nursesCollection) ? 'nurse' : 'caregiver';
+        const id = row.dataset.id;
+
+        if (t.classList.contains("btn-edit")) {
+            currentEditingId = id;
+            employeeModalTitle.textContent = "編輯員工";
+
+            employeeSortOrderInput.value = row.cells[0].textContent;
+            employeeIdInput.value = row.cells[1].textContent;
+            employeeNameInput.value = row.cells[2].textContent;
+            employeeBirthdayInput.value = row.cells[3].textContent;
+            employeeIdCardInput.value = row.cells[4].textContent;
+            employeeHireDateInput.value = row.cells[5].textContent;
             employeeIdInput.disabled = false;
+
+            employeeTypeInput.value = col === nursesCollection ? "nurse" : "caregiver";
             employeeModal.show();
-        } else if (target.classList.contains('btn-delete')) {
-            if (confirm(`確定要刪除員工 ${docId} 嗎？`)) {
-                try {
-                    await db.collection(collectionName).doc(docId).delete();
-                    loadAll();
-                } catch {
-                    alert('刪除失敗！');
-                }
+        }
+        else if (t.classList.contains("btn-delete")) {
+            if (confirm(`確定刪除 ${id}？`)) {
+                db.collection(col).doc(id).delete().then(loadAll);
             }
         }
     }
 
-    saveEmployeeBtn.addEventListener('click', handleSave);
+    nursesTableBody.addEventListener('click', e => tableHandler(e, nursesCollection));
+    caregiversTableBody.addEventListener('click', e => tableHandler(e, caregiversCollection));
 
-    tableHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const newKey = header.dataset.sort;
-            if (sortConfig.key === newKey) {
-                sortConfig.order = (sortConfig.order === 'asc') ? 'desc' : 'asc';
-            } else {
-                sortConfig.key = newKey;
-                sortConfig.order = 'asc';
+    saveEmployeeBtn.onclick = handleSave;
+
+    tableHeaders.forEach(h => {
+        h.addEventListener("click", () => {
+            const k = h.dataset.sort;
+            if (sortConfig.key === k)
+                sortConfig.order = sortConfig.order === "asc" ? "desc" : "asc";
+            else {
+                sortConfig.key = k;
+                sortConfig.order = "asc";
             }
             loadAll();
         });
     });
 
-    importExcelBtn.addEventListener('click', () => {
-        excelFileInput.click();
-    });
-    excelFileInput.addEventListener('change', handleExcelImport);
+    importExcelBtn.onclick = () => excelFileInput.click();
+    excelFileInput.onchange = handleExcelImport;
 
-    exportWordBtn.addEventListener('click', async () => {
-        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
-        const content = await generateEmployeeReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+    exportWordBtn.onclick = async () => {
+        const content = await generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: "application/msword" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.doc`; a.click();
-        window.URL.revokeObjectURL(url);
-    });
+        const a = document.createElement("a");
+        a.href = url; a.download = "人員名冊.doc"; a.click();
+        URL.revokeObjectURL(url);
+    };
 
-    exportExcelBtn.addEventListener('click', async () => {
-        const reportTitle = document.querySelector('#employeeTabs .nav-link.active').textContent;
-        const content = await generateEmployeeReportHTML();
-        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+    exportExcelBtn.onclick = async () => {
+        const content = await generateReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: "application/vnd.ms-excel" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `${reportTitle}名冊.xls`; a.click();
-        window.URL.revokeObjectURL(url);
-    });
+        const a = document.createElement("a");
+        a.href = url; a.download = "人員名冊.xls"; a.click();
+        URL.revokeObjectURL(url);
+    };
 
-    printBtn.addEventListener('click', async () => {
-        const content = await generateEmployeeReportHTML();
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); }, 500);
-    });
+    printBtn.onclick = async () => {
+        const doc = await generateReportHTML();
+        const w = window.open("", "_blank");
+        w.document.write(doc);
+        w.document.close();
+        setTimeout(() => w.print(), 500);
+    };
 
-    // --- 初始載入 ---
     loadAll();
 });
