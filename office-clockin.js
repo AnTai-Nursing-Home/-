@@ -70,6 +70,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (['OFF', 'OFH', 'OF', 'V', '病', '公'].includes(shift)) {
                         clockIn = shift;
                         clockOut = shift;
+                    // ✅ 新增喪假邏輯（不影響原本 OFF、OF 等規則）
+                      else if (shift === '喪' || shift === '喪假') {
+                        clockIn = '喪';
+                        clockOut = '喪';
                     }
                     dailyRecords.push({ clockIn, clockOut });
                 }
