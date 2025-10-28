@@ -391,6 +391,32 @@ document.addEventListener("firebase-ready", async () => {
     return `${base}_${range}.${ext}`;
   }
 
+  // ===== 新增註解 =====
+  document.addEventListener("click", async e => {
+    // 偵測點擊新增註解按鈕
+    if (e.target.closest("[data-comment]")) {
+      const id = e.target.closest("[data-comment]").dataset.comment;
+      const msg = prompt("請輸入註解內容：");
+      if (!msg || !msg.trim()) return;
+  
+      // 寫入 Firestore
+      const docRef = db.collection("maintenance_requests").doc(id);
+      await docRef.update({
+        comments: firebase.firestore.FieldValue.arrayUnion({
+          message: msg.trim(),
+          time: firebase.firestore.Timestamp.now()
+        })
+      });
+  
+      // 重新載入列表
+      await loadRequests();
+    }
+  });
+  
+  // 載入資料與狀態顏色
+  await loadStatusColors();
+  await loadRequests();
+
   // 初始化
   await loadStatuses();
   await loadRequests();
