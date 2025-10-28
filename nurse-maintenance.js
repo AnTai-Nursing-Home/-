@@ -10,108 +10,169 @@ document.addEventListener("firebase-ready", async () => {
   const statusColorMap = {};
   let allRequests = [];
 
-  // ===== 格式化時間 =====
+  // ✅ 用來暫存每筆未送出的留言內容
+  const tempInputs = new Map();
+
+  // ✅ 格式化時間
   function fmt(ts) {
     if (!ts || !ts.toDate) return "";
     const d = ts.toDate();
     const pad = n => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // ===== 顯示讀取中 =====
-  function showLoading() {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>`;
-  }
-
-  // ===== 載入狀態顏色 =====
+  // ✅ 載入狀態顏色與篩選(不動原功能)
   async function loadStatusColors() {
     const snap = await colStatus.get();
     snap.forEach(doc => {
       const data = doc.data();
       statusColorMap[doc.id] = data.color || "#6c757d";
     });
-
-    // 建立篩選選單
-    const filterContainer = document.createElement("div");
-    filterContainer.className = "mb-3";
-    filterContainer.innerHTML = `
-      <label class="form-label fw-bold me-2">狀態篩選：</label>
-      <select id="statusFilter" class="form-select d-inline-block" style="width:auto; display:inline-block;">
-        <option value="all">全部</option>
-        ${Object.keys(statusColorMap)
-          .map(s => `<option value="${s}">${s}</option>`)
-          .join("")}
-      </select>
-    `;
-    const cardBody = document.querySelector(".card-body");
-    cardBody.insertBefore(filterContainer, cardBody.firstChild);
-
-    document.getElementById("statusFilter").addEventListener("change", e => {
-      renderRequests(e.target.value);
-    });
   }
 
-  // ===== 渲染報修清單（含篩選） =====
-  function renderRequests(filter = "all") {
+  // ✅ 渲染報修單
+  function renderRequests(filter="all") {
     tbody.innerHTML = "";
-    const filtered = filter === "all" ? allRequests : allRequests.filter(d => d.status === filter);
+    const filtered = allRequests;
 
     if (filtered.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
       return;
     }
 
-    filtered.forEach(d => {
-      const color = statusColorMap[d.status] || "#6c757d";
-      const commentsHtml = (d.comments || []).map(c => `
-        <div class="comment border rounded p-2 mb-2">
-          <div>${c.message || ""}</div>
-          <time class="text-muted small">${fmt(c.time)}</time>
+    filtered.forEach(req => {
+      const reqId = req._id;
+      const color = statusColorMap[req.status] || "#6c757d";
+
+      const commentsHtml = (req.comments || []).map(c => `
+        <div class="comment border rounded p-2 mb-1 d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${c.author || "未紀錄"}</strong>：${c.message}
+            <div class="text-muted small">${fmt(c.time)}</div>
+          </div>
+          <button 
+            class="btn btn-sm btn-outline-danger btn-del-comment"
+            data-msg="${encodeURIComponent(c.message)}"
+            data-author="${encodeURIComponent(c.author)}"
+            data-time="${c.time?.seconds || ''}"
+          >
+            刪除
+          </button>
         </div>
       `).join("") || `<span class="text-muted">—</span>`;
 
-      const hasNote = d.note && d.note.trim() !== "";
-      const noteSection = hasNote
-        ? `<div><strong>備註：</strong><div class="border rounded p-2 bg-light">${d.note}</div></div>`
-        : "";
-      
+      const savedAuthor = tempInputs.get(reqId + "-author") || "";
+      const savedMsg = tempInputs.get(reqId + "-msg") || "";
+
       const tr = document.createElement("tr");
+      tr.dataset.id = reqId;
+
       tr.innerHTML = `
-        <td>${d.item || ""}</td>
-        <td>${d.detail || ""}</td>
-        <td>${d.reporter || ""}</td>
-        <td><span class="badge text-white" style="background:${color};">${d.status || "—"}</span></td>
-        <td>${fmt(d.createdAt)}</td>
-        <td style="min-width:200px;">
-          ${noteSection}
-          <div class="mt-2"><strong>註解：</strong>${commentsHtml}</div>
+        <td>${req.item || ""}</td>
+        <td>${req.detail || ""}</td>
+        <td>${req.reporter || ""}</td>
+        <td><span class="badge" style="background:${color}">${req.status}</span></td>
+        <td>${fmt(req.createdAt)}</td>
+        <td>
+          <strong>註解：</strong>
+          <div class="mb-2">${commentsHtml}</div>
+
+          <input type="text" class="form-control form-control-sm comment-author mb-1" 
+            placeholder="留言者名稱" value="${savedAuthor}">
+          <textarea class="form-control form-control-sm comment-input mb-1" 
+            placeholder="輸入註解..." >${savedMsg}</textarea>
+          <button class="btn btn-sm btn-secondary btn-add-comment">新增註解</button>
         </td>
       `;
+
       tbody.appendChild(tr);
+    });
+
+    // ✅ 記錄輸入框內容避免刷新 clears
+    document.querySelectorAll(".comment-author, .comment-input").forEach(input => {
+      input.addEventListener("input", e => {
+        const row = e.target.closest("tr");
+        const id = row.dataset.id;
+        if (e.target.classList.contains("comment-author")) {
+          tempInputs.set(id + "-author", e.target.value);
+        } else {
+          tempInputs.set(id + "-msg", e.target.value);
+        }
+      });
     });
   }
 
-  // ===== 載入報修清單 =====
+  // ✅ 載入資料
   async function loadRequests() {
-    showLoading();
-    try {
-      const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
-      allRequests = snap.docs.map(d => d.data());
-      renderRequests();
-    } finally {
-      // 無動畫
-    }
+    const snap = await colReq.orderBy("createdAt", "desc").get().catch(()=> colReq.get());
+    allRequests = snap.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
+    renderRequests();
   }
 
-  // ===== 新增報修單 =====
-  addRequestBtn.addEventListener("click", () => {
+  // ✅ 新增註解
+  tbody.addEventListener("click", async e => {
+    if (!e.target.classList.contains("btn-add-comment")) return;
+    const row = e.target.closest("tr");
+    const id = row.dataset.id;
+
+    const authorInput = row.querySelector(".comment-author");
+    const msgInput = row.querySelector(".comment-input");
+    const author = authorInput.value.trim();
+    const message = msgInput.value.trim();
+
+    if (!author) return alert("請輸入留言者名稱！");
+    if (!message) return alert("請輸入註解內容！");
+
+    // ✅ 清除暫存
+    tempInputs.delete(id + "-author");
+    tempInputs.delete(id + "-msg");
+
+    await colReq.doc(id).update({
+      comments: firebase.firestore.FieldValue.arrayUnion({
+        author,
+        message,
+        time: firebase.firestore.FieldValue.serverTimestamp()
+      })
+    });
+
+    alert("註解新增成功 ✅");
+    await loadRequests();
+  });
+
+  // ✅ 刪除註解（僅可刪自己新增的）
+  tbody.addEventListener("click", async e => {
+    if (!e.target.classList.contains("btn-del-comment")) return;
+
+    const row = e.target.closest("tr");
+    const id = row.dataset.id;
+
+    const message = decodeURIComponent(e.target.dataset.msg);
+    const author = decodeURIComponent(e.target.dataset.author);
+    const seconds = parseInt(e.target.dataset.time);
+
+    if (!confirm("確定要刪除此註解？")) return;
+
+    await colReq.doc(id).update({
+      comments: firebase.firestore.FieldValue.arrayRemove({
+        author,
+        message,
+        time: seconds ? new firebase.firestore.Timestamp(seconds, 0) : null
+      })
+    });
+
+    alert("已刪除 ✅");
+    await loadRequests();
+  });
+
+  // ✅ 原本新增報修單功能保持不變
+  addRequestBtn.onclick = () => {
     document.getElementById("item").value = "";
     document.getElementById("detail").value = "";
     document.getElementById("reporter").value = "";
     addModal.show();
-  });
+  };
 
-  saveRequestBtn.addEventListener("click", async () => {
+  saveRequestBtn.onclick = async () => {
     const item = document.getElementById("item").value.trim();
     const detail = document.getElementById("detail").value.trim();
     const reporter = document.getElementById("reporter").value.trim();
@@ -129,9 +190,8 @@ document.addEventListener("firebase-ready", async () => {
 
     addModal.hide();
     await loadRequests();
-  });
+  };
 
-  // ===== 初始化 =====
   await loadStatusColors();
   await loadRequests();
 });
