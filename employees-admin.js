@@ -178,6 +178,17 @@ document.addEventListener('firebase-ready', () => {
         </body></html>`;
     }
 
+    function excelSerialToDateString(serial) {
+        if (!serial || isNaN(serial)) return "";
+        const utc_days = serial - 25569;
+        const utc_value = utc_days * 86400;
+        const date = new Date(utc_value * 1000);
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(date.getUTCDate()).padStart(2, "0");
+        return `${y}/${m}/${d}`;
+    }
+
     async function handleExcelImport(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -220,9 +231,9 @@ document.addEventListener('firebase-ready', () => {
                     batch.set(ref, {
                         id,
                         name: String(row.姓名).trim(),
-                        birthday: formatDateInput(String(row.生日)),
+                        birthday: excelSerialToDateString(row.生日),
                         idCard: String(row.身分證字號).trim().toUpperCase(),
-                        hireDate: formatDateInput(String(row.入職日期)),
+                        hireDate: excelSerialToDateString(row.入職日期),
                         sortOrder: parseInt(row.排序) || 999
                     });
                 });
