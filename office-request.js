@@ -202,10 +202,21 @@ document.addEventListener("firebase-ready", async () => {
       const color = getStatusColor(value);
       e.target.style.background = color;
       e.target.style.color = "#fff";
+  
       await Promise.all([
         leaveCol.doc(id).update({ status: value }).catch(() => {}),
         swapCol.doc(id).update({ status: value }).catch(() => {})
       ]);
+  
+      showToast("狀態已更新");
+  
+      // ====== 特休審核通過 → 拋轉至年假系統 ======
+      try {
+        await pushToAnnualLeaveIfNeeded(id, value);
+        console.log(`✅【年假系統】審核通過 → 已處理請假單 ${id}`);
+      } catch (err) {
+        console.error("❌【年假系統】拋轉失敗：", err);
+      }
     }
   });
 
@@ -328,3 +339,45 @@ document.addEventListener("firebase-ready", async () => {
   leaveCol.onSnapshot(loadLeaveRequests);
   swapCol.onSnapshot(loadSwapRequests);
 });
+// ====== 特休審核通過 → 拋轉至年假系統 ======
+async function pushToAnnualLeaveIfNeeded(docId, newStatus) {
+  try {
+    // 只處理審核通過
+    if (newStatus !== "審核通過") return;
+
+    // 先檢查該筆是否為請假單（存在於 nurse_leave_requests 才處理）
+    const leaveDoc = await leaveCol.doc(docId).get();
+    if (!leaveDoc.exists) return;
+    const d = leaveDoc.data();
+
+    // 只拋轉特休
+    if (d.leaveType !== "特休") return;
+
+    // 防止重複寫入（若已存在相同來源 ID 就不再寫入）
+    const alCol = db.collection("annual_leave_requests");
+    const exist = await alCol.where("sourceDocId", "==", docId).get();
+    if (!exist.empty) return;
+
+    // 目前以天數寫入（未來支援時數時可調整）
+    const daysUsed = 1; // 你目前請假固定為 1 天
+    const hoursUsed = daysUsed * 8;
+
+    const data = {
+      empId: d.employeeId ?? "",
+      name: d.applicant || "",
+      date: d.leaveDate,
+      daysUsed,
+      hoursUsed,
+      reason: d.reason || "",
+      approvedBy: d.supervisorSign || "",
+      sourceDocId: docId,
+      createdAt: new Date()
+    };
+
+    await alCol.add(data);
+    console.log(`✅【年假系統】已成功寫入特休資料 → ${d.applicant} ${d.leaveDate}（${daysUsed}天）`);
+
+  } catch (err) {
+    console.error("❌【年假系統】拋轉發生錯誤：", err);
+  }
+}
