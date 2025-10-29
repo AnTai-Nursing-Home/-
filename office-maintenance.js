@@ -1,24 +1,35 @@
-/**
+/** 
  * office-maintenance.js
- * Final Stable Version (2025-10)
+ * Final Stable Integrated Version (Editable Status + Subcollection Comments)
+ * 
+ * 功能總覽：
+ * - 狀態：以 <select> 直接編輯，變更即寫回 Firestore
+ * - 註解：使用 subcollection（新增 / 編輯(僅 admin) / 刪除）；舊 comments[] 只顯示不可動
+ * - 新增/刪除報修單、狀態篩選、日期篩選、匯出 Word/Excel、列印
+ * - 與護理師端一致的註解結構；UI 排版不動你原本的表格與欄位
  *
- * 功能摘要：
- * - 註解使用 Firestore subcollection：maintenance_requests/{id}/comments/{commentId}
- * - 顯示「作者（角色）」；最新留言在上
- * - 管理端（admin）可：新增、編輯（✏️）、刪除（🗑️）subcomment
- * - 護理師（nurse）留言：可刪除、不可編輯（在辦公室端）
- * - 舊陣列 comments[]：僅顯示，不可編輯/刪除
- * - 原有功能完整保留：篩選（狀態/日期）、匯出 Word/Excel、列印、刪除報修、建立報修單
- *
- * 依賴：你的 HTML 中需存在以下 ID：
- * - maintenanceTableBody, statusFilter, startDate, endDate, applyDateBtn, clearDateBtn
+ * 需要的 HTML 元素 ID：
+ * - maintenanceTableBody
+ * - statusFilter, startDate, endDate, applyDateBtn, clearDateBtn
  * - exportWordBtn, exportExcelBtn, printBtn
  * - addRequestBtn, saveRequestBtn, statusSelect, addRequestModal
- * 以及新增報修單 Modal 中的：item, detail, reporter, note
+ * - 新增報修單 Modal 欄位：item, detail, reporter, note
+ *
+ * 資料結構：
+ * - maintenance_requests/{id}
+ *    - fields: item, detail, reporter, status, note, createdAt, comments (legacy array)
+ *    - subcollection: comments/{commentId} => { author, message, role("admin"/"nurse"), time(Timestamp) }
+ *
+ * 注意：
+ * - 舊 comments 陣列：顯示但不可編輯/刪除（避免一次誤刪整串）
+ * - 可選的升級（稍後）：
+ *    1) 狀態變更自動寫入一則系統留言（誰在何時把狀態變為 X）
+ *    2) 下拉狀態同步顯示顏色
+ *    3) 一鍵搬移所有舊 comments[] → subcollection
  */
 
 document.addEventListener("firebase-ready", async () => {
-  // ===== Firestore 參照 =====
+  // ===== Firestore references =====
   const db = firebase.firestore();
   const colReq = db.collection("maintenance_requests");
   const colStatus = db.collection("maintenance_status");
@@ -38,51 +49,64 @@ document.addEventListener("firebase-ready", async () => {
 
   const addRequestBtn = document.getElementById("addRequestBtn");
   const saveRequestBtn = document.getElementById("saveRequestBtn");
-  const statusSelect = document.getElementById("statusSelect");
+  const statusSelect = document.getElementById("statusSelect"); // 新增報修單 modal 裡的狀態下拉
   const addModalEl = document.getElementById("addRequestModal");
   const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
 
-  // ===== 狀態 / 資料 =====
-  let statuses = [];                 // [{ id, name, color, order }]
-  let allRequests = [];              // 每筆包含 _comments（合併 subcomments 與 legacy）
+  // ===== State =====
+  let statuses = []; // [{ id, name, color, order }]
+  let allRequests = []; // 每筆 request 內含 _comments (subcollection + legacy array)
   let currentStatusFilter = "all";
   let currentStart = null;
   let currentEnd = null;
 
   // ===== Utils =====
   const pad = (n) => String(n).padStart(2, "0");
+  const escapeHTML = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
   function fmt(ts) {
-    // ts: Firestore Timestamp-like { toDate: Function }
+    // Firestore Timestamp-like: { toDate: Function }
     if (!ts || !ts.toDate) return "";
     const d = ts.toDate();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+
   function fmtDateOnly(d) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
-  function escapeHTML(s) {
-    return String(s ?? "")
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
+
   function showLoadingRow() {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>`;
   }
 
-  // ===== 狀態載入 =====
+  // ===== Load statuses =====
   async function loadStatuses() {
-    // 依 order 排序；若沒有 order，照名稱排序
     const snap = await colStatus.orderBy("order", "asc").get().catch(() => colStatus.get());
     statuses = snap.docs.map((d) => ({ id: d.id, name: d.id, ...d.data() }));
 
-    // 篩選器
+    // 重建篩選器
     if (statusFilterEl) {
-      statusFilterEl.innerHTML = `<option value="all">全部</option>` +
+      statusFilterEl.innerHTML =
+        `<option value="all">全部</option>` +
         statuses.map((s) => `<option value="${escapeHTML(s.name)}">${escapeHTML(s.name)}</option>`).join("");
+    }
+
+    // 新增報修單 modal 裡的狀態選擇（若存在）
+    if (statusSelect) {
+      statusSelect.innerHTML = statuses
+        .map((s) => `<option value="${escapeHTML(s.name)}">${escapeHTML(s.name)}</option>`)
+        .join("");
     }
   }
 
-  // ===== 載入報修 + 註解 =====
+  // ===== Load requests + comments =====
   async function loadRequests() {
     showLoadingRow();
     const snap = await colReq.orderBy("createdAt", "desc").get().catch(() => colReq.get());
@@ -92,8 +116,7 @@ document.addEventListener("firebase-ready", async () => {
         const data = { id: doc.id, ...doc.data() };
 
         // subcollection comments（最新在上）
-        const cSnap = await colReq.doc(doc.id)
-          .collection("comments").orderBy("time", "desc").get();
+        const cSnap = await colReq.doc(doc.id).collection("comments").orderBy("time", "desc").get();
         const subComments = cSnap.docs.map((c) => ({ _cid: c.id, ...c.data() }));
 
         // legacy comments array（只顯示不可編輯/刪除）
@@ -115,13 +138,18 @@ document.addEventListener("firebase-ready", async () => {
     renderRequests();
   }
 
-  // ===== 篩選工具 =====
+  // ===== Filters =====
   function inDateRange(ts) {
     if (!ts?.toDate) return true;
     const d = ts.toDate();
     if (currentStart && d < currentStart) return false;
     if (currentEnd) {
-      const end = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), currentEnd.getDate(), 23, 59, 59, 999);
+      const end = new Date(
+        currentEnd.getFullYear(),
+        currentEnd.getMonth(),
+        currentEnd.getDate(),
+        23, 59, 59, 999
+      );
       if (d > end) return false;
     }
     return true;
@@ -129,13 +157,13 @@ document.addEventListener("firebase-ready", async () => {
 
   function getFilteredRequests() {
     return allRequests.filter((r) => {
-      const passStatus = (currentStatusFilter === "all") || (r.status === currentStatusFilter);
-      const passDate = (currentStart || currentEnd) ? inDateRange(r.createdAt) : true;
-      return passStatus && passDate;
+      const passS = currentStatusFilter === "all" || r.status === currentStatusFilter;
+      const passD = (currentStart || currentEnd) ? inDateRange(r.createdAt) : true;
+      return passS && passD;
     });
   }
 
-  // ===== 產生註解 HTML（含編輯/刪除控制）=====
+  // ===== Comment block renderer =====
   function renderCommentBlock(reqId, c) {
     const roleLabel = c.role === "nurse" ? "護理師" : "管理端";
     const canEdit = !c._legacy && c.role === "admin"; // 只有 admin 的 subcomment 可編輯
@@ -143,16 +171,15 @@ document.addEventListener("firebase-ready", async () => {
 
     return `
       <div class="border rounded p-2 mb-2">
-        <div><strong>${escapeHTML(c.author || "未紀錄")}（${roleLabel}）</strong></div>
-        <div class="comment-text mt-1">${escapeHTML(c.message || "")}</div>
+        <div><strong>${escapeHTML(c.author)}（${roleLabel}）</strong></div>
+        <div class="comment-text mt-1">${escapeHTML(c.message)}</div>
 
         <div class="d-flex justify-content-between align-items-center mt-1">
           <time class="text-muted small">${fmt(c.time)}</time>
           <div class="btn-group btn-group-sm" role="group">
             ${canEdit ? `
               <button class="btn btn-outline-primary editCommentBtn"
-                title="編輯" data-id="${reqId}" data-cid="${c._cid}"
-                data-msg="${escapeHTML(c.message || "")}">
+                title="編輯" data-id="${reqId}" data-cid="${c._cid}" data-msg="${escapeHTML(c.message)}">
                 ✏️
               </button>` : ``}
             ${canDelete ? `
@@ -166,7 +193,7 @@ document.addEventListener("firebase-ready", async () => {
     `;
   }
 
-  // ===== 繪製表格 =====
+  // ===== Table renderer =====
   function renderRequests() {
     const rows = getFilteredRequests();
     tbody.innerHTML = "";
@@ -176,7 +203,7 @@ document.addEventListener("firebase-ready", async () => {
     }
 
     rows.forEach((r) => {
-      const color = statuses.find((s) => s.name === r.status)?.color || "#6c757d";
+      const statusColor = statuses.find((s) => s.name === r.status)?.color || "#6c757d";
       const commentsHTML = (r._comments || []).map((c) => renderCommentBlock(r.id, c)).join("") || `<span class="text-muted">—</span>`;
 
       const tr = document.createElement("tr");
@@ -184,7 +211,15 @@ document.addEventListener("firebase-ready", async () => {
         <td>${escapeHTML(r.item || "")}</td>
         <td>${escapeHTML(r.detail || "")}</td>
         <td>${escapeHTML(r.reporter || "")}</td>
-        <td><span class="badge text-white" style="background:${color}">${escapeHTML(r.status || "")}</span></td>
+        <td>
+          <select class="form-select form-select-sm statusSelectCell">
+            ${statuses.map((s) => `
+              <option value="${escapeHTML(s.name)}" ${s.name === r.status ? "selected" : ""}>
+                ${escapeHTML(s.name)}
+              </option>
+            `).join("")}
+          </select>
+        </td>
         <td>${fmt(r.createdAt)}</td>
         <td style="min-width:260px;">
           <div class="mb-2">
@@ -192,7 +227,7 @@ document.addEventListener("firebase-ready", async () => {
             <div class="mt-1">${commentsHTML}</div>
           </div>
 
-          <!-- 新增註解（表格內輸入） -->
+          <!-- 辦公室端：表格內新增註解 -->
           <input type="text" class="form-control form-control-sm comment-author mb-1" placeholder="留言者名稱">
           <textarea class="form-control form-control-sm comment-input mb-1" placeholder="新增註解..."></textarea>
           <button class="btn btn-sm btn-primary btn-add-comment">新增註解</button>
@@ -207,7 +242,21 @@ document.addEventListener("firebase-ready", async () => {
     });
   }
 
-  // ===== 新增註解（表格內輸入）=====
+  // ===== Event: change status =====
+  tbody.addEventListener("change", async (e) => {
+    const select = e.target.closest(".statusSelectCell");
+    if (!select) return;
+
+    const row = select.closest("tr");
+    const id = row.querySelector("[data-delreq]")?.dataset?.delreq || row.dataset?.id;
+    if (!id) return alert("找不到報修單 ID");
+
+    const newStatus = select.value;
+    await colReq.doc(id).update({ status: newStatus });
+    await loadRequests();
+  });
+
+  // ===== Comments: add =====
   tbody.addEventListener("click", async (e) => {
     const btn = e.target.closest(".btn-add-comment");
     if (!btn) return;
@@ -220,7 +269,6 @@ document.addEventListener("firebase-ready", async () => {
     const inputEl = row.querySelector(".comment-input");
     const author = authorEl?.value.trim();
     const message = inputEl?.value.trim();
-
     if (!author) return alert("請輸入留言者名稱");
     if (!message) return alert("請輸入註解內容");
 
@@ -236,7 +284,7 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ===== 編輯註解（僅 admin subcomment 顯示 ✏️）=====
+  // ===== Comments: edit (admin-only subcomments) =====
   tbody.addEventListener("click", async (e) => {
     const btn = e.target.closest(".editCommentBtn");
     if (!btn) return;
@@ -244,17 +292,17 @@ document.addEventListener("firebase-ready", async () => {
     const id = btn.dataset.id;
     const cid = btn.dataset.cid;
     const oldMsgEscaped = btn.dataset.msg || "";
-    const container = btn.closest(".border");
+    const container = btn.closest(".border"); // 每一則留言外框
     if (!container) return;
 
-    // 建立編輯 UI
     const oldHTML = container.innerHTML;
-    const decode = (s) => s
-      .replace(/&amp;/g, "&").replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+    const decode = (s) =>
+      s.replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"');
 
     const oldMsg = decode(oldMsgEscaped);
-
     container.innerHTML = `
       <div><strong>編輯留言（管理端）</strong></div>
       <textarea class="form-control form-control-sm mt-2 editMessageBox" rows="3">${escapeHTML(oldMsg)}</textarea>
@@ -264,7 +312,7 @@ document.addEventListener("firebase-ready", async () => {
       </div>
     `;
 
-    // 儲存
+    // 存檔
     container.querySelector(".saveEditBtn").addEventListener("click", async () => {
       const newText = container.querySelector(".editMessageBox")?.value.trim();
       if (!newText) return alert("內容不可為空白");
@@ -278,7 +326,7 @@ document.addEventListener("firebase-ready", async () => {
     });
   });
 
-  // ===== 刪除註解（僅 subcollection，舊陣列不可刪）=====
+  // ===== Comments: delete (subcomments only) =====
   tbody.addEventListener("click", async (e) => {
     const btn = e.target.closest(".delCommentBtn");
     if (!btn) return;
@@ -292,35 +340,38 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ===== 刪除報修單（同時刪除 subcomments）=====
+  // ===== Delete request (and its subcomments) =====
   tbody.addEventListener("click", async (e) => {
     const delBtn = e.target.closest("[data-delreq]");
     if (!delBtn) return;
+
     const id = delBtn.dataset.delreq;
     if (!id) return;
+
     if (!confirm("確定要刪除此報修單？\n（將同時刪除此單的所有子留言）")) return;
 
-    // 刪 subcomments
+    // 先刪 subcomments
     const cSnap = await colReq.doc(id).collection("comments").get();
     const batch = db.batch();
     cSnap.forEach((d) => batch.delete(d.ref));
     await batch.commit();
 
-    // 刪主文件
+    // 再刪主文件
     await colReq.doc(id).delete();
     await loadRequests();
   });
 
-  // ===== 篩選（狀態）=====
+  // ===== Filters: status =====
   statusFilterEl?.addEventListener("change", (e) => {
     currentStatusFilter = e.target.value || "all";
     renderRequests();
   });
 
-  // ===== 日期區間 =====
+  // ===== Filters: dates =====
   applyDateBtn?.addEventListener("click", () => {
     const s = startDateEl?.value ? new Date(startDateEl.value) : null;
     const e = endDateEl?.value ? new Date(endDateEl.value) : null;
+
     if (s && e && s > e) {
       alert("開始日期不可晚於結束日期");
       return;
@@ -338,7 +389,7 @@ document.addEventListener("firebase-ready", async () => {
     renderRequests();
   });
 
-  // ===== 匯出 / 列印 =====
+  // ===== Export & Print =====
   function buildHeaderHTML() {
     let sub = "全部期間 報修總表";
     if (currentStart || currentEnd) {
@@ -365,18 +416,21 @@ document.addEventListener("firebase-ready", async () => {
           <th>備註</th>
         </tr>
       </thead>`;
-    const trows = rows.map((r) => {
-      const ts = r.createdAt?.toDate ? r.createdAt.toDate() : null;
-      return `
+
+    const trows = rows
+      .map((r) => {
+        const ts = r.createdAt?.toDate ? r.createdAt.toDate() : null;
+        return `
         <tr>
           <td>${escapeHTML(r.item)}</td>
           <td>${escapeHTML(r.detail)}</td>
           <td>${escapeHTML(r.reporter)}</td>
           <td>${escapeHTML(r.status)}</td>
           <td>${ts ? fmt({ toDate: () => ts }) : ""}</td>
-          <td>${escapeHTML(r.note)}</td>
+          <td>${escapeHTML(r.note || "")}</td>
         </tr>`;
-    }).join("");
+      })
+      .join("");
 
     return `
       <table border="1" cellspacing="0" cellpadding="6" style="width:100%; border-collapse:collapse;">
@@ -387,10 +441,14 @@ document.addEventListener("firebase-ready", async () => {
 
   function downloadURL(url, filename) {
     const a = document.createElement("a");
-    a.href = url; a.download = filename;
+    a.href = url;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 0);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 0);
   }
 
   function buildFileName(base, ext) {
@@ -427,7 +485,9 @@ document.addEventListener("firebase-ready", async () => {
         <head><meta charset="UTF-8"></head>
         <body>${buildHeaderHTML()}${buildFormalTableHTML(rows)}</body>
       </html>`;
-    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel" });
+    const blob = new Blob(["\ufeff", html], {
+      type: "application/vnd.ms-excel",
+    });
     const url = URL.createObjectURL(blob);
     downloadURL(url, buildFileName("報修總表", "xls"));
   });
@@ -451,10 +511,12 @@ document.addEventListener("firebase-ready", async () => {
         <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300);}<\/script>
       </body></html>`;
     const w = window.open("", "_blank");
-    w.document.open(); w.document.write(html); w.document.close();
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
   });
 
-  // ===== 新增報修單（保留原功能）=====
+  // ===== Add new request (modal) =====
   addRequestBtn?.addEventListener("click", () => {
     const item = document.getElementById("item");
     const detail = document.getElementById("detail");
@@ -471,13 +533,17 @@ document.addEventListener("firebase-ready", async () => {
     const item = document.getElementById("item")?.value.trim();
     const detail = document.getElementById("detail")?.value.trim();
     const reporter = document.getElementById("reporter")?.value.trim();
-    const status = statusSelect?.value || "待處理";
+    const statusVal = statusSelect?.value || "待處理";
     const note = document.getElementById("note")?.value.trim() || "";
 
     if (!item || !detail || !reporter) return alert("請輸入完整資料");
 
     await colReq.add({
-      item, detail, reporter, status, note,
+      item,
+      detail,
+      reporter,
+      status: statusVal,
+      note,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       // 保留舊欄位（相容舊畫面；不再使用）
       comments: []
@@ -487,7 +553,7 @@ document.addEventListener("firebase-ready", async () => {
     await loadRequests();
   });
 
-  // ===== 初始化 =====
+  // ===== Init =====
   await loadStatuses();
   await loadRequests();
 });
