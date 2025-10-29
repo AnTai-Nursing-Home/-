@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>年假系統</title>
+  <!-- 你專案已載入 Bootstrap / FontAwesome 就不必再載；若無可自行加入 -->
+  <style>
+    .table thead th { white-space: nowrap; }
+    .text-muted { color: #6c757d !important; }
+  </style>
+</head>
+<body>
+  <div class="container my-3">
+    <div class="d-flex align-items-center mb-3">
+      <a href="office.html" class="btn btn-secondary btn-sm me-2">← 返回辦公室</a>
+      <h3 class="m-0">年假系統</h3>
+    </div>
+
+    <ul class="nav nav-tabs" id="alTabs">
+      <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#tab-requests">特休單（唯讀）</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-stats">年假統計</a>
+      </li>
+    </ul>
+
+    <div class="tab-content border p-3">
+      <!-- 特休單（唯讀） -->
+      <div class="tab-pane fade show active" id="tab-requests">
+        <div class="d-flex justify-content-end mb-2">
+          <button id="export-req-excel" class="btn btn-success btn-sm">匯出 Excel</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle">
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>員編</th>
+                <th>姓名</th>
+                <th>時數</th>
+                <th>請假原因</th>
+                <th>審核者</th>
+                <th>來源單號</th>
+              </tr>
+            </thead>
+            <tbody id="al-req-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 年假統計 -->
+      <div class="tab-pane fade" id="tab-stats">
+        <div class="d-flex justify-content-end mb-2">
+          <button id="export-stat-excel" class="btn btn-success btn-sm">匯出 Excel</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle">
+            <thead>
+              <tr>
+                <th>員編</th>
+                <th>姓名</th>
+                <th>入職日</th>
+                <th>總年資</th>
+                <th>應放年假</th>
+                <th>已用年假</th>
+                <th>剩餘年假</th>
+              </tr>
+            </thead>
+            <tbody id="al-stat-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 你專案已經初始化 Firebase，且會在完成後 dispatch 'firebase-ready' 事件 -->
+  <!-- 匯出 Excel 用 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- 年假系統主程式 -->
+  <script src="annual-leave.js"></script>
+</body>
+</html>
