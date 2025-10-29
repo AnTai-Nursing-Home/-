@@ -58,9 +58,10 @@
       d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 
     // -------------------- Top: Status Admin --------------------
-    const $statusName = document.getElementById("newStatusName");
-    const $statusColor = document.getElementById("newStatusColor");
-    const $addStatusBtn = document.getElementById("addStatusBtn");
+    // 狀態管理 UI 元素（對應 HTML 正確 ID）
+    const $statusName = document.getElementById("new-status");
+    const $statusColor = document.getElementById("new-status-color");
+    const $addStatusBtn = document.getElementById("btn-add-status");
     const $statusList = document.getElementById("statusList");
 
     let statusRows = []; // [{id,name,color,order}]
