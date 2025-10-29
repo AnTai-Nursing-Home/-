@@ -13,8 +13,8 @@ document.addEventListener('firebase-ready', () => {
     const employeeIdInput = document.getElementById('employee-id');
     const employeeNameInput = document.getElementById('employee-name');
     const employeeBirthdayInput = document.getElementById('employee-birthday');
-    const employeeIdCardInput = document.getElementById('employee-idCard');
-    const employeeHireDateInput = document.getElementById('employee-hireDate');
+    const employeeIdCardInput = document.getElementById('employeeIdCard');
+    const employeeHireDateInput = document.getElementById('employeeHireDate');
     const employeeTypeInput = document.getElementById('employee-type');
     const employeeSortOrderInput = document.getElementById('employee-sortOrder');
 
