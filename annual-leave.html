@@ -2,39 +2,83 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>年假系統</title>
-  <!-- 你專案已載入 Bootstrap / FontAwesome 就不必再載；若無可自行加入 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- 你的專案已佈好 Bootstrap 與全域樣式，這裡沿用 -->
   <style>
+    .card-header { background:#343a40; color:#fff; }
+    .filter-bar .form-control, .filter-bar .form-select { min-width: 160px; }
     .table thead th { white-space: nowrap; }
-    .text-muted { color: #6c757d !important; }
   </style>
 </head>
 <body>
   <div class="container my-3">
-    <div class="d-flex align-items-center mb-3">
-      <a href="office.html" class="btn btn-secondary btn-sm me-2">← 返回辦公室</a>
-      <h3 class="m-0">年假系統</h3>
+
+    <!-- Header -->
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <a href="office.html" class="btn btn-outline-light btn-sm me-2">
+            <i class="fa-solid fa-arrow-left"></i> 返回辦公室
+          </a>
+          <strong><i class="fa-solid fa-umbrella-beach me-2"></i>年假系統</strong>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="small text-white-50">年度</span>
+          <select id="yearSelect" class="form-select form-select-sm"></select>
+        </div>
+      </div>
     </div>
 
+    <!-- Tabs -->
     <ul class="nav nav-tabs" id="alTabs">
       <li class="nav-item">
-        <a class="nav-link active" data-bs-toggle="tab" href="#tab-requests">特休單（唯讀）</a>
+        <a class="nav-link active" data-bs-toggle="tab" href="#tab-requests">
+          <i class="fa-solid fa-clipboard-list me-1"></i>特休單（唯讀）
+        </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="tab" href="#tab-stats">年假統計</a>
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-stats">
+          <i class="fa-solid fa-chart-line me-1"></i>年假統計
+        </a>
       </li>
     </ul>
 
-    <div class="tab-content border p-3">
+    <div class="tab-content border border-top-0 p-3">
+
       <!-- 特休單（唯讀） -->
       <div class="tab-pane fade show active" id="tab-requests">
-        <div class="d-flex justify-content-end mb-2">
-          <button id="export-req-excel" class="btn btn-success btn-sm">匯出 Excel</button>
+        <!-- Filters -->
+        <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
+          <div>
+            <label class="form-label small mb-1">開始日期</label>
+            <input type="date" id="reqDateFrom" class="form-control form-control-sm">
+          </div>
+          <div>
+            <label class="form-label small mb-1">結束日期</label>
+            <input type="date" id="reqDateTo" class="form-control form-control-sm">
+          </div>
+          <div>
+            <label class="form-label small mb-1">員工（員編 / 姓名關鍵字）</label>
+            <input type="text" id="reqEmpKeyword" class="form-control form-control-sm" placeholder="輸入關鍵字…">
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button id="reqFilterBtn" class="btn btn-primary btn-sm">
+              <i class="fa-solid fa-filter"></i> 套用篩選
+            </button>
+            <button id="reqClearBtn" class="btn btn-outline-secondary btn-sm">
+              <i class="fa-solid fa-eraser"></i> 清除
+            </button>
+            <button id="export-req-excel" class="btn btn-success btn-sm">
+              <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+            </button>
+          </div>
         </div>
+
         <div class="table-responsive">
           <table class="table table-sm table-bordered align-middle">
-            <thead>
+            <thead class="table-light">
               <tr>
                 <th>日期</th>
                 <th>員編</th>
@@ -52,12 +96,36 @@
 
       <!-- 年假統計 -->
       <div class="tab-pane fade" id="tab-stats">
-        <div class="d-flex justify-content-end mb-2">
-          <button id="export-stat-excel" class="btn btn-success btn-sm">匯出 Excel</button>
+        <!-- Filters -->
+        <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
+          <div>
+            <label class="form-label small mb-1">員工（員編 / 姓名關鍵字）</label>
+            <input type="text" id="statEmpKeyword" class="form-control form-control-sm" placeholder="輸入關鍵字…">
+          </div>
+          <div>
+            <label class="form-label small mb-1">年資（年）最小</label>
+            <input type="number" id="tenureMin" class="form-control form-control-sm" placeholder="例如 0">
+          </div>
+          <div>
+            <label class="form-label small mb-1">年資（年）最大</label>
+            <input type="number" id="tenureMax" class="form-control form-control-sm" placeholder="例如 30">
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button id="statFilterBtn" class="btn btn-primary btn-sm">
+              <i class="fa-solid fa-filter"></i> 套用篩選
+            </button>
+            <button id="statClearBtn" class="btn btn-outline-secondary btn-sm">
+              <i class="fa-solid fa-eraser"></i> 清除
+            </button>
+            <button id="export-stat-excel" class="btn btn-success btn-sm">
+              <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+            </button>
+          </div>
         </div>
+
         <div class="table-responsive">
           <table class="table table-sm table-bordered align-middle">
-            <thead>
+            <thead class="table-light">
               <tr>
                 <th>員編</th>
                 <th>姓名</th>
@@ -75,10 +143,9 @@
     </div>
   </div>
 
-  <!-- 你專案已經初始化 Firebase，且會在完成後 dispatch 'firebase-ready' 事件 -->
-  <!-- 匯出 Excel 用 -->
+  <!-- 匯出 Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- 年假系統主程式 -->
+  <!-- 主程式 -->
   <script src="annual-leave.js"></script>
 </body>
 </html>
