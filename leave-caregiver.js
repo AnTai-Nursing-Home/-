@@ -424,35 +424,17 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     
-    if(exportAdminWordBtn) {
-        exportAdminWordBtn.addEventListener('click', async () => {
-            const content = await generateProfessionalReportHTML();
-            const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總表.doc'; a.click();
-            window.URL.revokeObjectURL(url);
-        });
+        /* ====== 綁定事件：改呼叫新版 ====== */
+    if (exportAdminWordBtn) {
+        exportAdminWordBtn.addEventListener('click', exportCaregiverWord);
     }
-
-    if(exportAdminExcelBtn) {
-        exportAdminExcelBtn.addEventListener('click', async () => {
-            const content = await generateProfessionalReportHTML();
-            const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = '照服員預班總表.xls'; a.click();
-            window.URL.revokeObjectURL(url);
-        });
+    
+    if (exportAdminExcelBtn) {
+        exportAdminExcelBtn.addEventListener('click', exportCaregiverExcel);
     }
-
-    if(printAdminReportBtn) {
-        printAdminReportBtn.addEventListener('click', async () => {
-            const content = await generateProfessionalReportHTML();
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(content);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); }, 500);
-        });
+    
+    if (printAdminReportBtn) {
+        printAdminReportBtn.addEventListener('click', printCaregiverReport);
     }
     
     loadEmployeesDropdown();
