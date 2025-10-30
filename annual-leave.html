@@ -13,36 +13,34 @@
   <!-- Excel Export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- Firebase v8 SDK（與你現行系統相容） -->
+  <!-- Firebase v8（與既有系統一致） -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-  <!-- 你的初始化檔（會 fetch config 並 dispatch "firebase-ready"） -->
+  <!-- 你的共用初始化（不要改） -->
   <script src="firebase-init.js"></script>
 
   <style>
     :root { --card-radius: 14px; }
-    html, body { height: 100%; }
-    body {
-      background: #f8f9fa;
+    body{
+      background:#f8f9fa;
       font-family: "Microsoft JhengHei", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang TC", "Heiti TC", sans-serif;
     }
-    .page-wrap { max-width: 1200px; margin: 16px auto; }
-    .card { border-radius: var(--card-radius); overflow: hidden; }
-    .card-header { background:#212529; color:#fff; }
-    .card-header .btn { border-color: rgba(255,255,255,.5); color: #fff; }
-    .filter-bar .form-control, .filter-bar .form-select { min-width: 160px; }
-    .filter-bar .form-label { font-size: .85rem; color: #6c757d; }
-    .table thead th { white-space: nowrap; }
-    .text-muted-ghost { color:#adb5bd; }
-    .neg { color:#dc3545; font-weight: 700; } /* 負數紅字 */
+    .page-wrap{ max-width:1200px; margin:16px auto; }
+    .card{ border-radius:var(--card-radius); overflow:hidden; }
+    .card-header{ background:#212529; color:#fff; }
+    .card-header .btn{ border-color:rgba(255,255,255,.5); color:#fff; }
+    .filter-bar .form-control, .filter-bar .form-select{ min-width: 180px; }
+    .filter-bar .form-label{ font-size:.85rem; color:#6c757d; }
+    .table thead th{ white-space:nowrap; }
+    .text-muted-ghost{ color:#adb5bd; }
+    .neg{ color:#dc3545; font-weight:700; } /* 負數紅字 */
   </style>
 </head>
 <body>
   <div class="page-wrap">
 
-    <!-- Header Card -->
     <div class="card mb-3">
       <div class="card-header">
         <div class="d-flex align-items-center justify-content-between">
@@ -63,7 +61,6 @@
       </div>
 
       <div class="card-body">
-
         <!-- Tabs -->
         <ul class="nav nav-tabs" id="alTabs" role="tablist">
           <li class="nav-item" role="presentation">
@@ -82,36 +79,30 @@
 
           <!-- 特休單（唯讀） -->
           <div class="tab-pane fade show active" id="tab-requests" role="tabpanel">
-            <!-- Filters -->
             <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
               <div>
                 <label class="form-label mb-1">開始日期</label>
-                <input type="date" id="reqDateFrom" class="form-control form-control-sm" />
+                <input type="date" id="reqDateFrom" class="form-control form-control-sm"/>
               </div>
               <div>
                 <label class="form-label mb-1">結束日期</label>
-                <input type="date" id="reqDateTo" class="form-control form-control-sm" />
+                <input type="date" id="reqDateTo" class="form-control form-control-sm"/>
               </div>
               <div>
-                <label class="form-label mb-1">員工（員編 / 姓名關鍵字）</label>
-                <input type="text" id="reqEmpKeyword" class="form-control form-control-sm" placeholder="輸入關鍵字…" />
+                <label class="form-label mb-1">員工</label>
+                <select id="reqEmpSelect" class="form-select form-select-sm">
+                  <option value="">全部</option>
+                </select>
               </div>
               <div class="ms-auto d-flex gap-2">
-                <button id="reqFilterBtn" class="btn btn-primary btn-sm">
-                  <i class="fa-solid fa-filter"></i> 套用篩選
-                </button>
-                <button id="reqClearBtn" class="btn btn-outline-secondary btn-sm">
-                  <i class="fa-solid fa-eraser"></i> 清除
-                </button>
-                <button id="export-req-excel" class="btn btn-success btn-sm">
-                  <i class="fa-solid fa-file-excel"></i> 匯出 Excel
-                </button>
+                <button id="reqFilterBtn" class="btn btn-primary btn-sm"><i class="fa-solid fa-filter"></i> 套用篩選</button>
+                <button id="reqClearBtn" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-eraser"></i> 清除</button>
+                <button id="export-req-excel" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
               </div>
             </div>
 
-            <!-- Table -->
             <div class="table-responsive">
-              <table class="table table-sm table-bordered align-middle">
+              <table id="reqTable" class="table table-sm table-bordered align-middle">
                 <thead class="table-light">
                   <tr>
                     <th>申請日期</th>
@@ -134,28 +125,22 @@
 
           <!-- 年假統計 -->
           <div class="tab-pane fade" id="tab-stats" role="tabpanel">
-            <!-- Filters -->
             <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
               <div>
-                <label class="form-label mb-1">員工（員編 / 姓名關鍵字）</label>
-                <input type="text" id="statEmpKeyword" class="form-control form-control-sm" placeholder="輸入關鍵字…" />
+                <label class="form-label mb-1">員工</label>
+                <select id="statEmpSelect" class="form-select form-select-sm">
+                  <option value="">全部</option>
+                </select>
               </div>
               <div class="ms-auto d-flex gap-2">
-                <button id="statFilterBtn" class="btn btn-primary btn-sm">
-                  <i class="fa-solid fa-filter"></i> 套用篩選
-                </button>
-                <button id="statClearBtn" class="btn btn-outline-secondary btn-sm">
-                  <i class="fa-solid fa-eraser"></i> 清除
-                </button>
-                <button id="export-stat-excel" class="btn btn-success btn-sm">
-                  <i class="fa-solid fa-file-excel"></i> 匯出 Excel
-                </button>
+                <button id="statFilterBtn" class="btn btn-primary btn-sm"><i class="fa-solid fa-filter"></i> 套用篩選</button>
+                <button id="statClearBtn" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-eraser"></i> 清除</button>
+                <button id="export-stat-excel" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
               </div>
             </div>
 
-            <!-- Table -->
             <div class="table-responsive">
-              <table class="table table-sm table-bordered align-middle">
+              <table id="statTable" class="table table-sm table-bordered align-middle">
                 <thead class="table-light">
                   <tr>
                     <th>員編</th>
@@ -174,11 +159,11 @@
             </div>
           </div>
 
-        </div><!-- /tab-content -->
-      </div><!-- /card-body -->
-    </div><!-- /card -->
+        </div>
+      </div>
+    </div>
 
-  </div><!-- /page-wrap -->
+  </div>
 
   <!-- 主程式 -->
   <script src="annual-leave.js"></script>
