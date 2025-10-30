@@ -1,383 +1,338 @@
-document.addEventListener("firebase-ready", async () => {
-  const db = firebase.firestore();
-  const leaveCol = db.collection("nurse_leave_requests");
-  const swapCol = db.collection("nurse_shift_requests");
-  const statusCol = db.collection("request_status_list");
+// 年假系統（特休單唯讀 + 年假統計）
+// - 不修改 firebase-init.js
+// - 依到職日周年累積（不清零、可結轉）
+// - 年資對照表採用你提供的版本
+// - 只顯示「審核通過 + 特休」
+// - 兩分頁均支援 Excel 匯出
+// - 員工查找用下拉選單（來源：employees）
 
-  const leaveBody = document.getElementById("leaveTableBody");
-  const swapBody = document.getElementById("swapTableBody");
-  const statusBody = document.getElementById("statusTableBody");
+(function () {
+  const REQ_COL = "annual_leave_requests"; // 年假系統匯入的「已核准特休單」
+  const EMP_COL = "employees";             // 員工基本資料（提供姓名/員編/入職日）
+  const HOURS_PER_DAY = 8;
 
-  const leaveStatusFilter = document.getElementById("leaveStatusFilter");
-  const swapStatusFilter = document.getElementById("swapStatusFilter");
+  // ===== 小工具 =====
+  const $ = (s) => document.querySelector(s);
 
-  const leaveStatusSelect = document.getElementById("leaveStatusSelect");
-  const swapStatusSelect = document.getElementById("swapStatusSelect");
+  const fmtDate = (s) => (s ? s.replace(/\//g, "-") : "");
+  const parseDate = (s) => {
+    if (!s) return null;
+    const d = new Date(s.replace(/\//g, "-"));
+    return isNaN(d) ? null : d;
+  };
+  const ymd = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  function hoursToText(h) {
+    const neg = h < 0;
+    const abs = Math.abs(h);
+    const days = Math.floor(abs / HOURS_PER_DAY);
+    const hours = abs % HOURS_PER_DAY;
+    const t = `${days} 天${hours ? " " + hours + " 小時" : ""}`;
+    return neg ? `-${t}` : t;
+  }
+  function calcTenureString(startDateStr) {
+    const sd = parseDate(startDateStr);
+    if (!sd) return "—";
+    const now = new Date();
+    let y = now.getFullYear() - sd.getFullYear();
+    let m = now.getMonth() - sd.getMonth();
+    let d = now.getDate() - sd.getDate();
+    if (d < 0) m -= 1;
+    if (m < 0) { y -= 1; m += 12; }
+    return `${y} 年 ${m} 月`;
+  }
 
-  let statusList = [];
+  // ===== 年資 → 應放天數（依你提供表） =====
+  function entitlementDaysForYears(fullYears) {
+    if (fullYears < 1) return 0;         // 未滿一年：0（半年另處理）
+    if (fullYears === 1) return 7;
+    if (fullYears === 2) return 10;
+    if (fullYears === 3) return 14;
+    if (fullYears === 4) return 14;
+    if (fullYears === 5) return 15;
+    if (fullYears >= 6 && fullYears <= 9) return 10 + fullYears; // 6→16,7→17,8→18,9→19
+    if (fullYears >= 10) return Math.min(20 + (fullYears - 10), 30);
+    return 0;
+  }
+  // 指定「年度」的應放（天）——以該年 12/31 的年資判斷；未滿一年但>=半年 → 3 天
+  function calcEntitlementForYear(startDateStr, year) {
+    const sd = parseDate(startDateStr);
+    if (!sd) return 0;
+    const endOfYear = new Date(year, 11, 31);
+    if (endOfYear < sd) return 0;
 
-  // ====== 載入狀態清單 ======
-  async function loadStatuses() {
-    const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
-    statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let fullYears = endOfYear.getFullYear() - sd.getFullYear();
+    let m = endOfYear.getMonth() - sd.getMonth();
+    let d = endOfYear.getDate() - sd.getDate();
+    if (d < 0) m -= 1;
+    if (m < 0) { fullYears -= 1; m += 12; }
 
-    // 更新狀態選項
-    const optionHTML = statusList.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
-    [leaveStatusSelect, swapStatusSelect, leaveStatusFilter, swapStatusFilter].forEach(sel => {
-      if (sel) sel.innerHTML = `<option value="">全部</option>${optionHTML}`;
+    if (fullYears < 1) {
+      if (fullYears === 0 && m >= 6) return 3; // 半年：3 天
+      return 0;
+    }
+    return entitlementDaysForYears(fullYears);
+  }
+  // 到「所選年度」為止的累計應放（天）
+  function calcCumulativeEntitlementDays(startDateStr, upToYear) {
+    const sd = parseDate(startDateStr);
+    if (!sd) return 0;
+    const startYear = sd.getFullYear();
+    let total = 0;
+    for (let y = startYear; y <= upToYear; y++) {
+      total += calcEntitlementForYear(startDateStr, y);
+    }
+    return total;
+  }
+
+  // ===== Excel 匯出 =====
+  function exportTableToXLSX(tableSelector, filename) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    XLSX.writeFile(wb, filename);
+  }
+
+  // ===== UI =====
+  function initYearSelect() {
+    const sel = $("#yearSelect");
+    const nowY = new Date().getFullYear();
+    sel.innerHTML = "";
+    for (let y = nowY + 1; y >= nowY - 5; y--) {
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = String(y);
+      if (y === nowY) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  function setLoading(tbodyId, col) {
+    const tb = document.getElementById(tbodyId);
+    tb.innerHTML = `<tr><td colspan="${col}" class="text-center text-muted-ghost">讀取中…</td></tr>`;
+  }
+  function setEmpty(tbodyId, col) {
+    const tb = document.getElementById(tbodyId);
+    tb.innerHTML = `<tr><td colspan="${col}" class="text-center text-muted-ghost">沒有符合條件的資料</td></tr>`;
+  }
+
+  // 讀員工名單 → 下拉選單（requests / stats 都用）
+  async function loadEmployeeSelects(db) {
+    const reqSel = $("#reqEmpSelect");
+    const statSel = $("#statEmpSelect");
+    // 保留「全部」
+    reqSel.innerHTML = `<option value="">全部</option>`;
+    statSel.innerHTML = `<option value="">全部</option>`;
+
+    try {
+      const snap = await db.collection(EMP_COL).get();
+      const rows = [];
+      snap.forEach(doc => {
+        const e = doc.data() || {};
+        const empId = (e.empId || e.employeeId || "").toString();
+        const name = e.name || e.applicant || "";
+        const startDate = fmtDate(e.startDate || e.hireDate || e.entryDate || "");
+        if (!name) return;
+        rows.push({ empId, name, startDate });
+      });
+      // 依姓名排序
+      rows.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+
+      for (const r of rows) {
+        const t = r.empId ? `${r.name}（${r.empId}）` : r.name;
+        const opt1 = document.createElement("option");
+        opt1.value = r.name; opt1.textContent = t;
+        reqSel.appendChild(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.value = r.name; opt2.textContent = t;
+        statSel.appendChild(opt2);
+      }
+    } catch (e) {
+      console.warn("讀取 employees 失敗（可忽略）", e);
+    }
+  }
+
+  // ===== 資料：特休單（唯讀）=====
+  async function loadRequests(db) {
+    setLoading("al-req-body", 9);
+
+    const dateFrom = $("#reqDateFrom").value || "";
+    const dateTo = $("#reqDateTo").value || "";
+    const nameFilter = $("#reqEmpSelect").value || "";
+
+    const snap = await db.collection(REQ_COL).get();
+    let rows = [];
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      if (d.status !== "審核通過" || d.leaveType !== "特休") return;
+
+      const ld = fmtDate(d.leaveDate || "");
+      if (dateFrom && ld < dateFrom) return;
+      if (dateTo && ld > dateTo) return;
+
+      const name = d.applicant || d.name || "";
+      if (nameFilter && name !== nameFilter) return;
+
+      rows.push({
+        applyDate: fmtDate(d.applyDate || ""),
+        applicant: name,
+        leaveType: d.leaveType || "",
+        leaveDate: ld,
+        shift: d.shift || "",
+        reason: d.reason || "",
+        note: d.note || "",
+        supervisorSign: d.supervisorSign || "",
+        sourceDocId: d.sourceDocId || doc.id
+      });
     });
 
-    // 狀態管理表
-    statusBody.innerHTML = statusList.map(s => `
+    const tb = $("#al-req-body");
+    if (!rows.length) { setEmpty("al-req-body", 9); return; }
+
+    rows.sort((a,b)=> (a.leaveDate > b.leaveDate ? -1 : 1));
+    tb.innerHTML = rows.map(r => `
       <tr>
-        <td>${s.name}</td>
-        <td><span class="badge" style="background:${s.color};color:#fff;">${s.color}</span></td>
+        <td>${r.applyDate || "—"}</td>
+        <td>${r.applicant || "—"}</td>
+        <td>${r.leaveType || "—"}</td>
+        <td>${r.leaveDate || "—"}</td>
+        <td>${r.shift || "—"}</td>
+        <td>${r.reason || "—"}</td>
+        <td>${r.note || "—"}</td>
+        <td>${r.supervisorSign || "—"}</td>
+        <td>${r.sourceDocId}</td>
       </tr>
     `).join("");
   }
 
-  // ====== 新增狀態 ======
-  document.getElementById("addStatusForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const data = {
-      name: form.name.value.trim(),
-      color: form.color.value
-    };
-    if (!data.name) return alert("請輸入狀態名稱");
-    await statusCol.add(data);
-    form.reset();
-    alert("✅ 已新增狀態");
-    await loadStatuses();
-  });
+  // ===== 資料：年假統計（累加、可為負）=====
+  async function loadStats(db) {
+    setLoading("al-stat-body", 7);
 
-  // ====== 狀態顏色輔助 ======
-  function getStatusColor(name) {
-    const s = statusList.find(x => x.name === name);
-    return s ? s.color : "#6c757d";
-  }
+    const selectedYear = parseInt($("#yearSelect").value, 10);
+    const nameFilter = $("#statEmpSelect").value || "";
 
-  // ====== 日期篩選 ======
-  function inDateRange(targetDate, start, end) {
-    if (!targetDate) return true;
-    const t = new Date(targetDate);
-    const s = start ? new Date(start) : null;
-    const e = end ? new Date(end) : null;
-    if (s && t < s) return false;
-    if (e && t > e) return false;
-    return true;
-  }
+    // 1) 讀員工資料
+    const empMap = new Map(); // key: name, val: { empId, name, startDate }
+    try {
+      const empSnap = await db.collection(EMP_COL).get();
+      empSnap.forEach(doc => {
+        const e = doc.data() || {};
+        const empId = (e.empId || e.employeeId || "").toString();
+        const name = e.name || e.applicant || "";
+        const startDate = fmtDate(e.startDate || e.hireDate || e.entryDate || "");
+        if (name) empMap.set(name, { empId, name, startDate });
+      });
+    } catch (err) {
+      console.warn("讀取員工資料失敗（可忽略）", err);
+    }
 
-  // ====== 請假資料 ======
-  async function loadLeaveRequests() {
-    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
-    const snap = await leaveCol.orderBy("applyDate", "desc").get();
-    const start = document.getElementById("leaveStartDate").value;
-    const end = document.getElementById("leaveEndDate").value;
-    const filterStatus = leaveStatusFilter.value;
+    // 2) 讀已用特休（至所選年度止）
+    const usedHoursByName = new Map();
+    const reqSnap = await db.collection(REQ_COL).get();
+    reqSnap.forEach(doc => {
+      const d = doc.data() || {};
+      if (d.status !== "審核通過" || d.leaveType !== "特休") return;
+      const name = d.applicant || d.name || "";
+      if (!name) return;
+      const ld = parseDate(d.leaveDate);
+      if (!ld) return;
+      if (ld.getFullYear() > selectedYear) return;
+      const hours = Number.isFinite(d.hours) ? Number(d.hours) : HOURS_PER_DAY;
+      usedHoursByName.set(name, (usedHoursByName.get(name) || 0) + hours);
+    });
 
-    let rows = "";
-    snap.forEach(doc => {
-      const d = doc.data();
-      if (!inDateRange(d.leaveDate, start, end)) return;
-      if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status);
+    // 3) 建名單：以 employees 為主；若沒有 employees 也會以請假單名單補上
+    const allNames = new Set([...empMap.keys(), ...usedHoursByName.keys()]);
+    const rows = [];
+    allNames.forEach(name => {
+      if (nameFilter && name !== nameFilter) return;
+      const emp = empMap.get(name) || { empId:"", name, startDate:"" };
+      const startDate = emp.startDate || "";
+      const entDays = startDate ? calcCumulativeEntitlementDays(startDate, selectedYear) : 0;
+      const totalHours = entDays * HOURS_PER_DAY;
+      const usedHours = usedHoursByName.get(name) || 0;
+      const remainingHours = totalHours - usedHours;
+      rows.push({
+        empId: emp.empId || "—",
+        name,
+        startDate: startDate || "—",
+        tenure: startDate ? calcTenureString(startDate) : "—",
+        totalHours, usedHours, remainingHours
+      });
+    });
 
-      rows += `
+    const tb = $("#al-stat-body");
+    if (!rows.length) { setEmpty("al-stat-body", 7); return; }
+
+    rows.sort((a,b)=> a.remainingHours - b.remainingHours);
+    tb.innerHTML = rows.map(r=>{
+      const remTxt = hoursToText(r.remainingHours);
+      const remCls = r.remainingHours < 0 ? "neg" : "";
+      return `
         <tr>
-          <td>${d.applyDate || ""}</td>
-          <td>${d.applicant || ""}</td>
-          <td>${d.leaveType || ""}</td>
-          <td>${d.leaveDate || ""}</td>
-          <td>${d.shift || ""}</td>
-          <td>${d.reason || ""}</td>
-          <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}"
-              style="background:${color};color:#fff;">
-              ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
-            </select>
-          </td>
-          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
-          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-          <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>`;
-    });
-    leaveBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
+          <td>${r.empId}</td>
+          <td>${r.name}</td>
+          <td>${r.startDate}</td>
+          <td>${r.tenure}</td>
+          <td>${hoursToText(r.totalHours)}</td>
+          <td>${hoursToText(r.usedHours)}</td>
+          <td class="${remCls}">${remTxt}</td>
+        </tr>
+      `;
+    }).join("");
   }
 
-  // ====== 調班資料 ======
-  async function loadSwapRequests() {
-    swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
-    const snap = await swapCol.orderBy("applyDate", "desc").get();
-    const start = document.getElementById("swapStartDate").value;
-    const end = document.getElementById("swapEndDate").value;
-    const filterStatus = swapStatusFilter.value;
-
-    let rows = "";
-    snap.forEach(doc => {
-      const d = doc.data();
-      if (!inDateRange(d.swapDate, start, end)) return;
-      if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status);
-
-      rows += `
-        <tr>
-          <td>${d.applyDate || ""}</td>
-          <td>${d.applicant || ""}</td>
-          <td>${d.swapDate || ""}</td>
-          <td>${d.originalShift || ""}</td>
-          <td>${d.newShift || ""}</td>
-          <td>${d.reason || ""}</td>
-          <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}"
-              style="background:${color};color:#fff;">
-              ${statusList.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
-            </select>
-          </td>
-          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
-          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-          <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>`;
+  // ===== 綁定事件 =====
+  function bindEvents(db) {
+    // 年度切換 → 兩分頁重整
+    $("#yearSelect").addEventListener("change", () => {
+      loadRequests(db);
+      loadStats(db);
     });
-    swapBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
+
+    // 特休單
+    $("#reqFilterBtn").addEventListener("click", ()=> loadRequests(db));
+    $("#reqClearBtn").addEventListener("click", ()=>{
+      $("#reqDateFrom").value="";
+      $("#reqDateTo").value="";
+      $("#reqEmpSelect").value="";
+      loadRequests(db);
+    });
+    $("#export-req-excel").addEventListener("click", ()=>{
+      exportTableToXLSX("#reqTable", `特休單_${$("#yearSelect").value}.xlsx`);
+    });
+
+    // 年假統計
+    $("#statFilterBtn").addEventListener("click", ()=> loadStats(db));
+    $("#statClearBtn").addEventListener("click", ()=>{
+      $("#statEmpSelect").value="";
+      loadStats(db);
+    });
+    $("#export-stat-excel").addEventListener("click", ()=>{
+      exportTableToXLSX("#statTable", `年假統計_${$("#yearSelect").value}.xlsx`);
+    });
   }
 
-  // ====== 篩選 ======
-  document.getElementById("filterLeave")?.addEventListener("click", loadLeaveRequests);
-  document.getElementById("filterSwap")?.addEventListener("click", loadSwapRequests);
+  // ===== 入口：沿用既有「firebase-ready」事件 =====
+  document.addEventListener("firebase-ready", async () => {
+    // 舊架構：直接用 v8 寫法取得 db
+    const db = firebase.firestore();
 
-  // ====== 新增請假單 ======
-  document.getElementById("addLeaveForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
-    const f = e.target;
-    const data = {
-      applicant: f.applicant.value,
-      applyDate: new Date().toISOString().split("T")[0],
-      leaveType: f.leaveType.value,
-      leaveDate: f.leaveDate.value,
-      shift: f.shift.value,
-      reason: f.reason.value,
-      status: f.status.value,
-      note: "",
-      supervisorSign: ""
-    };
-    await leaveCol.add(data);
-    f.reset();
-    alert("✅ 已新增請假單");
+    initYearSelect();
+    await loadEmployeeSelects(db); // 先把兩個下拉選單填好
+    bindEvents(db);
+
+    // 初始載入
+    await loadRequests(db);
+    await loadStats(db);
+
+    console.log("✅ 年假系統已就緒");
   });
-
-  // ====== 新增調班單 ======
-  document.getElementById("addSwapForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
-    const f = e.target;
-    const data = {
-      applicant: f.applicant.value,
-      applyDate: new Date().toISOString().split("T")[0],
-      swapDate: f.swapDate.value,
-      originalShift: f.originalShift.value,
-      newShift: f.newShift.value,
-      reason: f.reason.value,
-      status: f.status.value,
-      note: "",
-      supervisorSign: ""
-    };
-    await swapCol.add(data);
-    f.reset();
-    alert("✅ 已新增調班單");
-  });
-
-  // ====== 刪除 ======
-  document.addEventListener("click", async e => {
-    const btnLeave = e.target.closest(".delete-leave");
-    const btnSwap = e.target.closest(".delete-swap");
-    if (btnLeave && confirm("確定要刪除此請假單？")) await leaveCol.doc(btnLeave.dataset.id).delete();
-    if (btnSwap && confirm("確定要刪除此調班單？")) await swapCol.doc(btnSwap.dataset.id).delete();
-  });
-
-  // ====== 狀態更新 ======
-  document.addEventListener("change", async (e) => {
-    if (e.target.classList.contains("status-select")) {
-      const id = e.target.dataset.id;
-      const value = e.target.value;
-      const color = getStatusColor(value);
-      e.target.style.background = color;
-      e.target.style.color = "#fff";
-  
-      await Promise.all([
-        leaveCol.doc(id).update({ status: value }).catch(() => {}),
-        swapCol.doc(id).update({ status: value }).catch(() => {})
-      ]);
-  
-      showToast("狀態已更新");
-  
-      // ====== 特休審核通過 → 拋轉至年假系統 ======
-      try {
-        await pushToAnnualLeaveIfNeeded(id, value);
-        console.log(`✅【年假系統】審核通過 → 已處理請假單 ${id}`);
-      } catch (err) {
-        console.error("❌【年假系統】拋轉失敗：", err);
-      }
-    }
-  });
-
-  // ====== 簽名與註解 ======
-  document.addEventListener("input", async e => {
-    const id = e.target.dataset.id;
-    if (e.target.classList.contains("supervisor-sign")) {
-      const value = e.target.value;
-      await Promise.all([
-        leaveCol.doc(id).update({ supervisorSign: value }).catch(() => {}),
-        swapCol.doc(id).update({ supervisorSign: value }).catch(() => {})
-      ]);
-    }
-    if (e.target.classList.contains("note-area")) {
-      const value = e.target.value;
-      await Promise.all([
-        leaveCol.doc(id).update({ note: value }).catch(() => {}),
-        swapCol.doc(id).update({ note: value }).catch(() => {})
-      ]);
-    }
-  });
-
-  // ====== 匯出請假紀錄 ======
-  document.getElementById("exportLeaveExcel")?.addEventListener("click", () => {
-    const clone = document.getElementById("leaveTable").cloneNode(true);
-    clone.querySelectorAll(".no-print").forEach(e => e.remove());
-    clone.querySelectorAll("select, input, textarea").forEach(el => {
-      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-      el.replaceWith(document.createTextNode(text));
-    });
-  
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(clone);
-    XLSX.utils.book_append_sheet(wb, ws, "請假紀錄");
-    XLSX.writeFile(wb, "請假紀錄.xlsx");
-  });
-
-  // ====== 匯出調班紀錄 ======
-  document.getElementById("exportSwapExcel")?.addEventListener("click", () => {
-    const clone = document.getElementById("swapTable").cloneNode(true);
-    clone.querySelectorAll(".no-print").forEach(e => e.remove());
-    clone.querySelectorAll("select, input, textarea").forEach(el => {
-      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-      el.replaceWith(document.createTextNode(text));
-    });
-  
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(clone);
-    XLSX.utils.book_append_sheet(wb, ws, "調班紀錄");
-    XLSX.writeFile(wb, "調班紀錄.xlsx");
-  });
-
-  // ====== 列印請假紀錄 ======
-  document.getElementById("printLeaveTable")?.addEventListener("click", () => {
-    const clone = document.getElementById("leaveTable").cloneNode(true);
-    clone.querySelectorAll(".no-print").forEach(e => e.remove());
-    clone.querySelectorAll("select, input, textarea").forEach(el => {
-      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-      el.replaceWith(document.createTextNode(text));
-    });
-  
-    const content = clone.outerHTML;
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html><head><title>請假紀錄</title>
-      <style>
-        @page { size: A4 landscape; margin: 15mm; }
-        body { font-family:"Microsoft JhengHei"; font-size:13px; }
-        table { border-collapse:collapse; width:100%; }
-        th,td { border:1px solid #000; padding:6px; text-align:center; }
-        h2,h4,p { text-align:center; margin:0; }
-      </style></head>
-      <body>
-        <h2>安泰護理之家</h2>
-        <h4>請假紀錄表</h4>
-        <p>列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
-        ${content}
-      </body></html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  });
-
-  // ====== 列印調班紀錄 ======
-  document.getElementById("printSwapTable")?.addEventListener("click", () => {
-    const clone = document.getElementById("swapTable").cloneNode(true);
-    clone.querySelectorAll(".no-print").forEach(e => e.remove());
-    clone.querySelectorAll("select, input, textarea").forEach(el => {
-      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-      el.replaceWith(document.createTextNode(text));
-    });
-  
-    const content = clone.outerHTML;
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html><head><title>調班紀錄</title>
-      <style>
-        @page { size: A4 landscape; margin: 15mm; }
-        body { font-family:"Microsoft JhengHei"; font-size:13px; }
-        table { border-collapse:collapse; width:100%; }
-        th,td { border:1px solid #000; padding:6px; text-align:center; }
-        h2,h4,p { text-align:center; margin:0; }
-      </style></head>
-      <body>
-        <h2>安泰護理之家</h2>
-        <h4>調班紀錄表</h4>
-        <p>列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
-        ${content}
-      </body></html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  });
-
-  // ====== 初始化 ======
-  await loadStatuses();
-  await loadLeaveRequests();
-  await loadSwapRequests();
-
-  leaveCol.onSnapshot(loadLeaveRequests);
-  swapCol.onSnapshot(loadSwapRequests);
-});
-// ====== 特休審核通過 → 拋轉至年假系統 ======
-async function pushToAnnualLeaveIfNeeded(docId, newStatus) {
-  try {
-    // 只處理審核通過
-    if (newStatus !== "審核通過") return;
-
-    // 先檢查該筆是否為請假單（存在於 nurse_leave_requests 才處理）
-    const leaveDoc = await leaveCol.doc(docId).get();
-    if (!leaveDoc.exists) return;
-    const d = leaveDoc.data();
-
-    // 只拋轉特休
-    if (d.leaveType !== "特休") return;
-
-    // 防止重複寫入（若已存在相同來源 ID 就不再寫入）
-    const alCol = db.collection("annual_leave_requests");
-    const exist = await alCol.where("sourceDocId", "==", docId).get();
-    if (!exist.empty) return;
-
-    // 目前以天數寫入（未來支援時數時可調整）
-    const daysUsed = 1; // 你目前請假固定為 1 天
-    const hoursUsed = daysUsed * 8;
-
-    const data = {
-      empId: d.employeeId ?? "",
-      name: d.applicant || "",
-      date: d.leaveDate,
-      daysUsed,
-      hoursUsed,
-      reason: d.reason || "",
-      approvedBy: d.supervisorSign || "",
-      sourceDocId: docId,
-      createdAt: new Date()
-    };
-
-    await alCol.add(data);
-    console.log(`✅【年假系統】已成功寫入特休資料 → ${d.applicant} ${d.leaveDate}（${daysUsed}天）`);
-
-  } catch (err) {
-    console.error("❌【年假系統】拋轉發生錯誤：", err);
-  }
-}
+})();
