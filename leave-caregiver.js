@@ -174,41 +174,145 @@ document.addEventListener('firebase-ready', () => {
         }
     }
     
-    async function generateProfessionalReportHTML() {
+    async function generateCaregiverReportHTML() {
+        const db = firebase.firestore();
+    
+        // 依畫面所選年月（若無選擇則用現在時間）
+        const yearSelect = document.getElementById('filterYear') || document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('filterMonth') || document.getElementById('monthSelect');
         const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        const year = nextMonth.getFullYear();
-        const month = nextMonth.getMonth();
-        const monthName = `${year}年 ${month + 1}月`;
-        
-        const reqSnapshot = await db.collection(requestsCollection).get();
-        const requestsByDate = {};
-        reqSnapshot.forEach(doc => { requestsByDate[doc.id] = doc.data(); });
-        
-        const empSnapshot = await db.collection(employeesCollection).orderBy('sortOrder').get();
-        const sortedEmployees = [];
-        empSnapshot.forEach(doc => sortedEmployees.push(doc.data()));
-
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        let tableHeaderHTML = '<tr><th>員編</th><th>姓名</th>';
-        for (let i = 1; i <= daysInMonth; i++) { tableHeaderHTML += `<th>${i}</th>`; }
-        tableHeaderHTML += '</tr>';
-
-        let tableBodyHTML = '';
-        sortedEmployees.forEach(employee => {
-            if (!employee.id || !employee.name) return;
-            tableBodyHTML += `<tr><td>${employee.id}</td><td>${employee.name}</td>`;
-            for (let i = 1; i <= daysInMonth; i++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                const shift = requestsByDate[dateStr]?.[employee.name] || '';
-                tableBodyHTML += `<td>${shift}</td>`;
-            }
-            tableBodyHTML += '</tr>';
+        const year = yearSelect ? Number(yearSelect.value) : today.getFullYear();
+        const month = monthSelect ? Number(monthSelect.value) : (today.getMonth() + 1);
+    
+        // 月天數
+        const daysInMonth = new Date(year, month, 0).getDate();
+    
+        // 取得照服員名單
+        const caregivers = [];
+        const caregiversSnap = await db.collection('caregivers').orderBy('id').get();
+        caregiversSnap.forEach(doc => {
+            const d = doc.data();
+            caregivers.push({
+                empId: d.id || "",
+                name: d.name || ""
+            });
         });
-
-        const tableContent = `<table><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
-        const title = "照服員預假/預班總表";
-        return `<!DOCTYPE html><html>...<body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
+    
+        // 整理照服員每一天的班別
+        const schedule = {};
+        caregivers.forEach(c => schedule[c.empId] = {});
+    
+        const requestSnap = await db.collection('caregiver_leave_requests')
+            .where('status', '==', '審核通過')
+            .get();
+    
+        requestSnap.forEach(doc => {
+            const d = doc.data();
+            const dateStr = d.date || d.leaveDate;
+            if (!dateStr) return;
+    
+            const dateObj = new Date(dateStr);
+            if (isNaN(dateObj)) return;
+    
+            const y = dateObj.getFullYear();
+            const m = dateObj.getMonth() + 1;
+            const day = dateObj.getDate();
+    
+            if (y === year && m === month) {
+                const empId = d.empId || d.applicantId || d.id;
+                if (!schedule[empId]) return;
+    
+                let code = (d.shift || d.code || "").toUpperCase().trim();
+                if (!code) code = ""; // 空白不顯示
+                schedule[empId][day] = code; // 直接使用 D / N / OFF
+            }
+        });
+    
+        // 產生表頭 1~31
+        const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => `<th>${i + 1}</th>`).join("");
+    
+        // 每位照服員生成一列
+        const rows = caregivers.map(c => {
+            const tds = [];
+            for (let d = 1; d <= daysInMonth; d++) {
+                tds.push(`<td class="c">${schedule[c.empId][d] || ""}</td>`);
+            }
+            return `
+                <tr>
+                    <td class="c">${c.empId}</td>
+                    <td class="c">${c.name}</td>
+                    ${tds.join("")}
+                </tr>`;
+        }).join("");
+    
+        // 產生完整HTML（與護理師格式一致）
+        return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8" />
+    <title>照服員預假_預班總表</title>
+    <style>
+    @page { size: A4 portrait; margin: 10mm; }
+    body { font-family: "Microsoft JhengHei"; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border: 1px solid #000; padding: 3px; font-size: 12px; }
+    th { background: #0d6efd; color: white; text-align: center; }
+    .c { text-align: center; }
+    .title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+    .sub { text-align: center; font-size: 15px; margin-bottom: 10px; }
+    </style>
+    </head>
+    <body>
+        <div class="title">安泰醫療社團法人附設安泰護理之家</div>
+        <div class="sub">照服員預假/預班總表（${year}年 ${month}月）</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>員編</th>
+                    <th>姓名</th>
+                    ${dayHeaders}
+                </tr>
+            </thead>
+            <tbody>
+                ${rows || `<tr><td colspan="${daysInMonth + 2}" class="c">本月無資料</td></tr>`}
+            </tbody>
+        </table>
+    </body>
+    </html>`;
+    }
+    
+    /* ==== 匯出 Word / Excel / 列印（改呼叫新函式） ===== */
+    
+    async function exportCaregiverWord() {
+        const content = await generateCaregiverReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = '照服員預班總表.doc';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    async function exportCaregiverExcel() {
+        const content = await generateCaregiverReportHTML();
+        const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = '照服員預班總表.xls';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    async function printCaregiverReport() {
+        const content = await generateCaregiverReportHTML();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 500);
     }
 
     calendarDiv.addEventListener('click', (e) => {
