@@ -4,7 +4,7 @@
 // - 年假統計：年份下拉 / 員工關鍵字 / 年資範圍 / 清除 / 匯出
 // - 規則：8小時=1天；半天=4小時；可結轉無期限（歷年累加至所選年度期末）
 
-document.addEventListener("firebase-ready", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const db = firebase.firestore();
 
   // === 只讀員工集合（請勿寫入） ===
