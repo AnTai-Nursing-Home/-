@@ -1,5 +1,6 @@
-// ✅ V3-Full — leave-caregiver.js (Micare Custom Build)
-// 完整整合版：保留你原本所有功能 + 匯出版修正（doc.id 日期、姓名比對、sortOrder、OF、六日淡底、nowrap、一頁化）
+// ✅ V3-Full-Sync — leave-caregiver.js
+// 完整整合版 + 匯出月份永遠與日曆顯示月份同步（系統固定顯示「下個月」）
+// 重點：doc.id 當日期、姓名比對、sortOrder、OFF→OF、六日淡底、nowrap、一頁化
 
 document.addEventListener('firebase-ready', () => {
   // ===== DOM refs =====
@@ -42,6 +43,7 @@ document.addEventListener('firebase-ready', () => {
 
   // ===== Helpers =====
   const SYS_KEYS = new Set(['status', 'date', 'leaveDate']);
+  const getTextSafe = (k, def) => (typeof getText === 'function' ? getText(k) : def);
 
   function fmtOF(code) {
     const v = String(code || '').trim().toUpperCase();
@@ -73,7 +75,7 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  // ===== Render calendar (next month) =====
+  // ===== Render calendar (always NEXT month) =====
   async function renderCalendar() {
     const db = firebase.firestore();
     calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
@@ -89,17 +91,17 @@ document.addEventListener('firebase-ready', () => {
         if (startDate && endDate && today >= startDate && today <= endDate) {
           isRequestPeriodOpen = true;
           statusNotice.className = 'alert alert-success';
-          statusNotice.textContent = `${getText ? getText('leave_period_open') : '可預班/預假'} ${settings.startDate?.replace?.('T',' ') || ''} - ${settings.endDate?.replace?.('T',' ') || ''}`;
+          statusNotice.textContent = `${getTextSafe('leave_period_open','可預班/預假')} ${settings.startDate?.replace?.('T',' ') || ''} - ${settings.endDate?.replace?.('T',' ') || ''}`;
         } else {
           isRequestPeriodOpen = false;
           statusNotice.className = 'alert alert-warning';
-          statusNotice.textContent = `${getText ? getText('leave_period_closed') : '目前非預班/預假期間'} ${settings.startDate ? settings.startDate.replace('T',' ') : '未設定'} - ${settings.endDate ? settings.endDate.replace('T',' ') : '未設定'}`;
+          statusNotice.textContent = `${getTextSafe('leave_period_closed','目前非預班/預假期間')} ${settings.startDate ? settings.startDate.replace('T',' ') : '未設定'} - ${settings.endDate ? settings.endDate.replace('T',' ') : '未設定'}`;
         }
       }
 
-      // 目前顯示下個月
-      const t = new Date();
-      const target = new Date(t.getFullYear(), t.getMonth() + 1, 1);
+      // Always show NEXT month
+      const today = new Date();
+      const target = new Date(today.getFullYear(), today.getMonth() + 1, 1);
       const y = target.getFullYear();
       const m0 = target.getMonth(); // 0-based
       const m = m0 + 1;
@@ -257,15 +259,15 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  // ===== Export (Admin) =====
+  // ===== Export (Admin) — Month ALWAYS follows calendar (NEXT month) =====
   async function generateCaregiverReportHTML() {
     const db = firebase.firestore();
 
-    const yearSelect = document.getElementById('filterYear') || document.getElementById('yearSelect');
-    const monthSelect = document.getElementById('filterMonth') || document.getElementById('monthSelect');
+    // 🔁 匯出月份一律與日曆同步（下個月）
     const today = new Date();
-    const year = yearSelect ? Number(yearSelect.value) : today.getFullYear();
-    const month = monthSelect ? Number(monthSelect.value) : (today.getMonth() + 1);
+    const target = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const year = target.getFullYear();
+    const month = target.getMonth() + 1;
     const daysInMonth = new Date(year, month, 0).getDate();
 
     // 取得照服員清單（依 sortOrder）
@@ -303,7 +305,7 @@ document.addEventListener('firebase-ready', () => {
       });
     });
 
-    // 產生表頭（週末淡灰底）
+    // 表頭（週末淡灰底）
     const headCells = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const weekend = isWeekendDate(year, month - 1, d);
@@ -324,7 +326,7 @@ document.addEventListener('firebase-ready', () => {
       </tr>`;
     }).join('') || `<tr><td class="c" colspan="${daysInMonth + 2}">本月無資料</td></tr>`;
 
-    // 完整 HTML（A4 橫向、一頁化、六日淡底、姓名不換行、字級適中）
+    // 完整 HTML（A4 橫向、一頁化）
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -454,7 +456,7 @@ document.addEventListener('firebase-ready', () => {
   }
   if (exportAdminWordBtn) exportAdminWordBtn.addEventListener('click', exportCaregiverWord);
   if (exportAdminExcelBtn) exportAdminExcelBtn.addEventListener('click', exportCaregiverExcel);
-  if (printAdminReportBtn) printCaregiverReportBtn = printAdminReportBtn.addEventListener('click', printCaregiverReport);
+  if (printAdminReportBtn) printAdminReportBtn = printAdminReportBtn?.addEventListener('click', printCaregiverReport);
 
   // ===== Init =====
   loadEmployeesDropdown();
