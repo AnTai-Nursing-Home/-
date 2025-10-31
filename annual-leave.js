@@ -7,6 +7,10 @@
   const REQ_COL = "annual_leave_requests";
   const EMPTY_TEXT = "目前沒有符合條件的資料";
 
+  const EMP_MAP = {}; // empId -> { name, role }
+
+
+
   const $  = (s) => document.querySelector(s);
 
   const toDate = (s) => {
@@ -144,6 +148,7 @@
     // 綁定事件
     $("#yearSelect")?.addEventListener("change", () => {
       renderRequests(db);
+    renderQuickList(db);
       renderSummary(db);
     });
     $("#reqFilterBtn")?.addEventListener("click", () => renderRequests(db));
@@ -153,6 +158,7 @@
       $("#reqDateTo").value   = "";
       $("#reqEmpSelect").value = "";
       renderRequests(db);
+    renderQuickList(db);
     });
     $("#export-req-excel")?.addEventListener("click", () => {
       const year = $("#yearSelect").value || new Date().getFullYear();
@@ -168,8 +174,118 @@
     // 先載入員工清單 → 建立兩個下拉（特休單、統計）
     await loadEmployeeOptions(db);
 
-    // 初次渲染
+    
+
+// === 快速補登 ===
+  $("#quickSubmit")?.addEventListener("click", async () => {
+    const db = firebase.firestore();
+    const empId = $("#quickEmpSelect")?.value || "";
+    const dateStr = $("#quickDate")?.value || "";
+    const amount = Number($("#quickAmount")?.value || "0");
+    const unit = $("#quickUnit")?.value || "day";
+    const reason = $("#quickReason")?.value?.trim() || "快速補登";
+
+    if (!empId) { alert("請選擇員工"); return; }
+    if (!dateStr) { alert("請選擇日期"); return; }
+    if (!(amount > 0)) { alert("請輸入有效數值"); return; }
+
+    const name = EMP_MAP[empId]?.name || "";
+    const hours = unit === "day" ? (amount * HOURS_PER_DAY) : amount;
+
+    try {
+      await db.collection(REQ_COL).add({
+        empId, name,
+        leaveType: "特休",
+        status: "審核通過",
+        date: dateStr,
+        hours: hours,
+        reason: reason,
+        source: "快速補登",
+        createdAt: new Date().toISOString()
+      });
+      // 清空輸入
+      $("#quickAmount").value = "";
+      $("#quickReason").value = "";
+      // 重新整理清單與統計
+      await renderQuickList(db);
+      await renderSummary(db);
+      alert("已補登成功！");
+    } catch (e) {
+      console.error("快速補登失敗：", e);
+      alert("補登失敗，請稍後再試");
+    }
+  });
+
+  async function renderQuickList(db) {
+    const year  = Number($("#yearSelect")?.value || new Date().getFullYear());
+    const from = startOfYear(year);
+    const to = endOfYear(year);
+
+    let snap;
+    try {
+      snap = await db.collection(REQ_COL)
+        .where("status", "==", "審核通過")
+        .where("leaveType", "==", "特休")
+        .get();
+    } catch (e) {
+      console.error("讀取快速補登失敗：", e);
+      setEmpty("quick-body", 6);
+      return;
+    }
+
+    const list = [];
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      if (d.source !== "快速補登") return;
+      const leaveAt = toDate(d.date || d.leaveDate);
+      if (!leaveAt || leaveAt < from || leaveAt > to) return;
+      const empId = d.empId || d.id || d.applicantId;
+      const name = d.name || d.applicant || "";
+      const hours = Number(d.hours) || HOURS_PER_DAY;
+      list.push({
+        id: doc.id,
+        date: ymd(leaveAt),
+        name: `${empId} ${name}`,
+        hours: hours,
+        reason: d.reason || "",
+        source: d.source || ""
+      });
+    });
+
+    const tbody = $("#quick-body");
+    if (!tbody) return;
+    if (!list.length) { setEmpty("quick-body", 6); return; }
+
+    tbody.innerHTML = list.sort((a,b) => a.date.localeCompare(b.date)).map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.name}</td>
+        <td>${r.hours}</td>
+        <td>${r.reason}</td>
+        <td>${r.source}</td>
+        <td><button class="btn btn-sm btn-outline-danger" data-id="${r.id}"><i class="fa-solid fa-trash-can"></i></button></td>
+      </tr>
+    `).join("");
+
+    // 綁定刪除
+    tbody.querySelectorAll("button[data-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-id");
+        if (!confirm("確定要刪除此補登紀錄？")) return;
+        try {
+          await firebase.firestore().collection(REQ_COL).doc(id).delete();
+          await renderQuickList(firebase.firestore());
+          await renderSummary(firebase.firestore());
+        } catch (e) {
+          alert("刪除失敗，請稍後再試");
+        }
+      });
+    });
+  }
+
+// 初次渲染
     renderRequests(db);
+    renderQuickList(db);
     renderSummary(db);
   });
 
@@ -190,7 +306,9 @@
   async function loadEmployeeOptions(db) {
     const reqSel  = $("#reqEmpSelect");
     const statSel = $("#statEmpSelect");
+    const quickSel = $("#quickEmpSelect");
     if (reqSel)  reqSel.innerHTML  = `<option value="">全部</option>`;
+    if (quickSel) quickSel.innerHTML = `<option value="">請選擇</option>`;
     if (statSel) statSel.innerHTML = `<option value="">全部</option>`;
 
     // nurses
@@ -203,6 +321,8 @@
         const label = `${empId} ${name}（護理師）`;
         if (reqSel)  reqSel.innerHTML  += `<option value="${empId}">${label}</option>`;
         if (statSel) statSel.innerHTML += `<option value="${empId}">${label}</option>`;
+        if (quickSel) quickSel.innerHTML += `<option value="${empId}">${label}</option>`;
+        EMP_MAP[empId] = { name, role: "護理師" };
       });
     } catch (e) {
       console.warn("讀取 nurses 失敗（可略）：", e);
@@ -218,6 +338,8 @@
         const label = `${empId} ${name}（照服員）`;
         if (reqSel)  reqSel.innerHTML  += `<option value="${empId}">${label}</option>`;
         if (statSel) statSel.innerHTML += `<option value="${empId}">${label}</option>`;
+        if (quickSel) quickSel.innerHTML += `<option value="${empId}">${label}</option>`;
+        EMP_MAP[empId] = { name, role: "護理師" };
       });
     } catch (e) {
       console.warn("讀取 caregivers 失敗（可略）：", e);
@@ -261,6 +383,7 @@
         if (hitId !== empId) return;
       }
 
+      if ((d.source||'') === '快速補登') return;
       rows.push({
         applyDate: d.applyDate || "",
         name: d.applicant || d.name || "",
