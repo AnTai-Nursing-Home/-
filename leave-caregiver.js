@@ -1,4 +1,3 @@
-\
 // ✅ V3-Full-Sync — leave-caregiver.js (Fixed)
 document.addEventListener('firebase-ready', () => {
   const calendarDiv = document.getElementById('leave-calendar');
