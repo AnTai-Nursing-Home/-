@@ -174,20 +174,21 @@ document.addEventListener('firebase-ready', () => {
         }
     }
     
+    // 🔧(更新) 重新設計列印模板：A4 橫向、自動適印寬、標準版（平衡）、D/N/OFF 顯示
     async function generateCaregiverReportHTML() {
         const db = firebase.firestore();
-    
+
         // 依畫面所選年月（若無選擇則用現在時間）
         const yearSelect = document.getElementById('filterYear') || document.getElementById('yearSelect');
         const monthSelect = document.getElementById('filterMonth') || document.getElementById('monthSelect');
         const today = new Date();
         const year = yearSelect ? Number(yearSelect.value) : today.getFullYear();
         const month = monthSelect ? Number(monthSelect.value) : (today.getMonth() + 1);
-    
+
         // 月天數
         const daysInMonth = new Date(year, month, 0).getDate();
-    
-        // 取得照服員名單
+
+        // 取得照服員名單（依員編排序）
         const caregivers = [];
         const caregiversSnap = await db.collection('caregivers').orderBy('id').get();
         caregiversSnap.forEach(doc => {
@@ -197,92 +198,137 @@ document.addEventListener('firebase-ready', () => {
                 name: d.name || ""
             });
         });
-    
-        // 整理照服員每一天的班別
+
+        // 整理照服員每一天的班別：D/N/OFF（空白不顯示）
         const schedule = {};
-        caregivers.forEach(c => schedule[c.empId] = {});
-    
+        caregivers.forEach(c => (schedule[c.empId] = {}));
+
         const requestSnap = await db.collection('caregiver_leave_requests')
             .where('status', '==', '審核通過')
             .get();
-    
+
         requestSnap.forEach(doc => {
             const d = doc.data();
             const dateStr = d.date || d.leaveDate;
             if (!dateStr) return;
-    
+
             const dateObj = new Date(dateStr);
             if (isNaN(dateObj)) return;
-    
+
             const y = dateObj.getFullYear();
             const m = dateObj.getMonth() + 1;
             const day = dateObj.getDate();
-    
+
             if (y === year && m === month) {
                 const empId = d.empId || d.applicantId || d.id;
                 if (!schedule[empId]) return;
-    
                 let code = (d.shift || d.code || "").toUpperCase().trim();
-                if (!code) code = ""; // 空白不顯示
-                schedule[empId][day] = code; // 直接使用 D / N / OFF
+                schedule[empId][day] = code || ""; // 直接顯示 D / N / OFF 或空白
             }
         });
-    
+
         // 產生表頭 1~31
-        const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => `<th>${i + 1}</th>`).join("");
-    
+        const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => `<th class="c day">${i + 1}</th>`).join("");
+
         // 每位照服員生成一列
         const rows = caregivers.map(c => {
             const tds = [];
             for (let d = 1; d <= daysInMonth; d++) {
-                tds.push(`<td class="c">${schedule[c.empId][d] || ""}</td>`);
+                tds.push(`<td class="c cell">${schedule[c.empId][d] || ""}</td>`);
             }
             return `
-                <tr>
-                    <td class="c">${c.empId}</td>
-                    <td class="c">${c.name}</td>
-                    ${tds.join("")}
-                </tr>`;
+              <tr class="rowline">
+                <td class="c id-col">${c.empId}</td>
+                <td class="c name-col">${c.name}</td>
+                ${tds.join("")}
+              </tr>`;
         }).join("");
-    
-        // 產生完整HTML（與護理師格式一致）
+
+        // 完整 HTML（A4 橫向、表格自適印寬、標準版：字級 11.5~12、留白適中）
         return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="UTF-8" />
-    <title>照服員預假_預班總表</title>
-    <style>
-    @page { size: A4 portrait; margin: 10mm; }
-    body { font-family: "Microsoft JhengHei"; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    th, td { border: 1px solid #000; padding: 3px; font-size: 12px; }
-    th { background: #0d6efd; color: white; text-align: center; }
-    .c { text-align: center; }
-    .title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-    .sub { text-align: center; font-size: 15px; margin-bottom: 10px; }
-    </style>
-    </head>
-    <body>
-        <div class="title">安泰醫療社團法人附設安泰護理之家</div>
-        <div class="sub">照服員預假/預班總表（${year}年 ${month}月）</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>員編</th>
-                    <th>姓名</th>
-                    ${dayHeaders}
-                </tr>
-            </thead>
-            <tbody>
-                ${rows || `<tr><td colspan="${daysInMonth + 2}" class="c">本月無資料</td></tr>`}
-            </tbody>
-        </table>
-    </body>
-    </html>`;
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>照服員預班總表_${year}_${month}</title>
+<style>
+  /* === 版面 === */
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Microsoft JhengHei", "Noto Sans CJK TC", Arial, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    margin: 0;
+  }
+
+  /* 列印時自動縮放（標準版） */
+  @media print {
+    body { zoom: 0.92; }       /* 可調 0.88~0.96 視人數多寡調整 */
+    table { page-break-inside: avoid; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+  }
+
+  .wrap { padding: 10px 16px; }
+
+  /* 標題 */
+  .title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 2px 0 4px 0;
+  }
+  .sub {
+    text-align: center;
+    font-size: 15px;
+    margin: 0 0 8px 0;
+  }
+
+  /* 表格樣式（適印寬 + 標準留白） */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 3px;            /* 標準版內距 */
+    font-size: 12px;         /* 標準版字級 */
+    word-break: break-all;
+  }
+  th { background: #e9eefb; color: #000; }
+  .c { text-align: center; }
+
+  /* 前兩欄較寬，天數欄均分 */
+  .id-col   { width: 22mm; }   /* 員編 */
+  .name-col { width: 28mm; }   /* 姓名 */
+
+  .rowline { break-inside: avoid; }
+  .cell { letter-spacing: 0.2px; } /* D/N/OFF 清晰度 */
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">安泰醫療社團法人附設安泰護理之家</div>
+    <div class="sub">照服員預班/預假總表（${year}年 ${month}月）</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="c id-col">員編</th>
+          <th class="c name-col">姓名</th>
+          ${dayHeaders}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || `<tr><td class="c" colspan="${daysInMonth + 2}">本月無資料</td></tr>`}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`;
     }
     
-    /* ==== 匯出 Word / Excel / 列印（改呼叫新函式） ===== */
+    /* ==== 匯出 Word / Excel / 列印（維持原綁定，檔名保持A選項） ===== */
     
     async function exportCaregiverWord() {
         const content = await generateCaregiverReportHTML();
@@ -424,7 +470,7 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     
-        /* ====== 綁定事件：改呼叫新版 ====== */
+    /* ====== 綁定事件：維持既有綁定 ====== */
     if (exportAdminWordBtn) {
         exportAdminWordBtn.addEventListener('click', exportCaregiverWord);
     }
