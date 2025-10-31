@@ -174,7 +174,7 @@ document.addEventListener('firebase-ready', () => {
         }
     }
     
-    // 🔧(更新) 重新設計列印模板：A4 橫向、自動適印寬、標準版（平衡）、D/N/OFF 顯示
+    // 🔧(更新) 重新設計列印模板：A4 橫向、自動適印寬、標準版（平衡）、D/N/OF 顯示
     async function generateCaregiverReportHTML() {
         const db = firebase.firestore();
 
@@ -199,16 +199,19 @@ document.addEventListener('firebase-ready', () => {
             });
         });
 
-        // 整理照服員每一天的班別：D/N/OFF（空白不顯示）
+        // 整理照服員每一天的班別：D/N/OF（空白不顯示）
         const schedule = {};
         caregivers.forEach(c => (schedule[c.empId] = {}));
 
-        const requestSnap = await db.collection('caregiver_leave_requests')
-            .where('status', '==', '審核通過')
-            .get();
+        const requestSnap = await db.collection('caregiver_leave_requests').get(); // 🆕 不過濾 status（支援無審核）
 
         requestSnap.forEach(doc => {
             const d = doc.data();
+
+            // 🆕 自動偵測是否有審核欄位：有則只顯示「審核通過」，沒有就全部顯示
+            const hasStatusField = Object.prototype.hasOwnProperty.call(d, 'status');
+            if (hasStatusField && d.status !== '審核通過') return;
+
             const dateStr = d.date || d.leaveDate;
             if (!dateStr) return;
 
@@ -222,8 +225,12 @@ document.addEventListener('firebase-ready', () => {
             if (y === year && m === month) {
                 const empId = d.empId || d.applicantId || d.id;
                 if (!schedule[empId]) return;
-                let code = (d.shift || d.code || "").toUpperCase().trim();
-                schedule[empId][day] = code || ""; // 直接顯示 D / N / OFF 或空白
+                let code = (d.shift || d.code || "").toString().trim().toUpperCase();
+
+                // 🆕 OFF -> OF 規則
+                if (code === 'OFF') code = 'OF';
+
+                schedule[empId][day] = code || ""; // 直接顯示 D / N / OF 或空白
             }
         });
 
@@ -303,7 +310,7 @@ document.addEventListener('firebase-ready', () => {
   .name-col { width: 28mm; }   /* 姓名 */
 
   .rowline { break-inside: avoid; }
-  .cell { letter-spacing: 0.2px; } /* D/N/OFF 清晰度 */
+  .cell { letter-spacing: 0.2px; } /* D/N/OF 清晰度 */
 </style>
 </head>
 <body>
