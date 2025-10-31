@@ -1,11 +1,8 @@
-// ✅ V3-Full-Sync — leave-caregiver.js
-// 完整整合版 + 匯出月份永遠與日曆顯示月份同步（系統固定顯示「下個月」）
-// 重點：doc.id 當日期、姓名比對、sortOrder、OFF→OF、六日淡底、nowrap、一頁化
-
+\
+// ✅ V3-Full-Sync — leave-caregiver.js (Fixed)
 document.addEventListener('firebase-ready', () => {
-  // ===== DOM refs =====
   const calendarDiv = document.getElementById('leave-calendar');
-  if (!calendarDiv) return; // 不在此頁則跳出
+  if (!calendarDiv) return;
 
   const calendarTitle = document.getElementById('calendar-title');
   const statusNotice = document.getElementById('status-notice');
@@ -32,30 +29,24 @@ document.addEventListener('firebase-ready', () => {
   const shiftModal = shiftModalEl ? new bootstrap.Modal(shiftModalEl) : null;
   let currentlyEditingDate = null;
 
-  // ===== Firestore collections =====
   const employeesCollection = 'caregivers';
   const settingsCollection = 'caregiver_leave_settings';
   const requestsCollection = 'caregiver_leave_requests';
 
-  // ===== State =====
   let isRequestPeriodOpen = false;
-  let employeesData = {}; // { name: {id, name, sortOrder, ...} }
-
-  // ===== Helpers =====
+  let employeesData = {};
   const SYS_KEYS = new Set(['status', 'date', 'leaveDate']);
   const getTextSafe = (k, def) => (typeof getText === 'function' ? getText(k) : def);
 
   function fmtOF(code) {
     const v = String(code || '').trim().toUpperCase();
-    return v === 'OFF' ? 'OF' : v; // D/N/OF
+    return v === 'OFF' ? 'OF' : v;
   }
-
   function isWeekendDate(y, m0, d) {
     const day = new Date(y, m0, d).getDay();
     return day === 0 || day === 6;
   }
 
-  // ===== Load employees (dropdown + cache) =====
   async function loadEmployeesDropdown() {
     const db = firebase.firestore();
     if (employeeNameSelect) employeeNameSelect.innerHTML = `<option value="">讀取中...</option>`;
@@ -75,13 +66,10 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  // ===== Render calendar (always NEXT month) =====
   async function renderCalendar() {
     const db = firebase.firestore();
     calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
-
     try {
-      // 預假期間狀態
       if (statusNotice) {
         const settingsDoc = await db.collection(settingsCollection).doc('period').get();
         const settings = settingsDoc.exists ? settingsDoc.data() : {};
@@ -103,23 +91,21 @@ document.addEventListener('firebase-ready', () => {
       const today = new Date();
       const target = new Date(today.getFullYear(), today.getMonth() + 1, 1);
       const y = target.getFullYear();
-      const m0 = target.getMonth(); // 0-based
+      const m0 = target.getMonth();
       const m = m0 + 1;
       const daysInMonth = new Date(y, m, 0).getDate();
       if (calendarTitle) calendarTitle.textContent = `${y}年 ${m}月`;
 
-      // 讀取所有請求（以 doc.id 為日期）
       const snap = await db.collection(requestsCollection).get();
-      const byDate = {}; // { 'YYYY-MM-DD': { name: 'D' ... } }
+      const byDate = {};
       snap.forEach(doc => {
-        const id = doc.id; // ← 日期在文件 ID
+        const id = doc.id;
         const d = new Date(id);
         if (isNaN(d)) return;
         if (d.getFullYear() !== y || (d.getMonth()+1) !== m) return;
         byDate[id] = doc.data() || {};
       });
 
-      // Render grid
       calendarDiv.innerHTML = '';
       const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
       weekdays.forEach(day => {
@@ -130,14 +116,10 @@ document.addEventListener('firebase-ready', () => {
       });
 
       const firstDayOfWeek = new Date(y, m0, 1).getDay();
-      for (let i = 0; i < firstDayOfWeek; i++) {
-        calendarDiv.appendChild(document.createElement('div'));
-      }
+      for (let i = 0; i < firstDayOfWeek; i++) calendarDiv.appendChild(document.createElement('div'));
 
       const currentEmployee = employeeNameSelect ? employeeNameSelect.value : '';
-      if (employeeIdDisplay && currentEmployee) {
-        employeeIdDisplay.value = employeesData[currentEmployee]?.id || '';
-      }
+      if (employeeIdDisplay && currentEmployee) employeeIdDisplay.value = employeesData[currentEmployee]?.id || '';
 
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -175,7 +157,6 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  // ===== Admin overview =====
   async function renderAdminView() {
     const db = firebase.firestore();
     try {
@@ -206,7 +187,6 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  // ===== Shift modal interactions =====
   if (calendarDiv && shiftModalEl && shiftModal) {
     calendarDiv.addEventListener('click', (e) => {
       if (!isRequestPeriodOpen) return;
@@ -262,15 +242,12 @@ document.addEventListener('firebase-ready', () => {
   // ===== Export (Admin) — Month ALWAYS follows calendar (NEXT month) =====
   async function generateCaregiverReportHTML() {
     const db = firebase.firestore();
-
-    // 🔁 匯出月份一律與日曆同步（下個月）
     const today = new Date();
     const target = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const year = target.getFullYear();
     const month = target.getMonth() + 1;
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    // 取得照服員清單（依 sortOrder）
     const caregivers = [];
     const caregiversSnap = await db.collection('caregivers').orderBy('sortOrder').get();
     caregiversSnap.forEach(doc => {
@@ -278,11 +255,9 @@ document.addEventListener('firebase-ready', () => {
       if (d && d.name) caregivers.push({ id: d.id || '', name: d.name });
     });
 
-    // 建立姓名為 key 的日曆表
     const schedule = {};
     caregivers.forEach(c => (schedule[c.name] = {}));
 
-    // 讀取請求（以 doc.id 當日期）
     const requestSnap = await db.collection('caregiver_leave_requests').get();
     requestSnap.forEach(doc => {
       const dateStr = doc.id;
@@ -294,7 +269,6 @@ document.addEventListener('firebase-ready', () => {
       if (y !== year || m !== month) return;
 
       const data = doc.data() || {};
-      // 智能審核：若 root 有 status，僅在通過時輸出
       if (Object.prototype.hasOwnProperty.call(data, 'status') && data.status !== '審核通過') return;
 
       Object.keys(data).forEach(k => {
@@ -305,14 +279,12 @@ document.addEventListener('firebase-ready', () => {
       });
     });
 
-    // 表頭（週末淡灰底）
     const headCells = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const weekend = isWeekendDate(year, month - 1, d);
       headCells.push(`<th class="c day${weekend ? ' weekend' : ''}">${d}</th>`);
     }
 
-    // 逐列輸出（員編 → 姓名 → 1..31）
     const bodyRows = caregivers.map(c => {
       const tds = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -326,7 +298,6 @@ document.addEventListener('firebase-ready', () => {
       </tr>`;
     }).join('') || `<tr><td class="c" colspan="${daysInMonth + 2}">本月無資料</td></tr>`;
 
-    // 完整 HTML（A4 橫向、一頁化）
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -336,16 +307,13 @@ document.addEventListener('firebase-ready', () => {
   @page { size: A4 landscape; margin: 8mm; }
   body { font-family: "Microsoft JhengHei","Noto Sans CJK TC",Arial,sans-serif; margin: 0; }
   @media print { body { zoom: 0.90; } }
-
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th, td { border: 1px solid #000; padding: 3px; font-size: 12px; white-space: nowrap; }
   th { background: #e9eefb; }
   .c { text-align: center; }
   .weekend { background: #f2f2f2 !important; }
-
   .id-col { width: 22mm; white-space: nowrap; }
   .name-col { width: 32mm; white-space: nowrap; }
-
   h2, h3 { margin: 2px 0; text-align:center; }
 </style>
 </head>
@@ -370,22 +338,20 @@ document.addEventListener('firebase-ready', () => {
 
   async function exportCaregiverWord() {
     const content = await generateCaregiverReportHTML();
-    const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+    const blob = new Blob(['\\ufeff', content], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = '照服員預班總表.doc'; a.click();
     URL.revokeObjectURL(url);
   }
-
   async function exportCaregiverExcel() {
     const content = await generateCaregiverReportHTML();
-    const blob = new Blob(['\ufeff', content], { type: 'application/vnd.ms-excel' });
+    const blob = new Blob(['\\ufeff', content], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = '照服員預班總表.xls'; a.click();
     URL.revokeObjectURL(url);
   }
-
   async function printCaregiverReport() {
     const content = await generateCaregiverReportHTML();
     const win = window.open('', '_blank');
@@ -395,7 +361,7 @@ document.addEventListener('firebase-ready', () => {
     setTimeout(() => win.print(), 400);
   }
 
-  // ===== Bindings =====
+  // 安全事件綁定（避免 const 重新賦值錯誤）
   if (employeeNameSelect) employeeNameSelect.addEventListener('change', renderCalendar);
   if (adminSettingsBtn && adminPasswordModal) {
     adminSettingsBtn.addEventListener('click', () => {
@@ -456,9 +422,9 @@ document.addEventListener('firebase-ready', () => {
   }
   if (exportAdminWordBtn) exportAdminWordBtn.addEventListener('click', exportCaregiverWord);
   if (exportAdminExcelBtn) exportAdminExcelBtn.addEventListener('click', exportCaregiverExcel);
-  if (printAdminReportBtn) printAdminReportBtn = printAdminReportBtn?.addEventListener('click', printCaregiverReport);
+  if (printAdminReportBtn) { printAdminReportBtn.addEventListener('click', printCaregiverReport); }
 
-  // ===== Init =====
+  // Init
   loadEmployeesDropdown();
   renderCalendar();
   if (typeof applyTranslations === 'function') applyTranslations();
