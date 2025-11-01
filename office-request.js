@@ -84,7 +84,7 @@ document.addEventListener("firebase-ready", async () => {
       const color = getStatusColor(d.status);
 
       rows += `
-        <tr data-doc-id="${doc.id}">
+        <tr>
           <td>${d.applyDate || ""}</td>
           <td>${d.applicant || ""}</td>
           <td>${d.leaveType || ""}</td>
@@ -121,7 +121,7 @@ document.addEventListener("firebase-ready", async () => {
       const color = getStatusColor(d.status);
 
       rows += `
-        <tr data-doc-id="${doc.id}">
+        <tr>
           <td>${d.applyDate || ""}</td>
           <td>${d.applicant || ""}</td>
           <td>${d.swapDate || ""}</td>
@@ -340,7 +340,39 @@ document.addEventListener("firebase-ready", async () => {
   swapCol.onSnapshot(loadSwapRequests);
 });
 // ====== 特休審核通過 → 拋轉至年假系統 ======
-async ;
+async function pushToAnnualLeaveIfNeeded(docId, newStatus) {
+  try {
+    // 只處理審核通過
+    if (newStatus !== "審核通過") return;
+
+    // 先檢查該筆是否為請假單（存在於 nurse_leave_requests 才處理）
+    const leaveDoc = await leaveCol.doc(docId).get();
+    if (!leaveDoc.exists) return;
+    const d = leaveDoc.data();
+
+    // 只拋轉特休
+    if (d.leaveType !== "特休") return;
+
+    // 防止重複寫入（若已存在相同來源 ID 就不再寫入）
+    const alCol = db.collection("annual_leave_requests");
+    const exist = await alCol.where("sourceDocId", "==", docId).get();
+    if (!exist.empty) return;
+
+    // 目前以天數寫入（未來支援時數時可調整）
+    const daysUsed = 1; // 你目前請假固定為 1 天
+    const hoursUsed = daysUsed * 8;
+
+    const data = {
+      empId: d.employeeId ?? "",
+      name: d.applicant || "",
+      date: d.leaveDate,
+      daysUsed,
+      hoursUsed,
+      reason: d.reason || "",
+      approvedBy: d.supervisorSign || "",
+      sourceDocId: docId,
+      createdAt: new Date()
+    };
 
     await alCol.add(data);
     console.log(`✅【年假系統】已成功寫入特休資料 → ${d.applicant} ${d.leaveDate}（${daysUsed}天）`);
@@ -351,61 +383,194 @@ async ;
 }
 
 
-
-
-
-
-
-
-
-/* ==== Annual Mirror V2.1 — 特休鏡像年假（ALL欄位＋empId查詢＋小綠字） ==== */
+/* ==== Annual Leave Mirroring & UI Hint (Integrated) ==== */
 (() => {
   const OFFICE_LEAVE_COL = 'nurse_leave_requests';
   const ANNUAL_REQ_COL   = 'annual_leave_requests';
   const HOURS_PER_DAY    = 8;
-  const empIdCache = Object.create(null);
+  let __annualHintCssInjected = false;
 
-  function injectHintCSS() {
-    if (document.querySelector('style[data-annual-sync-hint]')) return;
-    const css = `.annual-sync-hint{position:absolute;top:6px;right:8px;font-size:12px;color:#198754;background:#e9f7ef;border:1px solid #198754;border-radius:6px;padding:2px 6px;line-height:1;white-space:nowrap;z-index:2}
-.annual-sync-hint.err{color:#842029;background:#f8d7da;border-color:#842029}`;
-    const style = document.createElement('style');
-    style.setAttribute('data-annual-sync-hint','1');
-    style.textContent = css;
-    document.head.appendChild(style);
+  function injectAnnualHintCSS() {
+    if (__annualHintCssInjected) return;
+    try {
+      const css = `.annual-sync-hint{position:absolute;top:6px;right:8px;font-size:12px;color:#198754;background:#e9f7ef;border:1px solid #198754;border-radius:6px;padding:2px 6px;line-height:1;white-space:nowrap;z-index:2}`;
+      const style = document.createElement('style');
+      style.setAttribute('data-annual-sync-hint','1');
+      style.textContent = css;
+      document.head.appendChild(style);
+      __annualHintCssInjected = True;
+    } catch(_) {}
   }
 
-  function ymd(input) {
-    if (!input) return '';
-    const d = new Date(input);
-    if (Number.isNaN(d.getTime())) return String(input).slice(0,10);
+  function showSyncHint(docId, synced) {
+    // Try to find a request row/container by common selectors
+    const candidates = [
+      `[data-doc-id="${docId}"]`,
+      `[data-id="${docId}"]`,
+      `#req-${docId}`,
+      `#row-${docId}`
+    ];
+    let host = null;
+    for (const sel of candidates) {
+      const el = document.querySelector(sel);
+      if (el) { host = el; break; }
+    }
+    if (!host) return; // best effort only
+
+    // Ensure relative positioning
+    const computed = window.getComputedStyle(host);
+    if (computed.position === 'static') {
+      host.style.position = 'relative';
+    }
+
+    // Find or create hint node
+    let hint = host.querySelector('.annual-sync-hint');
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'annual-sync-hint';
+      host.appendChild(hint);
+    }
+    hint.textContent = synced ? '已同步至年假系統' : '';
+    hint.style.display = synced ? 'inline-block' : 'none';
+  }
+
+  async function ensureAnnualRecord(db, sourceDocId, d) {
+    // Check if already exists
+    const existed = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).limit(1).get();
+    if (!existed.empty) return true;
+
+    const empId = d.employeeId || d.empId || d.id || d.applicantId || '';
+    const name  = d.applicant || d.name || '';
+    const date  = (d.leaveDate || d.date || '').toString().slice(0,10);
+    const hours = Number(d.hoursUsed) > 0 ? Number(d.hoursUsed) : HOURS_PER_DAY;
+
+    if (!empId || !name || !date) {
+      console.warn('[mirror] missing fields, skip', { empId, name, date, sourceDocId });
+      return false;
+    }
+    const payload = {
+      empId,
+      name,
+      leaveType: '特休',
+      status: '審核通過',
+      date,
+      hours,
+      reason: d.reason || '請假系統',
+      source: '請假系統',
+      sourceDocId,
+      createdAt: new Date().toISOString()
+    };
+    await db.collection(ANNUAL_REQ_COL).add(payload);
+    return true;
+  }
+
+  async function removeAnnualRecord(db, sourceDocId) {
+    const snap = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).get();
+    if (snap.empty) return false;
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    return true;
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    try { injectAnnualHintCSS(); } catch(_) {}
+    const db = firebase.firestore();
+
+    // Real-time listen in office screen
+    db.collection(OFFICE_LEAVE_COL).onSnapshot((snap) => {
+      snap.docChanges().forEach((chg) => {
+        const id = chg.doc.id;
+        const d  = chg.doc.data() || {};
+        const leaveType = (d.leaveType || d.type || '').trim();
+        if (leaveType !== '特休') return;
+
+        const status = (d.status || '').trim();
+        if (status === '審核通過') {
+          ensureAnnualRecord(db, id, d)
+            .then(ok => { if (ok) showSyncHint(id, true); })
+            .catch(e => console.error('ensureAnnualRecord error:', e));
+        } else {
+          removeAnnualRecord(db, id)
+            .then(ok => { if (ok) showSyncHint(id, false); })
+            .catch(e => console.error('removeAnnualRecord error:', e));
+        }
+      });
+    });
+  });
+})();
+/* ==== /Annual Leave Mirroring & UI Hint ==== */
+
+
+/* ==== Annual Leave Mirroring V2 (empId lookup + UI hint) ==== */
+(() => {
+  const OFFICE_LEAVE_COL = 'nurse_leave_requests'; // your single request collection
+  const ANNUAL_REQ_COL   = 'annual_leave_requests'; // annual-leave target
+  const HOURS_PER_DAY    = 8;
+
+  // ---- lightweight cache for empId lookups by name
+  const __empIdCache = Object.create(null);
+
+  // ---- inject CSS for green hint
+  (function injectCSS(){
+    if (document.querySelector('style[data-annual-sync-hint]')) return;
+    const style = document.createElement('style');
+    style.setAttribute('data-annual-sync-hint','1');
+    style.textContent =
+      '.annual-sync-hint{position:absolute;top:6px;right:8px;font-size:12px;color:#198754;background:#e9f7ef;border:1px solid #198754;border-radius:6px;padding:2px 6px;line-height:1;white-space:nowrap;z-index:2}'+
+      '.annual-sync-hint.err{color:#842029;background:#f8d7da;border-color:#842029}';
+    document.head.appendChild(style);
+  })();
+
+  // ---- utils
+  function ymd(s) {
+    if (!s) return '';
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return String(s).slice(0,10);
     const m = String(d.getMonth()+1).padStart(2,'0');
     const dd = String(d.getDate()).padStart(2,'0');
     return `${d.getFullYear()}-${m}-${dd}`;
   }
 
-  // 精準：優先使用 <tr data-doc-id="...">，否則 fallback 用文字比對
-  function findRow(d, id) {
-    let tr = id ? document.querySelector(`[data-doc-id="${id}"]`) : null;
-    if (tr) return tr;
-    const wantedName = d.applicant || d.name || '';
-    const wantedDate = ymd(d.leaveDate || d.date);
-    const wantedType = (d.leaveType || d.type || '');
-    if (!wantedName || !wantedDate) return null;
-    const rows = Array.from(document.querySelectorAll('table tbody tr'));
-    for (const r of rows) {
-      const txt = (r.innerText || r.textContent || '').trim();
-      if (txt.includes(wantedName) && txt.includes(wantedDate) && txt.includes(wantedType)) {
-        if (getComputedStyle(r).position === 'static') r.style.position = 'relative';
-        return r;
+  async function getEmpIdByName(name) {
+    if (!name) return '';
+    if (__empIdCache[name]) return __empIdCache[name];
+    const db = firebase.firestore();
+
+    // find in nurses
+    let q = await db.collection('nurses').where('name','==',name).limit(1).get();
+    if (!q.empty) {
+      const empId = q.docs[0].data().empId || q.docs[0].data().id || '';
+      if (empId) { __empIdCache[name] = empId; return empId; }
+    }
+    // fallback caregivers
+    q = await db.collection('caregivers').where('name','==',name).limit(1).get();
+    if (!q.empty) {
+      const empId = q.docs[0].data().empId || q.docs[0].data().id || '';
+      if (empId) { __empIdCache[name] = empId; return empId; }
+    }
+    return '';
+  }
+
+  // Try to find the <tr> for a request by matching a few key cells
+  function findRowForDoc(d) {
+    const tbls = Array.from(document.querySelectorAll('table'));
+    for (const table of tbls) {
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      for (const tr of rows) {
+        const txt = tr.innerText || tr.textContent || '';
+        const hasName  = d.applicant && txt.includes(d.applicant);
+        const hasDate  = (d.leaveDate || d.date) && txt.includes(ymd(d.leaveDate || d.date));
+        const hasType  = (d.leaveType || d.type) && txt.includes((d.leaveType || d.type));
+        if (hasName && hasDate && hasType) return tr;
       }
     }
     return null;
   }
 
-  function setHint(d, id, message, isError=false) {
-    const tr = findRow(d, id);
+  function setHint(tr, message, isError=false){
     if (!tr) return;
+    tr.style.position = (getComputedStyle(tr).position === 'static') ? 'relative' : tr.style.position;
     let hint = tr.querySelector('.annual-sync-hint');
     if (!hint) {
       hint = document.createElement('span');
@@ -417,40 +582,20 @@ async ;
     hint.classList.toggle('err', !!isError);
   }
 
-  async function getEmpIdByName(db, name) {
-    if (!name) return '';
-    if (empIdCache[name]) return empIdCache[name];
-    // nurses → caregivers
-    let q = await db.collection('nurses').where('name','==',name).limit(1).get();
-    if (!q.empty) {
-      const data = q.docs[0].data() || {};
-      const empId = data.empId || data.id || '';
-      if (empId) { empIdCache[name] = empId; return empId; }
-    }
-    q = await db.collection('caregivers').where('name','==',name).limit(1).get();
-    if (!q.empty) {
-      const data = q.docs[0].data() || {};
-      const empId = data.empId || data.id || '';
-      if (empId) { empIdCache[name] = empId; return empId; }
-    }
-    return '';
-  }
-
-  async function ensureAnnualRecord(db, docId, d) {
-    const type = (d.leaveType || d.type || '').trim();
-    if (type !== '特休') return false;
-
-    const existed = await db.collection(ANNUAL_REQ_COL)
-      .where('sourceDocId','==',docId).limit(1).get();
-    if (!existed.empty) { setHint(d, docId, '已同步至年假系統'); return true; }
+  async function ensureAnnualRecord(db, sourceDocId, d) {
+    // de-dup
+    const existed = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).limit(1).get();
+    if (!existed.empty) return true;
 
     const name  = d.applicant || d.name || '';
-    const empId = d.employeeId || d.empId || d.id || d.applicantId || await getEmpIdByName(db, name);
+    const empId = d.employeeId || d.empId || d.id || d.applicantId || await getEmpIdByName(name);
     const date  = ymd(d.leaveDate || d.date);
     const hours = Number(d.hoursUsed) > 0 ? Number(d.hoursUsed) : HOURS_PER_DAY;
 
     if (!name || !empId || !date) {
-      setHint(d, docId, '未同步：缺少員編/日期', true);
+      // show red hint on the row if we can
+      setHint(findRowForDoc(d), '未同步：缺少員編/日期', true);
+      console.warn('[annual mirror] missing field(s)', { name, empId, date, sourceDocId });
       return false;
     }
 
@@ -461,48 +606,43 @@ async ;
       status: '審核通過',
       date,
       hours,
-      applyDate: ymd(d.applyDate),
-      shift: d.shift || '',
-      reason: d.reason || '',
-      note: d.note || '',
-      supervisorSign: d.supervisorSign || '',
+      reason: d.reason || '請假系統',
       source: '請假系統',
-      sourceDocId: docId,
+      sourceDocId,
       createdAt: new Date().toISOString()
     };
     await db.collection(ANNUAL_REQ_COL).add(payload);
-    setHint(d, docId, '已同步至年假系統');
+    setHint(findRowForDoc(d), '已同步至年假系統', false);
     return true;
   }
 
-  async function removeAnnualRecord(db, docId, d) {
-    const snap = await db.collection(ANNUAL_REQ_COL)
-      .where('sourceDocId','==',docId).get();
-    if (snap.empty) { setHint(d, docId, ''); return false; }
+  async function removeAnnualRecord(db, sourceDocId, d) {
+    const snap = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).get();
+    if (snap.empty) { setHint(findRowForDoc(d), ''); return false; }
     const batch = db.batch();
     snap.forEach(doc => batch.delete(doc.ref));
     await batch.commit();
-    setHint(d, docId, '');
+    setHint(findRowForDoc(d), '');
     return true;
   }
 
   document.addEventListener('firebase-ready', () => {
-    injectHintCSS();
     const db = firebase.firestore();
     db.collection(OFFICE_LEAVE_COL).onSnapshot((snap) => {
       snap.docChanges().forEach((chg) => {
         const id = chg.doc.id;
         const d  = chg.doc.data() || {};
-        const type   = (d.leaveType || d.type || '').trim();
-        const status = (d.status    || ''     ).trim();
-        if (type !== '特休') return;
+        const type = (d.leaveType || d.type || '').trim();
+        if (type !== '特休') return; // only mirror Annual leave
+
+        const status = (d.status || '').trim();
         if (status === '審核通過') {
-          ensureAnnualRecord(db, id, d).catch(err => console.error('[annual] ensure error', err));
+          ensureAnnualRecord(db, id, d).catch(e => console.error('ensureAnnualRecord error', e));
         } else {
-          removeAnnualRecord(db, id, d).catch(err => console.error('[annual] remove error', err));
+          removeAnnualRecord(db, id, d).catch(e => console.error('removeAnnualRecord error', e));
         }
       });
     });
   });
 })();
-// Version: Annual Mirror V2.1 Integrated
+/* ==== /Annual Leave Mirroring V2 (empId lookup + UI hint) ==== */
