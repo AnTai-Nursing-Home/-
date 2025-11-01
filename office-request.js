@@ -381,3 +381,122 @@ async function pushToAnnualLeaveIfNeeded(docId, newStatus) {
     console.error("❌【年假系統】拋轉發生錯誤：", err);
   }
 }
+
+
+/* ==== Annual Leave Mirroring & UI Hint (Integrated) ==== */
+(() => {
+  const OFFICE_LEAVE_COL = 'nurse_leave_requests';
+  const ANNUAL_REQ_COL   = 'annual_leave_requests';
+  const HOURS_PER_DAY    = 8;
+  let __annualHintCssInjected = false;
+
+  function injectAnnualHintCSS() {
+    if (__annualHintCssInjected) return;
+    try {
+      const css = `.annual-sync-hint{position:absolute;top:6px;right:8px;font-size:12px;color:#198754;background:#e9f7ef;border:1px solid #198754;border-radius:6px;padding:2px 6px;line-height:1;white-space:nowrap;z-index:2}`;
+      const style = document.createElement('style');
+      style.setAttribute('data-annual-sync-hint','1');
+      style.textContent = css;
+      document.head.appendChild(style);
+      __annualHintCssInjected = True;
+    } catch(_) {}
+  }
+
+  function showSyncHint(docId, synced) {
+    // Try to find a request row/container by common selectors
+    const candidates = [
+      `[data-doc-id="${docId}"]`,
+      `[data-id="${docId}"]`,
+      `#req-${docId}`,
+      `#row-${docId}`
+    ];
+    let host = null;
+    for (const sel of candidates) {
+      const el = document.querySelector(sel);
+      if (el) { host = el; break; }
+    }
+    if (!host) return; // best effort only
+
+    // Ensure relative positioning
+    const computed = window.getComputedStyle(host);
+    if (computed.position === 'static') {
+      host.style.position = 'relative';
+    }
+
+    // Find or create hint node
+    let hint = host.querySelector('.annual-sync-hint');
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'annual-sync-hint';
+      host.appendChild(hint);
+    }
+    hint.textContent = synced ? '已同步至年假系統' : '';
+    hint.style.display = synced ? 'inline-block' : 'none';
+  }
+
+  async function ensureAnnualRecord(db, sourceDocId, d) {
+    // Check if already exists
+    const existed = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).limit(1).get();
+    if (!existed.empty) return true;
+
+    const empId = d.employeeId || d.empId || d.id || d.applicantId || '';
+    const name  = d.applicant || d.name || '';
+    const date  = (d.leaveDate || d.date || '').toString().slice(0,10);
+    const hours = Number(d.hoursUsed) > 0 ? Number(d.hoursUsed) : HOURS_PER_DAY;
+
+    if (!empId || !name || !date) {
+      console.warn('[mirror] missing fields, skip', { empId, name, date, sourceDocId });
+      return false;
+    }
+    const payload = {
+      empId,
+      name,
+      leaveType: '特休',
+      status: '審核通過',
+      date,
+      hours,
+      reason: d.reason || '請假系統',
+      source: '請假系統',
+      sourceDocId,
+      createdAt: new Date().toISOString()
+    };
+    await db.collection(ANNUAL_REQ_COL).add(payload);
+    return true;
+  }
+
+  async function removeAnnualRecord(db, sourceDocId) {
+    const snap = await db.collection(ANNUAL_REQ_COL).where('sourceDocId','==',sourceDocId).get();
+    if (snap.empty) return false;
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    return true;
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    try { injectAnnualHintCSS(); } catch(_) {}
+    const db = firebase.firestore();
+
+    // Real-time listen in office screen
+    db.collection(OFFICE_LEAVE_COL).onSnapshot((snap) => {
+      snap.docChanges().forEach((chg) => {
+        const id = chg.doc.id;
+        const d  = chg.doc.data() || {};
+        const leaveType = (d.leaveType || d.type || '').trim();
+        if (leaveType !== '特休') return;
+
+        const status = (d.status || '').trim();
+        if (status === '審核通過') {
+          ensureAnnualRecord(db, id, d)
+            .then(ok => { if (ok) showSyncHint(id, true); })
+            .catch(e => console.error('ensureAnnualRecord error:', e));
+        } else {
+          removeAnnualRecord(db, id)
+            .then(ok => { if (ok) showSyncHint(id, false); })
+            .catch(e => console.error('removeAnnualRecord error:', e));
+        }
+      });
+    });
+  });
+})();
+/* ==== /Annual Leave Mirroring & UI Hint ==== */
