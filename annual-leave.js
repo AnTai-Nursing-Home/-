@@ -1,11 +1,12 @@
 
 /**
- * annual-leave.js — FINAL v2025-11-02-AL5
- * - 三頁分流：特休單(唯讀) / 快速補登 / 年假統計
- * - 特休單(唯讀)：只顯示請假系統鏡像（排除 source=="快速補登"）
- * - 快速補登：只顯示 source=="快速補登"，支援直接新增
- * - 年假統計：採「階梯累計制 + 永不清空」，已用年假包含所有來源
- * - 自動載入員工名單到三個下拉選單：reqEmpSelect / quickEmpSelect / statEmpSelect
+ * annual-leave.js — FINAL v2025-11-02-AL7
+ * 初始化：僅在收到 `firebase-ready` 事件時執行，而且只初始化一次（async）。
+ * 功能：
+ *  - 特休單(唯讀)：只顯示請假系統鏡像（排除 source=="快速補登"）
+ *  - 快速補登：只顯示 source=="快速補登"，支援直接新增/刪除
+ *  - 年假統計：採「階梯累計制 + 永不清空」，已用年假包含所有來源
+ *  - 三個下拉皆自動載入員工：reqEmpSelect / quickEmpSelect / statEmpSelect
  */
 
 (function(){
@@ -307,7 +308,7 @@
         if (!t || t < from || t > to) return;
         const k = d.empId || "";
         if (!k) return;
-        const h = Number(d.hoursUsed) || (Number(d.daysUsed) || 0) * HOURS_PER_DAY || HOURS_PER_DAY;
+        const h = Number(d.hoursUsed) || (Number(d.daysUsed)||0) * HOURS_PER_DAY || HOURS_PER_DAY;
         used[k] = (used[k] || 0) + h;
       });
     }
@@ -370,16 +371,19 @@
   async function init(){
     await loadEmployeesIntoSelects();
     bindUI();
-    renderRequests();
-    renderQuickList();
-    renderSummary();
+    await Promise.all([renderRequests(), renderQuickList(), renderSummary()]);
   }
 
-  // Firebase ready or DOM ready 皆嘗試初始化
-  if (document.readyState === "complete" || document.readyState === "interactive"){
-    setTimeout(init, 0);
-  } else {
-    document.addEventListener("DOMContentLoaded", init);
-  }
-  document.addEventListener("firebase-ready", init);
+  // 僅在首次收到 firebase-ready 時 init（async）
+  let __inited = false;
+  document.addEventListener("firebase-ready", async () => {
+    if (__inited) return;
+    __inited = true;
+    try {
+      await init();
+    } catch (e) {
+      console.error("[annual-leave] init error:", e);
+      __inited = false; // 若初始化失敗，允許下次嘗試
+    }
+  });
 })();
