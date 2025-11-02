@@ -1,17 +1,12 @@
 
 /**
- * annual-leave.js — FINAL v2025-11-02-AL8
+ * annual-leave.js — FINAL v2025-11-02-AL9
  * 初始化：僅在收到 `firebase-ready` 事件時執行，而且只初始化一次（async）。
- * 新功能（本版）：
- *  - 下拉顯示格式「員編 姓名(職稱)」，職稱：護理師 / 照服員（中文）
- *  - 兩個篩選下拉新增「護理師」「照服員」群組篩選（模式B：僅影響結果，不改變下拉內容）
- *    * 特休單(唯讀) 的員工篩選：reqEmpSelect
- *    * 年假統計 的員工篩選：statEmpSelect
- *  - 員工排列順序：護理師在前、照服員在後；同群組內維持 Firestore 自然順序
- * 既有功能：
- *  - 特休單(唯讀)：排除 source=="快速補登"
- *  - 快速補登：source=="快速補登"，可新增/刪除
- *  - 年假統計：採「階梯累計制 + 永不清空」，已用含所有來源
+ * 本版更新：
+ *  - 修正「快速補登」單位換算（day/天/日 → ×8 小時）
+ *  - 快速補登列表的時數以「X 天 Y 小時」顯示（整數天不顯示 0 小時）
+ *  - 負數顯示為「-X 天 Y 小時」且整段紅字（加上 .neg 樣式）
+ *  - 保留 AL8：護理師/照服員 群組篩選與顯示等
  */
 
 (function(){
@@ -57,14 +52,20 @@
   }
   function startOfYear(y){ return new Date(`${y}-01-01T00:00:00`); }
   function endOfYear(y){ return new Date(`${y}-12-31T23:59:59`); }
-  function textDayHour(h){
+
+  // 人性化時數顯示（整數天不顯示 0 小時；負數加負號，且外層可套 .neg）
+  function formatHoursDisplay(h){
     const neg = (Number(h)||0) < 0;
-    const H = Math.abs(Number(h) || 0);
+    const H = Math.abs(Number(h)||0);
     const d = Math.floor(H / HOURS_PER_DAY);
-    const r = H % HOURS_PER_DAY;
-    const txt = (d?`${d} 天`:"") + (r? (d?" ":"") + `${r} 小時` : (d?"":"0 小時"));
-    return neg ? `-${txt}` : txt;
+    const r = Math.round(H % HOURS_PER_DAY);
+    let txt = "";
+    if (d && r) txt = `${d} 天 ${r} 小時`;
+    else if (d && !r) txt = `${d} 天`;
+    else txt = `${r} 小時`;
+    return { text: neg ? `-${txt}` : txt, neg };
   }
+
   function seniorityText(hireDate){
     if (!hireDate) return "";
     const today = new Date();
@@ -234,11 +235,15 @@
       if (!leaveAt || leaveAt < from || leaveAt > to) return;
       const roleTxt = ROLES[EMP_MAP[d.empId]?.role] || "";
       const who = `${d.empId||""} ${(d.applicant||d.name||"")}${roleTxt?`(${roleTxt})`:""}`.trim();
+
+      const disp = formatHoursDisplay(Number(d.hoursUsed)||0);
+
       rows.push({
         id: doc.id,
         date: ymd(leaveAt),
         who,
-        hours: Number(d.hoursUsed)||HOURS_PER_DAY,
+        dispText: disp.text,
+        dispNeg: disp.neg,
         reason: d.reason || "",
         source: d.source || ""
       });
@@ -248,7 +253,7 @@
       <tr>
         <td>${r.date}</td>
         <td>${r.who}</td>
-        <td>${r.hours}</td>
+        <td class="${r.dispNeg?'neg':''}">${r.dispText}</td>
         <td>${r.reason}</td>
         <td>${r.source}</td>
         <td><button class="btn btn-sm btn-outline-danger" data-id="${r.id}"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -277,14 +282,16 @@
     const empName = empSel?.selectedOptions?.[0]?.getAttribute("data-name") || "";
     const date = dateEl?.value || "";
     const amount = Number(amountEl?.value || "0");
-    const unit = (unitEl?.value || "").trim(); // 天 / 小時
+    const uRaw = (unitEl?.value || "").trim();
+    const unit = uRaw.toLowerCase();
+    const isDay = ["天","日","day","days","d","Day","Days","D"].includes(uRaw) || ["day","days","d"].includes(unit);
     const reason = reasonEl?.value || "";
 
     if (!empId || !date || !(amount>0)) {
       alert("請選擇員工、日期並輸入正確的數值");
       return;
     }
-    const hours = unit === "天" ? amount * HOURS_PER_DAY : amount;
+    const hours = isDay ? amount * HOURS_PER_DAY : amount;
 
     const payload = {
       createdAt: new Date().toISOString(),
@@ -366,15 +373,16 @@
       const grantedH = calcGrantedHours(p.hireDate, year);
       const usedH    = used[p.empId] || 0;
       const remainH  = grantedH - usedH;
+      const remainDisp = formatHoursDisplay(remainH);
       return {
         empId: p.empId,
         name: `${p.name}${ROLES[p.role] ? `(${ROLES[p.role]})` : ""}`,
         hireDate: p.hireDate ? ymd(p.hireDate) : "",
         seniority: p.hireDate ? seniorityText(p.hireDate) : "",
-        grantedText: textDayHour(grantedH),
-        usedText: textDayHour(usedH),
-        remainText: textDayHour(remainH),
-        remainNeg : remainH < 0
+        grantedText: formatHoursDisplay(grantedH).text,
+        usedText: formatHoursDisplay(usedH).text,
+        remainText: remainDisp.text,
+        remainNeg : remainDisp.neg
       };
     });
 
