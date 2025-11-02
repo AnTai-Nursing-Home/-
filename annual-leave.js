@@ -307,7 +307,7 @@
         if (!t || t < from || t > to) return;
         const k = d.empId || "";
         if (!k) return;
-        const h = Number(d.hoursUsed) or (Number(d.daysUsed)||0) * HOURS_PER_DAY or HOURS_PER_DAY
+        const h = Number(d.hoursUsed) || (Number(d.daysUsed) || 0) * HOURS_PER_DAY || HOURS_PER_DAY;
         used[k] = (used[k] || 0) + h;
       });
     }
