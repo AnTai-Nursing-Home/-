@@ -1,12 +1,11 @@
 
 /**
- * annual-leave.js — FINAL v2025-11-02-AL3
- * 規則：
- *  - 特休單(唯讀) 只顯示「請假系統」鏡像資料（排除 source=="快速補登"）
- *  - 「快速補登」分頁只顯示 source=="快速補登"
- *  - 年假統計採「階梯累計制 + 永不清空」：達門檻即累加配發（半年+3、滿1年+7、滿2年+10…）
- *  - 統計「已用年假」包含所有來源（請假系統 + 快速補登）
- *  - 保留你原本畫面與欄位順序（中文），剩餘可為負且標紅（.neg）
+ * annual-leave.js — FINAL v2025-11-02-AL5
+ * - 三頁分流：特休單(唯讀) / 快速補登 / 年假統計
+ * - 特休單(唯讀)：只顯示請假系統鏡像（排除 source=="快速補登"）
+ * - 快速補登：只顯示 source=="快速補登"，支援直接新增
+ * - 年假統計：採「階梯累計制 + 永不清空」，已用年假包含所有來源
+ * - 自動載入員工名單到三個下拉選單：reqEmpSelect / quickEmpSelect / statEmpSelect
  */
 
 (function(){
@@ -15,7 +14,7 @@
   const HOURS_PER_DAY = 8;
   const $ = (s) => document.querySelector(s);
 
-  // ---- 年資規則（你提供的對應；採「達點即累加」） ----
+  // ---- 年資規則（達門檻即累加；>24 每滿一年+30天） ----
   const ENTITLE_STEPS = [
     { years: 0.5, days: 3 }, { years: 1, days: 7 }, { years: 2, days: 10 },
     { years: 3, days: 14 }, { years: 4, days: 14 }, { years: 5, days: 15 },
@@ -75,19 +74,16 @@
     return d;
   }
 
-  // 階梯累計制（到達門檻即累加），>24年每滿一年再 +30 天
+  // 階梯累計制（到達門檻即累加），>24年每滿一年 +30 天
   function calcGrantedHours(hireDate, selectedYear) {
     if (!hireDate) return 0;
     const eoy = endOfYear(selectedYear);
     let sumDays = 0;
-    // 每個門檻到達就累加
     ENTITLE_STEPS.forEach(step => {
       const when = addYears(hireDate, step.years);
       if (when <= eoy) sumDays += step.days;
     });
-    // 超過 24 年：每滿一年 +30 天（沿用你原本邏輯）
-    const totalYearsFloat = (eoy - hireDate) / (365.25 * 24 * 3600 * 1000);
-    const fullYears = Math.floor(totalYearsFloat);
+    const fullYears = Math.floor((eoy - hireDate) / (365.25 * 24 * 3600 * 1000));
     for (let y = 25; y <= fullYears; y++) {
       const ann = addYears(hireDate, y);
       if (ann <= eoy) sumDays += 30;
@@ -95,44 +91,60 @@
     return sumDays * HOURS_PER_DAY;
   }
 
-  function initYearSelect(){
-    const sel = $("#yearSelect");
-    if (!sel) return;
-    const y = new Date().getFullYear();
-    sel.innerHTML = "";
-    for (let yy = y+1; yy >= y-5; yy--){
-      const o = document.createElement("option");
-      o.value = String(yy); o.textContent = String(yy);
-      if (yy === y) o.selected = true;
-      sel.appendChild(o);
-    }
-  }
+  // ===== 員工名單載入 → 三個下拉 =====
+  async function loadEmployeesIntoSelects() {
+    const selects = [
+      $("#reqEmpSelect"),
+      $("#quickEmpSelect"),
+      $("#statEmpSelect")
+    ].filter(Boolean);
+    if (!selects.length) return;
 
-  function setLoading(tbodyId, cols){
-    const el = document.getElementById(tbodyId);
-    if (el) el.innerHTML = `<tr><td colspan="${cols}" class="text-center text-muted">讀取中…</td></tr>`;
-  }
-  function setEmpty(tbodyId, cols){
-    const el = document.getElementById(tbodyId);
-    if (el) el.innerHTML = `<tr><td colspan="${cols}" class="text-center text-muted">沒有資料</td></tr>`;
+    const list = [];
+    try {
+      const ns = await DB().collection("nurses").orderBy("sortOrder").get();
+      ns.forEach(doc => {
+        const d = doc.data() || {};
+        list.push({ empId: d.empId || d.id || doc.id || "", name: d.name || "" });
+      });
+    } catch(e) {}
+    try {
+      const cg = await DB().collection("caregivers").orderBy("sortOrder").get();
+      cg.forEach(doc => {
+        const d = doc.data() || {};
+        list.push({ empId: d.empId || d.id || doc.id || "", name: d.name || "" });
+      });
+    } catch(e) {}
+
+    list.sort((a,b)=> (a.empId||"").localeCompare(b.empId||""));
+
+    const opts = [`<option value="">全部</option>`]
+      .concat(list.map(p => `<option value="${p.empId}" data-name="${p.name}">${p.empId}　${p.name}</option>`))
+      .join("");
+
+    selects.forEach(sel => sel.innerHTML = opts);
   }
 
   // ===== 特休單（唯讀）— 只顯示「請假系統」鏡像資料 =====
   async function renderRequests(){
     const year = Number($("#yearSelect")?.value || new Date().getFullYear());
-    const from = startOfYear(year);
-    const to   = endOfYear(year);
-    setLoading("al-req-body", 9);
+    const from = toDate($("#reqDateFrom")?.value) || startOfYear(year);
+    const to   = toDate($("#reqDateTo")?.value)   || endOfYear(year);
+    const emp  = $("#reqEmpSelect")?.value || "";
+    const tbody = $("#al-req-body");
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中…</td></tr>`;
 
     const snap = await DB().collection(COL).get().catch(()=>null);
-    if (!snap) { setEmpty("al-req-body", 9); return; }
+    if (!snap) { tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`; return; }
 
     const list = [];
     snap.forEach(doc => {
       const d = doc.data() || {};
-      if (d.source === "快速補登") return; // 分流：這裡不顯示補登
+      if (d.source === "快速補登") return;
       const leaveAt = toDate(d.leaveDate || d.date);
       if (!leaveAt || leaveAt < from || leaveAt > to) return;
+      if (emp && d.empId !== emp) return;
 
       const applyAt = d.applyDate ? toDate(d.applyDate) : (d.createdAt ? toDate(d.createdAt) : null);
       const applyDate = applyAt ? ymd(applyAt) : "";
@@ -150,10 +162,7 @@
       });
     });
 
-    const tbody = $("#al-req-body");
-    if (!tbody) return;
-
-    if (!list.length) { setEmpty("al-req-body", 9); return; }
+    if (!list.length) { tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`; return; }
     list.sort((a,b)=> a.leaveDate.localeCompare(b.leaveDate));
     tbody.innerHTML = list.map(r => `
       <tr>
@@ -170,7 +179,7 @@
     `).join("");
   }
 
-  // ===== 快速補登列表 — 只顯示 source=="快速補登" =====
+  // ===== 快速補登：列表 + 新增 =====
   async function renderQuickList(){
     const body = $("#quick-body");
     if (!body) return;
@@ -179,7 +188,7 @@
     const from = startOfYear(year), to = endOfYear(year);
 
     const snap = await DB().collection(COL).where("source","==","快速補登").get().catch(()=>null);
-    if (!snap || snap.empty) { setEmpty("quick-body", 6); return; }
+    if (!snap || snap.empty) { body.innerHTML = `<tr><td colspan="6" class="text-center text-muted">沒有資料</td></tr>`; return; }
 
     const rows = [];
     snap.forEach(doc => {
@@ -195,7 +204,7 @@
         source: d.source || ""
       });
     });
-    if (!rows.length) { setEmpty("quick-body", 6); return; }
+    if (!rows.length) { body.innerHTML = `<tr><td colspan="6" class="text-center text-muted">沒有資料</td></tr>`; return; }
     body.innerHTML = rows.sort((a,b)=> a.date.localeCompare(b.date)).map(r => `
       <tr>
         <td>${r.date}</td>
@@ -218,13 +227,54 @@
     });
   }
 
+  async function handleQuickSubmit() {
+    const empSel = $("#quickEmpSelect");
+    const dateEl = $("#quickDate");
+    const amountEl = $("#quickAmount");
+    const unitEl = $("#quickUnit");
+    const reasonEl = $("#quickReason");
+
+    const empId = empSel?.value || "";
+    const empName = empSel?.selectedOptions?.[0]?.getAttribute("data-name") || "";
+    const date = dateEl?.value || "";
+    const amount = Number(amountEl?.value || "0");
+    const unit = (unitEl?.value || "").trim(); // 天 / 小時
+    const reason = reasonEl?.value || "";
+
+    if (!empId || !date || !(amount>0)) {
+      alert("請選擇員工、日期並輸入正確的數值");
+      return;
+    }
+    const hours = unit === "天" ? amount * HOURS_PER_DAY : amount;
+
+    const payload = {
+      createdAt: new Date().toISOString(),
+      date,
+      empId,
+      hoursUsed: hours,
+      leaveType: "特休",
+      name: empName,
+      reason: reason || "快速補登",
+      source: "快速補登",
+      status: "審核通過"
+    };
+    await DB().collection(COL).add(payload);
+    // 清空欄位與重載
+    amountEl.value = "";
+    reasonEl.value = "";
+    renderQuickList();
+    renderSummary();
+    alert("✅ 已送出補登");
+  }
+
   // ===== 年假統計（採「階梯累計制 + 永不清空」） =====
   async function renderSummary(){
     const year = Number($("#yearSelect")?.value || new Date().getFullYear());
+    const empFilter = $("#statEmpSelect")?.value || "";
     const from = startOfYear(year), to = endOfYear(year);
     const tbody = $("#al-stat-body");
     if (!tbody) return;
-    setLoading("al-stat-body", 7);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中…</td></tr>`;
 
     // 取人員清單（員編、姓名、到職日）
     const people = [];
@@ -247,7 +297,7 @@
       });
     } catch(_) {}
 
-    // 已用年假（本年度內的使用合計；來源不限：請假系統 + 快速補登）
+    // 已用年假（年度內；來源不限）
     const used = Object.create(null);
     const snap = await DB().collection(COL).where("leaveType","==","特休").get().catch(()=>null);
     if (snap) {
@@ -257,16 +307,18 @@
         if (!t || t < from || t > to) return;
         const k = d.empId || "";
         if (!k) return;
-        const h = Number(d.hoursUsed) || (Number(d.daysUsed)||0) * HOURS_PER_DAY || HOURS_PER_DAY;
+        const h = Number(d.hoursUsed) or (Number(d.daysUsed)||0) * HOURS_PER_DAY or HOURS_PER_DAY
         used[k] = (used[k] || 0) + h;
       });
     }
 
-    // 產製統計列
-    const rows = people.sort((a,b)=> (a.empId||"").localeCompare(b.empId||"")).map(p => {
-      const grantedH = calcGrantedHours(p.hireDate, year);                 // 應放（累計制）
-      const usedH    = used[p.empId] || 0;                                 // 本年度已用（含補登）
-      const remainH  = grantedH - usedH;                                   // 剩餘（可為負）
+    let rowsData = people;
+    if (empFilter) rowsData = rowsData.filter(p => p.empId === empFilter);
+
+    const rows = rowsData.sort((a,b)=> (a.empId||"").localeCompare(b.empId||"")).map(p => {
+      const grantedH = calcGrantedHours(p.hireDate, year);
+      const usedH    = used[p.empId] || 0;
+      const remainH  = grantedH - usedH;
       return {
         empId: p.empId,
         name: p.name,
@@ -279,7 +331,6 @@
       };
     });
 
-    // 依你原本欄位順序渲染：員編｜姓名｜入職日｜總年資｜應放年假｜已用年假｜剩餘年假
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td>${r.empId}</td>
@@ -293,14 +344,42 @@
     `).join("");
   }
 
-  // ========= Init =========
-  document.addEventListener("firebase-ready", () => {
-    initYearSelect();
+  // ===== 綁定與初始化 =====
+  function bindUI() {
+    $("#reqFilterBtn")?.addEventListener("click", renderRequests);
+    $("#reqClearBtn")?.addEventListener("click", () => {
+      if ($("#reqDateFrom")) $("#reqDateFrom").value = "";
+      if ($("#reqDateTo")) $("#reqDateTo").value = "";
+      if ($("#reqEmpSelect")) $("#reqEmpSelect").value = "";
+      renderRequests();
+    });
+
+    $("#statFilterBtn")?.addEventListener("click", renderSummary);
+    $("#statClearBtn")?.addEventListener("click", () => {
+      if ($("#statEmpSelect")) $("#statEmpSelect").value = "";
+      renderSummary();
+    });
+
+    $("#quickSubmit")?.addEventListener("click", handleQuickSubmit);
+
     $("#yearSelect")?.addEventListener("change", () => {
       renderRequests(); renderQuickList(); renderSummary();
     });
+  }
+
+  async function init(){
+    await loadEmployeesIntoSelects();
+    bindUI();
     renderRequests();
     renderQuickList();
     renderSummary();
-  });
+  }
+
+  // Firebase ready or DOM ready 皆嘗試初始化
+  if (document.readyState === "complete" || document.readyState === "interactive"){
+    setTimeout(init, 0);
+  } else {
+    document.addEventListener("DOMContentLoaded", init);
+  }
+  document.addEventListener("firebase-ready", init);
 })();
