@@ -1,12 +1,17 @@
 
 /**
- * annual-leave.js — FINAL v2025-11-02-AL7
+ * annual-leave.js — FINAL v2025-11-02-AL8
  * 初始化：僅在收到 `firebase-ready` 事件時執行，而且只初始化一次（async）。
- * 功能：
- *  - 特休單(唯讀)：只顯示請假系統鏡像（排除 source=="快速補登"）
- *  - 快速補登：只顯示 source=="快速補登"，支援直接新增/刪除
- *  - 年假統計：採「階梯累計制 + 永不清空」，已用年假包含所有來源
- *  - 三個下拉皆自動載入員工：reqEmpSelect / quickEmpSelect / statEmpSelect
+ * 新功能（本版）：
+ *  - 下拉顯示格式「員編 姓名(職稱)」，職稱：護理師 / 照服員（中文）
+ *  - 兩個篩選下拉新增「護理師」「照服員」群組篩選（模式B：僅影響結果，不改變下拉內容）
+ *    * 特休單(唯讀) 的員工篩選：reqEmpSelect
+ *    * 年假統計 的員工篩選：statEmpSelect
+ *  - 員工排列順序：護理師在前、照服員在後；同群組內維持 Firestore 自然順序
+ * 既有功能：
+ *  - 特休單(唯讀)：排除 source=="快速補登"
+ *  - 快速補登：source=="快速補登"，可新增/刪除
+ *  - 年假統計：採「階梯累計制 + 永不清空」，已用含所有來源
  */
 
 (function(){
@@ -14,6 +19,10 @@
   const COL = "annual_leave_requests";
   const HOURS_PER_DAY = 8;
   const $ = (s) => document.querySelector(s);
+
+  // 供過濾使用的全域員工索引
+  const EMP_MAP = Object.create(null);   // empId -> { name, role }
+  const ROLES = { nurse: "護理師", caregiver: "照服員" };
 
   // ---- 年資規則（達門檻即累加；>24 每滿一年+30天） ----
   const ENTITLE_STEPS = [
@@ -94,36 +103,49 @@
 
   // ===== 員工名單載入 → 三個下拉 =====
   async function loadEmployeesIntoSelects() {
-    const selects = [
-      $("#reqEmpSelect"),
-      $("#quickEmpSelect"),
-      $("#statEmpSelect")
-    ].filter(Boolean);
-    if (!selects.length) return;
+    const selReq = $("#reqEmpSelect");
+    const selQuick = $("#quickEmpSelect");
+    const selStat = $("#statEmpSelect");
 
-    const list = [];
+    // 讀 nurses / caregivers，自然順序（不主動 sort）
+    const nurses = [];
+    const caregivers = [];
     try {
       const ns = await DB().collection("nurses").orderBy("sortOrder").get();
       ns.forEach(doc => {
         const d = doc.data() || {};
-        list.push({ empId: d.empId || d.id || doc.id || "", name: d.name || "" });
+        const empId = d.empId || d.id || doc.id || "";
+        const name = d.name || "";
+        nurses.push({ empId, name, role: "nurse" });
+        EMP_MAP[empId] = { name, role: "nurse" };
       });
     } catch(e) {}
     try {
       const cg = await DB().collection("caregivers").orderBy("sortOrder").get();
       cg.forEach(doc => {
         const d = doc.data() || {};
-        list.push({ empId: d.empId || d.id || doc.id || "", name: d.name || "" });
+        const empId = d.empId || d.id || doc.id || "";
+        const name = d.name || "";
+        caregivers.push({ empId, name, role: "caregiver" });
+        EMP_MAP[empId] = { name, role: "caregiver" };
       });
     } catch(e) {}
 
-    list.sort((a,b)=> (a.empId||"").localeCompare(b.empId||""));
-
-    const opts = [`<option value="">全部</option>`]
-      .concat(list.map(p => `<option value="${p.empId}" data-name="${p.name}">${p.empId}　${p.name}</option>`))
+    // 生成 option HTML（護理師在前、照服員在後；顯示：員編 姓名(職稱)）
+    const optForFilter =
+      [`<option value="">全部</option>`, `<option value="@nurse">護理師</option>`, `<option value="@caregiver">照服員</option>`]
+      .concat(nurses.map(p => `<option value="${p.empId}" data-name="${p.name}" data-role="${p.role}">${p.empId} ${p.name}(${ROLES[p.role]})</option>`))
+      .concat(caregivers.map(p => `<option value="${p.empId}" data-name="${p.name}" data-role="${p.role}">${p.empId} ${p.name}(${ROLES[p.role]})</option>`))
       .join("");
 
-    selects.forEach(sel => sel.innerHTML = opts);
+    const optForQuick =
+      nurses.map(p => `<option value="${p.empId}" data-name="${p.name}" data-role="${p.role}">${p.empId} ${p.name}(${ROLES[p.role]})</option>`)
+      .concat(caregivers.map(p => `<option value="${p.empId}" data-name="${p.name}" data-role="${p.role}">${p.empId} ${p.name}(${ROLES[p.role]})</option>`))
+      .join("");
+
+    if (selReq) selReq.innerHTML = optForFilter;
+    if (selStat) selStat.innerHTML = optForFilter;
+    if (selQuick) selQuick.innerHTML = optForQuick;
   }
 
   // ===== 特休單（唯讀）— 只顯示「請假系統」鏡像資料 =====
@@ -131,7 +153,7 @@
     const year = Number($("#yearSelect")?.value || new Date().getFullYear());
     const from = toDate($("#reqDateFrom")?.value) || startOfYear(year);
     const to   = toDate($("#reqDateTo")?.value)   || endOfYear(year);
-    const emp  = $("#reqEmpSelect")?.value || "";
+    const empSelVal  = $("#reqEmpSelect")?.value || "";
     const tbody = $("#al-req-body");
     if (!tbody) return;
     tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中…</td></tr>`;
@@ -145,14 +167,28 @@
       if (d.source === "快速補登") return;
       const leaveAt = toDate(d.leaveDate || d.date);
       if (!leaveAt || leaveAt < from || leaveAt > to) return;
-      if (emp && d.empId !== emp) return;
+
+      // 群組/個別過濾
+      if (empSelVal) {
+        if (empSelVal === "@nurse" || empSelVal === "@caregiver") {
+          const role = EMP_MAP[d.empId]?.role;
+          if (empSelVal === "@nurse" && role !== "nurse") return;
+          if (empSelVal === "@caregiver" && role !== "caregiver") return;
+        } else {
+          if (d.empId !== empSelVal) return;
+        }
+      }
 
       const applyAt = d.applyDate ? toDate(d.applyDate) : (d.createdAt ? toDate(d.createdAt) : null);
       const applyDate = applyAt ? ymd(applyAt) : "";
 
+      const whoName = (d.applicant || d.name || "");
+      const roleTxt = ROLES[EMP_MAP[d.empId]?.role] || "";
+      const whoWithRole = roleTxt ? `${whoName}(${roleTxt})` : whoName;
+
       list.push({
         applyDate,
-        applicant: d.applicant || d.name || "",
+        applicant: whoWithRole,
         leaveType: d.leaveType || "特休",
         leaveDate: ymd(leaveAt),
         shift: d.shift || "-",
@@ -196,10 +232,12 @@
       const d = doc.data() || {};
       const leaveAt = toDate(d.leaveDate || d.date);
       if (!leaveAt || leaveAt < from || leaveAt > to) return;
+      const roleTxt = ROLES[EMP_MAP[d.empId]?.role] || "";
+      const who = `${d.empId||""} ${(d.applicant||d.name||"")}${roleTxt?`(${roleTxt})`:""}`.trim();
       rows.push({
         id: doc.id,
         date: ymd(leaveAt),
-        who: `${d.empId||""} ${d.applicant||d.name||""}`.trim(),
+        who,
         hours: Number(d.hoursUsed)||HOURS_PER_DAY,
         reason: d.reason || "",
         source: d.source || ""
@@ -271,21 +309,21 @@
   // ===== 年假統計（採「階梯累計制 + 永不清空」） =====
   async function renderSummary(){
     const year = Number($("#yearSelect")?.value || new Date().getFullYear());
-    const empFilter = $("#statEmpSelect")?.value || "";
+    const empSelVal = $("#statEmpSelect")?.value || "";
     const from = startOfYear(year), to = endOfYear(year);
     const tbody = $("#al-stat-body");
     if (!tbody) return;
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中…</td></tr>`;
 
     // 取人員清單（員編、姓名、到職日）
-    const people = [];
+    let people = [];
     try {
       const ns = await DB().collection("nurses").orderBy("sortOrder").get();
       ns.forEach(doc => {
         const d = doc.data()||{};
         const empId = d.empId || d.id || doc.id || "";
         const hire = d.hireDate ? toDate(d.hireDate) : null;
-        people.push({ empId, name: d.name || "", hireDate: hire });
+        people.push({ empId, name: d.name || "", hireDate: hire, role: "nurse" });
       });
     } catch(_) {}
     try {
@@ -294,9 +332,16 @@
         const d = doc.data()||{};
         const empId = d.empId || d.id || doc.id || "";
         const hire = d.hireDate ? toDate(d.hireDate) : null;
-        people.push({ empId, name: d.name || "", hireDate: hire });
+        people.push({ empId, name: d.name || "", hireDate: hire, role: "caregiver" });
       });
     } catch(_) {}
+
+    // 依選擇值套用群組或個別過濾
+    if (empSelVal) {
+      if (empSelVal === "@nurse") people = people.filter(p => p.role === "nurse");
+      else if (empSelVal === "@caregiver") people = people.filter(p => p.role === "caregiver");
+      else people = people.filter(p => p.empId === empSelVal);
+    }
 
     // 已用年假（年度內；來源不限）
     const used = Object.create(null);
@@ -313,16 +358,17 @@
       });
     }
 
-    let rowsData = people;
-    if (empFilter) rowsData = rowsData.filter(p => p.empId === empFilter);
+    // 依自然順序，但護理師在前、照服員在後
+    const orderRole = { nurse: 0, caregiver: 1 };
+    people.sort((a,b)=> (orderRole[a.role]-orderRole[b.role]));
 
-    const rows = rowsData.sort((a,b)=> (a.empId||"").localeCompare(b.empId||"")).map(p => {
+    const rows = people.map(p => {
       const grantedH = calcGrantedHours(p.hireDate, year);
       const usedH    = used[p.empId] || 0;
       const remainH  = grantedH - usedH;
       return {
         empId: p.empId,
-        name: p.name,
+        name: `${p.name}${ROLES[p.role] ? `(${ROLES[p.role]})` : ""}`,
         hireDate: p.hireDate ? ymd(p.hireDate) : "",
         seniority: p.hireDate ? seniorityText(p.hireDate) : "",
         grantedText: textDayHour(grantedH),
