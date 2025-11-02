@@ -5,6 +5,7 @@
 // - 班別 shift 若缺 → 顯示「-」
 // - 審核者以 approvedBy 優先，無則用 supervisorSign
 // - 不改你的 Firebase 結構 / 不改 HTML
+alert("✅ Annual-leave.js 已載入！");
 
 (function () {
   const HOURS_PER_DAY = 8;
