@@ -5,6 +5,8 @@
 // - 班別 shift 若缺 → 顯示「-」
 // - 審核者以 approvedBy 優先，無則用 supervisorSign
 // - 不改你的 Firebase 結構 / 不改 HTML
+alert("✅ Annual-leave.js 已載入！");
+
 (function () {
   const HOURS_PER_DAY = 8;
   const REQ_COL = "annual_leave_requests";
@@ -312,15 +314,15 @@
 
     tbody.innerHTML = rows.map(r => `
       <tr>
-        <td>${r.createdAt}</td>
+        <td>${r.applyDate}</td>
         <td>${r.name}</td>
         <td>${r.leaveType}</td>
-        <td>${r.date}</td>
+        <td>${r.leaveDate}</td>
         <td>${r.shift}</td>
         <td>${r.reason}</td>
         <td>${r.note}</td>
         <td>${r.supervisor}</td>
-        <td>${r.source}</td>
+        <td>${r.sourceId}</td>
       </tr>
     `).join("");
   }
