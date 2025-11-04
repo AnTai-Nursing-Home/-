@@ -150,28 +150,43 @@ document.addEventListener('firebase-ready', () => {
         try {
             const snapshot = await db.collection(requestsCollection).get();
             const requestsByDate = {};
+    
             snapshot.forEach(doc => {
                 requestsByDate[doc.id] = doc.data();
             });
-            const sortedDates = Object.keys(requestsByDate).sort();
-            if (sortedDates.length === 0) {
-                adminSummaryTableDiv.innerHTML = '<p class="text-center text-muted">下個月尚無預假/預班紀錄。</p>';
+    
+            // 取得「下個月的年與月」
+            const today = new Date();
+            const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            const ym = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;  // ex: 2025-12
+    
+            // 過濾 → 只保留下個月的資料
+            const filteredDates = Object.keys(requestsByDate)
+                .filter(date => date.startsWith(ym))
+                .sort();
+    
+            if (filteredDates.length === 0) {
+                adminSummaryTableDiv.innerHTML = `<p class="text-center text-muted">${ym} 尚無預排紀錄。</p>`;
                 return;
             }
+    
             let tableHTML = '<table class="table table-sm table-bordered"><thead><tr><th>日期</th><th>預排人員及班別</th></tr></thead><tbody>';
-            sortedDates.forEach(date => {
+    
+            filteredDates.forEach(date => {
                 const dailyRequests = requestsByDate[date];
                 const entries = Object.entries(dailyRequests).map(([name, shift]) => `${name}: ${shift}`);
                 tableHTML += `<tr><td>${date}</td><td>${entries.join(', ')}</td></tr>`;
             });
+    
             tableHTML += '</tbody></table>';
             adminSummaryTableDiv.innerHTML = tableHTML;
+    
         } catch (error) {
             console.error("渲染管理員視圖失敗:", error);
             adminViewPanel.innerHTML = '<div class="alert alert-danger">讀取總覽資料失敗。</div>';
         }
     }
-    
+
     async function generateProfessionalReportHTML() {
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
