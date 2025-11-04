@@ -505,7 +505,52 @@
     bindDeleteButtons();
     bindExportPrint();
     bindMirrorRealtime();
-    DB().collection(COL_LEAVE).onSnapshot(() => loadLeaveRequests());
-    DB().collection(COL_SWAP).onSnapshot(() => loadSwapRequests());
+    DB().collection(COL_LEAVE).onSnapshot((snap) => {
+      let shouldRefresh = false;
+    
+      snap.docChanges().forEach(chg => {
+        // 若是新增或刪除 → 一定刷新
+        if (chg.type === "added" || chg.type === "removed") {
+          shouldRefresh = true;
+        }
+    
+        // 若是修改 → 只有修改 status 時才刷新
+        if (chg.type === "modified") {
+          const beforeStatus = chg.oldIndex > -1 ? chg.doc.data().status : null;
+          const afterStatus = chg.doc.data().status;
+    
+          if (beforeStatus !== afterStatus) {
+            shouldRefresh = true;
+          }
+        }
+      });
+    
+      if (shouldRefresh) {
+        loadLeaveRequests();
+      }
+    });
+    
+    DB().collection(COL_SWAP).onSnapshot((snap) => {
+      let shouldRefresh = false;
+    
+      snap.docChanges().forEach(chg => {
+        if (chg.type === "added" || chg.type === "removed") {
+          shouldRefresh = true;
+        }
+    
+        if (chg.type === "modified") {
+          const beforeStatus = chg.oldIndex > -1 ? chg.doc.data().status : null;
+          const afterStatus = chg.doc.data().status;
+    
+          if (beforeStatus !== afterStatus) {
+            shouldRefresh = true;
+          }
+        }
+      });
+    
+      if (shouldRefresh) {
+        loadSwapRequests();
+      }
+    });
   });
 })();
