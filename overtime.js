@@ -67,7 +67,7 @@ document.addEventListener('firebase-ready', () => {
       document.getElementById('edit-id').value = ''; // 避免覆蓋
       modalEntry.hide();
       renderTable(type);
-      alert('提示','✅ 資料已成功送出！');
+      alert('✅ 資料已成功送出！');
     };
 
     if(file){
@@ -155,7 +155,7 @@ document.addEventListener('firebase-ready', () => {
     const coll = (type==='ot')? overtimeCollection : deductCollection;
     await db.collection(coll).doc(docId).delete();
     renderTable(type);
-    alert('提示','🗑️ 資料已刪除');
+    alert('🗑️ 資料已刪除');
   };
 
   // ==== 狀態管理 ====
