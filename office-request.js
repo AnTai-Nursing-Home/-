@@ -1,4 +1,3 @@
-
 /**
  * office-request.js (Micronurse Office) — FINAL
  * - Mixed mode leave duration (day/half-day/custom hours) — UI Mode A compatible
