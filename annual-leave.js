@@ -1,15 +1,17 @@
-
 /**
- * annual-leave.js — YEAR MODE v2025-11-04-Y1
- * 改為「年度制」：每一年度獨立計算 應放 / 已用 / 剩餘。
+ * annual-leave.js — YEAR MODE v2025-11-04-Y2
+ * 年度制：每一年度獨立計算 應放 / 已用 / 剩餘。
  * - 任何紀錄（快速補登、請假系統鏡像）依「日期」自動屬於該年度，僅扣該年度。
- * - 舊年度不清零，但不與新年度合併。切換年度下拉即可查看每年的帳目。
- * - Firestore 結構可維持原 annual_leave_requests 來源、同時（可選）同步寫入 annual_leave_summary/{empId}/{year}
+ * - 特休單頁不顯示「快速補登」來源。
+ * - 人員下拉：護理師在前、照服員在後；選項文本「員編 姓名(職稱)」。
+ * - 顯示格式：X 天 Y 小時（負數紅字）。
  *
- * 已保留：
- * - 護理師/照服員下拉群組、個別人員顯示（員編 姓名(職稱)）
- * - 快速補登的「天/小時」換算 & 顯示（X 天 Y 小時；負數紅字）
- * - 特休單（唯讀）只顯示請假系統鏡像資料
+ * 需要：HTML 具備下列 ID
+ * yearSelect, reqEmpSelect, statEmpSelect, quickEmpSelect,
+ * quickDate, quickAmount, quickUnit, quickReason,
+ * reqDateFrom, reqDateTo,
+ * export-req-excel, export-stat-excel,
+ * al-req-body, quick-body, al-stat-body
  */
 
 (function(){
@@ -23,8 +25,7 @@
   const ROLES = { nurse: "護理師", caregiver: "照服員" };
   const EMP_MAP = Object.create(null); // empId -> { name, role, hireDate? }
 
-  // ---- 年度制：每年「應放」天數表（以完成年資為基準） ----
-  // 規則：以該年 12/31 計算完成的年資，取得對應的年度給假（不是累積）。>=24 年，每年 30 天。
+  // ---- 年度制：每年「應放」天數表（依年資；當年12/31計） ----
   const ENTITLE_STEPS = [
     { years: 0.5, days: 3 }, { years: 1, days: 7 }, { years: 2, days: 10 },
     { years: 3, days: 14 }, { years: 4, days: 14 }, { years: 5, days: 15 },
@@ -90,7 +91,7 @@
     return days * HOURS_PER_DAY;
   }
 
-  // ===== 載入員工（護理師在前、照服員在後） =====
+  // ===== 人員載入（護理師在前、照服員在後；顯示「員編 姓名(職稱)」） =====
   async function loadEmployeesIntoSelects(){
     const selReq = $("#reqEmpSelect");
     const selQuick = $("#quickEmpSelect");
@@ -138,17 +139,38 @@
     if (selQuick) selQuick.innerHTML = optQuick;
   }
 
+  // ===== 年度下拉（自動填入：當前年份往回 5 年 + 往前 1 年） =====
+  function populateYearOptions(){
+    const sel = $("#yearSelect");
+    if (!sel) return;
+    const now = new Date();
+    const current = now.getFullYear();
+    const start = current - 5;
+    const end = current + 1;
+    sel.innerHTML = Array.from({length:(end-start+1)}, (_,i)=> {
+      const y = start + i;
+      return `<option value="${y}" ${y===current?'selected':''}>${y}</option>`;
+    }).join("");
+  }
+
   // ===== 特休單（唯讀）— 僅顯示「請假系統」鏡像資料、限定年度 =====
   async function renderRequests(){
     const year = Number($("#yearSelect")?.value || new Date().getFullYear());
-    const from = startOfYear(year), to = endOfYear(year);
+    let from = startOfYear(year), to = endOfYear(year);
+
+    // 若有輸入日期區間，覆寫
+    const fromVal = $("#reqDateFrom")?.value;
+    const toVal = $("#reqDateTo")?.value;
+    if (fromVal) from = new Date(`${fromVal}T00:00:00`);
+    if (toVal)   to   = new Date(`${toVal}T23:59:59`);
+
     const empSelVal = $("#reqEmpSelect")?.value || "";
     const tbody = $("#al-req-body");
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">讀取中…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted-ghost">讀取中…</td></tr>`;
 
     const snap = await DB().collection(COL_REQ).get().catch(()=>null);
-    if (!snap){ tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`; return; }
+    if (!snap){ tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted-ghost">沒有資料</td></tr>`; return; }
 
     const rows = [];
     snap.forEach(doc => {
@@ -183,7 +205,7 @@
       });
     });
 
-    if (!rows.length){ tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`; return; }
+    if (!rows.length){ tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted-ghost">沒有資料</td></tr>`; return; }
     rows.sort((a,b)=> a.leaveDate.localeCompare(b.leaveDate));
     tbody.innerHTML = rows.map(r=>`
       <tr>
@@ -272,7 +294,7 @@
     const hours = isDay ? amount * HOURS_PER_DAY : amount;
     const payload = {
       createdAt: new Date().toISOString(),
-      date,
+      date, // 這裡儲存 YYYY-MM-DD，年別靠 render 時間窗判定
       empId,
       hoursUsed: hours,
       leaveType: "特休",
@@ -295,7 +317,7 @@
     const empSelVal = $("#statEmpSelect")?.value || "";
     const tbody = $("#al-stat-body");
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">讀取中…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted-ghost">讀取中…</td></tr>`;
 
     // 讀人員清單
     let people = [];
@@ -321,7 +343,7 @@
       else people = people.filter(p=>p.empId === empSelVal);
     }
 
-    // 已用（該年度）
+    // 已用（該年度；含請假鏡像與快速補登）
     const used = Object.create(null);
     const snap = await DB().collection(COL_REQ).where("leaveType","==","特休").get().catch(()=>null);
     if (snap){
@@ -335,7 +357,7 @@
       });
     }
 
-    // 排序（護理師在前）
+    // 排序（護理師在前，員編序）
     const orderRole = { nurse: 0, caregiver: 1 };
     people.sort((a,b)=> (orderRole[a.role]-orderRole[b.role]) || (a.empId>b.empId?1:-1));
 
@@ -343,13 +365,19 @@
       const entitled = entitlementForYear(p.hireDate, year);
       const usedH = used[p.empId] || 0;
       const remain = entitled - usedH;
+
       const entTxt = formatHoursDisplay(entitled).text;
       const usedTxt = formatHoursDisplay(usedH).text;
       const rem = formatHoursDisplay(remain);
+
+      const yrs = yearsCompletedAtEndOf(year, p.hireDate);
+      const yrsTxt = `${Math.floor(yrs)} 年 ${(Math.round((yrs%1)*12))} 月`;
+
       return {
         empId: p.empId,
         name: `${p.name}${ROLES[p.role]?`(${ROLES[p.role]})`:""}`,
         hire: p.hireDate? ymd(p.hireDate):"",
+        seniority: yrsTxt,
         ent: entTxt,
         used: usedTxt,
         remText: rem.text,
@@ -362,6 +390,7 @@
         <td>${r.empId}</td>
         <td>${r.name}</td>
         <td>${r.hire}</td>
+        <td>${r.seniority}</td>
         <td>${r.ent}</td>
         <td>${r.used}</td>
         <td class="${r.neg?'neg':''}">${r.remText}</td>
@@ -378,11 +407,21 @@
     } catch(e){/* 忽略 */}
   }
 
+  // ===== 匯出 Excel（特休單/統計） =====
+  function exportTableToExcel(tableId, filename){
+    const table = document.getElementById(tableId);
+    if (!table){ alert("找不到表格"); return; }
+    const wb = XLSX.utils.table_to_book(table, {sheet:"Sheet1"});
+    XLSX.writeFile(wb, filename);
+  }
+
   // ===== 綁定 =====
   function bindUI(){
     $("#reqFilterBtn")?.addEventListener("click", renderRequests);
     $("#reqClearBtn")?.addEventListener("click", () => {
       if ($("#reqEmpSelect")) $("#reqEmpSelect").value = "";
+      if ($("#reqDateFrom")) $("#reqDateFrom").value = "";
+      if ($("#reqDateTo")) $("#reqDateTo").value = "";
       renderRequests();
     });
 
@@ -396,9 +435,13 @@
     $("#yearSelect")?.addEventListener("change", () => {
       renderRequests(); renderQuickList(); renderSummary();
     });
+
+    $("#export-req-excel")?.addEventListener("click", ()=> exportTableToExcel("reqTable", `特休單_${$("#yearSelect").value||""}.xlsx`));
+    $("#export-stat-excel")?.addEventListener("click", ()=> exportTableToExcel("statTable", `年假統計_${$("#yearSelect").value||""}.xlsx`));
   }
 
   async function init(){
+    populateYearOptions();
     await loadEmployeesIntoSelects();
     bindUI();
     await Promise.all([renderRequests(), renderQuickList(), renderSummary()]);
