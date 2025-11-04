@@ -100,6 +100,7 @@ document.addEventListener("firebase-ready", async () => {
     };
 
     await leaveCol.add(data);
+    await loadLeaveRequests();
     alert(`✅ 已送出請假申請！（申請人：${applicantName}）`);
     form.reset();
   });
@@ -124,6 +125,7 @@ document.addEventListener("firebase-ready", async () => {
     };
 
     await swapCol.add(data);
+    await loadLeaveRequests();
     alert(`✅ 已送出調班申請！（申請人：${applicantName}）`);
     form.reset();
   });
@@ -134,6 +136,11 @@ document.addEventListener("firebase-ready", async () => {
   await loadSwapRequests();
 
   // 即時同步 Firestore 更新
-  leaveCol.onSnapshot(() => loadLeaveRequests());
-  swapCol.onSnapshot(() => loadSwapRequests());
+  leaveCol.onSnapshot(() => {
+    loadLeaveRequests();
+  });
+  
+  swapCol.onSnapshot(() => {
+    loadSwapRequests();
+  });
 });
