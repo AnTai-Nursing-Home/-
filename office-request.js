@@ -505,5 +505,7 @@
     bindDeleteButtons();
     bindExportPrint();
     bindMirrorRealtime();
+    DB().collection(COL_LEAVE).onSnapshot(() => loadLeaveRequests());
+    DB().collection(COL_SWAP).onSnapshot(() => loadSwapRequests());
   });
 })();
