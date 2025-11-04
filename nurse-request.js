@@ -134,6 +134,6 @@ document.addEventListener("firebase-ready", async () => {
   await loadSwapRequests();
 
   // 即時同步 Firestore 更新
-  leaveCol.onSnapshot(loadLeaveRequests);
-  swapCol.onSnapshot(loadSwapRequests);
+  leaveCol.onSnapshot(() => loadLeaveRequests());
+  swapCol.onSnapshot(() => loadSwapRequests());
 });
