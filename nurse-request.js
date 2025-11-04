@@ -136,11 +136,13 @@ document.addEventListener("firebase-ready", async () => {
   await loadSwapRequests();
 
   // 即時同步 Firestore 更新
-  leaveCol.onSnapshot(() => {
+  leaveCol.onSnapshot((snap) => {
+    console.log("🔥 [onSnapshot] leave updated, docs:", snap.size);
     loadLeaveRequests();
   });
   
-  swapCol.onSnapshot(() => {
+  swapCol.onSnapshot((snap) => {
+    console.log("🔥 [onSnapshot] swap updated, docs:", snap.size);
     loadSwapRequests();
   });
 });
