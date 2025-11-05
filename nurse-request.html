@@ -15,9 +15,9 @@
     .card { border-radius:10px; overflow:hidden; }
     .form-label { font-weight:600; }
     .badge { font-size:0.9rem; }
-
     .table th { background-color:#e9ecef; }
     .table td { background-color:#fff; }
+    table { table-layout: auto; } /* ✅ 自動欄寬 */
 
     @media print {
       button, .btn, .nav, .form-section { display:none !important; }
@@ -37,8 +37,6 @@
       </div>
 
       <div class="card-body">
-
-        <!-- 分頁 -->
         <ul class="nav nav-tabs mb-3">
           <li class="nav-item">
             <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#leaveTab">請假申請</button>
@@ -103,6 +101,7 @@
                     <th>假別</th>
                     <th>請假日期</th>
                     <th>班別</th>
+                    <th>請假時數(小時)</th> <!-- ✅ 新增 -->
                     <th>理由</th>
                     <th>狀態</th>
                     <th>主管簽名</th>
@@ -110,7 +109,7 @@
                   </tr>
                 </thead>
                 <tbody id="leaveTableBody">
-                  <tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>
+                  <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -169,10 +168,10 @@
             <div class="text-center text-muted p-4">敬請期待 - 將支援個人歷史申請查詢</div>
           </div>
 
-        </div><!-- /tab-content -->
-      </div><!-- /card-body -->
-    </div><!-- /card -->
-  </div><!-- /container -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
