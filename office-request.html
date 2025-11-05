@@ -16,6 +16,8 @@
     .form-label { font-weight:600; }
     .badge { font-size:0.9rem; }
     .table th { background-color:#e9ecef; }
+    /* 自動欄寬（避免新增欄位後擠壓） */
+    table { table-layout: auto; }
 
     @media print {
       @page { size: A4 landscape; margin: 15mm; }
@@ -89,7 +91,13 @@
                   </div>
                   <div class="col-md-2"><label class="form-label">請假日期</label><input type="date" name="leaveDate" class="form-control" required></div>
                   <div class="col-md-2"><label class="form-label">班別</label><input type="text" name="shift" class="form-control" required></div>
-                  <div class="col-md-2"> <label class="form-label">請假時數(小時)</label> <input type="number" name="durationValue" class="form-control" min="1" required></div>
+
+                  <!-- ✅ 新增請假時數欄位 -->
+                  <div class="col-md-2">
+                    <label class="form-label">請假時數(小時)</label>
+                    <input type="number" name="durationValue" class="form-control" min="1" required>
+                  </div>
+
                   <div class="col-md-2"><label class="form-label">理由</label><input type="text" name="reason" class="form-control" required></div>
                   <div class="col-md-2"><label class="form-label">狀態</label><select name="status" id="leaveStatusSelect" class="form-select" required></select></div>
                   <div class="col-12 d-flex justify-content-end">
@@ -107,7 +115,7 @@
               <div class="col-md-3 d-flex"><button class="btn btn-secondary w-100" id="filterLeave">套用篩選</button></div>
             </div>
 
-            <!-- 表格 -->
+            <!-- ✅ 表格（已新增請假時數欄位） -->
             <div class="table-responsive">
               <table class="table table-bordered align-middle" id="leaveTable">
                 <thead class="table-light">
@@ -117,6 +125,7 @@
                     <th>假別</th>
                     <th>請假日期</th>
                     <th>班別</th>
+                    <th>請假時數(小時)</th>
                     <th>理由</th>
                     <th>狀態</th>
                     <th>主管簽名</th>
@@ -125,7 +134,7 @@
                   </tr>
                 </thead>
                 <tbody id="leaveTableBody">
-                  <tr><td colspan="10" class="text-center text-muted">讀取中...</td></tr>
+                  <tr><td colspan="11" class="text-center text-muted">讀取中...</td></tr>
                 </tbody>
               </table>
             </div>
