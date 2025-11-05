@@ -23,12 +23,18 @@ document.addEventListener("firebase-ready", async () => {
   }
 
   // ===== 載入請假申請 =====
+  function hoursText(d) {
+    const v = Number(d?.durationValue ?? 0);
+    if (v > 0) return v + " 小時"; // 舊資料顯示空白
+    return "";
+  }
+
   async function loadLeaveRequests() {
-    leaveBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
+    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
     const snap = await leaveCol.orderBy("applyDate", "desc").get();
 
     if (snap.empty) {
-      leaveBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有申請資料</td></tr>`;
+      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有申請資料</td></tr>`;
       return;
     }
 
@@ -42,6 +48,7 @@ document.addEventListener("firebase-ready", async () => {
         <td>${d.leaveType || ""}</td>
         <td>${d.leaveDate || ""}</td>
         <td>${d.shift || ""}</td>
+        <td>${hoursText(d)}</td>
         <td>${d.reason || ""}</td>
         <td>${getStatusBadge(d.status)}</td>
         <td>${d.supervisorSign || ""}</td>
@@ -94,8 +101,8 @@ document.addEventListener("firebase-ready", async () => {
       leaveDate: form.leaveDate.value,
       shift: form.shift.value,
       reason: form.reason.value,
-      durationValue: Number(form.durationValue.value), // ⬅️ 新增
-      durationUnit: "hour", 
+      durationValue: Number(form.durationValue.value), // ✅ 新增
+      durationUnit: "hour",
       status: "待審核",
       note: "",
       supervisorSign: ""
