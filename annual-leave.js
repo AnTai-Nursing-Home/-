@@ -388,6 +388,13 @@
       if ($("#reqDateTo")) $("#reqDateTo").value = "";
       renderRequests();
     });
+    
+    // ===== Summary 篩選按鈕事件 =====
+    $("#statFilterBtn")?.addEventListener("click", renderSummary);
+    $("#statClearBtn")?.addEventListener("click", () => {
+      $("#statEmpSelect").value = "";
+      renderSummary();
+    });
 
     // Quick
     $("#quickSubmit")?.addEventListener("click", async () => {
