@@ -1,14 +1,9 @@
 /**
- * office-request.js (Micronurse Office) — FINAL
- * - Mixed mode leave duration (day/half-day/custom hours) — UI Mode A compatible
- * - Mirror sync to Annual Leave: upsert on approve, delete on unapprove/remove
- * - Debounce updates for supervisorSign/note (0.8s) so typing won't be interrupted
- * - Uses collection names from your current app:
- *   nurse_leave_requests, nurse_shift_requests, request_status_list
- * - Year-end friendly: all timestamps in YYYY-MM-DD or ISO
- *
- * Requires: firebase v8, XLSX (if you use export), and your existing HTML (office-request.html).
- * Author: ChatGPT — build 2025-11-02
+ * office-request.js (Micronurse Office) — UPDATED FOR HOURS COLUMN
+ * - Adds display column: 請假時數(小時) after "班別"
+ * - A1 rule: if no explicit hours info in legacy data, show blank
+ * - Keeps mirror to Annual Leave (特休) enabled
+ * - Firebase v8 compatible
  */
 
 (function () {
@@ -26,7 +21,6 @@
     if (!dLike) return "";
     const d = new Date(dLike);
     if (isNaN(d)) {
-      // maybe it's already 'YYYY-MM-DD'
       const s = String(dLike);
       return s.length >= 10 ? s.slice(0,10) : s;
     }
@@ -42,27 +36,30 @@
     // Preferred explicit field
     if (typeof d.hoursUsed === "number" && d.hoursUsed > 0) return d.hoursUsed;
 
-    // New UI Mode A (number + unit) — look for durationValue/durationUnit
+    // UI Mode A (number + unit)
     const val = Number(d.durationValue || d.hours || 0);
     const unit = String(d.durationUnit || d.unit || "").toLowerCase();
     if (val > 0) {
       if (unit === "hour" || unit === "hours" || unit === "小時") return val;
       if (unit === "day"  || unit === "days"  || unit === "天") return val * HOURS_PER_DAY;
+      // if unit empty (legacy but has value), assume hours
+      return val;
     }
 
-    // Legacy half-day/whole-day flags (if any)
+    // Legacy half-day
     if (String(d.halfDay || "").toLowerCase() === "true") return 4;
 
-    // Default to 1 day (your current behavior)
-    return HOURS_PER_DAY;
+    // If none -> undefined (A1: show blank)
+    return undefined;
   }
-  function dayHourText(hours) {
-    const neg = hours < 0;
-    const H = Math.abs(Number(hours) || 0);
-    const d = Math.floor(H / HOURS_PER_DAY);
-    const h = H % HOURS_PER_DAY;
-    const txt = (d ? `${d} 天` : "") + (h ? (d ? " " : "") + `${h} 小時` : (d ? "" : "0 小時"));
-    return neg ? `-${txt}` : txt;
+  function getDisplayHoursText(d) {
+    const h = hoursFromPayload(d);
+    if (typeof h === "number" && h >= 0) return `${h} 小時`;
+    return ""; // A1 rule
+  }
+  function getStatusColor(name, list) {
+    const s = list.find(x => x.name === name);
+    return s ? s.color : "#6c757d";
   }
 
   // ========= Status List =========
@@ -87,20 +84,6 @@
       `).join("");
     }
   }
-  function getStatusColor(name) {
-    const s = STATUS_LIST.find(x => x.name === name);
-    return s ? s.color : "#6c757d";
-  }
-
-  // ========= Debounce helper (to avoid typing being interrupted) =========
-  const _debounceTimers = Object.create(null);
-  function debounceUpdate(key, delay, fn) {
-    if (_debounceTimers[key]) clearTimeout(_debounceTimers[key]);
-    _debounceTimers[key] = setTimeout(() => {
-      delete _debounceTimers[key];
-      try { fn(); } catch (e) { console.error("debounceUpdate error:", e); }
-    }, delay);
-  }
 
   // ========= Rendering (Leave / Swap) =========
   function inDateRange(targetDate, start, end) {
@@ -114,7 +97,7 @@
   async function loadLeaveRequests() {
     const leaveBody = document.getElementById("leaveTableBody");
     if (!leaveBody) return;
-    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
+    leaveBody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">載入中...</td></tr>`;
     const db = DB();
     const snap = await db.collection(COL_LEAVE).orderBy("applyDate", "desc").get();
     const start = $("#leaveStartDate")?.value;
@@ -126,7 +109,9 @@
       const d = doc.data() || {};
       if (!inDateRange(d.leaveDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status);
+      const color = getStatusColor(d.status || "", STATUS_LIST);
+      const hoursText = getDisplayHoursText(d); // "" if not available
+
       rows += `
         <tr data-id="${doc.id}">
           <td>${d.applyDate || ""}</td>
@@ -134,6 +119,7 @@
           <td>${d.leaveType || ""}</td>
           <td>${d.leaveDate || ""}</td>
           <td>${d.shift || ""}</td>
+          <td>${hoursText}</td>
           <td>${d.reason || ""}</td>
           <td>
             <select class="form-select form-select-sm status-select" data-id="${doc.id}" style="background:${color};color:#fff;">
@@ -145,7 +131,7 @@
           <td class="no-print text-center"><button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     });
-    leaveBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
+    leaveBody.innerHTML = rows || `<tr><td colspan="11" class="text-center text-muted">沒有符合的資料</td></tr>`;
   }
 
   async function loadSwapRequests() {
@@ -163,7 +149,7 @@
       const d = doc.data() || {};
       if (!inDateRange(d.swapDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status);
+      const color = getStatusColor(d.status || "", STATUS_LIST);
       rows += `
         <tr data-id="${doc.id}">
           <td>${d.applyDate || ""}</td>
@@ -191,18 +177,15 @@
     const f = e.target;
     const db = DB();
 
-    // Optional mixed-mode fields (UI Mode A)
     const amountInput = f.querySelector('[name="durationValue"]') || $("#leaveAmount");
     const unitSelect  = f.querySelector('[name="durationUnit"]')  || $("#leaveUnit");
 
     let durationValue = amountInput ? Number(amountInput.value || "0") : 0;
     let durationUnit  = unitSelect  ? (unitSelect.value || "").toLowerCase() : "";
 
-    // Backward compatible defaults
     if (!(durationValue > 0)) {
-      // If no UI fields, default to 1 day
-      durationValue = 1;
-      durationUnit = "day";
+      // default to 1 day only if no UI fields exist; but since UI has field, keep 0 -> will be ignored in display
+      if (!amountInput) { durationValue = 1; durationUnit = "day"; }
     }
 
     const payload = {
@@ -217,8 +200,9 @@
       supervisorSign: "",
       durationValue,
       durationUnit,
-      hoursUsed: durationUnit.startsWith("day") ? durationValue * HOURS_PER_DAY :
-                 durationUnit.startsWith("小時") || durationUnit.startsWith("hour") ? durationValue : HOURS_PER_DAY,
+      hoursUsed: (durationValue > 0)
+        ? (durationUnit && durationUnit.startsWith("day") ? durationValue * HOURS_PER_DAY : durationValue)
+        : undefined,
       createdAt: toISODate()
     };
 
@@ -248,7 +232,7 @@
     alert("✅ 已新增調班單");
   }
 
-  // ========= Mirror Sync to Annual Leave =========
+  // ========= Mirror Sync to Annual Leave (特休) =========
   const _empIdCache = Object.create(null);
   async function resolveEmpIdByName(name) {
     if (!name) return "";
@@ -272,6 +256,10 @@
     const al = db.collection(COL_ANNUAL);
     const found = await al.where("sourceDocId","==",sourceDocId).limit(1).get();
     const empId = d.employeeId || d.empId || d.applicantId || await resolveEmpIdByName(d.applicant || d.name);
+    // compute hours but DO NOT default to HOURS_PER_DAY for display rule; annual_leave needs numeric though
+    let hrs = hoursFromPayload(d);
+    if (typeof hrs !== "number") hrs = 0; // in annual_leave, store 0 if missing
+
     const payload = {
       sourceDocId,
       source: "請假系統",
@@ -285,8 +273,8 @@
       status: d.status || "審核通過",
       supervisorSign: d.supervisorSign || "",
       note: d.note || "",
-      hoursUsed: hoursFromPayload(d),
-      daysUsed: (hoursFromPayload(d) / HOURS_PER_DAY),
+      hoursUsed: hrs,
+      daysUsed: (hrs / HOURS_PER_DAY),
       createdAt: d.createdAt || toISODate(),
       updatedAt: toISODate()
     };
@@ -314,7 +302,6 @@
     return true;
   }
 
-  // realtime mirror on leave collection
   function bindMirrorRealtime() {
     const db = DB();
     db.collection(COL_LEAVE).onSnapshot(snap => {
@@ -340,6 +327,15 @@
   }
 
   // ========= Inline updates (with debounce) =========
+  const _debounceTimers = Object.create(null);
+  function debounceUpdate(key, delay, fn) {
+    if (_debounceTimers[key]) clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key] = setTimeout(() => {
+      delete _debounceTimers[key];
+      try { fn(); } catch (e) { console.error("debounceUpdate error:", e); }
+    }, delay);
+  }
+
   async function updateRequestFieldSmart(id, patch) {
     const db = DB();
     const leaveDoc = await db.collection(COL_LEAVE).doc(id).get();
@@ -357,7 +353,6 @@
 
   function bindInlineEditors() {
     document.addEventListener("input", (e) => {
-      // supervisorSign
       if (e.target.classList.contains("supervisor-sign")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
@@ -365,7 +360,6 @@
           await updateRequestFieldSmart(id, { supervisorSign: value });
         });
       }
-      // note
       if (e.target.classList.contains("note-area")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
@@ -376,16 +370,13 @@
     });
 
     document.addEventListener("change", async (e) => {
-      // status change
       if (e.target.classList.contains("status-select")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
-        const color = getStatusColor(value);
+        const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
         e.target.style.background = color;
         e.target.style.color = "#fff";
-
         await updateRequestFieldSmart(id, { status: value });
-        // Mirror will react to onSnapshot; no need to call mirror directly here.
       }
     });
   }
@@ -399,7 +390,6 @@
         const id = btnLeave.dataset.id;
         if (confirm("確定要刪除此請假單？")) {
           await DB().collection(COL_LEAVE).doc(id).delete();
-          // Mirror will remove via onSnapshot
         }
       }
       if (btnSwap) {
@@ -493,11 +483,9 @@
     await loadLeaveRequests();
     await loadSwapRequests();
 
-    // filter buttons
     $("#filterLeave")?.addEventListener("click", loadLeaveRequests);
     $("#filterSwap") ?.addEventListener("click", loadSwapRequests);
 
-    // add forms
     $("#addLeaveForm")?.addEventListener("submit", handleAddLeave);
     $("#addSwapForm") ?.addEventListener("submit", handleAddSwap);
 
@@ -505,52 +493,31 @@
     bindDeleteButtons();
     bindExportPrint();
     bindMirrorRealtime();
+
+    // Realtime refresh (only when added/removed or status changed)
     DB().collection(COL_LEAVE).onSnapshot((snap) => {
       let shouldRefresh = false;
-    
       snap.docChanges().forEach(chg => {
-        // 若是新增或刪除 → 一定刷新
-        if (chg.type === "added" || chg.type === "removed") {
-          shouldRefresh = true;
-        }
-    
-        // 若是修改 → 只有修改 status 時才刷新
+        if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
         if (chg.type === "modified") {
-          const beforeStatus = chg.oldIndex > -1 ? chg.doc.data().status : null;
           const afterStatus = chg.doc.data().status;
-    
-          if (beforeStatus !== afterStatus) {
-            shouldRefresh = true;
-          }
+          // If status changed, refresh to update color
+          if (afterStatus !== undefined) shouldRefresh = true;
         }
       });
-    
-      if (shouldRefresh) {
-        loadLeaveRequests();
-      }
+      if (shouldRefresh) loadLeaveRequests();
     });
-    
+
     DB().collection(COL_SWAP).onSnapshot((snap) => {
       let shouldRefresh = false;
-    
       snap.docChanges().forEach(chg => {
-        if (chg.type === "added" || chg.type === "removed") {
-          shouldRefresh = true;
-        }
-    
+        if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
         if (chg.type === "modified") {
-          const beforeStatus = chg.oldIndex > -1 ? chg.doc.data().status : null;
           const afterStatus = chg.doc.data().status;
-    
-          if (beforeStatus !== afterStatus) {
-            shouldRefresh = true;
-          }
+          if (afterStatus !== undefined) shouldRefresh = true;
         }
       });
-    
-      if (shouldRefresh) {
-        loadSwapRequests();
-      }
+      if (shouldRefresh) loadSwapRequests();
     });
   });
 })();
