@@ -94,6 +94,8 @@ document.addEventListener("firebase-ready", async () => {
       leaveDate: form.leaveDate.value,
       shift: form.shift.value,
       reason: form.reason.value,
+      durationValue: Number(form.durationValue.value), // ⬅️ 新增
+      durationUnit: "hour", 
       status: "待審核",
       note: "",
       supervisorSign: ""
