@@ -760,12 +760,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         await db.collection(col).doc(id).update(patch);
         window.__editModalInstance?.hide();
+        // 🔥 避免Modal遮罩殘留造成畫面無法操作
+        setTimeout(() => {
+          document.body.classList.remove('modal-open');
+          document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        }, 200);
         if(kind==='leave' && typeof window.loadLeaveRequests==='function') window.loadLeaveRequests();
         if(kind==='swap'  && typeof window.loadSwapRequests==='function')  window.loadSwapRequests();
         alert("✅ 已更新");
       }catch(e){ console.error(e); alert("儲存時發生錯誤"); }
     });
   }
+    // ===== 防止Modal關閉後遮罩卡住 =====
+    document.addEventListener("click", (e) => {
+      // 點取消按鈕
+      if (e.target.matches("#editReqModal .btn-secondary, #editReqModal [data-bs-dismiss='modal']")) {
+        setTimeout(() => {
+          document.body.classList.remove("modal-open");
+          document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+        }, 200);
+      }
+    });
+    
+    // 當Modal完全關閉時，也再清一次（Bootstrap事件）
+    document.getElementById("editReqModal")?.addEventListener("hidden.bs.modal", () => {
+      setTimeout(() => {
+        document.body.classList.remove("modal-open");
+        document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+      }, 150);
+    });
 
   // Inject edit buttons before delete buttons (supports multiple class names)
   function injectEditButtons(){
