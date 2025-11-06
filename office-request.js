@@ -1,3 +1,8 @@
+
+/* ===== Global collections for both office & nurse sides ===== */
+window.COL_LEAVE = "nurse_leave_requests";
+window.COL_SWAP  = "nurse_shift_requests";
+
 /**
  * office-request.js (Micronurse Office) — UPDATED FOR HOURS COLUMN
  * - Adds display column: 請假時數(小時) after "班別"
@@ -644,36 +649,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-
-/* ===== Edit Modal & Button Injection (no DB(), uses firebase.firestore) ===== */
+/* ===== Edit Modal & Button Injection (uses firebase.firestore, global collections) ===== */
 (function(){
-  // Collections (hard-coded per user's schema)
-  const LEAVE_COL = "leave_requests";
-  const SWAP_COL  = "nurse_shift_requests";
+  const LEAVE_COL = window.COL_LEAVE || "nurse_leave_requests";
+  const SWAP_COL  = window.COL_SWAP  || "nurse_shift_requests";
 
-  // Ensure Bootstrap modal exists before use
-  function ensureModalExists(){
-    if (document.getElementById("editReqModal")) return;
-    // If missing, create a minimal container (safety). Actual HTML is added in the page template.
-    const div = document.createElement("div");
-    div.id = "editReqModal";
-    div.className = "modal fade";
-    div.setAttribute("tabindex","-1");
-    div.setAttribute("aria-hidden","true");
-    div.innerHTML = '<div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="editReqTitle">編輯</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="editReqForm"></form></div></div></div>';
-    document.body.appendChild(div);
-  }
+  function qs(sel){ return document.querySelector(sel); }
 
-  // Fill status select from STATUS_LIST if available
   function fillStatusSelectForModal(current){
     try{
       const sel = document.getElementById("eStatus");
       if (!sel) return;
-      if (typeof STATUS_LIST !== 'undefined' && Array.isArray(STATUS_LIST)) {
-        sel.innerHTML = STATUS_LIST.map(s =>
+      if (typeof window.STATUS_LIST !== 'undefined' && Array.isArray(window.STATUS_LIST)){
+        sel.innerHTML = window.STATUS_LIST.map(s => 
           `<option value="${s.name}" ${current===s.name?'selected':''}>${s.name}</option>`
         ).join("");
-      } else {
+      }else{
         const fallback = ['待審核','審核通過','退回'];
         sel.innerHTML = fallback.map(n => `<option value="${n}" ${current===n?'selected':''}>${n}</option>`).join("");
       }
@@ -682,48 +673,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openEdit(kind, id){
     try{
-      ensureModalExists();
-      const modalEl = document.getElementById("editReqModal");
-      const db = firebase.firestore();
+      const db  = firebase.firestore();
       const col = (kind === 'leave') ? LEAVE_COL : SWAP_COL;
       const doc = await db.collection(col).doc(id).get();
-      if (!doc.exists){
-        alert("找不到資料（ID："+id+"）");
-        return;
-      }
+      if(!doc.exists){ alert("找不到資料（ID："+id+"）"); return; }
       const d = doc.data() || {};
 
-      // Title
-      document.getElementById("editReqTitle").textContent = (kind === 'leave') ? "編輯請假單" : "編輯調班單";
-      document.getElementById("editReqId").value   = id;
-      document.getElementById("editReqType").value = kind;
+      // Set title
+      qs("#editReqTitle").textContent = (kind==='leave') ? "編輯請假單" : "編輯調班單";
+      qs("#editReqId").value   = id;
+      qs("#editReqType").value = kind;
 
       // Common
-      document.getElementById("eApplicant").value      = d.applicant || "";
-      document.getElementById("eApplyDate").value      = (d.applyDate || "").toString().slice(0,10);
-      document.getElementById("eReason").value         = d.reason || "";
-      document.getElementById("eSupervisorSign").value = d.supervisorSign || "";
-      document.getElementById("eNote").value           = d.note || "";
+      qs("#eApplicant").value      = d.applicant || "";
+      qs("#eApplyDate").value      = (d.applyDate || "").toString().slice(0,10);
+      qs("#eReason").value         = d.reason || "";
+      qs("#eSupervisorSign").value = d.supervisorSign || "";
+      qs("#eNote").value           = d.note || "";
       fillStatusSelectForModal(d.status || "");
 
       // Leave
-      document.getElementById("eLeaveType").value = d.leaveType || "";
-      document.getElementById("eLeaveDate").value = (d.leaveDate || "").toString().slice(0,10);
-      document.getElementById("eShift").value     = d.shift || "";
+      qs("#eLeaveType").value = d.leaveType || "";
+      qs("#eLeaveDate").value = (d.leaveDate || "").toString().slice(0,10);
+      qs("#eShift").value     = d.shift || "";
       const hrs = (typeof d.durationValue === "number") ? d.durationValue
-                : (typeof d.hoursUsed === "number" ? d.hoursUsed
-                : (typeof d.hours === "number" ? d.hours : ""));
-      document.getElementById("eHours").value = hrs;
+                : (typeof d.hoursUsed === "number") ? d.hoursUsed
+                : (typeof d.hours === "number") ? d.hours : "";
+      qs("#eHours").value = hrs;
 
       // Swap
-      document.getElementById("eSwapDate").value      = (d.swapDate || "").toString().slice(0,10);
-      document.getElementById("eOriginalShift").value = d.originalShift || "";
-      document.getElementById("eNewShift").value      = d.newShift || "";
+      qs("#eSwapDate").value      = (d.swapDate || "").toString().slice(0,10);
+      qs("#eOriginalShift").value = d.originalShift || "";
+      qs("#eNewShift").value      = d.newShift || "";
 
-      // Show
-      if (!window.__editModalInstance){
-        window.__editModalInstance = new bootstrap.Modal(modalEl);
-      }
+      window.__editModalInstance = window.__editModalInstance || new bootstrap.Modal(document.getElementById("editReqModal"));
       window.__editModalInstance.show();
     }catch(e){
       console.error(e);
@@ -732,87 +715,84 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function bindEditModal(){
-    // Click edit buttons
+    // Open handlers
     document.addEventListener("click", (e)=>{
-      const b1 = e.target.closest(".edit-leave");
-      const b2 = e.target.closest(".edit-swap");
-      if (b1) openEdit("leave", b1.dataset.id);
-      if (b2) openEdit("swap",  b2.dataset.id);
+      const el = e.target.closest(".edit-leave, .edit-swap");
+      if(!el) return;
+      if(el.classList.contains("edit-leave")) openEdit("leave", el.dataset.id);
+      if(el.classList.contains("edit-swap"))  openEdit("swap",  el.dataset.id);
     });
 
-    // Submit
+    // Save
     const form = document.getElementById("editReqForm");
-    if (form) form.addEventListener("submit", async (ev)=>{
+    if(form) form.addEventListener("submit", async (ev)=>{
       ev.preventDefault();
       try{
-        const id   = document.getElementById("editReqId").value;
-        const kind = document.getElementById("editReqType").value;
+        const id   = qs("#editReqId").value;
+        const kind = qs("#editReqType").value;
         const db   = firebase.firestore();
-        const col  = (kind === 'leave') ? LEAVE_COL : SWAP_COL;
+        const col  = (kind==='leave') ? LEAVE_COL : SWAP_COL;
 
         const patch = {
-          applicant:      document.getElementById("eApplicant").value.trim(),
-          applyDate:      document.getElementById("eApplyDate").value,
-          status:         document.getElementById("eStatus").value,
-          reason:         document.getElementById("eReason").value.trim(),
-          supervisorSign: document.getElementById("eSupervisorSign").value.trim(),
-          note:           document.getElementById("eNote").value.trim(),
+          applicant:      qs("#eApplicant").value.trim(),
+          applyDate:      qs("#eApplyDate").value,
+          status:         qs("#eStatus").value,
+          reason:         qs("#eReason").value.trim(),
+          supervisorSign: qs("#eSupervisorSign").value.trim(),
+          note:           qs("#eNote").value.trim(),
         };
 
-        if (kind === "leave"){
-          patch.leaveType = document.getElementById("eLeaveType").value;
-          patch.leaveDate = document.getElementById("eLeaveDate").value;
-          patch.shift     = document.getElementById("eShift").value.trim();
-          const hnum = Number(document.getElementById("eHours").value);
-          if (!isNaN(hnum) && hnum >= 0){
+        if(kind==='leave'){
+          patch.leaveType = qs("#eLeaveType").value;
+          patch.leaveDate = qs("#eLeaveDate").value;
+          patch.shift     = qs("#eShift").value.trim();
+          const hnum = Number(qs("#eHours").value);
+          if(!isNaN(hnum) && hnum >= 0){
             patch.durationValue = hnum;
             patch.durationUnit  = "hour";
-            patch.hoursUsed     = hnum; // for legacy display
+            patch.hoursUsed     = hnum; // legacy display support
           }
-        } else {
-          patch.swapDate      = document.getElementById("eSwapDate").value;
-          patch.originalShift = document.getElementById("eOriginalShift").value.trim();
-          patch.newShift      = document.getElementById("eNewShift").value.trim();
+        }else{
+          patch.swapDate      = qs("#eSwapDate").value;
+          patch.originalShift = qs("#eOriginalShift").value.trim();
+          patch.newShift      = qs("#eNewShift").value.trim();
         }
 
         await db.collection(col).doc(id).update(patch);
         window.__editModalInstance?.hide();
+        if(kind==='leave' && typeof window.loadLeaveRequests==='function') window.loadLeaveRequests();
+        if(kind==='swap'  && typeof window.loadSwapRequests==='function')  window.loadSwapRequests();
         alert("✅ 已更新");
-
-        // Try refresh lists if functions exist
-        if (kind === "leave" && typeof window.loadLeaveRequests === "function") window.loadLeaveRequests();
-        if (kind === "swap"  && typeof window.loadSwapRequests  === "function") window.loadSwapRequests();
       }catch(e){ console.error(e); alert("儲存時發生錯誤"); }
     });
   }
 
-  // After table render, inject edit buttons before delete buttons
+  // Inject edit buttons before delete buttons (supports multiple class names)
   function injectEditButtons(){
-    const leaveBtns = document.querySelectorAll('button.delete-leave');
-    leaveBtns.forEach(btn => {
-      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains('edit-leave')) return;
-      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || "";
+    const selectors = [
+      // leave delete
+      'button.delete-leave','button.deleteLeave',
+      // swap delete
+      'button.delete-swap','button.deleteSwap'
+    ];
+    document.querySelectorAll(selectors.join(',')).forEach(btn => {
+      const isSwap = btn.classList.contains('delete-swap') || btn.classList.contains('deleteSwap');
+      const editClass = isSwap ? 'edit-swap' : 'edit-leave';
+      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains(editClass)) return;
+      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || '';
       const b = document.createElement('button');
-      b.className = "btn btn-sm btn-outline-primary me-1 edit-leave";
+      b.type = 'button';
+      b.className = `btn btn-sm btn-outline-primary me-1 ${editClass}`;
       b.dataset.id = id;
-      b.innerHTML = '<i class="fa-solid fa-pen"></i>';
-      btn.parentNode.insertBefore(b, btn);
-    });
-    const swapBtns = document.querySelectorAll('button.delete-swap');
-    swapBtns.forEach(btn => {
-      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains('edit-swap')) return;
-      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || "";
-      const b = document.createElement('button');
-      b.className = "btn btn-sm btn-outline-primary me-1 edit-swap";
-      b.dataset.id = id;
-      b.innerHTML = '<i class="fa-solid fa-pen"></i>';
+      b.textContent = '✏️';
       btn.parentNode.insertBefore(b, btn);
     });
   }
 
-  // Observe table mutations to re-inject buttons after rerender
+  // Observe DOM to re-inject after rerender
   const mo = new MutationObserver(() => injectEditButtons());
-  document.addEventListener('DOMContentLoaded', ()=>{
+
+  document.addEventListener('DOMContentLoaded', () => {
     bindEditModal();
     injectEditButtons();
     mo.observe(document.body, { childList:true, subtree:true });
