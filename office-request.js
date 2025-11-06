@@ -65,7 +65,7 @@
   // ========= Status List =========
   let STATUS_LIST = [];
   async function loadStatuses() {
-    const statusCol = DB().collection(COL_STATUS);
+    const statusCol = firebase.firestore().collection(COL_STATUS);
     const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
     STATUS_LIST = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const optionHTML = STATUS_LIST.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
@@ -98,7 +98,7 @@
     const leaveBody = document.getElementById("leaveTableBody");
     if (!leaveBody) return;
     leaveBody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">載入中...</td></tr>`;
-    const db = DB();
+    const db = firebase.firestore();
     const snap = await db.collection(COL_LEAVE).orderBy("applyDate", "desc").get();
     const start = $("#leaveStartDate")?.value;
     const end   = $("#leaveEndDate")?.value;
@@ -139,7 +139,7 @@
     const swapBody = document.getElementById("swapTableBody");
     if (!swapBody) return;
     swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
-    const db = DB();
+    const db = firebase.firestore();
     const snap = await db.collection(COL_SWAP).orderBy("applyDate", "desc").get();
     const start = $("#swapStartDate")?.value;
     const end   = $("#swapEndDate")?.value;
@@ -177,7 +177,7 @@
   async function handleAddLeave(e) {
     e.preventDefault();
     const f = e.target;
-    const db = DB();
+    const db = firebase.firestore();
 
     const amountInput = f.querySelector('[name="durationValue"]') || $("#leaveAmount");
     const unitSelect  = f.querySelector('[name="durationUnit"]')  || $("#leaveUnit");
@@ -216,7 +216,7 @@
   async function handleAddSwap(e) {
     e.preventDefault();
     const f = e.target;
-    const db = DB();
+    const db = firebase.firestore();
     const payload = {
       applicant: f.applicant.value,
       applyDate: new Date().toISOString().split("T")[0],
@@ -239,7 +239,7 @@
   async function resolveEmpIdByName(name) {
     if (!name) return "";
     if (_empIdCache[name]) return _empIdCache[name];
-    const db = DB();
+    const db = firebase.firestore();
     let q = await db.collection("nurses").where("name","==",name).limit(1).get();
     if (!q.empty) {
       const id = q.docs[0].data().empId || q.docs[0].data().id || q.docs[0].id || "";
@@ -254,7 +254,7 @@
   }
 
   async function upsertAnnualBySource(sourceDocId, d) {
-    const db = DB();
+    const db = firebase.firestore();
     const al = db.collection(COL_ANNUAL);
     const found = await al.where("sourceDocId","==",sourceDocId).limit(1).get();
     const empId = d.employeeId || d.empId || d.applicantId || await resolveEmpIdByName(d.applicant || d.name);
@@ -294,7 +294,7 @@
   }
 
   async function deleteAnnualBySource(sourceDocId) {
-    const db = DB();
+    const db = firebase.firestore();
     const al = db.collection(COL_ANNUAL);
     const snap = await al.where("sourceDocId","==",sourceDocId).get();
     if (snap.empty) return false;
@@ -305,7 +305,7 @@
   }
 
   function bindMirrorRealtime() {
-    const db = DB();
+    const db = firebase.firestore();
     db.collection(COL_LEAVE).onSnapshot(snap => {
       snap.docChanges().forEach(async chg => {
         const id = chg.doc.id;
@@ -339,7 +339,7 @@
   }
 
   async function updateRequestFieldSmart(id, patch) {
-    const db = DB();
+    const db = firebase.firestore();
     const leaveDoc = await db.collection(COL_LEAVE).doc(id).get();
     if (leaveDoc.exists) {
       await leaveDoc.ref.update(patch);
@@ -391,13 +391,13 @@
       if (btnLeave) {
         const id = btnLeave.dataset.id;
         if (confirm("確定要刪除此請假單？")) {
-          await DB().collection(COL_LEAVE).doc(id).delete();
+          await firebase.firestore().collection(COL_LEAVE).doc(id).delete();
         }
       }
       if (btnSwap) {
         const id = btnSwap.dataset.id;
         if (confirm("確定要刪除此調班單？")) {
-          await DB().collection(COL_SWAP).doc(id).delete();
+          await firebase.firestore().collection(COL_SWAP).doc(id).delete();
         }
       }
     });
@@ -497,7 +497,7 @@
     bindMirrorRealtime();
 
     // Realtime refresh (only when added/removed or status changed)
-    DB().collection(COL_LEAVE).onSnapshot((snap) => {
+    firebase.firestore().collection(COL_LEAVE).onSnapshot((snap) => {
       let shouldRefresh = false;
       snap.docChanges().forEach(chg => {
         if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
@@ -510,7 +510,7 @@
       if (shouldRefresh) loadLeaveRequests();
     });
 
-    DB().collection(COL_SWAP).onSnapshot((snap) => {
+    firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
       let shouldRefresh = false;
       snap.docChanges().forEach(chg => {
         if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
@@ -546,7 +546,7 @@ function fillStatusSelectForModal(current) {
 
 async function openEdit(kind, id) {
   try {
-    const db = DB();
+    const db = firebase.firestore();
     const col = kind === "leave" ? COL_LEAVE : COL_SWAP;
     const snap = await db.collection(col).doc(id).get();
     if (!snap.exists) return alert("找不到資料");
@@ -597,7 +597,7 @@ function bindEditModal() {
     try {
       const id   = document.getElementById("editReqId").value;
       const kind = document.getElementById("editReqType").value;
-      const db   = DB();
+      const db   = firebase.firestore();
       const col  = kind === "leave" ? COL_LEAVE : COL_SWAP;
 
       const patch = {
@@ -642,3 +642,179 @@ function bindEditModal() {
 document.addEventListener('DOMContentLoaded', () => {
   try { bindEditModal(); } catch(e) { console.error(e); }
 });
+
+
+
+/* ===== Edit Modal & Button Injection (no DB(), uses firebase.firestore) ===== */
+(function(){
+  // Collections (hard-coded per user's schema)
+  const LEAVE_COL = "leave_requests";
+  const SWAP_COL  = "nurse_shift_requests";
+
+  // Ensure Bootstrap modal exists before use
+  function ensureModalExists(){
+    if (document.getElementById("editReqModal")) return;
+    // If missing, create a minimal container (safety). Actual HTML is added in the page template.
+    const div = document.createElement("div");
+    div.id = "editReqModal";
+    div.className = "modal fade";
+    div.setAttribute("tabindex","-1");
+    div.setAttribute("aria-hidden","true");
+    div.innerHTML = '<div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="editReqTitle">編輯</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="editReqForm"></form></div></div></div>';
+    document.body.appendChild(div);
+  }
+
+  // Fill status select from STATUS_LIST if available
+  function fillStatusSelectForModal(current){
+    try{
+      const sel = document.getElementById("eStatus");
+      if (!sel) return;
+      if (typeof STATUS_LIST !== 'undefined' && Array.isArray(STATUS_LIST)) {
+        sel.innerHTML = STATUS_LIST.map(s =>
+          `<option value="${s.name}" ${current===s.name?'selected':''}>${s.name}</option>`
+        ).join("");
+      } else {
+        const fallback = ['待審核','審核通過','退回'];
+        sel.innerHTML = fallback.map(n => `<option value="${n}" ${current===n?'selected':''}>${n}</option>`).join("");
+      }
+    }catch(e){ console.error(e); }
+  }
+
+  async function openEdit(kind, id){
+    try{
+      ensureModalExists();
+      const modalEl = document.getElementById("editReqModal");
+      const db = firebase.firestore();
+      const col = (kind === 'leave') ? LEAVE_COL : SWAP_COL;
+      const doc = await db.collection(col).doc(id).get();
+      if (!doc.exists){
+        alert("找不到資料（ID："+id+"）");
+        return;
+      }
+      const d = doc.data() || {};
+
+      // Title
+      document.getElementById("editReqTitle").textContent = (kind === 'leave') ? "編輯請假單" : "編輯調班單";
+      document.getElementById("editReqId").value   = id;
+      document.getElementById("editReqType").value = kind;
+
+      // Common
+      document.getElementById("eApplicant").value      = d.applicant || "";
+      document.getElementById("eApplyDate").value      = (d.applyDate || "").toString().slice(0,10);
+      document.getElementById("eReason").value         = d.reason || "";
+      document.getElementById("eSupervisorSign").value = d.supervisorSign || "";
+      document.getElementById("eNote").value           = d.note || "";
+      fillStatusSelectForModal(d.status || "");
+
+      // Leave
+      document.getElementById("eLeaveType").value = d.leaveType || "";
+      document.getElementById("eLeaveDate").value = (d.leaveDate || "").toString().slice(0,10);
+      document.getElementById("eShift").value     = d.shift || "";
+      const hrs = (typeof d.durationValue === "number") ? d.durationValue
+                : (typeof d.hoursUsed === "number" ? d.hoursUsed
+                : (typeof d.hours === "number" ? d.hours : ""));
+      document.getElementById("eHours").value = hrs;
+
+      // Swap
+      document.getElementById("eSwapDate").value      = (d.swapDate || "").toString().slice(0,10);
+      document.getElementById("eOriginalShift").value = d.originalShift || "";
+      document.getElementById("eNewShift").value      = d.newShift || "";
+
+      // Show
+      if (!window.__editModalInstance){
+        window.__editModalInstance = new bootstrap.Modal(modalEl);
+      }
+      window.__editModalInstance.show();
+    }catch(e){
+      console.error(e);
+      alert("讀取資料時發生錯誤");
+    }
+  }
+
+  function bindEditModal(){
+    // Click edit buttons
+    document.addEventListener("click", (e)=>{
+      const b1 = e.target.closest(".edit-leave");
+      const b2 = e.target.closest(".edit-swap");
+      if (b1) openEdit("leave", b1.dataset.id);
+      if (b2) openEdit("swap",  b2.dataset.id);
+    });
+
+    // Submit
+    const form = document.getElementById("editReqForm");
+    if (form) form.addEventListener("submit", async (ev)=>{
+      ev.preventDefault();
+      try{
+        const id   = document.getElementById("editReqId").value;
+        const kind = document.getElementById("editReqType").value;
+        const db   = firebase.firestore();
+        const col  = (kind === 'leave') ? LEAVE_COL : SWAP_COL;
+
+        const patch = {
+          applicant:      document.getElementById("eApplicant").value.trim(),
+          applyDate:      document.getElementById("eApplyDate").value,
+          status:         document.getElementById("eStatus").value,
+          reason:         document.getElementById("eReason").value.trim(),
+          supervisorSign: document.getElementById("eSupervisorSign").value.trim(),
+          note:           document.getElementById("eNote").value.trim(),
+        };
+
+        if (kind === "leave"){
+          patch.leaveType = document.getElementById("eLeaveType").value;
+          patch.leaveDate = document.getElementById("eLeaveDate").value;
+          patch.shift     = document.getElementById("eShift").value.trim();
+          const hnum = Number(document.getElementById("eHours").value);
+          if (!isNaN(hnum) && hnum >= 0){
+            patch.durationValue = hnum;
+            patch.durationUnit  = "hour";
+            patch.hoursUsed     = hnum; // for legacy display
+          }
+        } else {
+          patch.swapDate      = document.getElementById("eSwapDate").value;
+          patch.originalShift = document.getElementById("eOriginalShift").value.trim();
+          patch.newShift      = document.getElementById("eNewShift").value.trim();
+        }
+
+        await db.collection(col).doc(id).update(patch);
+        window.__editModalInstance?.hide();
+        alert("✅ 已更新");
+
+        // Try refresh lists if functions exist
+        if (kind === "leave" && typeof window.loadLeaveRequests === "function") window.loadLeaveRequests();
+        if (kind === "swap"  && typeof window.loadSwapRequests  === "function") window.loadSwapRequests();
+      }catch(e){ console.error(e); alert("儲存時發生錯誤"); }
+    });
+  }
+
+  // After table render, inject edit buttons before delete buttons
+  function injectEditButtons(){
+    const leaveBtns = document.querySelectorAll('button.delete-leave');
+    leaveBtns.forEach(btn => {
+      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains('edit-leave')) return;
+      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || "";
+      const b = document.createElement('button');
+      b.className = "btn btn-sm btn-outline-primary me-1 edit-leave";
+      b.dataset.id = id;
+      b.innerHTML = '<i class="fa-solid fa-pen"></i>';
+      btn.parentNode.insertBefore(b, btn);
+    });
+    const swapBtns = document.querySelectorAll('button.delete-swap');
+    swapBtns.forEach(btn => {
+      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains('edit-swap')) return;
+      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || "";
+      const b = document.createElement('button');
+      b.className = "btn btn-sm btn-outline-primary me-1 edit-swap";
+      b.dataset.id = id;
+      b.innerHTML = '<i class="fa-solid fa-pen"></i>';
+      btn.parentNode.insertBefore(b, btn);
+    });
+  }
+
+  // Observe table mutations to re-inject buttons after rerender
+  const mo = new MutationObserver(() => injectEditButtons());
+  document.addEventListener('DOMContentLoaded', ()=>{
+    bindEditModal();
+    injectEditButtons();
+    mo.observe(document.body, { childList:true, subtree:true });
+  });
+})();
