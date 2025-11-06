@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
          // ✅ 新增：未勾選不得登入
         const privacyCheck = document.getElementById('privacyCheck');
         if (!privacyCheck.checked) {
-            alert("請先勾選同意隱私權使用政策");
+            alert("請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》");
             return;
         }
         const password = passwordInput.value;
