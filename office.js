@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function handleLogin() {
+         // ✅ 新增：未勾選不得登入
+        const privacyCheck = document.getElementById('privacyCheck');
+        if (!privacyCheck.checked) {
+            alert("請先勾選同意隱私權使用政策");
+            return;
+        }
         const password = passwordInput.value;
         if (!password) {
             alert('請輸入密碼');
