@@ -526,7 +526,7 @@
 
 
 
-// ========= Edit Modal (full edit) =========
+// ========= Edit Modal (full edit with dropdown leaveType) =========
 let editModal;
 
 function fillStatusSelectForModal(current) {
@@ -538,9 +538,8 @@ function fillStatusSelectForModal(current) {
         `<option value="${s.name}" ${current === s.name ? "selected": ""}>${s.name}</option>`
       ).join("");
     } else {
-      sel.innerHTML = ['待審','核准','退回'].map(n => 
-        `<option value="${n}" ${current === n ? "selected": ""}>${n}</option>`
-      ).join("");
+      const fallback = ['待審核','審核通過','退回'];
+      sel.innerHTML = fallback.map(n => `<option value="${n}" ${current===n?'selected':''}>${n}</option>`).join("");
     }
   } catch (e) { console.error(e); }
 }
@@ -565,16 +564,16 @@ async function openEdit(kind, id) {
     document.getElementById("eNote").value           = d.note || "";
     fillStatusSelectForModal(d.status || "");
 
-    // leave 專用
+    // 請假
     document.getElementById("eLeaveType").value = d.leaveType || "";
     document.getElementById("eLeaveDate").value = d.leaveDate || "";
     document.getElementById("eShift").value     = d.shift || "";
-    const hrs = (typeof d.hoursUsed === "number") ? d.hoursUsed
-              : (typeof d.durationValue === "number" ? d.durationValue
+    const hrs = (typeof d.durationValue === "number") ? d.durationValue
+              : (typeof d.hoursUsed === "number" ? d.hoursUsed
               : (typeof d.hours === "number" ? d.hours : ""));
     document.getElementById("eHours").value = hrs;
 
-    // swap 專用
+    // 調班
     document.getElementById("eSwapDate").value      = d.swapDate || "";
     document.getElementById("eOriginalShift").value = d.originalShift || "";
     document.getElementById("eNewShift").value      = d.newShift || "";
@@ -585,7 +584,6 @@ async function openEdit(kind, id) {
 }
 
 function bindEditModal() {
-  // 1) 點擊列上的編輯按鈕
   document.addEventListener("click", (e) => {
     const b1 = e.target.closest(".edit-leave");
     const b2 = e.target.closest(".edit-swap");
@@ -593,19 +591,6 @@ function bindEditModal() {
     if (b2)  openEdit("swap",  b2.dataset.id);
   });
 
-  // 2) 也支援雙擊資料列開啟（保險方案，不改你渲染欄位時也能打開）
-  document.addEventListener("dblclick", (e) => {
-    const tr = e.target.closest("tr");
-    if (!tr) return;
-    const id = tr.getAttribute("data-id") || tr.dataset.id;
-    if (!id) return;
-    // 嘗試判斷目前頁籤：leave/swap
-    const active = document.querySelector('.nav-link.active');
-    const kind = active && /swap/i.test(active.textContent) ? 'swap' : 'leave';
-    openEdit(kind, id);
-  });
-
-  // 3) 提交儲存
   const form = document.getElementById("editReqForm");
   if (form) form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -615,7 +600,6 @@ function bindEditModal() {
       const db   = DB();
       const col  = kind === "leave" ? COL_LEAVE : COL_SWAP;
 
-      // 共用欄位
       const patch = {
         applicant:      document.getElementById("eApplicant").value.trim(),
         applyDate:      document.getElementById("eApplyDate").value,
@@ -626,15 +610,18 @@ function bindEditModal() {
       };
 
       if (kind === "leave") {
-        patch.leaveType = document.getElementById("eLeaveType").value.trim();
+        patch.leaveType = document.getElementById("eLeaveType").value;
         patch.leaveDate = document.getElementById("eLeaveDate").value;
         patch.shift     = document.getElementById("eShift").value.trim();
         const hoursVal  = document.getElementById("eHours").value;
         const hnum = Number(hoursVal);
         if (!isNaN(hnum) && hnum >= 0) {
-          patch.hoursUsed     = hnum;
           patch.durationValue = hnum;
-          patch.durationUnit  = "hours";
+          patch.durationUnit  = "hour";
+          patch.hoursUsed     = hnum; // 兼容舊資料顯示
+        } else {
+          patch.durationValue = null;
+          patch.durationUnit  = "hour";
         }
       } else {
         patch.swapDate      = document.getElementById("eSwapDate").value;
@@ -644,13 +631,14 @@ function bindEditModal() {
 
       await db.collection(col).doc(id).update(patch);
 
+      if (typeof loadLeaveRequests === 'function' && kind === "leave") await loadLeaveRequests();
+      if (typeof loadSwapRequests  === 'function' && kind === "swap")  await loadSwapRequests();
       editModal?.hide();
-      if (kind === "leave" && typeof loadLeaveRequests === 'function') await loadLeaveRequests();
-      if (kind === "swap"  && typeof loadSwapRequests  === 'function') await loadSwapRequests();
       alert("✅ 已更新");
     } catch (e) { console.error(e); alert("儲存時發生錯誤"); }
   });
 }
 
-// 嘗試自動注入初始化呼叫（若原碼中有 Init 區塊，你也可在那邊手動加 bindEditModal();）
-try { bindEditModal(); } catch(e) { document.addEventListener('DOMContentLoaded', () => { try{ bindEditModal(); }catch(e){} }); }
+document.addEventListener('DOMContentLoaded', () => {
+  try { bindEditModal(); } catch(e) { console.error(e); }
+});
