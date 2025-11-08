@@ -61,13 +61,17 @@
   function startOfYear(y) { return new Date(`${y}-01-01T00:00:00`); }
   function endOfYear(y)   { return new Date(`${y}-12-31T23:59:59`); }
 
-  // X 小時 → "D 天 H 小時"（整數制）
   function hoursToDPlusH(hours) {
-    const h = Math.max(0, Math.round(Number(hours) || 0));
+    const h = Math.max(0, Number(hours) || 0); // ✅ 不取整數
     const d = Math.floor(h / HOURS_PER_DAY);
     const rem = h % HOURS_PER_DAY;
-    return `${d} 天 ${rem} 小時`;
+    const fullH = Math.floor(rem);
+    const minutes = Math.round((rem - fullH) * 60); // ✅ 將小數部分轉成分鐘
+    let text = `${d} 天 ${fullH} 小時`;
+    if (minutes > 0) text += ` ${minutes} 分鐘`;
+    return text;
   }
+  
   // X 小時 → {days, hours}
   function decomposeHours(hours) {
     const h = Math.max(0, Math.round(Number(hours) || 0));
@@ -76,9 +80,9 @@
   // Firestore record → 小時（優先 hoursUsed；退而求其次 daysUsed/durationValue）
   function recordHours(d) {
     const h = Number(d?.hoursUsed);
-    if (!isNaN(h) && isFinite(h)) return Math.max(0, Math.round(h));
+    if (!isNaN(h) && isFinite(h)) return Math.max(0, h); // ✅ 不四捨五入
     const days = Number(d?.daysUsed ?? d?.durationValue);
-    if (!isNaN(days) && isFinite(days)) return Math.max(0, Math.round(days * HOURS_PER_DAY));
+    if (!isNaN(days) && isFinite(days)) return Math.max(0, days * HOURS_PER_DAY);
     return 0;
   }
 
@@ -407,14 +411,14 @@
       const empId = empSel?.value || "";
       const empName = empSel?.selectedOptions?.[0]?.getAttribute("data-name") || "";
       const date = dateEl?.value || "";
-      const amount = Math.round(Number(amountEl?.value || "0")); // 整數制
+      const amount = Number(amountEl?.value || "0"); // ✅ 改成支援小數
       const unit = (unitEl?.value || "day").toLowerCase();
       const isDay = unit === "day";
       const reason = reasonEl?.value || "";
 
       if (!empId || !date || !(amount > 0)) { alert("請選擇員工、日期並輸入正確整數數值"); return; }
 
-      const hours = isDay ? amount * HOURS_PER_DAY : amount;
+      const hours = isDay ? amount * HOURS_PER_DAY : amount; // ✅ 小數制照樣可用
       const payload = {
         createdAt: new Date().toISOString(),
         date,
