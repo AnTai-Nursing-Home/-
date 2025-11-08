@@ -142,6 +142,7 @@ document.addEventListener('firebase-ready', () => {
                         batch.set(docRef, {
                             bedNumber: String(r.床號 || ''),
                             gender: String(r.性別 || ''),
+                            idNumber: String(r.身分證字號 || ''), 
                             birthday: formatDate(r.生日),
                             checkinDate: formatDate(r.入住日期),
                         });
