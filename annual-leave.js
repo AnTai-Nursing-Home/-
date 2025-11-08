@@ -72,11 +72,16 @@
     return text;
   }
   
-  // X 小時 → {days, hours}
+  // 小時 → {days, hours, minutes}
   function decomposeHours(hours) {
-    const h = Math.max(0, Math.round(Number(hours) || 0));
-    return { days: Math.floor(h / HOURS_PER_DAY), hours: h % HOURS_PER_DAY };
+    const h = Math.max(0, Number(hours) || 0);
+    const d = Math.floor(h / HOURS_PER_DAY);
+    const rem = h % HOURS_PER_DAY;
+    const fullH = Math.floor(rem);
+    const minutes = Math.round((rem - fullH) * 60);
+    return { days: d, hours: fullH, minutes };
   }
+  
   // Firestore record → 小時（優先 hoursUsed；退而求其次 daysUsed/durationValue）
   function recordHours(d) {
     const h = Number(d?.hoursUsed);
@@ -347,6 +352,9 @@
       const yrs = p.hireDate ? yearsCompletedAtEndOf(year, p.hireDate) : 0;
       const yrsTxt = p.hireDate ? `${Math.floor(yrs)} 年 ${Math.round((yrs%1)*12)} 月` : "";
 
+      let remainText = `${remainDH.days} 天 ${remainDH.hours} 小時`;
+      if (remainDH.minutes > 0) remainText += ` ${remainDH.minutes} 分鐘`;
+      
       return {
         empId: p.empId,
         name: `${p.name}${p.role==="nurse"?"(護理師)":p.role==="caregiver"?"(照服員)":""}`,
@@ -354,7 +362,7 @@
         seniority: yrsTxt,
         entText: `${entDaysOnly} 天`,
         usedText: `${usedDH.days} 天 ${usedDH.hours} 小時（${usedH} 小時）`,
-        remainText: `${remainDH.days} 天 ${remainDH.hours} 小時`,
+        remainText,
         remainHours: `${remainH} 小時`
       };
     });
