@@ -3,136 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>特約醫師巡診掛號及就診狀況單 - 員工系統</title>
+  <title>特約醫師巡診掛號及就診狀況單</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <style>
-    .dr-title {
-      font-weight: 700;
-      font-size: 20px;
-      letter-spacing: 2px;
-    }
-    .dr-table th,
-    .dr-table td {
-      font-size: 12px;
-      vertical-align: middle;
-      padding: 4px 6px;
-    }
-    .dr-header-row label {
-      font-weight: 600;
-      margin-right: 4px;
-    }
-    .signature-block {
-      margin-top: 16px;
-      font-size: 14px;
-    }
-    .signature-block span.label {
-      font-weight: 600;
-      margin-right: 4px;
-    }
+    body { font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; font-size: 10pt; }
+    .title { text-align: center; font-weight: bold; font-size: 16pt; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #000; padding: 3px 4px; font-size: 10pt; vertical-align: middle; }
+    th { text-align: center; font-weight: 600; }
+    .no-print { margin-bottom: 10px; }
+    .signature { margin-top: 16px; font-size: 10pt; }
     @media print {
-      body { zoom: 0.9; }
+      @page { size: A4 portrait; margin: 15mm; }
       .no-print { display: none !important; }
-      .card, .card-body, .card-header {
-        border: none;
-        box-shadow: none;
-      }
+      body { -webkit-print-color-adjust: exact; }
     }
   </style>
 </head>
 <body>
-<div class="container my-4">
-  <div class="row justify-content-center">
-    <div class="col-lg-12">
-      <div class="card shadow">
-        <div class="card-header bg-white text-center">
-          <div class="dr-title">特約醫師巡診掛號及就診狀況單</div>
-        </div>
-        <div class="card-body">
+<div class="container my-3">
+  <div class="no-print text-end mb-3">
+    <label>巡診日期：</label>
+    <input type="date" id="round-date">
+    <button id="load-btn" class="btn btn-secondary btn-sm">載入 / 建立</button>
+    <button id="add-row-btn" class="btn btn-success btn-sm">新增列</button>
+    <button id="save-btn" class="btn btn-primary btn-sm">儲存</button>
+    <button id="export-btn" class="btn btn-outline-success btn-sm">匯出 Excel</button>
+    <button id="print-btn" class="btn btn-outline-dark btn-sm">列印</button>
+  </div>
 
-          <!-- 控制列（僅畫面用，不印出） -->
-          <div class="row g-3 align-items-end mb-3 no-print">
-            <div class="col-md-3">
-              <label for="round-date" class="form-label">醫巡日期</label>
-              <input type="date" id="round-date" class="form-control">
-            </div>
-            <div class="col-md-9 text-end">
-              <button id="load-sheet-btn" class="btn btn-secondary me-2">
-                <i class="fas fa-folder-open me-1"></i>載入 / 建立醫巡單
-              </button>
-              <button id="add-row-btn" class="btn btn-success me-2">
-                <i class="fas fa-plus me-1"></i>新增看診住民
-              </button>
-              <button id="save-sheet-btn" class="btn btn-primary me-2">
-                <i class="fas fa-save me-1"></i>儲存
-              </button>
-              <button id="export-excel-btn" class="btn btn-outline-success me-2">
-                <i class="fas fa-file-excel me-1"></i>匯出 Excel
-              </button>
-              <button id="print-btn" class="btn btn-outline-dark">
-                <i class="fas fa-print me-1"></i>列印
-              </button>
-            </div>
-          </div>
+  <div class="title">特約醫師巡診掛號及就診狀況單</div>
+  <div>醫巡日期：<span id="display-date"></span>　看診人數：<span id="patient-count">0</span></div>
 
-          <!-- 表頭資訊列（列印用） -->
-          <div class="row mb-2">
-            <div class="col-12">
-              <span>醫巡日期：<span id="display-date"></span></span>
-              &emsp; 看診人數：<span id="patient-count">0</span>
-            </div>
-          </div>
+  <table id="round-table" class="mt-2">
+    <thead>
+    <tr>
+      <th style="width:50px;">排序</th>
+      <th style="width:80px;">床號</th>
+      <th style="width:120px;">姓名</th>
+      <th style="width:150px;">身分證字號</th>
+      <th style="width:200px;">生命徵象</th>
+      <th style="width:200px;">病情簡述</th>
+      <th style="width:200px;">醫師手記</th>
+      <th class="no-print" style="width:60px;">操作</th>
+    </tr>
+    </thead>
+    <tbody id="round-tbody"></tbody>
+  </table>
 
-          <!-- 醫巡表格 -->
-          <div class="table-responsive">
-            <table class="table table-bordered dr-table" id="doctor-rounds-table">
-              <thead class="table-light text-center align-middle">
-              <tr>
-                <th style="width:40px;">序</th>
-                <th style="width:80px;">床號</th>
-                <th style="width:120px;">姓名</th>
-                <th style="width:150px;">身分證字號</th>
-                <th style="width:60px;">體溫</th>
-                <th style="width:60px;">脈搏</th>
-                <th style="width:60px;">呼吸</th>
-                <th style="width:80px;">血壓</th>
-                <th style="width:70px;">血氧</th>
-                <th style="width:180px;">病情簡述 / 主訴</th>
-                <th style="width:200px;">醫師手記 / 囑語</th>
-                <th class="no-print" style="width:50px;">操作</th>
-              </tr>
-              </thead>
-              <tbody id="doctor-rounds-tbody">
-              </tbody>
-            </table>
-          </div>
-
-          <!-- 簽名區（照你截圖放在最下方） -->
-          <div class="signature-block">
-            <div>
-              <span class="label">特約醫巡醫師簽章：</span>
-              <span style="display:inline-block; min-width:220px; border-bottom:1px solid #000;"></span>
-              &emsp;&emsp;
-              <span class="label">當日跟診護理師簽名：</span>
-              <span style="display:inline-block; min-width:220px; border-bottom:1px solid #000;"></span>
-            </div>
-            <div class="mt-2">
-              <span class="label">醫巡日期：</span>
-              <span id="signature-date" style="display:inline-block; min-width:180px; border-bottom:1px solid #000;"></span>
-            </div>
-          </div>
-
-        </div>
-      </div>
+  <div class="signature">
+    <div>
+      特約醫巡醫師簽章：<span style="display:inline-block;width:200px;border-bottom:1px solid #000;"></span>
+      當日跟診護理師簽名：<span style="display:inline-block;width:200px;border-bottom:1px solid #000;"></span>
+    </div>
+    <div class="mt-1">
+      醫巡日期：<span id="sign-date" style="display:inline-block;width:150px;border-bottom:1px solid #000;"></span>
     </div>
   </div>
 </div>
-
-<footer class="site-footer text-center mt-4 no-print">
-  © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
-</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
