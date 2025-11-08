@@ -289,13 +289,8 @@ window.COL_SWAP  = "nurse_shift_requests";
       console.warn("[mirror] skip upsert: missing required fields", payload);
       return false;
     }
-    if (!found.empty) {
-      await found.docs[0].ref.update(payload);
-      return true;
-    } else {
-      await al.add(payload);
-      return true;
-    }
+    await al.doc(sourceDocId).set(payload, { merge: true });
+    return true;
   }
 
   async function deleteAnnualBySource(sourceDocId) {
