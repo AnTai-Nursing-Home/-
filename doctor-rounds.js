@@ -1,13 +1,4 @@
-// doctor-rounds.js - 醫師巡診系統完整版
-// 使用說明：放在與 doctor-rounds.html 同層，並確保已載入 firebase-init.js。
-// 功能：
-// - 依日期建立/載入一張醫巡單 (collection: doctor_rounds, docId = YYYY-MM-DD)
-// - 從 residents 集合載入床號 -> 下拉選單；選床號自動帶姓名與身分證字號
-// - 欄位：排序、床號、姓名、身分證字號、生命徵象、病情簡述、醫師手記
-// - 至少顯示 6 列（不足自動補空白列），列印與匯出亦保留 6 列
-// - 列印 A4 直式，標題與簽名區固定
-// - 匯出 Excel 與畫面欄位相同，含標題與簽名列
-// - 日期顯示為民國年 (例：114/10/28)
+// doctor-rounds.js - 醫師巡診系統 (畫面 Bootstrap、列印 Excel 風格)
 
 document.addEventListener('firebase-ready', () => {
   const db = firebase.firestore();
@@ -26,9 +17,10 @@ document.addEventListener('firebase-ready', () => {
 
   const COLLECTION = 'doctor_rounds';
   const MIN_ROWS = 6;
-  const RESIDENTS_BY_BED = {};
 
-  // 讀取住民資料
+  const RESIDENTS_BY_BED = {}; // { bedNumber: { name, idNumber } }
+
+  // 讀取住民資料作為床號來源
   async function loadResidents() {
     const snap = await db.collection('residents').get();
     snap.forEach(doc => {
@@ -57,7 +49,7 @@ document.addEventListener('firebase-ready', () => {
     return html;
   }
 
-  // 西元轉民國
+  // 西元 → 民國
   function toRoc(iso) {
     if (!iso) return '';
     const [y, m, d] = iso.split('-').map(Number);
@@ -65,7 +57,7 @@ document.addEventListener('firebase-ready', () => {
     return `${y - 1911}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
   }
 
-  // 更新排序、人數與日期顯示
+  // 更新排序、人數、日期顯示
   function refreshMeta() {
     const rows = [...tbody.querySelectorAll('tr')];
     let count = 0;
@@ -110,10 +102,10 @@ document.addEventListener('firebase-ready', () => {
 
     bedSelect.addEventListener('change', () => {
       const bed = bedSelect.value;
-      const map = RESIDENTS_BY_BED[bed];
-      if (bed && map) {
-        nameInput.value = map.name || '';
-        idInput.value = map.idNumber || '';
+      const r = RESIDENTS_BY_BED[bed];
+      if (bed && r) {
+        nameInput.value = r.name || '';
+        idInput.value = r.idNumber || '';
       } else {
         nameInput.value = '';
         idInput.value = '';
@@ -155,7 +147,7 @@ document.addEventListener('firebase-ready', () => {
       const doctorNote = (tr.querySelector('.note-input')?.value || '').trim();
 
       if (!bed && !name && !idNumber && !vitals && !condition && !doctorNote) {
-        return; // 完全空白不存
+        return; // 全空白不存
       }
 
       entries.push({ bedNumber: bed, name, idNumber, vitals, condition, doctorNote });
@@ -190,7 +182,7 @@ document.addEventListener('firebase-ready', () => {
     refreshMeta();
   }
 
-  // 儲存
+  // 儲存醫巡單
   async function saveSheet() {
     let data;
     try {
@@ -250,14 +242,16 @@ document.addEventListener('firebase-ready', () => {
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // 欄寬設定接近原稿
     ws['!cols'] = [
-      { wch: 6 },
-      { wch: 8 },
-      { wch: 10 },
-      { wch: 16 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 }
+      { wch: 6 },   // 排序
+      { wch: 8 },   // 床號
+      { wch: 10 },  // 姓名
+      { wch: 18 },  // 身分證
+      { wch: 26 },  // 生命徵象
+      { wch: 26 },  // 病情
+      { wch: 26 }   // 醫師手記
     ];
 
     const wb = XLSX.utils.book_new();
@@ -267,14 +261,14 @@ document.addEventListener('firebase-ready', () => {
     XLSX.writeFile(wb, filename);
   }
 
-  // 列印
+  // 列印：確保補滿列與日期顯示
   function printSheet() {
     ensureMinRows();
     refreshMeta();
     window.print();
   }
 
-  // 綁定按鈕
+  // 綁定事件
   loadBtn.addEventListener('click', loadSheet);
   addRowBtn.addEventListener('click', () => {
     createRow();
