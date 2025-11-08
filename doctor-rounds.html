@@ -2,60 +2,80 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>特約醫師巡診掛號及就診狀況單</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     body {
-      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
       font-size: 10pt;
+      background-color: #f8f9fa;
     }
-    .top-bar {
+    .top-toolbar {
       margin: 10px 0;
       display: flex;
       justify-content: flex-end;
       gap: 6px;
       align-items: center;
     }
-    .title {
-      text-align: center;
+    .top-toolbar label {
+      margin-bottom: 0;
+      font-size: 10pt;
+    }
+    .dr-card {
+      border: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .dr-card-header {
+      background-color: #343a40;
+      color: #fff;
       font-weight: bold;
       font-size: 18px;
-      margin-bottom: 8px;
+      text-align: center;
+      padding: 10px 12px;
     }
     .info-line {
-      margin-bottom: 4px;
       font-size: 11pt;
+      margin-bottom: 4px;
     }
-    table {
+    table.dr-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
     }
-    th, td {
+    .dr-table thead th,
+    .dr-table tbody td {
       border: 1px solid #000;
       padding: 3px 4px;
       font-size: 10pt;
       vertical-align: middle;
     }
-    th {
+    .dr-table thead th {
+      background-color: #f5f5f5;
       text-align: center;
       font-weight: 600;
-      background-color: #f5f5f5;
     }
-    .cell-input {
+    .cell-input,
+    .cell-select {
       width: 100%;
-      font-size: 10pt;
+      border: none;
       padding: 0 2px;
-      border: 0;
-      box-shadow: none;
+      font-size: 10pt;
       background: transparent;
+      box-shadow: none;
     }
-    .cell-input:focus {
+    .cell-input:focus,
+    .cell-select:focus,
+    textarea.cell-input:focus {
       outline: none;
       box-shadow: none;
     }
-    .signature {
+    textarea.cell-input {
+      resize: vertical;
+      min-height: 30px;
+    }
+    .signature-block {
       margin-top: 14px;
       font-size: 10pt;
     }
@@ -63,93 +83,98 @@
       display: inline-block;
       min-width: 200px;
       border-bottom: 1px solid #000;
-      margin-right: 10px;
+      margin: 0 8px 0 4px;
     }
     .sign-date-line {
       display: inline-block;
       min-width: 150px;
       border-bottom: 1px solid #000;
+      margin-left: 4px;
     }
-    .no-print {
-      /* 用於控制列、刪除按鈕等 */
+    .no-print .btn {
+      font-size: 9pt;
+      padding: 3px 8px;
     }
-
     @media print {
       @page {
         size: A4 portrait;
-        margin: 12mm;
+        margin: 10mm;
+      }
+      body {
+        background-color: #fff;
+        -webkit-print-color-adjust: exact;
       }
       .no-print {
         display: none !important;
       }
-      body {
-        -webkit-print-color-adjust: exact;
+      .dr-card {
+        box-shadow: none;
+        border: none;
       }
-      select.cell-input,
+      .dr-card-header {
+        background-color: #000 !important;
+        color: #fff !important;
+      }
+      select.cell-select,
       input.cell-input,
       textarea.cell-input {
-        appearance: none;
         -webkit-appearance: none;
+        appearance: none;
       }
     }
   </style>
 </head>
 <body>
 <div class="container-fluid mt-2">
-
-  <!-- 控制列（不列印） -->
-  <div class="top-bar no-print">
-    <label for="round-date" class="me-1 mb-0">巡診日期：</label>
+  <div class="top-toolbar no-print">
+    <label for="round-date">巡診日期：</label>
     <input type="date" id="round-date" class="form-control form-control-sm" style="width: 150px;">
-    <button id="load-btn" class="btn btn-secondary btn-sm">載入 / 建立</button>
-    <button id="add-row-btn" class="btn btn-success btn-sm">新增列</button>
-    <button id="save-btn" class="btn btn-primary btn-sm">儲存</button>
-    <button id="export-btn" class="btn btn-outline-success btn-sm">匯出 Excel</button>
-    <button id="print-btn" class="btn btn-outline-dark btn-sm">列印</button>
+    <button id="load-btn" class="btn btn-secondary btn-sm"><i class="fas fa-folder-open me-1"></i>載入 / 建立</button>
+    <button id="add-row-btn" class="btn btn-success btn-sm"><i class="fas fa-plus me-1"></i>新增列</button>
+    <button id="save-btn" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>儲存</button>
+    <button id="export-btn" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>匯出 Excel</button>
+    <button id="print-btn" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-1"></i>列印</button>
   </div>
 
-  <!-- 標題 -->
-  <div class="title">特約醫師巡診掛號及就診狀況單</div>
-
-  <!-- 日期與看診人數（列印版顯示） -->
-  <div class="info-line">
-    醫巡日期：<span id="display-date"></span>
-    &emsp; 看診人數：<span id="patient-count">0</span>
-  </div>
-
-  <!-- 主表格 -->
-  <table id="round-table">
-    <thead>
-      <tr>
-        <th style="width:50px;">排序</th>
-        <th style="width:80px;">床號</th>
-        <th style="width:120px;">姓名</th>
-        <th style="width:160px;">身分證字號</th>
-        <th style="width:220px;">生命徵象</th>
-        <th style="width:220px;">病情簡述 / 主訴</th>
-        <th style="width:220px;">醫師手記 / 囑語</th>
-        <th class="no-print" style="width:50px;">操作</th>
-      </tr>
-    </thead>
-    <tbody id="round-tbody">
-      <!-- JS 動態產生，並保證至少 6 列 -->
-    </tbody>
-  </table>
-
-  <!-- 簽名區 -->
-  <div class="signature">
-    特約醫巡醫師簽章：
-    <span class="signature-line"></span>
-    當日跟診護理師簽名：
-    <span class="signature-line"></span>
-    <div class="mt-1">
-      醫巡日期：
-      <span id="sign-date" class="sign-date-line"></span>
+  <div class="card dr-card">
+    <div class="dr-card-header">特約醫師巡診掛號及就診狀況單</div>
+    <div class="card-body">
+      <div class="info-line">
+        醫巡日期：<span id="display-date"></span>
+        &emsp; 看診人數：<span id="patient-count">0</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table dr-table" id="round-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">排序</th>
+              <th style="width:80px;">床號</th>
+              <th style="width:120px;">姓名</th>
+              <th style="width:160px;">身分證字號</th>
+              <th style="width:220px;">生命徵象</th>
+              <th style="width:220px;">病情簡述 / 主訴</th>
+              <th style="width:220px;">醫師手記 / 囑語</th>
+              <th class="no-print" style="width:60px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="round-tbody">
+          </tbody>
+        </table>
+      </div>
+      <div class="signature-block">
+        特約醫巡醫師簽章：
+        <span class="signature-line"></span>
+        當日跟診護理師簽名：
+        <span class="signature-line"></span>
+        <div class="mt-1">
+          醫巡日期：
+          <span id="sign-date" class="sign-date-line"></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
