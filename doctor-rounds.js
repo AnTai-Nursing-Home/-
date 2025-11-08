@@ -1,10 +1,3 @@
-// 醫療巡迴門診掛號及就診狀況交班單
-// - collection: residents  讀取床號 / 姓名 / 身分證字號
-// - collection: doctor_rounds  (docId = YYYY-MM-DD)
-// - 至少 6 列（空白也保留）
-// - 列印隱藏操作列，自動補列、顯示民國年日期
-// - 匯出 Excel 格式對齊畫面
-
 document.addEventListener("firebase-ready", () => {
   const db = firebase.firestore();
 
@@ -18,13 +11,11 @@ document.addEventListener("firebase-ready", () => {
   const addRowBtn = document.getElementById("add-row-btn");
   const saveBtn = document.getElementById("save-btn");
   const exportBtn = document.getElementById("export-btn");
-  const printBtn = document.getElementById("print-btn");
 
   const COLLECTION = "doctor_rounds";
   const MIN_ROWS = 6;
   const RESIDENTS_BY_BED = {}; // { bedNumber: { name, idNumber } }
 
-  // 讀取住民資料（床號→姓名/身分證）
   async function loadResidents() {
     const snap = await db.collection("residents").get();
     snap.forEach(doc => {
@@ -44,7 +35,6 @@ document.addEventListener("firebase-ready", () => {
       if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
       return String(a).localeCompare(String(b), "zh-Hant");
     });
-
     let html = `<option value="">選擇床號</option>`;
     beds.forEach(b => {
       const sel = b === selected ? "selected" : "";
@@ -70,10 +60,9 @@ document.addEventListener("firebase-ready", () => {
       if (bed) count++;
     });
     patientCountEl.textContent = count;
-
     const roc = toRoc(dateInput.value);
-    displayDateEl.textContent = roc;
-    signDateEl.textContent = roc;
+    displayDateEl.textContent = roc || "—";
+    signDateEl.textContent = roc || "";
   }
 
   function createRow(row = {}) {
@@ -90,8 +79,8 @@ document.addEventListener("firebase-ready", () => {
       <td><input type="text" class="cell-input vitals-input" value="${row.vitals || ""}"></td>
       <td><textarea class="cell-input cond-input" rows="1">${row.condition || ""}</textarea></td>
       <td><textarea class="cell-input note-input" rows="1">${row.doctorNote || ""}</textarea></td>
-      <td class="no-print text-center">
-        <button type="button" class="btn btn-sm btn-outline-danger del-btn">
+      <td class="text-center">
+        <button type="button" class="btn btn-xs btn-outline-danger px-2 py-1 del-btn">
           <i class="fas fa-trash-alt"></i>
         </button>
       </td>
@@ -135,7 +124,6 @@ document.addEventListener("firebase-ready", () => {
       alert("請先選擇巡診日期");
       throw new Error("no-date");
     }
-
     const entries = [];
     [...tbody.querySelectorAll("tr")].forEach(tr => {
       const bed = (tr.querySelector(".bed-select")?.value || "").trim();
@@ -144,12 +132,9 @@ document.addEventListener("firebase-ready", () => {
       const vitals = (tr.querySelector(".vitals-input")?.value || "").trim();
       const condition = (tr.querySelector(".cond-input")?.value || "").trim();
       const doctorNote = (tr.querySelector(".note-input")?.value || "").trim();
-
       if (!bed && !name && !idNumber && !vitals && !condition && !doctorNote) return;
-
       entries.push({ bedNumber: bed, name, idNumber, vitals, condition, doctorNote });
     });
-
     return {
       id: date,
       date,
@@ -161,16 +146,16 @@ document.addEventListener("firebase-ready", () => {
 
   async function loadSheet() {
     const date = dateInput.value;
-    if (!date) return alert("請先選擇巡診日期");
-
+    if (!date) {
+      alert("請先選擇巡診日期");
+      return;
+    }
     const snap = await db.collection(COLLECTION).doc(date).get();
     tbody.innerHTML = "";
-
     if (snap.exists) {
       const d = snap.data() || {};
       (d.entries || []).forEach(e => createRow(e));
     }
-
     ensureMinRows();
     refreshMeta();
   }
@@ -182,14 +167,14 @@ document.addEventListener("firebase-ready", () => {
     } catch {
       return;
     }
-
-    await db.collection(COLLECTION).doc(data.id).set({
-      date: data.date,
-      entries: data.entries,
-      totalPatients: data.totalPatients,
-      updatedAt: data.updatedAt
-    }, { merge: true });
-
+    await db.collection(COLLECTION)
+      .doc(data.id)
+      .set({
+        date: data.date,
+        entries: data.entries,
+        totalPatients: data.totalPatients,
+        updatedAt: data.updatedAt
+      }, { merge: true });
     alert("已儲存醫巡單");
     refreshMeta();
   }
@@ -201,13 +186,11 @@ document.addEventListener("firebase-ready", () => {
     } catch {
       return;
     }
-
     const rocDate = toRoc(data.date);
     const header = [
       "排序","床號","姓名","身分證字號",
       "生命徵象","病情簡述 / 主訴","醫師手記 / 囑語"
     ];
-
     const rows = data.entries.map((e, i) => ([
       i + 1,
       e.bedNumber || "",
@@ -217,22 +200,16 @@ document.addEventListener("firebase-ready", () => {
       e.condition || "",
       e.doctorNote || ""
     ]));
-
     while (rows.length < MIN_ROWS) {
       rows.push(["","","","","","",""]);
     }
-
     const aoa = [
       ["醫療巡迴門診掛號及就診狀況交班單"],
       [`醫巡日期：${rocDate}`, `看診人數：${data.totalPatients}`],
       [],
       header,
-      ...rows,
-      [],
-      ["特約醫巡醫師簽章：","","","","","當日跟診護理師簽名：",""],
-      [`醫巡日期：${rocDate}`]
+      ...rows
     ];
-
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = [
       { wch: 6 },
@@ -243,19 +220,11 @@ document.addEventListener("firebase-ready", () => {
       { wch: 26 },
       { wch: 26 }
     ];
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "醫巡單");
     XLSX.writeFile(wb, `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xlsx`);
   }
 
-  function printSheet() {
-    ensureMinRows();
-    refreshMeta();
-    window.print();
-  }
-
-  // 綁事件
   loadBtn.addEventListener("click", loadSheet);
   addRowBtn.addEventListener("click", () => {
     createRow();
@@ -264,13 +233,11 @@ document.addEventListener("firebase-ready", () => {
   });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
-  printBtn.addEventListener("click", printSheet);
   dateInput.addEventListener("change", () => {
     ensureMinRows();
     refreshMeta();
   });
 
-  // 初始化
   (async () => {
     await loadResidents();
     if (!dateInput.value) {
