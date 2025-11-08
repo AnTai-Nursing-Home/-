@@ -14,7 +14,8 @@ document.addEventListener('firebase-ready', () => {
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
     const checkinDateInput = document.getElementById('resident-checkinDate');
-
+    const idNumberInput = document.getElementById('resident-idNumber'); 
+    
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
     const importStatus = document.getElementById('import-status');
@@ -59,6 +60,7 @@ document.addEventListener('firebase-ready', () => {
                         <td>${r.id}</td>
                         <td>${r.bedNumber || ''}</td>
                         <td>${r.gender || ''}</td>
+                        <td>${r.idNumber || ''}</td>
                         <td>${r.birthday || ''}</td>
                         <td>${r.checkinDate || ''}</td>
                         <td>
@@ -86,6 +88,7 @@ document.addEventListener('firebase-ready', () => {
             gender: genderInput.value,
             birthday: birthdayInput.value,
             checkinDate: checkinDateInput.value,
+            idNumber: idNumberInput.value.trim(), // ✅ 新增：身分證字號
         };
 
         saveResidentBtn.disabled = true;
@@ -186,6 +189,7 @@ document.addEventListener('firebase-ready', () => {
                     nameInput.disabled = true;
                     bedNumberInput.value = d.bedNumber || '';
                     genderInput.value = d.gender || '';
+                    idNumberInput.value = d.idNumber || ''; // ✅ 顯示身分證字號
                     birthdayInput.value = d.birthday || '';
                     checkinDateInput.value = d.checkinDate || '';
                     residentModal.show();
