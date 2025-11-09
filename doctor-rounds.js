@@ -1,10 +1,9 @@
 
-// 醫療巡迴門診掛號及就診狀況交班單 (自動載入版)
-// ✅ 匯出為 .xls (保留框線)
-// ✅ 自動載入今日資料 / 切換日期自動載入
-// ✅ 響應式、手機可用
-// ✅ 功能：自動載入、新增列、儲存、匯出、下載範本
-// ❌ 移除列印
+// 醫療巡迴門診掛號及就診狀況交班單 - 最終版
+// ✅ 自動載入今日與日期切換
+// ✅ 移除「載入／建立」按鈕
+// ✅ 保留框線的 Excel 匯出 (.xls)
+// ✅ 手機版自適應
 
 document.addEventListener("firebase-ready", () => {
   const db = firebase.firestore();
@@ -107,7 +106,7 @@ document.addEventListener("firebase-ready", () => {
 
   async function loadSheet(auto = false) {
     const date = dateInput.value;
-    if (!date) return alert("請先選擇巡診日期");
+    if (!date) return;
     tbody.innerHTML = "";
     const snap = await db.collection(COLLECTION).doc(date).get();
     if (snap.exists) {
@@ -123,7 +122,7 @@ document.addEventListener("firebase-ready", () => {
     let data;
     try { data = collectData(); } catch { return alert("請先選擇日期"); }
     await db.collection(COLLECTION).doc(data.id).set(data);
-    alert("已儲存醫巡單");
+    alert("✅ 已儲存醫巡單");
   }
 
   function exportExcel() {
@@ -180,7 +179,6 @@ document.addEventListener("firebase-ready", () => {
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
 
-  // 🔹 自動載入日期資料
   dateInput.addEventListener("change", async () => {
     await loadSheet(true);
   });
@@ -188,6 +186,6 @@ document.addEventListener("firebase-ready", () => {
   (async () => {
     await loadResidents();
     if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
-    await loadSheet(true); // 自動載入今日資料
+    await loadSheet(true);
   })();
 });
