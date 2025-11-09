@@ -8,30 +8,57 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
-      background-color: #f8f9fa;
+      background-color: #e9eef3;
+      font-family: "Microsoft JhengHei", sans-serif;
+      color: #333;
       padding: 20px;
     }
     .page-container {
       background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      padding: 25px;
       max-width: 1100px;
       margin: 0 auto;
+    }
+    .header-bar {
+      background-color: #1f4e79;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px 8px 0 0;
+      margin: -25px -25px 20px -25px;
+    }
+    .header-bar h4 {
+      margin: 0;
+      font-weight: bold;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .toolbar button, .toolbar a {
+      border-radius: 6px;
     }
     .table th, .table td {
       vertical-align: middle;
       text-align: center;
     }
+    .table thead th {
+      background-color: #f3f6f9;
+    }
     .table textarea {
       resize: vertical;
       min-height: 40px;
     }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 15px;
+    .footer-area {
+      margin-top: 30px;
+      text-align: right;
+      border-top: 1px solid #dee2e6;
+      padding-top: 10px;
+      font-size: 15px;
+      color: #555;
     }
     @media (max-width: 768px) {
       .table-responsive {
@@ -39,17 +66,17 @@
       }
       .toolbar {
         flex-direction: column;
+        align-items: flex-start;
       }
-    }
-    .footer-area {
-      margin-top: 30px;
-      text-align: right;
     }
   </style>
 </head>
 <body>
   <div class="page-container">
-    <h4 class="text-center mb-3 fw-bold text-primary">醫療巡迴門診掛號及就診狀況交班單</h4>
+    <div class="header-bar">
+      <h4>醫療巡迴門診掛號及就診狀況交班單</h4>
+    </div>
+    <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
 
     <div class="toolbar">
       <input type="date" id="round-date" class="form-control" style="max-width:200px;">
@@ -63,15 +90,15 @@
 
     <div class="table-responsive">
       <table class="table table-bordered align-middle">
-        <thead class="table-light">
+        <thead>
           <tr>
             <th>排序</th>
             <th>床號</th>
             <th>姓名</th>
             <th>身分證字號</th>
             <th>生命徵象</th>
-            <th>病情簡述</th>
-            <th>醫師手記</th>
+            <th>病情簡述 / 主訴</th>
+            <th>醫師手記 / 囑語</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -90,6 +117,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="doctor-rounds.js"></script>
+  <script src="doctor-rounds-final.js"></script>
 </body>
 </html>
