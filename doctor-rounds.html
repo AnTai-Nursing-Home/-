@@ -2,333 +2,94 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>醫療巡迴門診掛號及就診狀況交班單</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Bootstrap & Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
+  <title>醫療巡迴門診掛號及就診狀況交班單</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
-      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-      font-size: 10pt;
-      background-color: #f5f6fa;
+      background-color: #f8f9fa;
+      padding: 20px;
     }
-
-    .page-wrapper {
-      padding: 12px 10px;
-    }
-
-    .page-header {
-      max-width: 1200px;
-      margin: 0 auto 6px auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .page-title {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: #212529;
-    }
-
-    .page-subtitle {
-      font-size: 9pt;
-      color: #6c757d;
-    }
-
-    .back-btn {
-      border-radius: 999px;
-      font-size: 9pt;
-      padding: 4px 10px;
-      white-space: nowrap;
-    }
-
-    .card-main {
-      max-width: 1200px;
+    .page-container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 1100px;
       margin: 0 auto;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      border: 0;
-      background-color: #ffffff;
-      overflow: hidden;
     }
-
-    .card-main-header {
-      background-color: #212529;
-      color: #fff;
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 6px;
+    .table th, .table td {
+      vertical-align: middle;
+      text-align: center;
     }
-
-    .card-main-header .title {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+    .table textarea {
+      resize: vertical;
+      min-height: 40px;
     }
-
-    .card-main-header .subtitle {
-      font-size: 9pt;
-      color: #ced4da;
-    }
-
     .toolbar {
-      padding: 8px 10px 0 10px;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
+      gap: 8px;
+      margin-bottom: 15px;
     }
-
-    .toolbar label {
-      margin-bottom: 0;
-      font-size: 10pt;
-      color: #495057;
-      white-space: nowrap;
-    }
-
-    .btn-pill {
-      border-radius: 999px;
-      font-size: 9pt;
-      padding: 4px 10px;
-      white-space: nowrap;
-    }
-
-    .card-main-body {
-      padding: 6px 10px 10px 10px;
-    }
-
-    .info-line {
-      font-size: 10pt;
-      margin-bottom: 6px;
-      color: #343a40;
-    }
-
-    .info-label {
-      font-weight: 600;
-    }
-
-    table.round-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      background-color: #ffffff;
-    }
-
-    .round-table thead th,
-    .round-table tbody td {
-      border: 1px solid #dee2e6;
-      padding: 4px 4px;
-      font-size: 10pt;
-      vertical-align: middle;
-    }
-
-    .round-table thead th {
-      background-color: #f1f3f5;
-      font-weight: 600;
-      text-align: center;
-      white-space: nowrap;
-      color: #212529;
-    }
-
-    .round-table tbody tr:nth-child(even) {
-      background-color: #fafbfc;
-    }
-
-    .round-table tbody tr:hover {
-      background-color: #e9f3ff;
-    }
-
-    .cell-input,
-    .cell-select {
-      width: 100%;
-      border: none;
-      padding: 0 2px;
-      font-size: 10pt;
-      background-color: transparent;
-      outline: none;
-      box-shadow: none;
-    }
-
-    .cell-input:focus,
-    .cell-select:focus,
-    textarea.cell-input:focus {
-      background-color: #e7f1ff;
-      outline: none;
-      box-shadow: none;
-    }
-
-    textarea.cell-input {
-      resize: vertical;
-      min-height: 24px;
-    }
-
-    .signature-block {
-      margin-top: 10px;
-      font-size: 10pt;
-      color: #495057;
-    }
-
-    .signature-label {
-      font-weight: 500;
-      margin-right: 4px;
-    }
-
-    .signature-line {
-      display: inline-block;
-      min-width: 160px;
-      border-bottom: 1px solid #adb5bd;
-      margin-right: 12px;
-    }
-
-    .sign-date-line {
-      display: inline-block;
-      min-width: 120px;
-      border-bottom: 1px solid #adb5bd;
-      margin-left: 4px;
-    }
-
-    .btn-xs-icon {
-      padding: 2px 7px;
-      border-radius: 6px;
-      font-size: 9pt;
-    }
-
-    /* 手機優化：工具列改為直排、表格可滑動 */
     @media (max-width: 768px) {
-      .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .back-btn {
-        align-self: flex-end;
+      .table-responsive {
+        overflow-x: auto;
       }
       .toolbar {
-        flex-direction: row;
-        align-items: flex-start;
+        flex-direction: column;
       }
-      .toolbar > * {
-        flex: 0 0 auto;
-      }
+    }
+    .footer-area {
+      margin-top: 30px;
+      text-align: right;
     }
   </style>
 </head>
 <body>
-<div class="page-wrapper">
+  <div class="page-container">
+    <h4 class="text-center mb-3 fw-bold text-primary">醫療巡迴門診掛號及就診狀況交班單</h4>
 
-  <!-- 頁首 -->
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">醫療巡迴門診掛號及就診狀況交班單</h1>
-      <div class="page-subtitle">護理師系統／醫師巡診管理</div>
-    </div>
-    <a href="admin.html?view=dashboard" class="btn btn-outline-secondary back-btn">
-      <i class="fas fa-arrow-left me-1"></i>返回護理師儀表板
-    </a>
-  </div>
-
-  <!-- 主卡片 -->
-  <div class="card-main">
-
-    <!-- 黑色標頭 -->
-    <div class="card-main-header">
-      <div class="title">醫療巡迴門診掛號及就診狀況交班單</div>
-      <div class="subtitle">管理本次巡診床號、住民資料及就診記錄</div>
-    </div>
-
-    <!-- 工具列 -->
     <div class="toolbar">
-      <label for="round-date">巡診日期：</label>
-      <input type="date" id="round-date"
-             class="form-control form-control-sm"
-             style="width: 150px;">
-
-      <button id="load-btn" class="btn btn-outline-primary btn-pill">
-        <i class="fas fa-folder-open me-1"></i>載入 / 建立
-      </button>
-
-      <button id="add-row-btn" class="btn btn-outline-success btn-pill">
-        <i class="fas fa-plus me-1"></i>新增列
-      </button>
-
-      <button id="save-btn" class="btn btn-primary btn-pill">
-        <i class="fas fa-save me-1"></i>儲存
-      </button>
-
-      <button id="export-btn" class="btn btn-success btn-pill">
-        <i class="fas fa-file-excel me-1"></i>匯出 Excel
-      </button>
-
-      <a href="醫療巡迴門診掛號及就診狀況交班單.xlsx"
-         download
-         class="btn btn-outline-dark btn-pill">
-        <i class="fas fa-download me-1"></i>下載醫巡掛號檔案
+      <input type="date" id="round-date" class="form-control" style="max-width:200px;">
+      <button id="add-row-btn" class="btn btn-outline-primary"><i class="fa fa-plus"></i> 新增列</button>
+      <button id="save-btn" class="btn btn-success"><i class="fa fa-save"></i> 儲存</button>
+      <button id="export-btn" class="btn btn-warning"><i class="fa fa-file-export"></i> 匯出 Excel</button>
+      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary">
+        <i class="fa fa-download"></i> 下載醫巡掛號檔案
       </a>
     </div>
 
-    <!-- 內容 -->
-    <div class="card-main-body">
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>排序</th>
+            <th>床號</th>
+            <th>姓名</th>
+            <th>身分證字號</th>
+            <th>生命徵象</th>
+            <th>病情簡述</th>
+            <th>醫師手記</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="round-tbody"></tbody>
+      </table>
+    </div>
 
-      <!-- 日期 / 看診人數 -->
-      <div class="info-line">
-        <span class="info-label">醫巡日期：</span>
-        <span id="display-date">—</span>
-        <span class="ms-3 info-label">看診人數：</span>
-        <span id="patient-count">0</span>
-      </div>
-
-      <!-- 表格 -->
-      <div class="table-responsive">
-        <table class="round-table" id="round-table">
-          <thead>
-            <tr>
-              <th style="width:50px;">排序</th>
-              <th style="width:70px;">床號</th>
-              <th style="width:110px;">姓名</th>
-              <th style="width:150px;">身分證字號</th>
-              <th style="width:180px;">生命徵象</th>
-              <th style="width:210px;">病情簡述</th>
-              <th style="width:210px;">醫師手記</th>
-              <th style="width:60px;">操作</th>
-            </tr>
-          </thead>
-          <tbody id="round-tbody">
-            <!-- JS 產出 -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 簽名 -->
-      <div class="signature-block">
-        <span class="signature-label">特約醫巡醫師簽章：</span>
-        <span class="signature-line"></span>
-
-        <span class="signature-label">當日跟診護理師簽名：</span>
-        <span class="signature-line"></span>
-
-        <div class="mt-1">
-          <span class="signature-label">醫巡日期：</span>
-          <span id="sign-date" class="sign-date-line"></span>
-        </div>
-      </div>
-
+    <div class="footer-area">
+      <p>醫巡日期：<span id="display-date">—</span></p>
+      <p>看診人數：<span id="patient-count">0</span></p>
+      <p>簽名日期：<span id="sign-date">—</span></p>
     </div>
   </div>
-</div>
 
-<!-- Scripts -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<script src="firebase-init.js"></script>
-<script src="doctor-rounds.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="doctor-rounds.js"></script>
 </body>
 </html>
