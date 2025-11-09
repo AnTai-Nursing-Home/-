@@ -131,7 +131,7 @@ document.addEventListener("firebase-ready", () => {
 
     const rocDate = toRoc(data.date);
     const tableHTML = `
-      <table border="1" style="border-collapse:collapse;text-align:center;">
+      <table border="1" style="border-collapse:collapse;text-align:center;vertical-align:middle;">
         <thead>
           <tr><th colspan="7" style="font-size:16px;">醫療巡迴門診掛號及就診狀況交班單</th></tr>
           <tr>
