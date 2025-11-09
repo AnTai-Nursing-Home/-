@@ -17,19 +17,21 @@
     }
 
     .page-wrapper {
-      padding: 16px 18px;
+      padding: 12px 10px;
     }
 
     .page-header {
+      max-width: 1200px;
+      margin: 0 auto 6px auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      gap: 8px;
     }
 
     .page-title {
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 600;
       color: #212529;
     }
@@ -42,39 +44,43 @@
     .back-btn {
       border-radius: 999px;
       font-size: 9pt;
-      padding: 4px 12px;
+      padding: 4px 10px;
+      white-space: nowrap;
     }
 
     .card-main {
+      max-width: 1200px;
+      margin: 0 auto;
       border-radius: 6px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       border: 0;
-      overflow: hidden;
       background-color: #ffffff;
+      overflow: hidden;
     }
 
     .card-main-header {
       background-color: #212529;
       color: #fff;
-      padding: 8px 14px;
+      padding: 8px 12px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: baseline;
+      gap: 6px;
     }
 
     .card-main-header .title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       letter-spacing: 0.5px;
     }
 
     .card-main-header .subtitle {
       font-size: 9pt;
-      color: #e9ecef;
+      color: #ced4da;
     }
 
     .toolbar {
-      padding: 8px 14px 0;
+      padding: 8px 10px 0 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
@@ -85,20 +91,18 @@
       margin-bottom: 0;
       font-size: 10pt;
       color: #495057;
-    }
-
-    .toolbar .form-control-sm {
-      font-size: 10pt;
+      white-space: nowrap;
     }
 
     .btn-pill {
       border-radius: 999px;
       font-size: 9pt;
       padding: 4px 10px;
+      white-space: nowrap;
     }
 
     .card-main-body {
-      padding: 6px 14px 12px;
+      padding: 6px 10px 10px 10px;
     }
 
     .info-line {
@@ -179,9 +183,9 @@
 
     .signature-line {
       display: inline-block;
-      min-width: 180px;
+      min-width: 160px;
       border-bottom: 1px solid #adb5bd;
-      margin-right: 16px;
+      margin-right: 12px;
     }
 
     .sign-date-line {
@@ -196,37 +200,55 @@
       border-radius: 6px;
       font-size: 9pt;
     }
+
+    /* 手機優化：工具列改為直排、表格可滑動 */
+    @media (max-width: 768px) {
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .back-btn {
+        align-self: flex-end;
+      }
+      .toolbar {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      .toolbar > * {
+        flex: 0 0 auto;
+      }
+    }
   </style>
 </head>
 <body>
 <div class="page-wrapper">
 
-  <!-- 頁首：標題 + 返回 -->
+  <!-- 頁首 -->
   <div class="page-header">
     <div>
       <h1 class="page-title">醫療巡迴門診掛號及就診狀況交班單</h1>
       <div class="page-subtitle">護理師系統／醫師巡診管理</div>
     </div>
     <a href="admin.html?view=dashboard" class="btn btn-outline-secondary back-btn">
-      <i class="fas fa-arrow-left me-1"></i> 返回護理師儀表板
+      <i class="fas fa-arrow-left me-1"></i>返回護理師儀表板
     </a>
   </div>
 
   <!-- 主卡片 -->
   <div class="card-main">
 
-    <!-- 卡片標題列 -->
+    <!-- 黑色標頭 -->
     <div class="card-main-header">
-      <div>
-        <div class="title">醫療巡迴門診掛號及就診狀況交班單</div>
-        <div class="subtitle">管理本次巡診床號、住民資料及就診情形</div>
-      </div>
+      <div class="title">醫療巡迴門診掛號及就診狀況交班單</div>
+      <div class="subtitle">管理本次巡診床號、住民資料及就診記錄</div>
     </div>
 
     <!-- 工具列 -->
     <div class="toolbar">
-      <label for="round-date" class="me-1">巡診日期：</label>
-      <input type="date" id="round-date" class="form-control form-control-sm" style="width: 160px;">
+      <label for="round-date">巡診日期：</label>
+      <input type="date" id="round-date"
+             class="form-control form-control-sm"
+             style="width: 150px;">
 
       <button id="load-btn" class="btn btn-outline-primary btn-pill">
         <i class="fas fa-folder-open me-1"></i>載入 / 建立
@@ -244,7 +266,6 @@
         <i class="fas fa-file-excel me-1"></i>匯出 Excel
       </button>
 
-      <!-- 醫巡掛號範本下載：請將檔案放在同資料夾，檔名需相同 -->
       <a href="醫療巡迴門診掛號及就診狀況交班單.xlsx"
          download
          class="btn btn-outline-dark btn-pill">
@@ -252,10 +273,10 @@
       </a>
     </div>
 
-    <!-- 內容區 -->
+    <!-- 內容 -->
     <div class="card-main-body">
 
-      <!-- 日期 & 看診人數 -->
+      <!-- 日期 / 看診人數 -->
       <div class="info-line">
         <span class="info-label">醫巡日期：</span>
         <span id="display-date">—</span>
@@ -268,23 +289,23 @@
         <table class="round-table" id="round-table">
           <thead>
             <tr>
-              <th style="width:60px;">排序</th>
-              <th style="width:80px;">床號</th>
-              <th style="width:120px;">姓名</th>
-              <th style="width:160px;">身分證字號</th>
-              <th style="width:200px;">生命徵象</th>
-              <th style="width:220px;">病情簡述</th>
-              <th style="width:220px;">醫師手記</th>
+              <th style="width:50px;">排序</th>
+              <th style="width:70px;">床號</th>
+              <th style="width:110px;">姓名</th>
+              <th style="width:150px;">身分證字號</th>
+              <th style="width:180px;">生命徵象</th>
+              <th style="width:210px;">病情簡述</th>
+              <th style="width:210px;">醫師手記</th>
               <th style="width:60px;">操作</th>
             </tr>
           </thead>
           <tbody id="round-tbody">
-            <!-- 由 JS 動態產生 -->
+            <!-- JS 產出 -->
           </tbody>
         </table>
       </div>
 
-      <!-- 簽名區 -->
+      <!-- 簽名 -->
       <div class="signature-block">
         <span class="signature-label">特約醫巡醫師簽章：</span>
         <span class="signature-line"></span>
@@ -306,6 +327,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script src="firebase-init.js"></script>
 <script src="doctor-rounds.js"></script>
 </body>
