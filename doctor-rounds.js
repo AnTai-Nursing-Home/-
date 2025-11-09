@@ -234,8 +234,8 @@ document.addEventListener("firebase-ready", () => {
       "姓名",
       "身分證字號",
       "生命徵象",
-      "病情簡述 / 主訴",
-      "醫師手記 / 囑語"
+      "病情簡述",
+      "醫師手記"
     ];
 
     const rows = data.entries.map((e, i) => ([
