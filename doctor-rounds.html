@@ -17,16 +17,16 @@
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      padding: 25px;
+      padding: 20px;
       max-width: 1100px;
       margin: 0 auto;
     }
     .header-bar {
       background-color: #1f4e79;
       color: #fff;
-      padding: 10px 20px;
-      border-radius: 8px 8px 0 0;
-      margin: -25px -25px 20px -25px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 15px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -35,46 +35,65 @@
     .header-bar h4 {
       margin: 0;
       font-weight: bold;
+      font-size: 18px;
     }
     .toolbar {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 10px;
       align-items: center;
     }
     .toolbar button,
     .toolbar a {
       border-radius: 6px;
+      font-size: 13px;
+      padding: 4px 10px;
+    }
+    .table-wrapper {
+      position: relative;
+    }
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(0,0,0,0.6);
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 20;
     }
     .table th,
     .table td {
       vertical-align: middle;
       text-align: center;
+      font-size: 13px;
     }
     .table thead th {
       background-color: #f3f6f9;
+      font-weight: 600;
     }
     .table textarea {
       resize: vertical;
       min-height: 40px;
     }
     .footer-area {
-      margin-top: 18px;
+      margin-top: 15px;
       text-align: right;
       border-top: 1px solid #dee2e6;
       padding-top: 8px;
-      font-size: 14px;
+      font-size: 13px;
       color: #555;
     }
-    #loading-text {
-      font-size: 12px;
-      color: #0d6efd;
-      display: none;
-    }
     @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
       .page-container {
-        padding: 15px;
+        padding: 12px;
       }
       .header-bar {
         flex-direction: column;
@@ -94,49 +113,49 @@
   <div class="page-container">
     <div class="header-bar">
       <h4>醫療巡迴門診掛號及就診狀況交班單</h4>
-      <div class="d-flex align-items-center gap-2">
-        <span id="loading-text">讀取中...</span>
-        <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">
-          返回護理師儀表板
-        </a>
-      </div>
+      <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">
+        返回護理師儀表板
+      </a>
     </div>
 
     <div class="toolbar">
       <div class="d-flex align-items-center gap-2">
         <label for="round-date" class="mb-0">巡診日期：</label>
-        <input type="date" id="round-date" class="form-control form-control-sm" style="max-width:180px;">
+        <input type="date" id="round-date" class="form-control form-control-sm" style="max-width: 180px;">
       </div>
-      <button id="add-row-btn" class="btn btn-outline-primary btn-sm">
+      <button id="add-row-btn" class="btn btn-outline-primary">
         <i class="fa fa-plus"></i> 新增列
       </button>
-      <button id="save-btn" class="btn btn-success btn-sm">
+      <button id="save-btn" class="btn btn-success">
         <i class="fa fa-save"></i> 儲存
       </button>
-      <button id="export-btn" class="btn btn-warning btn-sm">
+      <button id="export-btn" class="btn btn-warning">
         <i class="fa fa-file-export"></i> 匯出 Excel
       </button>
-      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary btn-sm">
+      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary">
         <i class="fa fa-download"></i> 下載醫巡掛號檔案
       </a>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-bordered align-middle">
-        <thead>
-          <tr>
-            <th>排序</th>
-            <th>床號</th>
-            <th>姓名</th>
-            <th>身分證字號</th>
-            <th>生命徵象</th>
-            <th>病情簡述</th>
-            <th>醫師手記</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="round-tbody"></tbody>
-      </table>
+    <div class="table-wrapper">
+      <div id="loading-overlay">讀取中...</div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead>
+            <tr>
+              <th>排序</th>
+              <th>床號</th>
+              <th>姓名</th>
+              <th>身分證字號</th>
+              <th>生命徵象</th>
+              <th>病情簡述 / 主訴</th>
+              <th>醫師手記 / 囑語</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="round-tbody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="footer-area">
@@ -150,6 +169,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="doctor-rounds.js"></script>
+  <script src="doctor-rounds-center-overlay.js"></script>
 </body>
 </html>
