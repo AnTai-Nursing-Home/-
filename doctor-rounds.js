@@ -1,9 +1,10 @@
 
-// 醫療巡迴門診掛號及就診狀況交班單 - 置中 + 讀取中版
-// ✅ 自動載入今日與日期切換
-// ✅ 匯出 .xls，所有儲存格水平/垂直置中
-// ✅ 顯示「讀取中...」提示
-// ✅ 移除載入按鈕，手機版自適應
+// 醫療巡迴門診掛號及就診狀況交班單 - 中央遮罩讀取版（最終版）
+// ✅ 自動載入今日 / 日期切換
+// ✅ 匯出 .xls，所有欄位水平＋垂直置中
+// ✅ 暗色全覆蓋遮罩顯示「讀取中...」在表格中央
+// ✅ 手機自適應
+// ✅ 返回護理師儀表板按鈕保留
 
 document.addEventListener("firebase-ready", () => {
   const db = firebase.firestore();
@@ -19,23 +20,18 @@ document.addEventListener("firebase-ready", () => {
   const addRowBtn = document.getElementById("add-row-btn");
   const saveBtn = document.getElementById("save-btn");
   const exportBtn = document.getElementById("export-btn");
-  const loadingEl = document.getElementById("loading-text");
+
+  const overlay = document.getElementById("loading-overlay");
 
   const RESIDENTS_BY_BED = {};
 
-  function setLoading(isLoading, text = "讀取中...") {
-    if (!loadingEl) return;
-    if (isLoading) {
-      loadingEl.style.display = "inline-block";
-      loadingEl.textContent = text;
-    } else {
-      loadingEl.style.display = "none";
-      loadingEl.textContent = "";
-    }
+  function setLoading(isLoading) {
+    if (!overlay) return;
+    overlay.style.display = isLoading ? "flex" : "none";
   }
 
   async function loadResidents() {
-    setLoading(true, "讀取住民資料中...");
+    setLoading(true);
     const snap = await db.collection("residents").get();
     snap.forEach(doc => {
       const d = doc.data() || {};
@@ -55,6 +51,7 @@ document.addEventListener("firebase-ready", () => {
       if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
       return String(a).localeCompare(String(b), "zh-Hant");
     });
+
     let html = `<option value=''>選擇床號</option>`;
     beds.forEach(b => {
       const sel = b === selected ? "selected" : "";
@@ -76,8 +73,13 @@ document.addEventListener("firebase-ready", () => {
       const idx = tr.querySelector(".idx");
       if (idx) idx.textContent = i + 1;
     });
-    const count = rows.filter(r => (r.querySelector(".bed-select")?.value || "").trim() !== "").length;
+
+    const count = rows.filter(r => {
+      const bed = r.querySelector(".bed-select")?.value || "";
+      return bed.trim() !== "";
+    }).length;
     patientCountEl.textContent = count;
+
     const roc = toRoc(dateInput.value);
     displayDateEl.textContent = roc || "—";
     signDateEl.textContent = roc || "";
@@ -86,20 +88,20 @@ document.addEventListener("firebase-ready", () => {
   function createRow(row = {}) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class='text-center idx'></td>
+      <td class="text-center idx"></td>
       <td>
-        <select class='form-select form-select-sm cell-select bed-select'>
+        <select class="form-select form-select-sm cell-select bed-select">
           ${buildBedOptions(row.bedNumber || "")}
         </select>
       </td>
-      <td><input type='text' class='cell-input name-input text-center' value='${row.name || ""}' readonly></td>
-      <td><input type='text' class='cell-input id-input text-center' value='${row.idNumber || ""}' readonly></td>
-      <td><input type='text' class='cell-input vitals-input text-center' value='${row.vitals || ""}'></td>
-      <td><textarea class='cell-input cond-input text-center'>${row.condition || ""}</textarea></td>
-      <td><textarea class='cell-input note-input text-center'>${row.doctorNote || ""}</textarea></td>
-      <td class='text-center'>
-        <button type='button' class='btn btn-outline-danger btn-xs-icon del-btn'>
-          <i class='fas fa-trash-alt'></i>
+      <td><input type="text" class="cell-input name-input text-center" value="${row.name || ""}" readonly></td>
+      <td><input type="text" class="cell-input id-input text-center" value="${row.idNumber || ""}" readonly></td>
+      <td><input type="text" class="cell-input vitals-input text-center" value="${row.vitals || ""}"></td>
+      <td><textarea class="cell-input cond-input text-center" rows="1">${row.condition || ""}</textarea></td>
+      <td><textarea class="cell-input note-input text-center" rows="1">${row.doctorNote || ""}</textarea></td>
+      <td class="text-center">
+        <button type="button" class="btn btn-outline-danger btn-xs-icon del-btn">
+          <i class="fas fa-trash-alt"></i>
         </button>
       </td>
     `;
@@ -141,6 +143,7 @@ document.addEventListener("firebase-ready", () => {
     if (!date) {
       throw new Error("no-date");
     }
+
     const entries = [...tbody.querySelectorAll("tr")].map(tr => {
       const bedNumber = (tr.querySelector(".bed-select")?.value || "").trim();
       const name = (tr.querySelector(".name-input")?.value || "").trim();
@@ -150,6 +153,7 @@ document.addEventListener("firebase-ready", () => {
       const doctorNote = (tr.querySelector(".note-input")?.value || "").trim();
       return { bedNumber, name, idNumber, vitals, condition, doctorNote };
     }).filter(e => Object.values(e).some(v => v !== ""));
+
     return {
       id: date,
       date,
@@ -164,6 +168,7 @@ document.addEventListener("firebase-ready", () => {
     if (!date) return;
     setLoading(true);
     tbody.innerHTML = "";
+
     const snap = await db.collection(COLLECTION).doc(date).get();
     if (snap.exists) {
       const d = snap.data() || {};
@@ -177,6 +182,7 @@ document.addEventListener("firebase-ready", () => {
         updatedAt: new Date().toISOString()
       });
     }
+
     ensureMinRows();
     refreshMeta();
     setLoading(false);
@@ -190,7 +196,7 @@ document.addEventListener("firebase-ready", () => {
       alert("請先選擇日期");
       return;
     }
-    setLoading(true, "儲存中...");
+    setLoading(true);
     await db.collection(COLLECTION).doc(data.id).set(data);
     setLoading(false);
     alert("✅ 已儲存醫巡單");
