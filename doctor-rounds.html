@@ -27,6 +27,10 @@
       padding: 10px 20px;
       border-radius: 8px 8px 0 0;
       margin: -25px -25px 20px -25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
     }
     .header-bar h4 {
       margin: 0;
@@ -36,12 +40,15 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+      align-items: center;
     }
-    .toolbar button, .toolbar a {
+    .toolbar button,
+    .toolbar a {
       border-radius: 6px;
     }
-    .table th, .table td {
+    .table th,
+    .table td {
       vertical-align: middle;
       text-align: center;
     }
@@ -53,39 +60,63 @@
       min-height: 40px;
     }
     .footer-area {
-      margin-top: 30px;
+      margin-top: 18px;
       text-align: right;
       border-top: 1px solid #dee2e6;
-      padding-top: 10px;
-      font-size: 15px;
+      padding-top: 8px;
+      font-size: 14px;
       color: #555;
     }
+    #loading-text {
+      font-size: 12px;
+      color: #0d6efd;
+      display: none;
+    }
     @media (max-width: 768px) {
-      .table-responsive {
-        overflow-x: auto;
+      .page-container {
+        padding: 15px;
+      }
+      .header-bar {
+        flex-direction: column;
+        align-items: flex-start;
       }
       .toolbar {
         flex-direction: column;
         align-items: flex-start;
+      }
+      .table-responsive {
+        overflow-x: auto;
       }
     }
   </style>
 </head>
 <body>
   <div class="page-container">
-    <div class="header-bar d-flex justify-content-between align-items-center">
+    <div class="header-bar">
       <h4>醫療巡迴門診掛號及就診狀況交班單</h4>
-      <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">
-        返回護理師儀表板
-      </a>
+      <div class="d-flex align-items-center gap-2">
+        <span id="loading-text">讀取中...</span>
+        <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">
+          返回護理師儀表板
+        </a>
+      </div>
     </div>
 
     <div class="toolbar">
-      <input type="date" id="round-date" class="form-control" style="max-width:200px;">
-      <button id="add-row-btn" class="btn btn-outline-primary"><i class="fa fa-plus"></i> 新增列</button>
-      <button id="save-btn" class="btn btn-success"><i class="fa fa-save"></i> 儲存</button>
-      <button id="export-btn" class="btn btn-warning"><i class="fa fa-file-export"></i> 匯出 Excel</button>
-      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary">
+      <div class="d-flex align-items-center gap-2">
+        <label for="round-date" class="mb-0">巡診日期：</label>
+        <input type="date" id="round-date" class="form-control form-control-sm" style="max-width:180px;">
+      </div>
+      <button id="add-row-btn" class="btn btn-outline-primary btn-sm">
+        <i class="fa fa-plus"></i> 新增列
+      </button>
+      <button id="save-btn" class="btn btn-success btn-sm">
+        <i class="fa fa-save"></i> 儲存
+      </button>
+      <button id="export-btn" class="btn btn-warning btn-sm">
+        <i class="fa fa-file-export"></i> 匯出 Excel
+      </button>
+      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary btn-sm">
         <i class="fa fa-download"></i> 下載醫巡掛號檔案
       </a>
     </div>
@@ -99,8 +130,8 @@
             <th>姓名</th>
             <th>身分證字號</th>
             <th>生命徵象</th>
-            <th>病情簡述 / 主訴</th>
-            <th>醫師手記 / 囑語</th>
+            <th>病情簡述</th>
+            <th>醫師手記</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -109,9 +140,9 @@
     </div>
 
     <div class="footer-area">
-      <p>醫巡日期：<span id="display-date">—</span></p>
-      <p>看診人數：<span id="patient-count">0</span></p>
-      <p>簽名日期：<span id="sign-date">—</span></p>
+      <div>醫巡日期：<span id="display-date">—</span></div>
+      <div>看診人數：<span id="patient-count">0</span></div>
+      <div>簽名日期：<span id="sign-date">—</span></div>
     </div>
   </div>
 
