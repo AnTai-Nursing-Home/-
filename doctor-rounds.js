@@ -1,9 +1,9 @@
 
-// 醫療巡迴門診掛號及就診狀況交班單 - 最終版
+// 醫療巡迴門診掛號及就診狀況交班單 - 置中 + 讀取中版
 // ✅ 自動載入今日與日期切換
-// ✅ 移除「載入／建立」按鈕
-// ✅ 保留框線的 Excel 匯出 (.xls)
-// ✅ 手機版自適應
+// ✅ 匯出 .xls，所有儲存格水平/垂直置中
+// ✅ 顯示「讀取中...」提示
+// ✅ 移除載入按鈕，手機版自適應
 
 document.addEventListener("firebase-ready", () => {
   const db = firebase.firestore();
@@ -19,10 +19,23 @@ document.addEventListener("firebase-ready", () => {
   const addRowBtn = document.getElementById("add-row-btn");
   const saveBtn = document.getElementById("save-btn");
   const exportBtn = document.getElementById("export-btn");
+  const loadingEl = document.getElementById("loading-text");
 
   const RESIDENTS_BY_BED = {};
 
+  function setLoading(isLoading, text = "讀取中...") {
+    if (!loadingEl) return;
+    if (isLoading) {
+      loadingEl.style.display = "inline-block";
+      loadingEl.textContent = text;
+    } else {
+      loadingEl.style.display = "none";
+      loadingEl.textContent = "";
+    }
+  }
+
   async function loadResidents() {
+    setLoading(true, "讀取住民資料中...");
     const snap = await db.collection("residents").get();
     snap.forEach(doc => {
       const d = doc.data() || {};
@@ -32,10 +45,16 @@ document.addEventListener("firebase-ready", () => {
         idNumber: d.idNumber || ""
       };
     });
+    setLoading(false);
   }
 
   function buildBedOptions(selected) {
-    const beds = Object.keys(RESIDENTS_BY_BED).sort((a, b) => String(a).localeCompare(String(b), "zh-Hant"));
+    const beds = Object.keys(RESIDENTS_BY_BED).sort((a, b) => {
+      const na = parseInt(a, 10);
+      const nb = parseInt(b, 10);
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+      return String(a).localeCompare(String(b), "zh-Hant");
+    });
     let html = `<option value=''>選擇床號</option>`;
     beds.forEach(b => {
       const sel = b === selected ? "selected" : "";
@@ -47,13 +66,18 @@ document.addEventListener("firebase-ready", () => {
   function toRoc(iso) {
     if (!iso) return "";
     const [y, m, d] = iso.split("-").map(Number);
+    if (!y || !m || !d) return "";
     return `${y - 1911}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
   }
 
   function refreshMeta() {
     const rows = [...tbody.querySelectorAll("tr")];
-    rows.forEach((tr, i) => tr.querySelector(".idx").textContent = i + 1);
-    patientCountEl.textContent = rows.filter(r => r.querySelector(".bed-select")?.value).length;
+    rows.forEach((tr, i) => {
+      const idx = tr.querySelector(".idx");
+      if (idx) idx.textContent = i + 1;
+    });
+    const count = rows.filter(r => (r.querySelector(".bed-select")?.value || "").trim() !== "").length;
+    patientCountEl.textContent = count;
     const roc = toRoc(dateInput.value);
     displayDateEl.textContent = roc || "—";
     signDateEl.textContent = roc || "";
@@ -63,108 +87,187 @@ document.addEventListener("firebase-ready", () => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class='text-center idx'></td>
-      <td><select class='form-select form-select-sm cell-select bed-select'>${buildBedOptions(row.bedNumber || "")}</select></td>
-      <td><input type='text' class='cell-input name-input' value='${row.name || ""}' readonly></td>
-      <td><input type='text' class='cell-input id-input' value='${row.idNumber || ""}' readonly></td>
-      <td><input type='text' class='cell-input vitals-input' value='${row.vitals || ""}'></td>
-      <td><textarea class='cell-input cond-input'>${row.condition || ""}</textarea></td>
-      <td><textarea class='cell-input note-input'>${row.doctorNote || ""}</textarea></td>
-      <td class='text-center'><button class='btn btn-outline-danger btn-xs-icon del-btn'><i class='fas fa-trash-alt'></i></button></td>
+      <td>
+        <select class='form-select form-select-sm cell-select bed-select'>
+          ${buildBedOptions(row.bedNumber || "")}
+        </select>
+      </td>
+      <td><input type='text' class='cell-input name-input text-center' value='${row.name || ""}' readonly></td>
+      <td><input type='text' class='cell-input id-input text-center' value='${row.idNumber || ""}' readonly></td>
+      <td><input type='text' class='cell-input vitals-input text-center' value='${row.vitals || ""}'></td>
+      <td><textarea class='cell-input cond-input text-center'>${row.condition || ""}</textarea></td>
+      <td><textarea class='cell-input note-input text-center'>${row.doctorNote || ""}</textarea></td>
+      <td class='text-center'>
+        <button type='button' class='btn btn-outline-danger btn-xs-icon del-btn'>
+          <i class='fas fa-trash-alt'></i>
+        </button>
+      </td>
     `;
-    tr.querySelector(".bed-select").addEventListener("change", e => {
-      const bed = e.target.value;
+
+    const bedSelect = tr.querySelector(".bed-select");
+    const nameInput = tr.querySelector(".name-input");
+    const idInput = tr.querySelector(".id-input");
+
+    bedSelect.addEventListener("change", () => {
+      const bed = bedSelect.value;
       const info = RESIDENTS_BY_BED[bed];
-      tr.querySelector(".name-input").value = info?.name || "";
-      tr.querySelector(".id-input").value = info?.idNumber || "";
+      if (bed && info) {
+        nameInput.value = info.name || "";
+        idInput.value = info.idNumber || "";
+      } else {
+        nameInput.value = "";
+        idInput.value = "";
+      }
       refreshMeta();
     });
+
     tr.querySelector(".del-btn").addEventListener("click", () => {
       tr.remove();
       ensureMinRows();
       refreshMeta();
     });
+
     tbody.appendChild(tr);
   }
 
   function ensureMinRows() {
-    while (tbody.children.length < MIN_ROWS) createRow();
+    while (tbody.children.length < MIN_ROWS) {
+      createRow();
+    }
   }
 
   function collectData() {
     const date = dateInput.value;
-    if (!date) throw new Error("no-date");
-    const entries = [...tbody.querySelectorAll("tr")].map(tr => ({
-      bedNumber: tr.querySelector(".bed-select")?.value || "",
-      name: tr.querySelector(".name-input")?.value || "",
-      idNumber: tr.querySelector(".id-input")?.value || "",
-      vitals: tr.querySelector(".vitals-input")?.value || "",
-      condition: tr.querySelector(".cond-input")?.value || "",
-      doctorNote: tr.querySelector(".note-input")?.value || ""
-    })).filter(e => Object.values(e).some(v => v.trim() !== ""));
-    return { id: date, date, entries, totalPatients: entries.length, updatedAt: new Date().toISOString() };
+    if (!date) {
+      throw new Error("no-date");
+    }
+    const entries = [...tbody.querySelectorAll("tr")].map(tr => {
+      const bedNumber = (tr.querySelector(".bed-select")?.value || "").trim();
+      const name = (tr.querySelector(".name-input")?.value || "").trim();
+      const idNumber = (tr.querySelector(".id-input")?.value || "").trim();
+      const vitals = (tr.querySelector(".vitals-input")?.value || "").trim();
+      const condition = (tr.querySelector(".cond-input")?.value || "").trim();
+      const doctorNote = (tr.querySelector(".note-input")?.value || "").trim();
+      return { bedNumber, name, idNumber, vitals, condition, doctorNote };
+    }).filter(e => Object.values(e).some(v => v !== ""));
+    return {
+      id: date,
+      date,
+      entries,
+      totalPatients: entries.length,
+      updatedAt: new Date().toISOString()
+    };
   }
 
   async function loadSheet(auto = false) {
     const date = dateInput.value;
     if (!date) return;
+    setLoading(true);
     tbody.innerHTML = "";
     const snap = await db.collection(COLLECTION).doc(date).get();
     if (snap.exists) {
-      (snap.data().entries || []).forEach(e => createRow(e));
+      const d = snap.data() || {};
+      (d.entries || []).forEach(e => createRow(e));
     } else if (auto) {
-      await db.collection(COLLECTION).doc(date).set({ id: date, date, entries: [], totalPatients: 0 });
+      await db.collection(COLLECTION).doc(date).set({
+        id: date,
+        date,
+        entries: [],
+        totalPatients: 0,
+        updatedAt: new Date().toISOString()
+      });
     }
     ensureMinRows();
     refreshMeta();
+    setLoading(false);
   }
 
   async function saveSheet() {
     let data;
-    try { data = collectData(); } catch { return alert("請先選擇日期"); }
+    try {
+      data = collectData();
+    } catch {
+      alert("請先選擇日期");
+      return;
+    }
+    setLoading(true, "儲存中...");
     await db.collection(COLLECTION).doc(data.id).set(data);
+    setLoading(false);
     alert("✅ 已儲存醫巡單");
   }
 
   function exportExcel() {
     let data;
-    try { data = collectData(); } catch { return alert("請先選擇日期"); }
+    try {
+      data = collectData();
+    } catch {
+      alert("請先選擇日期");
+      return;
+    }
 
     const rocDate = toRoc(data.date);
+
+    const rowsHtml = data.entries.map((e, i) => `
+      <tr>
+        <td style="text-align:center;vertical-align:middle;">${i + 1}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.bedNumber || ""}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.name || ""}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.idNumber || ""}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.vitals || ""}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.condition || ""}</td>
+        <td style="text-align:center;vertical-align:middle;">${e.doctorNote || ""}</td>
+      </tr>
+    `).join("");
+
+    const emptyRows = Array(Math.max(0, MIN_ROWS - data.entries.length)).fill(
+      `<tr>
+        <td style="text-align:center;vertical-align:middle;">&nbsp;</td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+        <td style="text-align:center;vertical-align:middle;"></td>
+      </tr>`
+    ).join("");
+
     const tableHTML = `
-      <table border="1" style="border-collapse:collapse;text-align:center;vertical-align:middle;">
+      <table border="1" style="border-collapse:collapse;">
         <thead>
-          <tr><th colspan="7" style="font-size:16px;">醫療巡迴門診掛號及就診狀況交班單</th></tr>
           <tr>
-            <th colspan="3" style="text-align:left;">醫巡日期：${rocDate}</th>
-            <th colspan="4" style="text-align:left;">看診人數：${data.totalPatients}</th>
+            <th colspan="7" style="font-size:16px;text-align:center;vertical-align:middle;">
+              醫療巡迴門診掛號及就診狀況交班單
+            </th>
           </tr>
           <tr>
-            <th>排序</th>
-            <th>床號</th>
-            <th>姓名</th>
-            <th>身分證字號</th>
-            <th>生命徵象</th>
-            <th>病情簡述 / 主訴</th>
-            <th>醫師手記 / 囑語</th>
+            <th colspan="3" style="text-align:left;vertical-align:middle;">
+              醫巡日期：${rocDate}
+            </th>
+            <th colspan="4" style="text-align:left;vertical-align:middle;">
+              看診人數：${data.totalPatients}
+            </th>
+          </tr>
+          <tr>
+            <th style="text-align:center;vertical-align:middle;">排序</th>
+            <th style="text-align:center;vertical-align:middle;">床號</th>
+            <th style="text-align:center;vertical-align:middle;">姓名</th>
+            <th style="text-align:center;vertical-align:middle;">身分證字號</th>
+            <th style="text-align:center;vertical-align:middle;">生命徵象</th>
+            <th style="text-align:center;vertical-align:middle;">病情簡述 / 主訴</th>
+            <th style="text-align:center;vertical-align:middle;">醫師手記 / 囑語</th>
           </tr>
         </thead>
         <tbody>
-          ${data.entries.map((e, i) => `
-            <tr>
-              <td>${i + 1}</td>
-              <td>${e.bedNumber || ""}</td>
-              <td>${e.name || ""}</td>
-              <td>${e.idNumber || ""}</td>
-              <td>${e.vitals || ""}</td>
-              <td>${e.condition || ""}</td>
-              <td>${e.doctorNote || ""}</td>
-            </tr>`).join("")}
-          ${Array(Math.max(0, MIN_ROWS - data.entries.length)).fill("<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>").join("")}
+          ${rowsHtml}
+          ${emptyRows}
         </tbody>
       </table>
     `;
 
-    const blob = new Blob([`\ufeff${tableHTML}`], { type: "application/vnd.ms-excel" });
+    const blob = new Blob(
+      [`\ufeff${tableHTML}`],
+      { type: "application/vnd.ms-excel" }
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -175,7 +278,12 @@ document.addEventListener("firebase-ready", () => {
     URL.revokeObjectURL(url);
   }
 
-  addRowBtn.addEventListener("click", () => { createRow(); ensureMinRows(); refreshMeta(); });
+  addRowBtn.addEventListener("click", () => {
+    createRow();
+    ensureMinRows();
+    refreshMeta();
+  });
+
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
 
@@ -185,7 +293,9 @@ document.addEventListener("firebase-ready", () => {
 
   (async () => {
     await loadResidents();
-    if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
+    if (!dateInput.value) {
+      dateInput.value = new Date().toISOString().slice(0, 10);
+    }
     await loadSheet(true);
   })();
 });
