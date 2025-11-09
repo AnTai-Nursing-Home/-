@@ -259,8 +259,8 @@ document.addEventListener("firebase-ready", () => {
             <th style="text-align:center;vertical-align:middle;">姓名</th>
             <th style="text-align:center;vertical-align:middle;">身分證字號</th>
             <th style="text-align:center;vertical-align:middle;">生命徵象</th>
-            <th style="text-align:center;vertical-align:middle;">病情簡述 / 主訴</th>
-            <th style="text-align:center;vertical-align:middle;">醫師手記 / 囑語</th>
+            <th style="text-align:center;vertical-align:middle;">病情簡述</th>
+            <th style="text-align:center;vertical-align:middle;">醫師手記</th>
           </tr>
         </thead>
         <tbody>
