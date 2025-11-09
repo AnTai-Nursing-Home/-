@@ -1,8 +1,9 @@
 
-// 醫療巡迴門診掛號及就診狀況交班單 (最終版)
+// 醫療巡迴門診掛號及就診狀況交班單 (自動載入版)
 // ✅ 匯出為 .xls (保留框線)
+// ✅ 自動載入今日資料 / 切換日期自動載入
 // ✅ 響應式、手機可用
-// ✅ 功能：載入/建立、新增列、儲存、匯出、下載範本
+// ✅ 功能：自動載入、新增列、儲存、匯出、下載範本
 // ❌ 移除列印
 
 document.addEventListener("firebase-ready", () => {
@@ -16,7 +17,6 @@ document.addEventListener("firebase-ready", () => {
   const signDateEl = document.getElementById("sign-date");
   const patientCountEl = document.getElementById("patient-count");
 
-  const loadBtn = document.getElementById("load-btn");
   const addRowBtn = document.getElementById("add-row-btn");
   const saveBtn = document.getElementById("save-btn");
   const exportBtn = document.getElementById("export-btn");
@@ -105,12 +105,16 @@ document.addEventListener("firebase-ready", () => {
     return { id: date, date, entries, totalPatients: entries.length, updatedAt: new Date().toISOString() };
   }
 
-  async function loadSheet() {
+  async function loadSheet(auto = false) {
     const date = dateInput.value;
     if (!date) return alert("請先選擇巡診日期");
     tbody.innerHTML = "";
     const snap = await db.collection(COLLECTION).doc(date).get();
-    if (snap.exists) (snap.data().entries || []).forEach(e => createRow(e));
+    if (snap.exists) {
+      (snap.data().entries || []).forEach(e => createRow(e));
+    } else if (auto) {
+      await db.collection(COLLECTION).doc(date).set({ id: date, date, entries: [], totalPatients: 0 });
+    }
     ensureMinRows();
     refreshMeta();
   }
@@ -141,8 +145,8 @@ document.addEventListener("firebase-ready", () => {
             <th>姓名</th>
             <th>身分證字號</th>
             <th>生命徵象</th>
-            <th>病情簡述</th>
-            <th>醫師手記</th>
+            <th>病情簡述 / 主訴</th>
+            <th>醫師手記 / 囑語</th>
           </tr>
         </thead>
         <tbody>
@@ -172,20 +176,18 @@ document.addEventListener("firebase-ready", () => {
     URL.revokeObjectURL(url);
   }
 
-  loadBtn.addEventListener("click", loadSheet);
   addRowBtn.addEventListener("click", () => { createRow(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
 
-  dateInput.addEventListener("change", () => {
-    tbody.innerHTML = "";
-    ensureMinRows();
-    refreshMeta();
+  // 🔹 自動載入日期資料
+  dateInput.addEventListener("change", async () => {
+    await loadSheet(true);
   });
 
   (async () => {
     await loadResidents();
     if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
-    await loadSheet();
+    await loadSheet(true); // 自動載入今日資料
   })();
 });
