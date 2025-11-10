@@ -92,6 +92,15 @@
   }
 
   function yearsCompletedAtEndOf(year, hireDate) {
+  // 計算入職至目前的年資（以現在日期 new Date() 為基準）
+  function yearsCompletedUntilNow(hireDate) {
+    if (!hireDate) return 0;
+    const now = new Date();
+    const diff = now - hireDate;
+    if (diff <= 0) return 0;
+    return diff / (365.25 * 24 * 3600 * 1000);
+  }
+
     if (!hireDate) return 0;
     const end = endOfYear(year);
     const diff = end - hireDate;
@@ -349,7 +358,7 @@
       const usedDH = decomposeHours(usedH);
       const remainDH = decomposeHours(remainH);
 
-      const yrs = p.hireDate ? yearsCompletedAtEndOf(year, p.hireDate) : 0;
+      const yrs = p.hireDate ? yearsCompletedUntilNow(p.hireDate) : 0;
       const yrsTxt = p.hireDate ? `${Math.floor(yrs)} 年 ${Math.round((yrs%1)*12)} 月` : "";
 
       let remainText = `${remainDH.days} 天 ${remainDH.hours} 小時`;
