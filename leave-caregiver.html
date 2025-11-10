@@ -8,6 +8,48 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    /* === 修正版樣式 for leave-caregiver === */
+    .card {
+      overflow-x: hidden;
+    }
+    
+    #leave-calendar-container {
+      overflow-x: auto;
+    }
+    
+    .leave-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      max-width: 100%;
+      word-wrap: break-word;
+    }
+    
+    .calendar-day,
+    .calendar-weekday {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      min-height: 80px;
+      box-sizing: border-box;
+    }
+    
+    @media (max-width: 768px) {
+      .leave-calendar-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .calendar-day,
+      .calendar-weekday {
+        font-size: 12px;
+        padding: 4px;
+        min-height: 60px;
+      }
+      .card-body {
+        padding: 10px;
+      }
+    }
 </head>
 <body>
     <div class="container my-5">
