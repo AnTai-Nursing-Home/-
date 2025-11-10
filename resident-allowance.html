@@ -4,116 +4,74 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>住民零用金系統</title>
-
-  <!-- Bootstrap & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-
-  <!-- Firebase Core (與你現有系統保持一致) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="firebase-init.js"></script>
-
   <style>
-    body { background-color:#f8f9fa; font-family:'Microsoft JhengHei',system-ui,sans-serif; }
-    th, td { vertical-align: middle; }
-    .card-header { background-color:#212529; color:#fff; }
-    .table thead th { white-space: nowrap; }
+    body { background:#f8f9fa; font-family:'Microsoft JhengHei',sans-serif; }
+    .card-header { background:#212529; color:#fff; }
   </style>
 </head>
-<body class="bg-light">
+<body>
   <div class="container my-4">
-
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">
-          <i class="fa-solid fa-wallet me-2"></i>住民零用金系統
-        </h4>
-        <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">
-          <i class="fa-solid fa-arrow-left me-1"></i> 返回辦公室儀表板
-        </a>
+        <h5 class="mb-0"><i class="fa-solid fa-wallet me-2"></i>住民零用金系統</h5>
+        <a href="office.html" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> 返回</a>
       </div>
-
       <div class="card-body">
-        <!-- 住民選擇 -->
         <div class="mb-3">
           <label class="form-label fw-bold">選擇住民</label>
-          <select id="residentSelect" class="form-select form-select-sm" style="max-width:260px">
-            <option value="">讀取中...</option>
-          </select>
-          <div id="residentInfo" class="small text-muted mt-1"></div>
+          <select id="residentSelect" class="form-select form-select-sm" style="max-width:250px"></select>
         </div>
-
-        <!-- 目前餘額 -->
-        <div class="fw-bold mb-3">
-          目前餘額：<span id="balanceDisplay" class="text-success fs-5">--</span>
-        </div>
-
-        <!-- 新增紀錄 -->
+        <div class="fw-bold mb-3">目前餘額：<span id="balanceDisplay" class="text-success fs-5">--</span> 元</div>
         <div class="row g-2 align-items-end mb-3">
-          <div class="col-md-2 col-6">
-            <label class="form-label">日期</label>
-            <input type="date" id="txDate" class="form-control form-control-sm" />
-          </div>
-          <div class="col-md-2 col-6">
-            <label class="form-label">類型</label>
-            <select id="txType" class="form-select form-select-sm">
-              <option value="存入">存入</option>
-              <option value="取用">取用</option>
-            </select>
-          </div>
-          <div class="col-md-2 col-6">
-            <label class="form-label">金額</label>
-            <input type="number" id="txAmount" class="form-control form-control-sm" min="1" />
-          </div>
-          <div class="col-md-4 col-12">
-            <label class="form-label">原因</label>
-            <input type="text" id="txReason" class="form-control form-control-sm" placeholder="例：家屬交付 / 購買用品" />
-          </div>
-          <div class="col-md-2 col-12 text-end">
-            <button id="txSubmit" class="btn btn-primary btn-sm w-100">
-              <i class="fa-solid fa-plus me-1"></i> 新增紀錄
-            </button>
-          </div>
+          <div class="col-md-2"><label class="form-label">日期</label><input type="date" id="txDate" class="form-control form-control-sm"></div>
+          <div class="col-md-2"><label class="form-label">類型</label><select id="txType" class="form-select form-select-sm"><option value="存入">存入</option><option value="取用">取用</option></select></div>
+          <div class="col-md-2"><label class="form-label">金額</label><input type="number" id="txAmount" class="form-control form-control-sm" min="1"></div>
+          <div class="col-md-3"><label class="form-label">原因</label><input type="text" id="txReason" class="form-control form-control-sm" placeholder="例：家屬交付/購買用品"></div>
+          <div class="col-md-2"><label class="form-label">登錄人</label><input type="text" id="txRecorder" class="form-control form-control-sm"></div>
+          <div class="col-md-1 text-end"><button id="txSubmit" class="btn btn-primary btn-sm w-100"><i class="fa-solid fa-plus"></i></button></div>
         </div>
-
-        <!-- 標題 + 匯出 -->
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="mb-0">交易紀錄</h5>
-          <button class="btn btn-outline-success btn-sm" id="exportExcel">
-            <i class="fa-solid fa-file-excel me-1"></i> 匯出 Excel
-          </button>
+          <h6 class="mb-0">交易紀錄</h6>
+          <button id="exportExcel" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
         </div>
-
-        <!-- 表格 -->
         <div class="table-responsive">
           <table class="table table-bordered align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>日期</th>
-                <th>類型</th>
-                <th>金額</th>
-                <th>原因</th>
-                <th>登錄人</th>
-                <th style="width:110px">操作</th>
-              </tr>
-            </thead>
-            <tbody id="txTableBody">
-              <tr>
-                <td colspan="6" class="text-center text-muted">請選擇住民</td>
-              </tr>
-            </tbody>
+            <thead class="table-light"><tr><th>日期</th><th>類型</th><th>金額</th><th>原因</th><th>登錄人</th><th>操作</th></tr></thead>
+            <tbody id="txTableBody"><tr><td colspan="6" class="text-center text-muted">請選擇住民</td></tr></tbody>
           </table>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Bootstrap JS -->
+  <!-- Modal for Editing -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title"><i class="fa-solid fa-pen-to-square me-2"></i>編輯紀錄</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editId">
+          <div class="mb-2"><label class="form-label">日期</label><input type="date" id="editDate" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label">類型</label><select id="editType" class="form-select form-select-sm"><option value="存入">存入</option><option value="取用">取用</option></select></div>
+          <div class="mb-2"><label class="form-label">金額</label><input type="number" id="editAmount" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label">原因</label><input type="text" id="editReason" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label">登錄人</label><input type="text" id="editRecorder" class="form-control form-control-sm"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button><button id="saveEdit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk me-1"></i>儲存修改</button></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- 零用金主程式 -->
-  <script src="resident-allowance.js"></script>
+  <script src="resident-allowance_fixed_editmodal.js"></script>
 </body>
 </html>
