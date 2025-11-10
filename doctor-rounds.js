@@ -59,6 +59,21 @@ document.addEventListener("firebase-ready", () => {
     return `${y - 1911}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
   }
 
+  
+  function sortTableByBed() {
+    const rows = [...tbody.querySelectorAll("tr")];
+    rows.sort((a, b) => {
+      const bedA = a.querySelector(".bed-select")?.value || "";
+      const bedB = b.querySelector(".bed-select")?.value || "";
+      const parseBed = bed => bed.match(/\d+/g)?.map(Number) || [0];
+      const [a1, a2 = 0] = parseBed(bedA);
+      const [b1, b2 = 0] = parseBed(bedB);
+      return a1 - b1 || a2 - b2;
+    });
+    tbody.innerHTML = "";
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
   function refreshMeta() {
     const rows = [...tbody.querySelectorAll("tr")];
     rows.forEach((tr, i) => {
@@ -145,6 +160,7 @@ document.addEventListener("firebase-ready", () => {
       await db.collection(COLLECTION).doc(date).set({ id: date, date, entries: [], totalPatients: 0 });
     }
     ensureMinRows();
+    sortTableByBed();
     refreshMeta();
   }
 
@@ -193,7 +209,7 @@ document.addEventListener("firebase-ready", () => {
     URL.revokeObjectURL(url);
   }
 
-  addRowBtn.addEventListener("click", () => { createRow(); ensureMinRows(); refreshMeta(); });
+  addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
