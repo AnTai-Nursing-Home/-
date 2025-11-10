@@ -29,6 +29,10 @@
     let currentBalance = 0;
     let currentEditingTxId = "";
 
+    // 載入前顯示「讀取中...」
+    sel.innerHTML = '<option>讀取中...</option>';
+    sel.disabled = true;
+    
     // 載入住民清單（依床號排序）
     try {
       const snap = await colResidents.get();
@@ -52,6 +56,7 @@
         residents
           .map((r) => `<option value="${r.id}" data-bed="${r.bed}">${r.bed ? `${r.bed} - ${r.id}` : r.id}</option>`)
           .join("");
+      sel.disabled = false;
     } catch (err) {
       console.error("[allowance] load residents error", err);
       sel.innerHTML = '<option value="">載入失敗，請重新整理</option>';
