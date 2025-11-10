@@ -100,14 +100,16 @@
     return diff / (365.25 * 24 * 3600 * 1000);
   }
 
-  // 計算入職至目前的年資（以現在日期 new Date() 為基準）
-  function yearsCompletedUntilNow(hireDate) {
-    if (!hireDate) return 0;
-    const now = new Date();
-    const diff = now - hireDate;
-    if (diff <= 0) return 0;
-    return diff / (365.25 * 24 * 3600 * 1000);
-  }
+// 計算入職至目前的年資（以現在日期 new Date() 為基準）
+function yearsCompletedUntilNow(hireDate) {
+  if (!hireDate) return 0;
+  const now = new Date();
+  const diff = now - hireDate;
+  if (diff <= 0) return 0;
+  return diff / (365.25 * 24 * 3600 * 1000);
+}
+
+  
 
 
     if (!hireDate) return 0;
@@ -117,14 +119,7 @@
     return diff / (365.25 * 24 * 3600 * 1000);
   }
 
-  // 計算入職至目前的年資（以現在日期 new Date() 為基準）
-  function yearsCompletedUntilNow(hireDate) {
-    if (!hireDate) return 0;
-    const now = new Date();
-    const diff = now - hireDate;
-    if (diff <= 0) return 0;
-    return diff / (365.25 * 24 * 3600 * 1000);
-  }
+  
 
   // Entitlement in "hours" (for math); render as "days only" on UI
   function entitlementHoursForYear(hireDate, year) {
