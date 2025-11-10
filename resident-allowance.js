@@ -251,7 +251,7 @@
           return alert("請填寫正確的日期與金額");
         }
 
-        try:
+        try {
           const txRef = colAllowance
             .doc(currentResident)
             .collection("transactions")
