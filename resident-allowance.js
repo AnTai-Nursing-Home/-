@@ -1,6 +1,6 @@
 (function () {
-  // 等待 Firebase 初始化
-  if (window.firebase?.apps?.length) {
+  // 等待 Firebase 初始化完成後執行
+  if (window.firebase && firebase.apps && firebase.apps.length) {
     init();
   } else {
     document.addEventListener("firebase-ready", init);
@@ -30,26 +30,29 @@
     const colAllowance = db.collection("resident_allowance");
 
     let currentResident = "";
+    let currentResidentBed = "";
+    let currentBalance = 0;
     let currentEditingTxId = "";
 
     // 載入住民清單並依床號排序
     try {
       const snap = await colResidents.get();
-      let residents = snap.docs.map((d) => {
+      const residents = snap.docs.map((d) => {
         const data = d.data() || {};
         return {
           id: d.id,
-          bed: data.bedNumber || data.bed || "",
+          bed: data.bedNumber || data.bed || ""
         };
       });
 
       residents.sort((a, b) => {
-        const numA = a.bed.match(/\d+/g)?.map(Number) || [0];
-        const numB = b.bed.match(/\d+/g)?.map(Number) || [0];
-        for (let i = 0; i < Math.max(numA.length, numB.length); i++) {
-          if ((numA[i] || 0) !== (numB[i] || 0)) {
-            return (numA[i] || 0) - (numB[i] || 0);
-          }
+        const numsA = a.bed.match(/\d+/g)?.map(Number) || [0];
+        const numsB = b.bed.match(/\d+/g)?.map(Number) || [0];
+        const len = Math.max(numsA.length, numsB.length);
+        for (let i = 0; i < len; i++) {
+          const na = numsA[i] || 0;
+          const nb = numsB[i] || 0;
+          if (na !== nb) return na - nb;
         }
         return a.bed.localeCompare(b.bed, "zh-Hant");
       });
@@ -68,14 +71,16 @@
         '<option value="">載入失敗，請重新整理</option>';
     }
 
-    // 選擇住民事件
+    // 切換住民
     sel.addEventListener("change", () => {
       const name = sel.value;
       const opt = sel.options[sel.selectedIndex];
-      const bed = opt ? opt.getAttribute("data-bed") || "" : "";
+      const bed = opt ? (opt.getAttribute("data-bed") || "") : "";
       currentResident = name;
+      currentResidentBed = bed;
 
       if (!name) {
+        currentBalance = 0;
         balanceEl.textContent = "--";
         tbody.innerHTML =
           '<tr><td colspan="6" class="text-center text-muted">請選擇住民</td></tr>';
@@ -84,7 +89,7 @@
       renderResident(name);
     });
 
-    // 渲染指定住民的交易紀錄，並重算餘額
+    // 渲染交易紀錄 & 計算餘額
     async function renderResident(name) {
       if (!name) return;
       const docRef = colAllowance.doc(name);
@@ -94,18 +99,18 @@
       try {
         const txSnap = await docRef
           .collection("transactions")
-          .orderBy("date", "desc")
+          .orderBy("date", "asc")
           .get();
 
         if (txSnap.empty) {
+          currentBalance = 0;
           balanceEl.textContent = "0 元";
           tbody.innerHTML =
             '<tr><td colspan="6" class="text-center text-muted">目前無交易紀錄</td></tr>';
           await docRef.set(
             {
               totalBalance: 0,
-              lastUpdated:
-                firebase.firestore.FieldValue.serverTimestamp(),
+              lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             },
             { merge: true }
           );
@@ -127,8 +132,8 @@
           if (type === "存入") balance += amount;
           else balance -= amount;
 
-          rows.push(`
-            <tr data-id="${id}">
+          rows.push(
+            `<tr data-id="${id}">
               <td>${escapeHTML(date)}</td>
               <td>${type}</td>
               <td>${amount}</td>
@@ -142,33 +147,29 @@
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </td>
-            </tr>
-          `);
+            </tr>`
+          );
         });
 
         tbody.innerHTML = rows.join("");
+        currentBalance = balance;
         balanceEl.textContent = balance + " 元";
 
         await docRef.set(
           {
             totalBalance: balance,
-            lastUpdated:
-              firebase.firestore.FieldValue.serverTimestamp(),
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
           },
           { merge: true }
         );
 
-        // 綁定按鈕事件
-        tbody
-          .querySelectorAll(".editBtn")
-          .forEach((btn) =>
-            btn.addEventListener("click", onEditClick)
-          );
-        tbody
-          .querySelectorAll(".delBtn")
-          .forEach((btn) =>
-            btn.addEventListener("click", onDeleteClick)
-          );
+        // 綁定按鈕
+        tbody.querySelectorAll(".editBtn").forEach((btn) => {
+          btn.addEventListener("click", onEditClick);
+        });
+        tbody.querySelectorAll(".delBtn").forEach((btn) => {
+          btn.addEventListener("click", onDeleteClick);
+        });
       } catch (err) {
         console.error("[allowance] renderResident error", err);
         tbody.innerHTML =
@@ -176,7 +177,7 @@
       }
     }
 
-    // 新增交易紀錄
+    // 新增紀錄
     btnSubmit.addEventListener("click", async () => {
       const name = sel.value;
       if (!name) return alert("請先選擇住民");
@@ -199,13 +200,12 @@
           amount,
           reason,
           recorder,
-          createdAt:
-            firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 清空輸入（保留類型以方便連續輸入）
         $("#txAmount").value = "";
         $("#txReason").value = "";
+        // 登錄人欄位依需求決定是否清空，這裡保留
 
         await renderResident(name);
       } catch (err) {
@@ -214,7 +214,7 @@
       }
     });
 
-    // 點擊「編輯」按鈕：打開 Modal，帶入該列資料
+    // 編輯：開啟 Modal
     function onEditClick(e) {
       const tr = e.target.closest("tr");
       if (!tr || !editModal) return;
@@ -233,16 +233,16 @@
       editModal.show();
     }
 
-    // 儲存 Modal 編輯
+    // 儲存編輯
     if (btnSaveEdit) {
       btnSaveEdit.addEventListener("click", async () => {
         if (!currentResident || !currentEditingTxId) {
-          return editModal && editModal.hide();
+          if (editModal) editModal.hide();
+          return;
         }
 
         const newDate = editDate.value;
-        const newType =
-          editType.value === "取用" ? "取用" : "存入";
+        const newType = editType.value === "取用" ? "取用" : "存入";
         const newAmount = Number(editAmount.value);
         const newReason = editReason.value.trim();
         const newRecorder = editRecorder.value.trim();
@@ -262,11 +262,11 @@
             type: newType,
             amount: newAmount,
             reason: newReason,
-            recorder: newRecorder,
+            recorder: newRecorder
           });
 
-          editModal.hide();
           currentEditingTxId = "";
+          if (editModal) editModal.hide();
           await renderResident(currentResident);
         } catch (err) {
           console.error("[allowance] save edit error", err);
@@ -275,7 +275,7 @@
       });
     }
 
-    // 刪除紀錄
+    // 刪除
     async function onDeleteClick(e) {
       const tr = e.target.closest("tr");
       if (!tr) return;
@@ -295,9 +295,12 @@
       }
     }
 
-    // 匯出 Excel（匯出當前表格）
+    // 匯出：使用自訂版型
     if (btnExport) {
       btnExport.addEventListener("click", () => {
+        if (!currentResident) {
+          return alert("請先選擇住民再匯出。");
+        }
         const XLSX_URL =
           "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
         if (typeof XLSX === "undefined") {
@@ -312,16 +315,134 @@
     }
 
     function exportToExcel() {
-      if (!currentResident) {
-        return alert("請先選擇住民再匯出。");
-      }
-      const table = document.querySelector("table");
-      if (!table) return alert("找不到表格");
+      const aoa = [];
 
-      const wb = XLSX.utils.table_to_book(table, {
-        sheet: "零用金紀錄",
+      // 第1列：標題
+      aoa.push(["住民零用金紀錄表"]);
+
+      // 第2列：床號＋姓名
+      const bed = currentResidentBed || "";
+      const name = currentResident || "";
+      aoa.push([`床號：${bed}　姓名：${name}`]);
+
+      // 第3列：表頭
+      aoa.push(["日期", "類型", "金額", "原因", "登錄人"]);
+
+      // 資料列：從畫面表格擷取（不含操作欄）
+      const rows = tbody.querySelectorAll("tr");
+      rows.forEach((tr) => {
+        const tds = tr.querySelectorAll("td");
+        if (tds.length < 5) return;
+        const date = tds[0].textContent.trim();
+        const type = tds[1].textContent.trim();
+        const amountText = tds[2].textContent.trim();
+        const reason = tds[3].textContent.trim();
+        const recorder = tds[4].textContent.trim();
+
+        if (!date && !type && !amountText && !reason && !recorder) return;
+        const joined = (date + type + amountText + reason + recorder);
+        if (/目前無交易紀錄|請選擇住民|讀取中/.test(joined)) return;
+
+        const amount = Number(amountText) || 0;
+        aoa.push([date, type, amount, reason, recorder]);
       });
-      const filename = `${currentResident}_零用金紀錄.xlsx`;
+
+      // 最後一列：總餘額顯示在第5欄（右下角）
+      const totalText = `總餘額：${currentBalance} 元`;
+      aoa.push(["", "", "", "", totalText]);
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // 合併標題（A1:E1）
+      ws["!merges"] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }
+      ];
+
+      // 自動欄寬
+      const colCount = 5;
+      const colWidths = [];
+      for (let c = 0; c < colCount; c++) {
+        let maxLen = 8;
+        for (let r = 0; r < aoa.length; r++) {
+          const v = aoa[r][c];
+          if (v == null) continue;
+          const len = String(v).length;
+          if (len > maxLen) maxLen = len;
+        }
+        colWidths.push({ wch: maxLen + 2 });
+      }
+      ws["!cols"] = colWidths;
+
+      // 設定樣式與框線
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      for (let R = 0; R <= range.e.r; ++R) {
+        for (let C = 0; C <= range.e.c; ++C) {
+          const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+          let cell = ws[cellRef];
+          if (!cell) {
+            const v = aoa[R] && aoa[R][C];
+            if (v == null || v === "") continue;
+            cell = ws[cellRef] = { t: "s", v: String(v) };
+          }
+
+          cell.s = cell.s || {};
+
+          // 標題列
+          if (R === 0) {
+            cell.s.font = { bold: true, sz: 14 };
+            cell.s.alignment = { horizontal: "center", vertical: "center" };
+          }
+
+          // 床號姓名列
+          if (R === 1 && C === 0) {
+            cell.s.font = { bold: true };
+          }
+
+          // 表頭列
+          if (R === 2) {
+            cell.s.font = { bold: true };
+            cell.s.alignment = { horizontal: "center", vertical: "center" };
+            cell.s.border = {
+              top: { style: "thin", color: { rgb: "000000" } },
+              bottom: { style: "thin", color: { rgb: "000000" } },
+              left: { style: "thin", color: { rgb: "000000" } },
+              right: { style: "thin", color: { rgb: "000000" } }
+            };
+          }
+
+          // 資料列框線
+          if (R >= 3) {
+            cell.s.border = {
+              top: { style: "thin", color: { rgb: "000000" } },
+              bottom: { style: "thin", color: { rgb: "000000" } },
+              left: { style: "thin", color: { rgb: "000000" } },
+              right: { style: "thin", color: { rgb: "000000" } }
+            };
+          }
+
+          // 金額欄右對齊（資料列）
+          if (R >= 3 && C === 2 && cell.v !== "" && !isNaN(Number(cell.v))) {
+            cell.t = "n";
+            cell.s.alignment = { horizontal: "right", vertical: "center" };
+          }
+
+          // 最後一列右下角總餘額
+          if (R === range.e.r && C === 4) {
+            cell.s.font = { bold: true };
+            cell.s.alignment = { horizontal: "right", vertical: "center" };
+          }
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "零用金紀錄");
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const filename = `零用金紀錄表-${yyyy}.${mm}.${dd}.xlsx`;
+
       XLSX.writeFile(wb, filename);
     }
 
