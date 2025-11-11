@@ -61,6 +61,7 @@ document.addEventListener('firebase-ready', async () => {
             <option value="壓傷" ${p.wound==='壓傷'?'selected':''}>壓傷</option>
             <option value="外傷" ${p.wound==='外傷'?'selected':''}>外傷</option>
             <option value="術後傷口" ${p.wound==='術後傷口'?'selected':''}>術後傷口</option>
+            <option value="疾病所致" ${p.wound==='疾病所致'?'selected':''}>疾病所致</option>
           </select>
         </td>
       </tr>`;
