@@ -43,7 +43,7 @@ document.addEventListener('firebase-ready', async () => {
       <td><input type="checkbox" class="pipeCheck" data-type="urine" ${p.urine?'checked':''}></td>
       <td><div>${specialHTML||'<span class="text-muted">無</span>'}</div>
       <div class="mt-2"><select class="form-select form-select-sm d-inline w-auto specialSelect">
-      <option value="">新增特殊管路...</option><option value="port-A">port-A</option><option value="鼻腸管">鼻腸管</option><option value="膀胱造廔口接尿管">膀胱造廔口接尿管</option></select></div></td></tr>`;
+      <option value="">新增特殊管路...</option><option value="port-A">port-A</option><option value="鼻腸管">鼻腸管</option><option value="膀胱造廔口接尿管">膀胱造廔口接尿管</option><option value="腸造廔口">腸造廔口</option></select></div></td></tr>`;
     });
     tbody.innerHTML=html;
     tbody.querySelectorAll('.pipeCheck').forEach(chk=>chk.addEventListener('change',async e=>{const id=e.target.closest('tr').dataset.id;const t=e.target.dataset.type;await dbPipelines.doc(id).set({[t]:e.target.checked},{merge:true});loadResidents();}));
