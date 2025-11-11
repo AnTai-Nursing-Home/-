@@ -18,20 +18,27 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
+  <!-- 你的 firebase-init.js 需在完成初始化後 dispatch 'firebase-ready' 事件 -->
   <script src="firebase-init.js"></script>
 
   <style>
     :root { --card-radius: 14px; }
-    body { background:#f8f9fa; font-family:"Microsoft JhengHei",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans","PingFang TC","Heiti TC",sans-serif; }
+    body {
+      background:#f8f9fa;
+      font-family:"Microsoft JhengHei",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans","PingFang TC","Heiti TC",sans-serif;
+    }
     .page-wrap{ max-width:1200px; margin:16px auto; }
     .card{ border-radius:var(--card-radius); overflow:hidden; }
     .card-header{ background:#212529; color:#fff; }
     .card-header .btn{ border-color:rgba(255,255,255,.5); color:#fff; }
-    .filter-bar .form-control, .filter-bar .form-select{ min-width: 180px; }
+    .filter-bar .form-control,
+    .filter-bar .form-select{ min-width: 180px; }
     .filter-bar .form-label{ font-size:.85rem; color:#6c757d; }
     .table thead th{ white-space:nowrap; }
     .text-muted-ghost{ color:#adb5bd; }
-    .neg{ color:#dc3545 !important; font-weight:700 !important; } /* 負數紅字 */
+    .neg{ color:#dc3545 !important; font-weight:700 !important; }
+    .emp-row{ cursor:pointer; }
+    .emp-row:hover{ background:#f1f3f5; }
   </style>
 </head>
 <body>
@@ -39,20 +46,19 @@
 
     <div class="card mb-3">
       <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <i class="fa-solid fa-umbrella-beach"></i>
-            <strong>年假系統</strong>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <div class="d-flex align-items-center">
-              <span class="me-2 small text-white-50">年度</span>
-              <select id="yearSelect" class="form-select form-select-sm"></select>
+            <div class="d-flex flex-column">
+              <strong>年假系統</strong>
+              <small class="text-white-50">
+                打開「年假統計」時，自動顯示「今日所屬年假區間」的所有員工，點員工可看歷年所有區間。
+              </small>
             </div>
-            <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">
-              <i class="fa-solid fa-arrow-left me-1"></i> 返回辦公室首頁
-            </a>
           </div>
+          <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">
+            <i class="fa-solid fa-arrow-left me-1"></i> 返回辦公室首頁
+          </a>
         </div>
       </div>
 
@@ -61,24 +67,24 @@
         <ul class="nav nav-tabs" id="alTabs" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-requests-tab" data-bs-toggle="tab" data-bs-target="#tab-requests" type="button" role="tab">
-              <i class="fa-solid fa-clipboard-list me-1"></i>特休單（唯讀）
+              <i class="fa-solid fa-clipboard-list me-1"></i>特休單（唯讀＋區間指定）
             </button>
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-quick-tab" data-bs-toggle="tab" data-bs-target="#tab-quick" type="button" role="tab">
-              <i class="fa-solid fa-bolt me-1"></i>快速補登
+              <i class="fa-solid fa-bolt me-1"></i>快速補登（支援選擇區間）
             </button>
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-stats-tab" data-bs-toggle="tab" data-bs-target="#tab-stats" type="button" role="tab">
-              <i class="fa-solid fa-chart-line me-1"></i>年假統計
+              <i class="fa-solid fa-chart-line me-1"></i>年假統計（區間制）
             </button>
           </li>
         </ul>
 
         <div class="tab-content border border-top-0 p-3">
 
-          <!-- 特休單（唯讀） -->
+          <!-- 特休單（唯讀＋區間指定） -->
           <div class="tab-pane fade show active" id="tab-requests" role="tabpanel">
             <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
               <div>
@@ -96,9 +102,15 @@
                 </select>
               </div>
               <div class="ms-auto d-flex gap-2">
-                <button id="reqFilterBtn" class="btn btn-primary btn-sm"><i class="fa-solid fa-filter"></i> 套用篩選</button>
-                <button id="reqClearBtn" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-eraser"></i> 清除</button>
-                <button id="export-req-excel" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+                <button id="reqFilterBtn" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-filter"></i> 套用篩選
+                </button>
+                <button id="reqClearBtn" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-eraser"></i> 清除
+                </button>
+                <button id="export-req-excel" class="btn btn-success btn-sm">
+                  <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+                </button>
               </div>
             </div>
 
@@ -111,17 +123,21 @@
                     <th>假別</th>
                     <th>請假日期</th>
                     <th>班別</th>
-                    <th>請假時數</th> <!-- ✅ C2: 插在班別之後 -->
+                    <th>請假時數</th>
                     <th>請假原因</th>
                     <th>備註</th>
                     <th>審核者</th>
                     <th>來源單號</th>
+                    <th>扣除區間</th>
                   </tr>
                 </thead>
                 <tbody id="al-req-body">
-                  <tr><td colspan="10" class="text-center text-muted-ghost">讀取中…</td></tr>
+                  <tr><td colspan="11" class="text-center text-muted-ghost">讀取中…</td></tr>
                 </tbody>
               </table>
+            </div>
+            <div class="small text-muted">
+              ※ 「扣除區間」僅設定該筆特休應歸屬的年假區間，不修改原始請假單內容。未選擇時，系統預設扣當前進行中的區間。
             </div>
           </div>
 
@@ -140,7 +156,7 @@
               </div>
               <div class="col-6 col-md-2">
                 <label class="form-label mb-1">數值</label>
-                <input type="number" min="0" step="1" id="quickAmount" class="form-control form-control-sm" placeholder="例如：1 或 8"/>
+                <input type="number" min="0" step="0.5" id="quickAmount" class="form-control form-control-sm" placeholder="例如：1 或 8"/>
               </div>
               <div class="col-6 col-md-2">
                 <label class="form-label mb-1">單位</label>
@@ -153,12 +169,19 @@
                 <label class="form-label mb-1">原因/備註</label>
                 <input type="text" id="quickReason" class="form-control form-control-sm" placeholder="例：系統上線前補登"/>
               </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-1">指定扣除區間（選填）</label>
+                <select id="quickPeriodSelect" class="form-select form-select-sm">
+                  <option value="">自動（依日期歸屬）</option>
+                </select>
+              </div>
               <div class="col-12 text-end">
                 <button class="btn btn-sm btn-primary" id="quickSubmit">
                   <i class="fa-solid fa-plus me-1"></i>送出補登（直接生效）
                 </button>
               </div>
             </div>
+
             <div class="table-responsive">
               <table class="table table-sm table-bordered align-middle">
                 <thead class="table-light">
@@ -167,18 +190,21 @@
                     <th>員工</th>
                     <th>時數</th>
                     <th>原因</th>
-                    <th>來源</th>
+                    <th>扣除區間</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="quick-body">
-                  <tr><td colspan="6" class="text-center text-muted">尚無快速補登紀錄</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted-ghost">尚無快速補登紀錄</td></tr>
                 </tbody>
               </table>
             </div>
+            <div class="small text-muted">
+              ※ 補登時會將該筆時數歸入所選（或自動判定）的年假區間，用於後續統計。
+            </div>
           </div>
 
-          <!-- 年度統計 -->
+          <!-- 年假統計（區間制） -->
           <div class="tab-pane fade" id="tab-stats" role="tabpanel">
             <div class="filter-bar d-flex flex-wrap gap-2 mb-3 align-items-end">
               <div>
@@ -188,9 +214,15 @@
                 </select>
               </div>
               <div class="ms-auto d-flex gap-2">
-                <button id="statFilterBtn" class="btn btn-primary btn-sm"><i class="fa-solid fa-filter"></i> 套用篩選</button>
-                <button id="statClearBtn" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-eraser"></i> 清除</button>
-                <button id="export-stat-excel" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+                <button id="statFilterBtn" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-filter"></i> 套用篩選
+                </button>
+                <button id="statClearBtn" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-eraser"></i> 清除
+                </button>
+                <button id="export-stat-excel" class="btn btn-success btn-sm">
+                  <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+                </button>
               </div>
             </div>
 
@@ -202,6 +234,7 @@
                     <th>姓名</th>
                     <th>入職日</th>
                     <th>總年資</th>
+                    <th>目前年假區間</th>
                     <th>應放年假</th>
                     <th>已用年假</th>
                     <th>剩餘年假</th>
@@ -209,19 +242,40 @@
                   </tr>
                 </thead>
                 <tbody id="al-stat-body">
-                  <tr><td colspan="8" class="text-center text-muted-ghost">讀取中…</td></tr>
+                  <tr><td colspan="9" class="text-center text-muted-ghost">讀取中…</td></tr>
                 </tbody>
               </table>
+            </div>
+            <div class="small text-muted">
+              ※ 點擊任一員工列，可查看該員工自入職以來所有年假區間的明細。
             </div>
           </div>
 
         </div>
       </div>
     </div>
+  </div>
 
+  <!-- 員工年假區間明細 Modal -->
+  <div class="modal fade" id="empDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">員工年假區間明細</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          <!-- JS 動態填入 -->
+          載入中…
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">關閉</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>window.HOURS_PER_DAY = 8;</script>
-  <script src="annual-leave.js"></script>
+  <script src="annual-leave.interval.js"></script>
 </body>
 </html>
