@@ -8,12 +8,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     th, td { vertical-align: middle; }
-    .status-badge {
-      padding: 4px 8px; border-radius: 4px; color: #fff; font-weight: 500;
-    }
+    .status-badge { padding: 4px 8px; border-radius: 4px; color: #fff; font-weight: 500; }
     .comment { background: #f8f9fa; }
-
-    /* 列印樣式（正式、橫向、只顯示乾淨表格） */
     @media print {
       @page { size: A4 landscape; margin: 12mm; }
       .no-print { display: none !important; }
@@ -30,26 +26,14 @@
 <body class="bg-light">
   <div class="container my-4">
 
-    <!-- 狀態管理（上方） -->
+    <!-- 狀態管理 -->
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-secondary text-white">
-        <h5 class="mb-0">狀態管理</h5>
-      </div>
+      <div class="card-header bg-secondary text-white"><h5 class="mb-0">狀態管理</h5></div>
       <div class="card-body">
         <div class="row g-3 align-items-end mb-3">
-          <div class="col-md-4">
-            <label class="form-label">新增狀態名稱</label>
-            <input type="text" id="new-status" class="form-control" placeholder="例：待處理、維修中、已完成">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">顏色</label>
-            <input type="color" id="new-status-color" class="form-control form-control-color" value="#007bff" title="選擇顏色">
-          </div>
-          <div class="col-md-2 d-grid">
-            <button id="btn-add-status" class="btn btn-secondary">
-              <i class="fa-solid fa-plus me-1"></i> 新增狀態
-            </button>
-          </div>
+          <div class="col-md-4"><label class="form-label">新增狀態名稱</label><input type="text" id="new-status" class="form-control" placeholder="例：待處理、維修中、已完成"></div>
+          <div class="col-md-2"><label class="form-label">顏色</label><input type="color" id="new-status-color" class="form-control form-control-color" value="#007bff" title="選擇顏色"></div>
+          <div class="col-md-2 d-grid"><button id="btn-add-status" class="btn btn-secondary"><i class="fa-solid fa-plus me-1"></i> 新增狀態</button></div>
         </div>
         <ul class="list-group" id="statusList"></ul>
       </div>
@@ -61,28 +45,12 @@
         <h4 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>器材報修管理（辦公室端）</h4>
         <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回辦公室儀表板</a>
       </div>
-
       <div class="card-body">
-        <!-- 篩選列：狀態 + 日期區間 + 匯出/列印 -->
         <div class="row g-2 align-items-end no-print">
-          <div class="col-auto d-flex align-items-center">
-            <label class="form-label fw-bold me-2 mb-0">狀態篩選：</label>
-            <select id="statusFilter" class="form-select" style="width:auto;display:inline-block;">
-              <option value="all">全部</option>
-            </select>
-          </div>
-          <div class="col-auto">
-            <label class="form-label mb-1">開始日期</label>
-            <input type="date" id="startDate" class="form-control">
-          </div>
-          <div class="col-auto">
-            <label class="form-label mb-1">結束日期</label>
-            <input type="date" id="endDate" class="form-control">
-          </div>
-          <div class="col-auto">
-            <button class="btn btn-outline-primary" id="applyDateBtn"><i class="fa-solid fa-filter"></i> 套用區間</button>
-            <button class="btn btn-outline-secondary" id="clearDateBtn"><i class="fa-solid fa-xmark"></i> 清除</button>
-          </div>
+          <div class="col-auto d-flex align-items-center"><label class="form-label fw-bold me-2 mb-0">狀態篩選：</label><select id="statusFilter" class="form-select" style="width:auto;"><option value="all">全部</option></select></div>
+          <div class="col-auto"><label class="form-label mb-1">開始日期</label><input type="date" id="startDate" class="form-control"></div>
+          <div class="col-auto"><label class="form-label mb-1">結束日期</label><input type="date" id="endDate" class="form-control"></div>
+          <div class="col-auto"><button class="btn btn-outline-primary" id="applyDateBtn"><i class="fa-solid fa-filter"></i> 套用區間</button><button class="btn btn-outline-secondary" id="clearDateBtn"><i class="fa-solid fa-xmark"></i> 清除</button></div>
           <div class="col-auto ms-auto">
             <button class="btn btn-outline-success" id="exportExcelBtn"><i class="fa-solid fa-file-excel"></i> 匯出Excel</button>
             <button class="btn btn-outline-primary" id="exportWordBtn"><i class="fa-solid fa-file-word"></i> 匯出Word</button>
@@ -92,64 +60,21 @@
 
         <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
           <h5 class="mb-0">報修清單</h5>
-          <button class="btn btn-success btn-sm no-print" id="addRequestBtn"><i class="fa-solid fa-plus"></i> 新增報修單</button>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-warning btn-sm no-print" id="toggleNotifyBtn"><i class="fa-solid fa-bell"></i> 消息通知：關閉</button>
+            <button class="btn btn-success btn-sm no-print" id="addRequestBtn"><i class="fa-solid fa-plus"></i> 新增報修單</button>
+          </div>
         </div>
 
         <div class="table-responsive">
           <table class="table table-bordered align-middle">
             <thead class="table-light">
               <tr>
-                <th>報修物品</th>
-                <th>詳細資訊</th>
-                <th>報修人</th>
-                <th>狀態</th>
-                <th>報修時間</th>
-                <th>備註</th>
-                <th class="no-print">操作</th>
+                <th>報修物品</th><th>詳細資訊</th><th>報修人</th><th>狀態</th><th>報修時間</th><th>備註</th><th class="no-print">操作</th>
               </tr>
             </thead>
-            <tbody id="maintenanceTableBody">
-              <tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>
-            </tbody>
+            <tbody id="maintenanceTableBody"><tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr></tbody>
           </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- 新增報修單 Modal -->
-    <div class="modal fade" id="addRequestModal" tabindex="-1" aria-labelledby="addRequestModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">報修物品</label>
-              <input type="text" id="item" class="form-control" placeholder="請輸入報修物品">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">詳細資訊</label>
-              <textarea id="detail" class="form-control" placeholder="請輸入詳細資訊"></textarea>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">報修人</label>
-              <input type="text" id="reporter" class="form-control" placeholder="請輸入報修人姓名">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">狀態</label>
-              <select id="statusSelect" class="form-select"></select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">備註</label>
-              <textarea id="note" class="form-control" placeholder="可選填"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button class="btn btn-primary" id="saveRequestBtn">儲存</button>
-          </div>
         </div>
       </div>
     </div>
