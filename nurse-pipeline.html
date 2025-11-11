@@ -9,7 +9,7 @@
   <style>
     thead th {position: sticky; top: 0; background: #f8f9fa; z-index: 10; border-bottom: 2px solid #dee2e6;}
     body {background-color: #f8f9fa; font-family: "Microsoft JhengHei", sans-serif;}
-    table {border-collapse: collapse !important; width: 100%; font-size: 14px; table-layout: fixed;}
+    table {border-collapse: collapse !important; width: 100%; font-size: 14px; table-layout: auto; min-width: 1200px;}
     th, td {border: 1px solid #dee2e6; text-align: center; vertical-align: middle; padding: 6px 8px !important; word-wrap: break-word;}
     th {background: #e9ecef; font-weight: 600;}
     td:empty::after {content: "無"; color: #6c757d;}
@@ -17,6 +17,11 @@
     .stats-box {background: #e9ecef; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 0.5rem 0.5rem; padding: 10px 15px; font-weight: 600;}
     .stats-box span {margin-right: 12px;}
     .stats-total {text-align: center; margin-top: 8px; font-weight: 700;}
+    td select.form-select-sm {min-width: 120px;}
+    td:nth-last-child(1) select {margin-top: 6px;}
+    td:nth-last-child(2) {vertical-align: top;}
+    td div.d-flex.align-items-center {flex-wrap: wrap; gap: 4px;}
+    td div.mt-2 {margin-top: 4px !important;}
   </style>
 </head>
 <body>
