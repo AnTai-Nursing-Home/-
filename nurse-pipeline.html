@@ -6,83 +6,26 @@
   <title>住民管路管理</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
   <style>
-    thead th {
-      position: sticky;
-      top: 0;
-      background: #f8f9fa;
-      z-index: 10;
-      border-bottom: 2px solid #dee2e6;
-    }
-
-    body {
-      background-color: #f8f9fa;
-      font-family: "Microsoft JhengHei", sans-serif;
-    }
-
-    table {
-      border-collapse: collapse !important;
-      width: 100%;
-      font-size: 14px;
-      table-layout: fixed;
-    }
-
-    th, td {
-      border: 1px solid #dee2e6;
-      text-align: center;
-      vertical-align: middle;
-      padding: 6px 8px !important;
-      word-wrap: break-word;
-    }
-
-    th {
-      background: #e9ecef;
-      font-weight: 600;
-    }
-
-    td:empty::after {
-      content: "無";
-      color: #6c757d;
-    }
-
-    #pipelineTableContainer {
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-
-    /* ✅ 統計區塊樣式 */
-    .stats-box {
-      background: #e9ecef;
-      border: 1px solid #dee2e6;
-      border-top: none;
-      border-radius: 0 0 0.5rem 0.5rem;
-      padding: 10px 15px;
-      font-weight: 600;
-    }
-
-    .stats-box span {
-      margin-right: 12px;
-    }
-
-    .stats-total {
-      text-align: center;
-      margin-top: 8px;
-      font-weight: 700;
-    }
+    thead th {position: sticky; top: 0; background: #f8f9fa; z-index: 10; border-bottom: 2px solid #dee2e6;}
+    body {background-color: #f8f9fa; font-family: "Microsoft JhengHei", sans-serif;}
+    table {border-collapse: collapse !important; width: 100%; font-size: 14px; table-layout: fixed;}
+    th, td {border: 1px solid #dee2e6; text-align: center; vertical-align: middle; padding: 6px 8px !important; word-wrap: break-word;}
+    th {background: #e9ecef; font-weight: 600;}
+    td:empty::after {content: "無"; color: #6c757d;}
+    #pipelineTableContainer {max-height: 80vh; overflow-y: auto;}
+    .stats-box {background: #e9ecef; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 0.5rem 0.5rem; padding: 10px 15px; font-weight: 600;}
+    .stats-box span {margin-right: 12px;}
+    .stats-total {text-align: center; margin-top: 8px; font-weight: 700;}
   </style>
 </head>
-
 <body>
   <div class="container my-4">
     <div class="card shadow">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center sticky-top">
         <h4 class="mb-0"><i class="fa-solid fa-wind me-2"></i>住民管路管理</h4>
-        <div>
-          <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
-        </div>
+        <div><a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a></div>
       </div>
-
       <div class="card-body">
         <div id="pipelineTableContainer" class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
@@ -93,35 +36,31 @@
                 <th>製氧機</th>
                 <th>中央氧氣</th>
                 <th>氣切</th>
+                <th>抽痰</th>
                 <th>鼻胃管</th>
                 <th>尿管</th>
                 <th>特殊管路</th>
               </tr>
             </thead>
             <tbody id="pipelineTableBody">
-              <tr><td colspan="8" class="text-center text-muted">載入中...</td></tr>
+              <tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>
             </tbody>
           </table>
         </div>
-
-        <!-- ✅ 統計區塊（移出表格，開頭有「統計：」） -->
         <div class="stats-box mt-2">
           <span>統計：</span>
           <span id="count-maker">製氧機：0</span>
           <span id="count-central">中央氧氣：0</span>
           <span id="count-tracheostomy">氣切：0</span>
+          <span id="count-suction">抽痰：0</span>
           <span id="count-ngtube">鼻胃管：0</span>
           <span id="count-urine">尿管：0</span>
           <span id="count-special">特殊管路：0</span>
         </div>
-        <div class="stats-total text-muted">
-          住民總數：<span id="count-total">0</span> 人
-        </div>
+        <div class="stats-total text-muted">住民總數：<span id="count-total">0</span> 人</div>
       </div>
     </div>
   </div>
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
