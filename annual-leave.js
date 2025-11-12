@@ -662,6 +662,71 @@
         `;
 
         modalBody.innerHTML = html;
+
+    // ===== 區間點擊展開該區間請假紀錄 =====
+    setTimeout(() => {
+      const tbodyInner = modalBody.querySelector("tbody");
+      if (!tbodyInner) return;
+      tbodyInner.querySelectorAll("tr").forEach(tr2 => {
+        tr2.style.cursor = "pointer";
+        tr2.addEventListener("click", async () => {
+          const tdText = tr2.children[0]?.textContent || "";
+          const [ps, pe] = tdText.split("~").map(s => s.trim());
+          if (!ps || !pe) return;
+          modalBody.querySelectorAll("tbody tr").forEach(x => x.classList.remove("table-primary"));
+          tr2.classList.add("table-primary");
+          const oldDetail = modalBody.querySelector("#intervalDetailTable");
+          if (oldDetail) oldDetail.remove();
+
+          const detailDiv = document.createElement("div");
+          detailDiv.id = "intervalDetailTable";
+          detailDiv.innerHTML = `<div class='text-muted small my-2'>載入中...</div>`;
+          modalBody.appendChild(detailDiv);
+
+          try {
+            const snap = await DB().collection("annual_leave_requests")
+              .where("empId", "==", empId)
+              .where("periodStart", "==", ps)
+              .where("periodEnd", "==", pe)
+              .get();
+
+            if (snap.empty) {
+              detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
+              return;
+            }
+
+            const rows = [];
+            snap.forEach(doc => {
+              const d = doc.data() || {};
+              const leaveDate = ymd(toDate(d.leaveDate || d.date));
+              const hours = recordHours(d);
+              const srcTxt = d.source === "快速補登" ? "快速補登" : "特休單（唯讀）";
+              const reason = d.reason || "";
+              rows.push(`<tr>
+                <td>${leaveDate}</td>
+                <td>${hoursToText(hours)}</td>
+                <td>${reason}</td>
+                <td>${srcTxt}</td>
+              </tr>`);
+            });
+
+            detailDiv.innerHTML = `
+              <div class="table-responsive mt-3">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr><th>請假日期</th><th>時數</th><th>原因</th><th>來源</th></tr>
+                  </thead>
+                  <tbody>${rows.join("")}</tbody>
+                </table>
+              </div>`;
+          } catch (e) {
+            console.error("load interval details error", e);
+            detailDiv.innerHTML = `<div class='text-danger small my-2'>讀取失敗，請稍後再試。</div>`;
+          }
+        });
+      });
+    }, 100);
+
         bsModal.show();
       });
     });
