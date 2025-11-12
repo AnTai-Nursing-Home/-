@@ -268,9 +268,11 @@
       const emp = EMP_MAP[empId];
 
       if (empSelVal) {
+        if (empSelVal === "@admin" && emp?.role !== "admin") return;
         if (empSelVal === "@nurse" && emp?.role !== "nurse") return;
-        if (empSelVal === "@caregiver" && emp?.role !== "caregiver") return;
-        if (empSelVal !== "@nurse" && empSelVal !== "@caregiver" && empId !== empSelVal) return;
+        if (empSelVal === "@localCaregiver" && emp?.role !== "localCaregiver") return;
+        if (empSelVal === "@foreignCaregiver" && emp?.role !== "foreignCaregiver") return;
+        if (!["@admin", "@nurse", "@localCaregiver", "@foreignCaregiver"].includes(empSelVal) && empId !== empSelVal) return;
       }
 
       const leaveType = d.leaveType || "特休";
@@ -481,11 +483,15 @@
 
     let people = allEmployees.slice();
     if (empSelVal) {
-      if (empSelVal === "@nurse") {
+      if (empSelVal === "@admin") {
+        people = people.filter(p => p.role === "admin");
+      } else if (empSelVal === "@nurse") {
         people = people.filter(p => p.role === "nurse");
-      } else if (empSelVal === "@caregiver") {
-        people = people.filter(p => p.role === "caregiver");
-      } else {
+      } else if (empSelVal === "@localCaregiver") {
+        people = people.filter(p => p.role === "localCaregiver");
+      } else if (empSelVal === "@foreignCaregiver") {
+        people = people.filter(p => p.role === "foreignCaregiver");
+      } else if (empSelVal) {
         people = people.filter(p => p.empId === empSelVal);
       }
     }
