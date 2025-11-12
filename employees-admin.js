@@ -1,3 +1,4 @@
+document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener('firebase-ready', () => {
   // 假設 firebase-init.js 內建立了全域 db = firebase.firestore()
   const tablesWrap = document.getElementById('tables-wrap');
@@ -513,4 +514,5 @@ tbody.innerHTML = ""; // 清空舊資料
 
   // 初始載入
   loadAll();
+});
 });
