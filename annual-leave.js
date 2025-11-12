@@ -663,7 +663,7 @@
 
         modalBody.innerHTML = html;
 
-    // ===== 區間點擊展開該區間請假紀錄 =====
+    // ===== 區間點擊展開該區間請假紀錄（支援 date 與 leaveDate 範圍查詢） =====
     setTimeout(() => {
       const tbodyInner = modalBody.querySelector("tbody");
       if (!tbodyInner) return;
@@ -686,8 +686,6 @@
           try {
             const snap = await DB().collection("annual_leave_requests")
               .where("empId", "==", empId)
-              .where("periodStart", "==", ps)
-              .where("periodEnd", "==", pe)
               .get();
 
             if (snap.empty) {
@@ -695,13 +693,20 @@
               return;
             }
 
+            const psDate = new Date(ps + "T00:00:00");
+            const peDate = new Date(pe + "T23:59:59");
             const rows = [];
+
             snap.forEach(doc => {
               const d = doc.data() || {};
-              const leaveDate = ymd(toDate(d.leaveDate || d.date));
+              const dt = toDate(d.date || d.leaveDate);
+              if (!dt) return;
+              if (dt < psDate || dt > peDate) return;
+
               const hours = recordHours(d);
               const srcTxt = d.source === "快速補登" ? "快速補登" : "特休單（唯讀）";
               const reason = d.reason || "";
+              const leaveDate = ymd(dt);
               rows.push(`<tr>
                 <td>${leaveDate}</td>
                 <td>${hoursToText(hours)}</td>
@@ -709,6 +714,11 @@
                 <td>${srcTxt}</td>
               </tr>`);
             });
+
+            if (rows.length === 0) {
+              detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
+              return;
+            }
 
             detailDiv.innerHTML = `
               <div class="table-responsive mt-3">
