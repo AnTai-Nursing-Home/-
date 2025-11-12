@@ -120,10 +120,17 @@ document.addEventListener('firebase-ready', () => {
   async function loadAndRender(collectionName, tbody) {
     tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
     try {
-      const snap = await db.collection(collectionName)
-        .orderBy(sortConfig.key, sortConfig.order)
-        .orderBy('id','asc')
-        .get();
+      try {
+  const snap = await db.collection(collectionName)
+    .orderBy(sortConfig.key, sortConfig.order)
+    .orderBy('id', 'asc')
+    .get();
+  renderData(snap);
+} catch (err) {
+  console.warn("索引不存在或集合為空，改用 fallback 查詢", err);
+  const snap = await db.collection(collectionName).get();
+  renderData(snap);
+}
 
       if (snap.empty) {
         tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
