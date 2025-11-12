@@ -96,19 +96,32 @@
   }
 
   // 建立以入職日為基準的一年期區間（不重疊、不留空白）
+  // 建立以入職日為基準的區間（含半年期 3 天假 + 每年期 7 天起）
   function buildPeriods(hireDate, untilDate) {
     const periods = [];
     if (!hireDate) return periods;
-    const base = new Date(hireDate.getFullYear(), hireDate.getMonth(), hireDate.getDate());
     const limit = untilDate || new Date();
+
+    // 半年後起算的第一段區間（3天年假）
+    const halfStart = new Date(hireDate);
+    halfStart.setMonth(halfStart.getMonth() + 6);
+    const halfEnd = new Date(hireDate);
+    halfEnd.setFullYear(halfEnd.getFullYear(), hireDate.getMonth(), hireDate.getDate());
+    halfEnd.setFullYear(halfEnd.getFullYear() + 1);
+    halfEnd.setDate(halfEnd.getDate() - 1);
+    if (halfStart <= limit) periods.push({ start: halfStart, end: halfEnd });
+
+    // 一年期區間（7天以上）
+    let curStart = new Date(hireDate);
+    curStart.setFullYear(curStart.getFullYear() + 1);
     for (let i = 0; i < 40; i++) {
-      const start = new Date(base);
-      start.setFullYear(start.getFullYear() + i);
+      const start = new Date(curStart);
       const end = new Date(start);
       end.setFullYear(end.getFullYear() + 1);
-      end.setDate(end.getDate() - 1); // inclusive
+      end.setDate(end.getDate() - 1);
       if (start > limit) break;
       periods.push({ start, end });
+      curStart.setFullYear(curStart.getFullYear() + 1);
     }
     return periods;
   }
