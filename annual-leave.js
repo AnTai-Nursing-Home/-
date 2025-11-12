@@ -2,7 +2,12 @@
   const DB = () => firebase.firestore();
   const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
   const COL_REQ = "annual_leave_requests";
-  const ROLE_TXT = { nurse: "護理師", caregiver: "照服員" };
+  const ROLE_TXT = { 
+    admin: "行政人員",
+    nurse: "護理師", 
+    localCaregiver: "台籍照服員", 
+    foreignCaregiver: "外籍照服員"
+  };
   const $ = (sel) => document.querySelector(sel);
   const msPerYear = 365.25 * 24 * 3600 * 1000;
 
