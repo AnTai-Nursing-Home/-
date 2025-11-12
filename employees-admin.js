@@ -111,8 +111,7 @@ document.addEventListener('firebase-ready', () => {
 
   
   // 建出四個面板
-  const tablesWrap = document.getElementById('tables-wrap');
-TAB_DEFS.forEach(d => {
+  TAB_DEFS.forEach(d => {
   const html = buildTableHTML(d.id);
   tablesWrap.insertAdjacentHTML('beforeend', html);
 });
