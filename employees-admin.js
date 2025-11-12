@@ -104,7 +104,7 @@ document.addEventListener('firebase-ready', () => {
 
   const TAB_DEFS = [
     { id: 'nurses', label: '護理師', collection: 'nurses' },
-    { id: 'foreignCaregivers', label: '外籍照服員', collection: 'foreignCaregivers' },
+    { id: 'foreignCaregivers', label: '外籍照服員', collection: 'caregivers' },
     { id: 'localCaregivers', label: '台籍照服員', collection: 'localCaregivers' },
     { id: 'adminStaff', label: '行政/其他', collection: 'adminStaff' },
   ];
