@@ -125,9 +125,9 @@ if (!tbody) {
   console.warn("未找到對應分頁的表格 tbody:", collectionName);
   return;
 }
-tbody.innerHTML = ""; // 清空舊資料
+if (tbody) tbody.innerHTML = ""; // 清空舊資料
 
-    tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
     try {
       const snap = await db.collection(collectionName)
         .orderBy(sortConfig.key, sortConfig.order)
@@ -135,7 +135,7 @@ tbody.innerHTML = ""; // 清空舊資料
         .get();
 
       if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
         return;
       }
 
@@ -173,10 +173,10 @@ tbody.innerHTML = ""; // 清空舊資料
           </tr>
         `;
       });
-      tbody.innerHTML = html;
+      if (tbody) tbody.innerHTML = html;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = `<tr><td colspan="23" class="text-center text-danger">讀取失敗</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-danger">讀取失敗</td></tr>`;
     }
   }
 
