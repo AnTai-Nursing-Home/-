@@ -111,7 +111,11 @@ document.addEventListener('firebase-ready', () => {
 
   
   // 建出四個面板
-  TAB_DEFS.forEach(d => buildTableHTMLForPanel(d.id));
+  const tablesWrap = document.getElementById('tables-wrap');
+TAB_DEFS.forEach(d => {
+  const html = buildTableHTML(d.id);
+  tablesWrap.insertAdjacentHTML('beforeend', html);
+});
 
   // 取得各 tbody & header
   const tbodys = {};
