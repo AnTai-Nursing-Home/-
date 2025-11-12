@@ -147,8 +147,6 @@ document.addEventListener('firebase-ready', () => {
   }
 
   async function loadAndRender(collectionName, tbody) {
-  
-let tbody = document.querySelector(`#${collectionName} table tbody`);
 if (!tbody) {
   console.warn("未找到對應分頁的表格 tbody:", collectionName);
   return;
