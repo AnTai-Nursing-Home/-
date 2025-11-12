@@ -1,6 +1,32 @@
 window.addEventListener("load", async () => {
   console.log("頁面載入完成，開始初始化 Firebase");
-  document.addEventListener("DOMContentLoaded", () => {
+  
+// 修正分頁表格排版
+const layoutStyle = document.createElement('style');
+layoutStyle.textContent = `
+  .tab-pane {
+    min-height: 600px;
+    overflow-y: auto;
+    display: block !important;
+    padding-bottom: 20px;
+  }
+  #tables-wrap {
+    min-height: 600px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table td, table th {
+    padding: 6px 8px;
+    vertical-align: top;
+  }
+`;
+document.head.appendChild(layoutStyle);
+
+
 document.addEventListener('firebase-ready', () => {
   // 假設 firebase-init.js 內建立了全域 db = firebase.firestore()
   const tablesWrap = document.getElementById('tables-wrap');
@@ -50,8 +76,48 @@ document.addEventListener('firebase-ready', () => {
     { id: 'adminStaff', label: '行政/其他', collection: 'adminStaff' },
   ];
 
-    // 建出四個面板
-  
+  function buildTableHTML(tabId) {
+    const tbodyId = `${tabId}-tbody`;
+    return `
+      <div class="tab-pane fade${tabId==='nurses'?' show active':''}" id="${tabId}-panel" role="tabpanel">
+        <div class="table-responsive mt-3">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="sortable-header" data-sort="sortOrder">排序</th>
+                <th class="sortable-header" data-sort="id">員編</th>
+                <th class="sortable-header" data-sort="name">姓名</th>
+                <th>性別</th>
+                <th>生日</th>
+                <th>身分證字號</th>
+                <th>到職日</th>
+                <th>職稱</th>
+                <th>手機</th>
+                <th>日間電話</th>
+                <th>地址</th>
+                <th>緊急聯絡人</th>
+                <th>關係</th>
+                <th>緊急電話</th>
+                <th>國籍</th>
+                <th>證照種類</th>
+                <th>發證字號</th>
+                <th>換證日期</th>
+                <th>長照證號</th>
+                <th>長照證效期</th>
+                <th>學歷</th>
+                <th>畢業學校</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="${tbodyId}"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // 建出四個面板
+  tablesWrap.innerHTML = TAB_DEFS.map(d => buildTableHTML(d.id)).join("");
 
   // 取得各 tbody & header
   const tbodys = {};
@@ -82,14 +148,14 @@ document.addEventListener('firebase-ready', () => {
 
   async function loadAndRender(collectionName, tbody) {
   
-tbody = document.querySelector(`#${collectionName}Table tbody`);
+const tbody = document.querySelector(`#${collectionName} table tbody`);
 if (!tbody) {
   console.warn("未找到對應分頁的表格 tbody:", collectionName);
   return;
 }
-if (tbody) tbody.innerHTML = ""; // 清空舊資料
+tbody.innerHTML = ""; // 清空舊資料
 
-    if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
     try {
       const snap = await db.collection(collectionName)
         .orderBy(sortConfig.key, sortConfig.order)
@@ -97,7 +163,7 @@ if (tbody) tbody.innerHTML = ""; // 清空舊資料
         .get();
 
       if (snap.empty) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
         return;
       }
 
@@ -135,10 +201,10 @@ if (tbody) tbody.innerHTML = ""; // 清空舊資料
           </tr>
         `;
       });
-      if (tbody) tbody.innerHTML = html;
+      tbody.innerHTML = html;
     } catch (err) {
       console.error(err);
-      if (tbody) tbody.innerHTML = `<tr><td colspan="23" class="text-center text-danger">讀取失敗</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="23" class="text-center text-danger">讀取失敗</td></tr>`;
     }
   }
 
@@ -477,6 +543,4 @@ if (tbody) tbody.innerHTML = ""; // 清空舊資料
   // 初始載入
   loadAll();
 });
-});
-
 });
