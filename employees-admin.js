@@ -1,4 +1,6 @@
-document.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("load", async () => {
+  console.log("頁面載入完成，開始初始化 Firebase");
+  document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener('firebase-ready', () => {
   // 假設 firebase-init.js 內建立了全域 db = firebase.firestore()
   const tablesWrap = document.getElementById('tables-wrap');
@@ -515,4 +517,6 @@ if (tbody) tbody.innerHTML = ""; // 清空舊資料
   // 初始載入
   loadAll();
 });
+});
+
 });
