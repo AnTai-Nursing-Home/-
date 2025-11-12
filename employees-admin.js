@@ -118,6 +118,14 @@ document.addEventListener('firebase-ready', () => {
   }
 
   async function loadAndRender(collectionName, tbody) {
+  
+const tbody = document.querySelector(`#${collectionName} table tbody`);
+if (!tbody) {
+  console.warn("未找到對應分頁的表格 tbody:", collectionName);
+  return;
+}
+tbody.innerHTML = ""; // 清空舊資料
+
     tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
     try {
       const snap = await db.collection(collectionName)
