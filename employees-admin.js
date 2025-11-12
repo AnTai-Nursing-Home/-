@@ -1,30 +1,22 @@
 window.addEventListener("load", async () => {
   console.log("頁面載入完成，開始初始化 Firebase");
   
-// 修正分頁表格排版
-const layoutStyle = document.createElement('style');
-layoutStyle.textContent = `
-  .tab-pane {
-    min-height: 600px;
-    overflow-y: auto;
-    display: block !important;
-    padding-bottom: 20px;
-  }
-  #tables-wrap {
-    min-height: 600px;
-    overflow-y: auto;
-    margin-top: 10px;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  table td, table th {
-    padding: 6px 8px;
-    vertical-align: top;
-  }
+// ====== 分頁表格排版修正 ======
+const styleFix = document.createElement('style');
+styleFix.textContent = `
+  .tab-pane { min-height: 600px; overflow-y: auto; padding-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  table td, table th { padding: 6px 8px; vertical-align: top; }
 `;
-document.head.appendChild(layoutStyle);
+document.head.appendChild(styleFix);
+
+// ====== 修正建表邏輯：每個表格放入對應分頁 ======
+function buildTableHTMLForPanel(tabId) {
+  const panel = document.getElementById(`${tabId}-panel`);
+  if (!panel) return;
+  const html = buildTableHTML(tabId);
+  panel.innerHTML = html;
+}
 
 
 document.addEventListener('firebase-ready', () => {
@@ -117,7 +109,7 @@ document.addEventListener('firebase-ready', () => {
   }
 
   // 建出四個面板
-  tablesWrap.innerHTML = TAB_DEFS.map(d => buildTableHTML(d.id)).join("");
+  TAB_DEFS.forEach(d => buildTableHTMLForPanel(d.id));
 
   // 取得各 tbody & header
   const tbodys = {};
@@ -147,12 +139,6 @@ document.addEventListener('firebase-ready', () => {
   }
 
   async function loadAndRender(collectionName, tbody) {
-if (!tbody) {
-  console.warn("未找到對應分頁的表格 tbody:", collectionName);
-  return;
-}
-tbody.innerHTML = ""; // 清空舊資料
-
     tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
     try {
       const snap = await db.collection(collectionName)
