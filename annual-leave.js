@@ -166,38 +166,31 @@
   // ===== Employees =====
   async function loadEmployees() {
     const list = [];
-    // nurses
-    try {
-      const ns = await DB().collection("nurses").orderBy("sortOrder").get();
-      ns.forEach(doc => {
-        const d = doc.data() || {};
-        const empId = d.empId || d.id || doc.id || "";
-        const name = d.name || "";
-        const hireDate = d.hireDate ? toDate(d.hireDate) : null;
-        const role = "nurse";
-        list.push({ empId, name, hireDate, role });
-        EMP_MAP[empId] = { name, hireDate, role };
-      });
-    } catch (e) {
-      console.error("load nurses error", e);
+    const collections = [
+      { name: "adminStaff", role: "admin" },
+      { name: "nurses", role: "nurse" },
+      { name: "localCaregivers", role: "localCaregiver" },
+      { name: "caregivers", role: "foreignCaregiver" },
+    ];
+  
+    for (const c of collections) {
+      try {
+        const snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        snap.forEach(doc => {
+          const d = doc.data() || {};
+          const empId = d.empId || d.id || doc.id || "";
+          const name = d.name || "";
+          const hireDate = d.hireDate ? toDate(d.hireDate) : null;
+          const role = c.role;
+          list.push({ empId, name, hireDate, role });
+          EMP_MAP[empId] = { name, hireDate, role };
+        });
+      } catch (e) {
+        console.error(`load ${c.name} error`, e);
+      }
     }
-    // caregivers
-    try {
-      const cg = await DB().collection("caregivers").orderBy("sortOrder").get();
-      cg.forEach(doc => {
-        const d = doc.data() || {};
-        const empId = d.empId || d.id || doc.id || "";
-        const name = d.name || "";
-        const hireDate = d.hireDate ? toDate(d.hireDate) : null;
-        const role = "caregiver";
-        list.push({ empId, name, hireDate, role });
-        EMP_MAP[empId] = { name, hireDate, role };
-      });
-    } catch (e) {
-      console.error("load caregivers error", e);
-    }
-
-    const orderRole = { nurse: 0, caregiver: 1 };
+  
+    const orderRole = { admin: 0, nurse: 1, localCaregiver: 2, foreignCaregiver: 3 };
     list.sort((a, b) => {
       const rr = (orderRole[a.role] ?? 9) - (orderRole[b.role] ?? 9);
       if (rr !== 0) return rr;
@@ -210,22 +203,26 @@
     const selReq = $("#reqEmpSelect");
     const selStat = $("#statEmpSelect");
     const selQuick = $("#quickEmpSelect");
-
-    const label = p => `${p.empId} ${p.name}${p.role==="nurse"?"(護理師)":p.role==="caregiver"?"(照服員)":""}`;
-
+  
+    const label = p => `${p.empId} ${p.name} (${ROLE_TXT[p.role] || p.role})`;
+  
     if (selReq) {
       selReq.innerHTML = [
         `<option value="">全部</option>`,
+        `<option value="@admin">行政人員</option>`,
         `<option value="@nurse">護理師</option>`,
-        `<option value="@caregiver">照服員</option>`,
+        `<option value="@localCaregiver">台籍照服員</option>`,
+        `<option value="@foreignCaregiver">外籍照服員</option>`,
         ...employees.map(p => `<option value="${p.empId}">${label(p)}</option>`),
       ].join("");
     }
     if (selStat) {
       selStat.innerHTML = [
         `<option value="">全部</option>`,
+        `<option value="@admin">行政人員</option>`,
         `<option value="@nurse">護理師</option>`,
-        `<option value="@caregiver">照服員</option>`,
+        `<option value="@localCaregiver">台籍照服員</option>`,
+        `<option value="@foreignCaregiver">外籍照服員</option>`,
         ...employees.map(p => `<option value="${p.empId}">${label(p)}</option>`),
       ].join("");
     }
