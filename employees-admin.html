@@ -38,16 +38,20 @@ table td, table th {
 
 
 .tab-content {
-  min-height: 600px;
-  display: block !important;
+  min-height: auto;
+  display: block;
   position: relative;
 }
 
 .tab-pane {
-  min-height: 600px;
-  display: block !important;
+  min-height: auto;
+  display: none;
   overflow-y: auto;
   padding-bottom: 30px;
+}
+.tab-pane.active,
+.tab-pane.show {
+  display: block;
 }
 
 #tables-wrap {
