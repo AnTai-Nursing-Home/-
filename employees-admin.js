@@ -411,7 +411,7 @@ document.addEventListener('firebase-ready', () => {
           const payload = {};
           Object.entries(map).forEach(([cn, key]) => {
             let v = row[cn];
-            if (["生日","到職日","換證日期","長照證效期"].includes(cn)) v = normalizeDateMaybe(v);
+            if (["出生年月日","到職日","換證日期","長照證效期"].includes(cn)) v = normalizeDateMaybe(v);
             if (cn === "排序") v = parseInt(v) || 999;
             if (typeof v === "string") v = v.trim();
             payload[key] = v ?? "";
