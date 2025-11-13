@@ -200,6 +200,16 @@
   }
 
   function fillEmpSelects(employees) {
+    // Quick filter select
+    const selQuickFilter = $("#quickFilterSelect");
+    if (selQuickFilter) {
+      selQuickFilter.innerHTML = ["<option value=\"\"">全部</option>"].concat(
+        employees.map(p =>
+          `<option value="${p.empId}">${p.empId} ${p.name} (${ROLE_TXT[p.role]})</option>`
+        )
+      ).join("");
+    }
+
     const selReq = $("#reqEmpSelect");
     const selStat = $("#statEmpSelect");
     const selQuick = $("#quickEmpSelect");
@@ -325,6 +335,25 @@
     rows.sort((a, b) => a.leaveDate.localeCompare(b.leaveDate));
 
     tbody.innerHTML = rows.map(r => {
+    // Quick filter dropdown logic
+    const quickFilter = document.getElementById("quickFilterSelect");
+    if (quickFilter) {
+      quickFilter.addEventListener("change", () => {
+        const val = quickFilter.value;
+        const trs = tbody.querySelectorAll("tr");
+        trs.forEach(tr => {
+          const empText = tr.children[1]?.textContent || "";
+          if (!val) {
+            tr.style.display = "";
+          } else if (empText.startsWith(val)) {
+            tr.style.display = "";
+          } else {
+            tr.style.display = "none";
+          }
+        });
+      });
+    }
+
       const periodSelect = (r.leaveType === "特休" && r.emp?.hireDate)
         ? `<select class="form-select form-select-sm al-period-select" data-id="${r.id}" data-emp="${r.empId}">
              <option value="">自動（進行中區間）</option>
