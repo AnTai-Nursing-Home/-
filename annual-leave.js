@@ -287,7 +287,7 @@
           periodDisplay = `${ymd(ps)} ~ ${ymd(pe)}`;
           periodValue = `${ymd(ps)}~${ymd(pe)}`;
         } else {
-          const cur = findCurrentPeriod(emp.hireDate, new Date());
+          const cur = findCurrentPeriod(emp.hireDate, leaveAt);
           if (cur) {
             periodDisplay = `${ymd(cur.start)} ~ ${ymd(cur.end)}（預設）`;
             periodValue = periodKey(cur);
@@ -803,7 +803,7 @@
       if (periodSel && periodSel.value) {
         [ps, pe] = periodSel.value.split("~");
       } else {
-        const p = findPeriodForDate(emp.hireDate, leaveAt) || findCurrentPeriod(emp.hireDate, new Date());
+        const p = findPeriodForDate(emp.hireDate, leaveAt) || findCurrentPeriod(emp.hireDate, leaveAt);
         if (p) {
           ps = ymd(p.start);
           pe = ymd(p.end);
