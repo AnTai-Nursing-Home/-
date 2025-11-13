@@ -20,11 +20,9 @@
   
 
 #tables-wrap {
-  height: calc(100vh - 250px);
+  min-height: 500px;
   overflow-y: auto;
-  overflow-x: auto;
-  position: relative;
-  padding-bottom: 30px;
+  margin-top: 10px;
 }
 
 table {
@@ -63,6 +61,15 @@ table td, table th {
 }
 
 
+#tables-wrap {
+  height: calc(100vh - 260px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  margin-top: 10px;
+}
+
+/* 固定在底部的橫向滑條（樣式 A：灰色底） */
 #fixed-h-scroll {
   position: sticky;
   bottom: 0;
@@ -71,11 +78,23 @@ table td, table th {
   overflow-x: auto;
   overflow-y: hidden;
   background: #f1f1f1;
-  height: 16px;
-  z-index: 50;
+  border-top: 1px solid #dee2e6;
+  height: 18px;
+  z-index: 20;
 }
 
-#fixed-h-scroll::-webkit-scrollbar { height: 14px; }
+#fixed-h-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+
+#fixed-h-scroll::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+#fixed-h-scroll::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
 
 </style>
 </head>
@@ -132,11 +151,13 @@ table td, table th {
           </li>
         </ul>
 
-<button id="delete-all-btn" class="btn btn-danger btn-sm mt-2 mb-2"><i class='fa-solid fa-trash'></i> 刪除此分頁所有資料</button>
+        <button id="delete-all-btn" class="btn btn-danger btn-sm mt-2 mb-2">
+          <i class="fa-solid fa-trash"></i> 刪除此分頁所有資料
+        </button>
 
 
         <div class="tab-content" id="tables-wrap"></div>
-<div id="fixed-h-scroll"><div id="scroll-proxy"></div></div></div>
+        <div id="fixed-h-scroll"><div id="scroll-proxy"></div></div></div>
 
         </div>
       </div>
