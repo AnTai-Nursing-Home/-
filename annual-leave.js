@@ -178,7 +178,7 @@
         const snap = await DB().collection(c.name).orderBy("sortOrder").get();
         snap.forEach(doc => {
           const d = doc.data() || {};
-          const empId = d.empId || d.id || doc.id || "";
+          const empId = doc.id;
           const name = d.name || "";
           const hireDate = d.hireDate ? toDate(d.hireDate) : null;
           const role = c.role;
@@ -264,7 +264,7 @@
       if (from && leaveAt < from) return;
       if (to && leaveAt > to) return;
 
-      const empId = d.empId || "";
+      const empId = doc.id;
       const emp = EMP_MAP[empId];
 
       if (empSelVal) {
@@ -350,7 +350,7 @@
 
     tbody.querySelectorAll(".al-period-select").forEach(sel => {
       const docId = sel.getAttribute("data-id");
-      const empId = sel.getAttribute("data-emp");
+      const empId = doc.id;
       const row = rows.find(r => r.id === docId);
       const emp = row?.emp;
       if (!emp || !emp.hireDate) return;
@@ -415,7 +415,7 @@
     snap.forEach(doc => {
       const d = doc.data() || {};
       const leaveAt = toDate(d.leaveDate || d.date);
-      const empId = d.empId || "";
+      const empId = doc.id;
       const emp = EMP_MAP[empId];
       const who = `${empId} ${(d.name || d.applicant || emp?.name || "")}`.trim();
       const hours = recordHours(d);
@@ -509,7 +509,7 @@
     if (snap) {
       snap.forEach(doc => {
         const d = doc.data() || {};
-        const empId = d.empId || "";
+        const empId = doc.id;
         const emp = EMP_MAP[empId];
         if (!emp || !emp.hireDate) return;
 
@@ -600,7 +600,7 @@
 
     tbody.querySelectorAll(".emp-row").forEach(tr => {
       tr.addEventListener("click", () => {
-        const empId = tr.getAttribute("data-emp");
+        const empId = doc.id;
         const emp = EMP_MAP[empId];
         if (!emp || !emp.hireDate) return;
 
@@ -777,7 +777,7 @@
       const reasonEl = $("#quickReason");
       const periodSel = $("#quickPeriodSelect");
 
-      const empId = empSel?.value || "";
+      const empId = doc.id;
       const empName = empSel?.selectedOptions?.[0]?.getAttribute("data-name") || "";
       const dateStr = dateEl?.value || "";
       const amount = Number(amountEl?.value || "0");
@@ -851,7 +851,7 @@
       const periodSel = $("#quickPeriodSelect");
       if (!periodSel) return;
 
-      const empId = empSel?.value || "";
+      const empId = doc.id;
       const dateStr = dateEl?.value || "";
 
       periodSel.innerHTML = `<option value="">自動（依日期歸屬）</option>`;
