@@ -533,3 +533,50 @@ document.addEventListener('firebase-ready', () => {
   loadAll();
 });
 });
+
+
+
+// 一鍵刪除此分頁所有資料
+document.getElementById("delete-all-btn").onclick = async () => {
+  const tab = activeTabDef();
+  const col = tab.collection;
+  const label = tab.label;
+
+  if (!confirm(`⚠️ 確定要刪除「${label}」所有資料？此操作無法復原！`)) return;
+
+  try {
+    const snap = await db.collection(col).get();
+    if (snap.empty) {
+      alert("此分頁沒有資料可刪除");
+      return;
+    }
+
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    alert(`✔ 已刪除「${label}」所有資料`);
+    loadAll();
+  } catch (err) {
+    console.error(err);
+    alert("刪除失敗，請查看 console");
+  }
+};
+
+// --- 固定橫向滑條同步 ---
+const fixedScroll = document.getElementById("fixed-h-scroll");
+const scrollProxy = document.getElementById("scroll-proxy");
+
+function syncScrollWidths() {
+  const tables = document.querySelectorAll("table");
+  let maxWidth = 0;
+  tables.forEach(t => maxWidth = Math.max(maxWidth, t.scrollWidth));
+  scrollProxy.style.width = maxWidth + "px";
+}
+
+new ResizeObserver(syncScrollWidths).observe(document.body);
+syncScrollWidths();
+
+fixedScroll.addEventListener("scroll", () => {
+  document.querySelectorAll("table").forEach(t => t.parentElement.scrollLeft = fixedScroll.scrollLeft);
+});
