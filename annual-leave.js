@@ -200,14 +200,16 @@
   }
 
   function fillEmpSelects(employees) {
-    // Quick filter select
+    // Quick filter select (篩選快速補登列表)
     const selQuickFilter = $("#quickFilterSelect");
     if (selQuickFilter) {
-      selQuickFilter.innerHTML = ["<option value=\"\"">全部</option>"].concat(
-        employees.map(p =>
-          `<option value="${p.empId}">${p.empId} ${p.name} (${ROLE_TXT[p.role]})</option>`
+      selQuickFilter.innerHTML = ['<option value="">全部</option>']
+        .concat(
+          employees.map(p =>
+            `<option value="${p.empId}">${p.empId} ${p.name} (${ROLE_TXT[p.role] || p.role})</option>`
+          )
         )
-      ).join("");
+        .join("");
     }
 
     const selReq = $("#reqEmpSelect");
@@ -335,7 +337,7 @@
     rows.sort((a, b) => a.leaveDate.localeCompare(b.leaveDate));
 
     tbody.innerHTML = rows.map(r => {
-    // Quick filter dropdown logic
+    // ===== 下拉選單篩選快速補登 =====
     const quickFilter = document.getElementById("quickFilterSelect");
     if (quickFilter) {
       quickFilter.addEventListener("change", () => {
