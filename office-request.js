@@ -22,7 +22,7 @@ window.COL_SWAP  = "nurse_shift_requests";
   const $ = (s) => document.querySelector(s);
 
   // ===== 員工清單（申請人下拉選單用） =====
-  const EMP_COLLECTIONS = ["nurses","localCaregivers","caregivers","adminStaff"];
+  const EMP_COLLECTIONS = ["caregivers","localCaregivers","nurses","adminStaff"];  // 調整順序：外籍 → 台籍 → 護理師 → 行政
   let EMP_NAMES = []; // 只存姓名給辦公室端選擇
 
   async function loadEmployeeListForOffice() {
@@ -297,19 +297,24 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   // ========= Mirror Sync to Annual Leave (特休) =========
   const _empIdCache = Object.create(null);
+
+  // ★ 支援 caregivers / localCaregivers / nurses / adminStaff 四種來源
+  const COLLECTIONS_FOR_ID = ["caregivers","localCaregivers","nurses","adminStaff"];
   async function resolveEmpIdByName(name) {
     if (!name) return "";
     if (_empIdCache[name]) return _empIdCache[name];
     const db = firebase.firestore();
-    let q = await db.collection("nurses").where("name","==",name).limit(1).get();
-    if (!q.empty) {
-      const id = q.docs[0].data().empId || q.docs[0].data().id || q.docs[0].id || "";
-      if (id) return (_empIdCache[name] = id);
-    }
-    q = await db.collection("caregivers").where("name","==",name).limit(1).get();
-    if (!q.empty) {
-      const id = q.docs[0].data().empId || q.docs[0].data().id || q.docs[0].id || "";
-      if (id) return (_empIdCache[name] = id);
+    for (const col of COLLECTIONS_FOR_ID) {
+      const q = await db.collection(col).where("name","==",name).limit(1).get();
+      if (!q.empty) {
+        const doc = q.docs[0];
+        const data = doc.data() || {};
+        const id = data.empId || data.id || doc.id || "";
+        if (id) {
+          _empIdCache[name] = id;
+          return id;
+        }
+      }
     }
     return "";
   }
