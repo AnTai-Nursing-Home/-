@@ -21,6 +21,60 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   const $ = (s) => document.querySelector(s);
 
+  // ===== 員工清單（申請人下拉選單用） =====
+  const EMP_COLLECTIONS = ["nurses","localCaregivers","caregivers","adminStaff"];
+  let EMP_NAMES = []; // 只存姓名給辦公室端選擇
+
+  async function loadEmployeeListForOffice() {
+    const db = firebase.firestore();
+    const snaps = await Promise.all(EMP_COLLECTIONS.map(c => db.collection(c).get()));
+    const seen = new Set();
+    EMP_NAMES = [];
+    snaps.forEach(snap => {
+      snap.forEach(doc => {
+        const d = doc.data() || {};
+        const name = d.name || "";
+        if (!name || seen.has(name)) return;
+        seen.add(name);
+        EMP_NAMES.push(name);
+      });
+    });
+    EMP_NAMES.sort(); // 排序一下比較好選
+    fillApplicantDropdowns();
+  }
+
+  function fillApplicantDropdowns() {
+    const leaveSel = document.getElementById("leaveApplicant");
+    const swapSel  = document.getElementById("swapApplicant");
+    const opts = ['<option value="">請選擇申請人</option>']
+      .concat(EMP_NAMES.map(n => `<option value="${n}">${n}</option>`))
+      .join("");
+    if (leaveSel) leaveSel.innerHTML = opts;
+    if (swapSel)  swapSel.innerHTML  = opts;
+  }
+
+  // ===== 主管簽名下拉（目前只有林淑菁） =====
+  const SUPERVISORS = ["林淑菁"];
+
+  function fillSupervisorSelectElement(sel, currentValue) {
+    if (!sel) return;
+    let html = '<option value=""></option>';
+    SUPERVISORS.forEach(name => {
+      const selected = (name === (currentValue || "")) ? "selected" : "";
+      html += `<option value="${name}" ${selected}>${name}</option>`;
+    });
+    sel.innerHTML = html;
+  }
+
+  function initSupervisorDropdowns() {
+    // leave & swap table 中的主管簽名欄位
+    document.querySelectorAll("select.supervisor-sign").forEach(sel => {
+      const cur = sel.getAttribute("data-supervisor") || "";
+      fillSupervisorSelectElement(sel, cur);
+    });
+  }
+
+
   // ========= Utilities =========
   function ymd(dLike) {
     if (!dLike) return "";
@@ -131,13 +185,14 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+          <td><select class="form-select form-select-sm supervisor-sign" data-id="${doc.id}" data-supervisor="${d.supervisorSign || ""}"></select></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-leave" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     });
     leaveBody.innerHTML = rows || `<tr><td colspan="11" class="text-center text-muted">沒有符合的資料</td></tr>`;
+    initSupervisorDropdowns();
   }
 
   async function loadSwapRequests() {
@@ -169,13 +224,14 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><input type="text" class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}"></td>
+          <td><select class="form-select form-select-sm supervisor-sign" data-id="${doc.id}" data-supervisor="${d.supervisorSign || ""}"></select></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-swap" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     });
     swapBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
+    initSupervisorDropdowns();
   }
 
   // ========= Create Leave/Swap (with mixed duration support if fields exist) =========
@@ -355,13 +411,6 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   function bindInlineEditors() {
     document.addEventListener("input", (e) => {
-      if (e.target.classList.contains("supervisor-sign")) {
-        const id = e.target.dataset.id;
-        const value = e.target.value;
-        debounceUpdate(`sup-${id}`, 800, async () => {
-          await updateRequestFieldSmart(id, { supervisorSign: value });
-        });
-      }
       if (e.target.classList.contains("note-area")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
@@ -372,6 +421,13 @@ window.COL_SWAP  = "nurse_shift_requests";
     });
 
     document.addEventListener("change", async (e) => {
+      if (e.target.classList.contains("supervisor-sign")) {
+        const id = e.target.dataset.id;
+        const value = e.target.value;
+        debounceUpdate(`sup-${id}`, 100, async () => {
+          await updateRequestFieldSmart(id, { supervisorSign: value });
+        });
+      }
       if (e.target.classList.contains("status-select")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
@@ -481,6 +537,7 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   // ========= Init =========
   document.addEventListener("firebase-ready", async () => {
+    await loadEmployeeListForOffice();
     await loadStatuses();
     await loadLeaveRequests();
     await loadSwapRequests();
