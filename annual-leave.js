@@ -178,7 +178,6 @@
         const snap = await DB().collection(c.name).orderBy("sortOrder").get();
         snap.forEach(doc => {
           const d = doc.data() || {};
-        if (d.leaveType !== "特休" && d.source != "快速補登")) return;
           const empId = d.id || d.empId || doc.id || "";
           const name = d.name || "";
           const hireDate = d.hireDate ? toDate(d.hireDate) : null;
@@ -271,7 +270,6 @@
     const rows = [];
     snap.forEach(doc => {
       const d = doc.data() || {};
-        if (d.leaveType !== "特休" && d.source != "快速補登")) return;
       if (d.source === "快速補登") return;
       const leaveAt = toDate(d.leaveDate || d.date);
       if (!leaveAt) return;
@@ -429,7 +427,6 @@
     const rows = [];
     snap.forEach(doc => {
       const d = doc.data() || {};
-        if (d.leaveType !== "特休" && d.source != "快速補登")) return;
       const leaveAt = toDate(d.leaveDate || d.date);
       const empId = d.empId || "";
       const emp = EMP_MAP[empId];
@@ -532,7 +529,7 @@
     }
 
     const snap = await DB().collection(COL_REQ)
-      
+      .where("leaveType", "==", "特休")
       .get()
       .catch(e => {
         console.error("summary load error", e);
@@ -544,7 +541,6 @@
     if (snap) {
       snap.forEach(doc => {
         const d = doc.data() || {};
-        if (d.leaveType !== "特休" && d.source != "快速補登")) return;
         const empId = d.empId || "";
         const emp = EMP_MAP[empId];
         if (!emp || !emp.hireDate) return;
@@ -735,7 +731,6 @@
 
             snap.forEach(doc => {
               const d = doc.data() || {};
-        if (d.leaveType !== "特休" && d.source != "快速補登")) return;
               const dt = toDate(d.date || d.leaveDate);
               if (!dt) return;
               if (dt < psDate || dt > peDate) return;
