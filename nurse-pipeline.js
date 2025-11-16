@@ -35,12 +35,12 @@ document.addEventListener('firebase-ready', async () => {
     pipeSnap.forEach(pdoc => pipelineMap.set(pdoc.id, pdoc.data()));
     const residents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     residents.sort((a,b)=>{const pa=parseBedNumber(a.bedNumber);const pb=parseBedNumber(b.bedNumber);if(pa.num!==pb.num)return pa.num-pb.num;return pa.suffix.localeCompare(pb.suffix,'zh-Hant',{numeric:true});});
+    const presentResidents = residents.filter(r => !(r.leaveStatus && r.leaveStatus !== ''));
     let total = residents.length;
+    let presentCount = presentResidents.length;
     let stats = { maker:0, central:0, tracheostomy:0, suction:0, ngtube:0, urine:0, special:0, wound:0 };
     let html = '';
-    const presentResidents = residents.filter(r => !(r.leaveStatus && r.leaveStatus !== ''));
-    let presentCount = presentResidents.length;
-residents.forEach(r=>{
+    residents.forEach(r=>{
       const p = pipelineMap.get(r.id)||{};
       const specialList = p.special||[];
       const isAbsent = !!(r.leaveStatus && r.leaveStatus !== '');
@@ -148,23 +148,19 @@ residents.forEach(r=>{
   async function saveSnapshot(){
     const date = (signDate && signDate.value)||'';
     const signer = (signName && signName.value)||'';
-    if(!signer){ // 簽名空白 -> 不存歷程，但仍可關閉
+    if(!signer){
       const modalEl = document.getElementById('snapshotModal');
       const modal = bootstrap.Modal.getInstance(modalEl);
       if (modal) modal.hide();
       return;
     }
-    // Build snapshot: only store ids + pipeline flags + stats
     const items = latestStore.residents.map(r=>{
       const p = latestStore.pipeline.get(r.id)||{};
       return {
-        id: r.id,
-        bedNumber: r.bedNumber||'',
-        leaveStatus: r.leaveStatus||'',
+        id: r.id, bedNumber: r.bedNumber||'', leaveStatus: r.leaveStatus||'',
         maker: !!p.maker, central: !!p.central, tracheostomy: !!p.tracheostomy,
         suction: !!p.suction, ngtube: !!p.ngtube, urine: !!p.urine,
-        special: Array.isArray(p.special)? p.special : [],
-        wound: p.wound || ''
+        special: Array.isArray(p.special)? p.special : [], wound: p.wound || ''
       };
     });
     const payload = {
