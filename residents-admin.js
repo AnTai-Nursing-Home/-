@@ -148,7 +148,7 @@ const idNumberInput = document.getElementById('resident-idNumber');
                             idNumber: String(r.身分證字號 || ''), 
                             birthday: formatDate(r.生日),
                             checkinDate: formatDate(r.入住日期),
-                                    leaveStatus: String(r['請假/住院'] or ''),
+                                    leaveStatus: String(r['請假/住院'] || ''),
                         });
                     }
                 });
