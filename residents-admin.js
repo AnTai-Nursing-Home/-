@@ -90,8 +90,8 @@ const idNumberInput = document.getElementById('resident-idNumber');
             gender: genderInput.value,
             birthday: birthdayInput.value,
             checkinDate: checkinDateInput.value,
-            idNumber: idNumberInput.value.trim(),             leaveStatus: (document.getElementById('resident-status') ? document.getElementById('resident-status').value : (statusInput ? statusInput.value : '')) || \"\",
-// ✅ 新增：身分證字號
+            idNumber: idNumberInput.value.trim(),
+            leaveStatus: (statusInput ? statusInput.value : "")
         };
 
         saveResidentBtn.disabled = true;
