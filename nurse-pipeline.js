@@ -11,6 +11,7 @@ document.addEventListener('firebase-ready', async () => {
   const countUrine = document.getElementById('count-urine');
   const countSpecial = document.getElementById('count-special');
   const countWound = document.getElementById('count-wound');
+  const countPresent = document.getElementById('count-present');
 
   function parseBedNumber(bed) {
     if (!bed) return { num: 0, suffix: '' };
@@ -26,21 +27,26 @@ document.addEventListener('firebase-ready', async () => {
     const pipelineMap = new Map();
     pipeSnap.forEach(pdoc => pipelineMap.set(pdoc.id, pdoc.data()));
     const residents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const presentResidents = residents.filter(r => !(r.leaveStatus && r.leaveStatus !== ''));
     residents.sort((a,b)=>{const pa=parseBedNumber(a.bedNumber);const pb=parseBedNumber(b.bedNumber);if(pa.num!==pb.num)return pa.num-pb.num;return pa.suffix.localeCompare(pb.suffix,'zh-Hant',{numeric:true});});
     let total = residents.length;
+    let presentCount = presentResidents.length;
     let stats = { maker:0, central:0, tracheostomy:0, suction:0, ngtube:0, urine:0, special:0, wound:0 };
     let html = '';
     residents.forEach(r=>{
       const p = pipelineMap.get(r.id)||{};
       const specialList = p.special||[];
-      if(p.maker)stats.maker++; if(p.central)stats.central++; if(p.tracheostomy)stats.tracheostomy++; if(p.suction)stats.suction++; if(p.ngtube)stats.ngtube++; if(p.urine)stats.urine++;
-      if(specialList.length>0)stats.special+=specialList.length;
-      if(p.wound && p.wound !== "") stats.wound++;
+      const isAbsent = !!(r.leaveStatus && r.leaveStatus !== '');
+      if(!isAbsent){
+        if(p.maker)stats.maker++; if(p.central)stats.central++; if(p.tracheostomy)stats.tracheostomy++; if(p.suction)stats.suction++; if(p.ngtube)stats.ngtube++; if(p.urine)stats.urine++;
+        if(specialList.length>0)stats.special+=specialList.length;
+        if(p.wound && p.wound != "") stats.wound++;
+      }
 
       const specialHTML = specialList.map((s,i)=>`<div class="d-flex align-items-center justify-content-between border rounded p-1 my-1"><span>${s}</span><button class="btn btn-sm btn-outline-danger btn-remove-special" data-index="${i}" data-id="${r.id}"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
-      html += `<tr data-id="${r.id}">
+      html += `<tr data-id="${r.id}" class="${(r.leaveStatus&&r.leaveStatus!=='')?'table-secondary':''}">
         <td>${r.bedNumber||''}</td>
-        <td>${r.id}</td>
+        <td>${r.id} ${(r.leaveStatus==='請假')?'<span class="badge bg-warning ms-1">請假</span>':''} ${(r.leaveStatus==='住院')?'<span class="badge bg-danger ms-1">住院</span>':''}</td>
         <td><input type="checkbox" class="pipeCheck" data-type="maker" ${p.maker?'checked':''}></td>
         <td><input type="checkbox" class="pipeCheck" data-type="central" ${p.central?'checked':''}></td>
         <td><input type="checkbox" class="pipeCheck" data-type="tracheostomy" ${p.tracheostomy?'checked':''}></td>
@@ -109,6 +115,7 @@ document.addEventListener('firebase-ready', async () => {
     }));
 
     updateStats(total,stats);
+    if (countPresent) { countPresent.textContent = presentCount; }
   }
 
   function updateStats(total,stats){
