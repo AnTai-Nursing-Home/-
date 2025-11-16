@@ -44,6 +44,7 @@
                                         <th>身分證字號</th>
                                         <th class="sortable-header" data-sort="birthday">生日</th>
                                         <th class="sortable-header" data-sort="checkinDate">入住日期</th>
+                                        <th>請假/住院</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
@@ -97,7 +98,17 @@
                             <label for="resident-checkinDate" class="form-label">入住日期</label>
                             <input type="date" class="form-control" id="resident-checkinDate" required>
                         </div>
-                    </form>
+                    
+                        <div class="mb-3">
+                            <label for="resident-status" class="form-label">請假 / 住院</label>
+                            <select class="form-select" id="resident-status">
+                                <option value="">無</option>
+                                <option value="請假">請假</option>
+                                <option value="住院">住院</option>
+                            </select>
+                        </div>
+    
+                </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
