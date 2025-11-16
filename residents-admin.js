@@ -14,7 +14,8 @@ document.addEventListener('firebase-ready', () => {
     const genderInput = document.getElementById('resident-gender');
     const birthdayInput = document.getElementById('resident-birthday');
     const checkinDateInput = document.getElementById('resident-checkinDate');
-    const idNumberInput = document.getElementById('resident-idNumber'); 
+        const statusInput = document.getElementById('resident-status');
+const idNumberInput = document.getElementById('resident-idNumber'); 
     
     const importExcelBtn = document.getElementById('import-excel-btn');
     const excelFileInput = document.getElementById('excel-file-input');
@@ -63,6 +64,7 @@ document.addEventListener('firebase-ready', () => {
                         <td>${r.idNumber || ''}</td>
                         <td>${r.birthday || ''}</td>
                         <td>${r.checkinDate || ''}</td>
+                        <td>${r.leaveStatus || ""}</td>
                         <td>
                             <button class="btn btn-sm btn-primary btn-edit">編輯</button>
                             <button class="btn btn-sm btn-danger btn-delete">刪除</button>
@@ -88,7 +90,8 @@ document.addEventListener('firebase-ready', () => {
             gender: genderInput.value,
             birthday: birthdayInput.value,
             checkinDate: checkinDateInput.value,
-            idNumber: idNumberInput.value.trim(), // ✅ 新增：身分證字號
+            idNumber: idNumberInput.value.trim(),             leaveStatus: (document.getElementById('resident-status') ? document.getElementById('resident-status').value : (statusInput ? statusInput.value : '')) || \"\",
+// ✅ 新增：身分證字號
         };
 
         saveResidentBtn.disabled = true;
@@ -145,6 +148,7 @@ document.addEventListener('firebase-ready', () => {
                             idNumber: String(r.身分證字號 || ''), 
                             birthday: formatDate(r.生日),
                             checkinDate: formatDate(r.入住日期),
+                                    leaveStatus: String(r['請假/住院'] or ''),
                         });
                     }
                 });
@@ -193,6 +197,7 @@ document.addEventListener('firebase-ready', () => {
                     idNumberInput.value = d.idNumber || ''; // ✅ 顯示身分證字號
                     birthdayInput.value = d.birthday || '';
                     checkinDateInput.value = d.checkinDate || '';
+                    document.getElementById('resident-status').value = d.leaveStatus || '';
                     residentModal.show();
                 }
             } catch {
