@@ -51,7 +51,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="visitorName" class="form-label" data-i18n="visitor_name"></label>
-                                    <input type="text" class="form-control" id="visitorName" data-i18n-placeholder="visitor_name">
+                                    <input type="text" class="form-control" id="visitorName" required data-i18n-placeholder="visitor_name">
                                     <div class="invalid-feedback" data-i18n="please_fill_visitor_name"></div>
                                 </div>
                                 <div class="mb-3">
@@ -61,7 +61,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="visitorPhone" class="form-label" data-i18n="contact_phone"></label>
-                                    <input type="tel" class="form-control" id="visitorPhone" data-i18n-placeholder="contact_phone">
+                                    <input type="tel" class="form-control" id="visitorPhone" required data-i18n-placeholder="contact_phone">
                                     <div class="invalid-feedback" data-i18n="please_fill_contact_phone"></div>
                                 </div>
                                 <button type="submit" class="btn btn-success w-100" data-i18n="confirm_booking"></button>
@@ -99,7 +99,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="firebase-init.js"></script>
-    <script src="i18n.js"></script>
     <script src="main.js"></script>
     <script src="booking.js"></script>
 </body>
