@@ -1,3 +1,4 @@
+
 document.addEventListener('firebase-ready', () => {
 
     // 將空白欄位隱藏（或可改為顯示 "—"），僅動必要邏輯
@@ -176,11 +177,10 @@ document.addEventListener('firebase-ready', () => {
         pendingBookingData = {
             residentName,
             bedNumber: bedNumberInput.value,
-            visitorName: document.getElementById('visitorName').value,
+            visitorName: '',
             visitorRelationship: document.getElementById('visitorRelationship').value,
-            visitorPhone: document.getElementById('visitorPhone').value,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
+            visitorPhone: '',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()};
         document.getElementById('modal-confirm-date').textContent = selectedDate;
         document.getElementById('modal-confirm-time').textContent = selectedTime;
         document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
