@@ -1,59 +1,22 @@
-
 document.addEventListener('firebase-ready', () => {
-
-    // 將空白欄位隱藏（或可改為顯示 "—"），僅動必要邏輯
-    
-    function fillOrHide(spanId, value, mode='hide') {
-        var span = document.getElementById(spanId);
-        if (!span) return;
-        var li = span.parentElement;
-        var empty = !value || (typeof value === 'string' && value.trim() === '');
-        if (empty) {
-            if (mode === 'dash') { span.textContent = '—'; if (li) li.classList.remove('d-none'); }
-            else { span.textContent = ''; if (li) li.classList.add('d-none'); }
-        } else {
-            span.textContent = value;
-            if (li) li.classList.remove('d-none');
-        }
-    }
-    function setLabelForSpan(spanId, i18nKey) {
-        var span = document.getElementById(spanId);
-        if (!span) return;
-        var label = span.previousElementSibling;
-        if (label && label.tagName === 'STRONG') {
-            if (typeof getText === 'function') { label.textContent = getText(i18nKey); }
-            else { label.textContent = i18nKey; }
-        }
-    }
-    function setText(id, value){ var el = document.getElementById(id); if(el) el.textContent = value; }
-    function setLabelForSpan(spanId, i18nKey) {
-        var span = document.getElementById(spanId);
-        if (!span) return;
-        var label = span.previousElementSibling; // <strong data-i18n="..."></strong>
-        if (label && label.tagName === 'STRONG') {
-            if (typeof getText === 'function') { label.textContent = getText(i18nKey); }
-            else { label.textContent = i18nKey; }
-        }
-    }
-
-    function setText(id, value){ var el = document.getElementById(id); if(el) el.textContent = value; }
-
-        var span = document.getElementById(spanId);
-        if (!span) return;
-        var li = span.parentElement; // 結構為 <li><strong>..</strong> <span id="..."></span></li>
-        var empty = !value || (typeof value === 'string' && value.trim() === '');
-        if (empty) {
-            if (mode === 'dash') { span.textContent = '—'; if (li) li.classList.remove('d-none'); }
-            else { span.textContent = ''; if (li) li.classList.add('d-none'); }
-        } else {
-            span.textContent = value;
-            if (li) li.classList.remove('d-none');
-        }
-    }
-
     // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
     if (!bookingForm) return;
+
+    // 填值或顯示「—」，並保留一整列可視（適用確認視窗/成功頁面）
+    function fillOrDash(spanId, value, i18nKeyForLabel) {
+        var span = document.getElementById(spanId);
+        if (!span) return;
+        var li = span.parentElement;
+        var label = span.previousElementSibling; // <strong>
+        if (label && i18nKeyForLabel) {
+            try { label.textContent = getText(i18nKeyForLabel); } catch(e) { label.textContent = i18nKeyForLabel; }
+        }
+        var empty = !value || (typeof value === 'string' && value.trim() === '');
+        span.textContent = empty ? '—' : value;
+        if (li) li.classList.remove('d-none');
+    }
+
 
     // --- 智慧返回按鈕邏輯 ---
     const backButtonGeneral = document.querySelector('.btn-back-menu');
@@ -148,13 +111,11 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function displaySuccessMessage(bookingData) {
-        document.getElementById('confirmDate').textContent = selectedDate;
-        document.getElementById('confirmTime').textContent = selectedTime;
-        document.getElementById('confirmResidentName').textContent = bookingData.residentName;
-        document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
-        
-        fillOrHide('confirmVisitorRelationship', bookingData.visitorRelationship, 'dash');
-        
+        fillOrDash('confirmDate', selectedDate, 'date');
+        fillOrDash('confirmTime', selectedTime, 'time');
+        fillOrDash('confirmResidentName', bookingData.residentName, 'resident_name');
+        fillOrDash('confirmBedNumber', bookingData.bedNumber, 'bed_number');
+        fillOrDash('confirmVisitorRelationship', bookingData.visitorRelationship, 'visitor_relationship');
         step1.classList.add('d-none');
         step2.classList.add('d-none');
         successMessage.classList.remove('d-none');
@@ -215,13 +176,12 @@ document.addEventListener('firebase-ready', () => {
             visitorName: '',
             visitorRelationship: document.getElementById('visitorRelationship').value,
             visitorPhone: '',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()};
-        setLabelForSpan('modal-confirm-date','visit_date'); setText('modal-confirm-date', selectedDate);
-        setLabelForSpan('modal-confirm-time','visit_time'); setText('modal-confirm-time', selectedTime);
-        setLabelForSpan('modal-confirm-residentName','resident_name'); setText('modal-confirm-residentName', pendingBookingData.residentName + '（' + pendingBookingData.bedNumber + '）');
-        
-        fillOrHide('modal-confirm-visitorRelationship', pendingBookingData.visitorRelationship, 'dash');
-        
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        fillOrDash('modal-confirm-date', selectedDate, 'date');
+        fillOrDash('modal-confirm-time', selectedTime, 'time');
+        fillOrDash('modal-confirm-residentName', pendingBookingData.residentName + '（' + pendingBookingData.bedNumber + '）', 'resident_name');
+        fillOrDash('modal-confirm-visitorRelationship', pendingBookingData.visitorRelationship, 'visitor_relationship');
         confirmationModal.show();
     });
     finalSubmitButton.addEventListener('click', async function() {
