@@ -1,7 +1,43 @@
+
 document.addEventListener('firebase-ready', () => {
 
     // 將空白欄位隱藏（或可改為顯示 "—"），僅動必要邏輯
+    
     function fillOrHide(spanId, value, mode='hide') {
+        var span = document.getElementById(spanId);
+        if (!span) return;
+        var li = span.parentElement;
+        var empty = !value || (typeof value === 'string' && value.trim() === '');
+        if (empty) {
+            if (mode === 'dash') { span.textContent = '—'; if (li) li.classList.remove('d-none'); }
+            else { span.textContent = ''; if (li) li.classList.add('d-none'); }
+        } else {
+            span.textContent = value;
+            if (li) li.classList.remove('d-none');
+        }
+    }
+    function setLabelForSpan(spanId, i18nKey) {
+        var span = document.getElementById(spanId);
+        if (!span) return;
+        var label = span.previousElementSibling;
+        if (label && label.tagName === 'STRONG') {
+            if (typeof getText === 'function') { label.textContent = getText(i18nKey); }
+            else { label.textContent = i18nKey; }
+        }
+    }
+    function setText(id, value){ var el = document.getElementById(id); if(el) el.textContent = value; }
+    function setLabelForSpan(spanId, i18nKey) {
+        var span = document.getElementById(spanId);
+        if (!span) return;
+        var label = span.previousElementSibling; // <strong data-i18n="..."></strong>
+        if (label && label.tagName === 'STRONG') {
+            if (typeof getText === 'function') { label.textContent = getText(i18nKey); }
+            else { label.textContent = i18nKey; }
+        }
+    }
+
+    function setText(id, value){ var el = document.getElementById(id); if(el) el.textContent = value; }
+
         var span = document.getElementById(spanId);
         if (!span) return;
         var li = span.parentElement; // 結構為 <li><strong>..</strong> <span id="..."></span></li>
@@ -180,9 +216,9 @@ document.addEventListener('firebase-ready', () => {
             visitorRelationship: document.getElementById('visitorRelationship').value,
             visitorPhone: '',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()};
-        document.getElementById('modal-confirm-date').textContent = selectedDate;
-        document.getElementById('modal-confirm-time').textContent = selectedTime;
-        document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
+        setLabelForSpan('modal-confirm-date','visit_date'); setText('modal-confirm-date', selectedDate);
+        setLabelForSpan('modal-confirm-time','visit_time'); setText('modal-confirm-time', selectedTime);
+        setLabelForSpan('modal-confirm-residentName','resident_name'); setText('modal-confirm-residentName', pendingBookingData.residentName + '（' + pendingBookingData.bedNumber + '）');
         
         fillOrHide('modal-confirm-visitorRelationship', pendingBookingData.visitorRelationship, 'dash');
         
