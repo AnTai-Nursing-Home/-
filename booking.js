@@ -361,6 +361,8 @@ document.addEventListener('firebase-ready', () => {
     }
     
     let pendingBookingData = {};
+    // Flag: booking completed => freeze UI updates
+    let completed = false;
     const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
     const maxBookingsPerSlot = 4;
     let selectedDate = '';
@@ -417,6 +419,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function displaySuccessMessage(bookingData) {
+
         document.getElementById('confirmDate').textContent = selectedDate;
         document.getElementById('confirmTime').textContent = selectedTime;
         document.getElementById('confirmResidentName').textContent = bookingData.residentName;
@@ -425,13 +428,17 @@ document.addEventListener('firebase-ready', () => {
         step1.classList.add('d-none');
         step2.classList.add('d-none');
         successMessage.classList.remove('d-none');
+        // Lock UI so other events won't redraw the page
+        completed = true;
     }
 
     visitDateInput.addEventListener('change', (e) => {
+        if (completed) return;
         selectedDate = e.target.value;
         renderTimeSlots();
     });
     timeSlotsContainer.addEventListener('click', (e) => {
+        if (completed) return;
         if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
             selectedTime = e.target.dataset.time;
             selectedTimeDisplay.textContent = `${selectedDate} ${selectedTime}`;
@@ -440,6 +447,7 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     backButton.addEventListener('click', () => {
+        completed = false;
         step2.classList.add('d-none');
         step1.classList.remove('d-none');
         bookingForm.reset();
@@ -510,71 +518,3 @@ document.addEventListener('firebase-ready', () => {
 
 
 
-// === Final hardening: lock UI after success so nothing can hide it ===
-(function(){
-  function detachAll(el){
-    if (!el) return el;
-    var clone = el.cloneNode(true);
-    el.parentNode && el.parentNode.replaceChild(clone, el);
-    return clone;
-  }
-  window.__bookingCompleted = false;
-  // Override (or define) displaySuccessMessage: prefer our version after original definitions
-  window.displaySuccessMessage = function(bookingData, selectedDate, selectedTime){
-    try {
-      // Hide modal
-      var modalEl = document.getElementById('confirmationModal');
-      if (modalEl && window.bootstrap) {
-        try { var inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl); inst.hide(); } catch(e){}
-      }
-
-      // Sections
-      var step1 = document.getElementById('step1');
-      var step2 = document.getElementById('step2');
-      var successMessage = document.getElementById('successMessage');
-
-      if (step1) step1.classList.add('d-none');
-      if (step2) step2.classList.add('d-none');
-      if (successMessage) successMessage.classList.remove('d-none');
-
-      // Fill summary (be tolerant to missing nodes)
-      function fill(id, v){ var el=document.getElementById(id); if (el) el.textContent = (v && String(v).trim()) ? v : '—'; }
-      fill('confirmDate', selectedDate);
-      fill('confirmTime', selectedTime);
-      fill('confirmResidentName', bookingData && bookingData.residentName);
-      fill('confirmBedNumber', bookingData && bookingData.bedNumber);
-      fill('confirmVisitorRelationship', bookingData && bookingData.visitorRelationship);
-
-      // HARD LOCK: neutralize any further UI actions that could re-render
-      window.__bookingCompleted = true;
-
-      // disable interactive areas
-      var dateInput = document.getElementById('visitDate');
-      var slots = document.getElementById('time-slots');
-      var backBtn = document.getElementById('backButton');
-      if (dateInput) { dateInput.setAttribute('disabled','disabled'); }
-      if (slots) { slots.style.pointerEvents = 'none'; slots.classList.add('disabled'); }
-      // remove listeners by cloning
-      detachAll(dateInput);
-      detachAll(slots);
-      detachAll(backBtn);
-
-      // guard the most common re-renderers if present
-      var guardFns = ['renderTimeSlots','renderTimeSlotsForDate','showStep1','resetUI'];
-      guardFns.forEach(function(name){
-        if (typeof window[name] === 'function') {
-          var orig = window[name];
-          window[name] = function(){
-            if (window.__bookingCompleted) return;
-            return orig.apply(this, arguments);
-          };
-        }
-      });
-
-      // optional: scroll to success section
-      try { window.scrollTo({top: 0, behavior: 'smooth'}); } catch(e){}
-    } catch(err){
-      console.error('displaySuccessMessage override error:', err);
-    }
-  };
-})();
