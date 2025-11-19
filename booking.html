@@ -29,7 +29,7 @@
                         </div>
                         <div id="step1">
                             <h4 class="mb-3" data-i18n="step1_title"></h4>
-                            <div class="mb-3 d-none">
+                            <div class="mb-3">
                                 <label for="visitDate" class="form-label" data-i18n="choose_date"></label>
                                 <input type="date" id="visitDate" class="form-control">
                             </div>
@@ -37,10 +37,10 @@
                             <div id="time-slots" class="d-flex flex-wrap gap-2"></div>
                         </div>
                         <div id="step2" class="d-none mt-4">
-                            <h4 class="mb-3" data-i18n="step2_title"></h4>
+                            <h4 class="mb-3 d-none" data-i18n="step2_title"></h4>
                             <p>您選擇的時段：<strong id="selected-time-display"></strong></p>
                             <form id="bookingForm" novalidate>
-                                <div class="mb-3 d-none">
+                                <div class="mb-3">
                                     <label for="residentName" class="form-label" data-i18n="resident_name"></label>
                                     <input type="text" class="form-control" id="residentName" required data-i18n-placeholder="resident_name">
                                     <div class="invalid-feedback" data-i18n="please_fill_resident_name"></div>
@@ -49,7 +49,7 @@
                                     <label for="bedNumber" class="form-label" data-i18n="bed_number"></label>
                                     <input type="text" class="form-control" id="bedNumber" readonly style="background-color: #e9ecef;">
                                 </div>
-                                <div class="mb-3">
+                                <div class="mb-3 d-none">
                                     <label for="visitorName" class="form-label" data-i18n="visitor_name"></label>
                                     <input type="text" class="form-control" id="visitorName" data-i18n-placeholder="visitor_name">
                                     <div class="invalid-feedback" data-i18n="please_fill_visitor_name"></div>
@@ -59,7 +59,7 @@
                                     <input type="text" class="form-control" id="visitorRelationship" data-i18n-placeholder="visitor_relationship">
                                     <div class="invalid-feedback" data-i18n="please_fill_visitor_relationship"></div>
                                 </div>
-                                <div class="mb-3">
+                                <div class="mb-3 d-none">
                                     <label for="visitorPhone" class="form-label" data-i18n="contact_phone"></label>
                                     <input type="tel" class="form-control" id="visitorPhone" data-i18n-placeholder="contact_phone">
                                     <div class="invalid-feedback" data-i18n="please_fill_contact_phone"></div>
