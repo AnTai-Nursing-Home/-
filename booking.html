@@ -127,3 +127,20 @@
     <script src="booking.js"></script>
 </body>
 </html>
+
+<script>
+document.addEventListener('firebase-ready', function(){
+  var btn = document.getElementById('final-submit-button');
+  if (!btn || btn.__bound) return;
+  btn.__bound = true;
+  btn.addEventListener('click', function(){
+    if (window.finalizeBooking) { finalizeBooking(); return; }
+    // Fallback: hide modal and reveal success section if present
+    if (window.bootstrap && document.getElementById('confirmationModal')) {
+      try { bootstrap.Modal.getInstance(document.getElementById('confirmationModal')).hide(); } catch(e){}
+    }
+    var success = document.getElementById('successMessage');
+    if (success) success.classList.remove('d-none');
+  });
+});
+</script>
