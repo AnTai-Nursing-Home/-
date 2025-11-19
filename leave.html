@@ -8,6 +8,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+<!-- Added style for V (特休) -->
+<style>
+/* 著色規則：只有「本人」在該日選了 V 時才會套用（JS 會加上 .shift-v） */
+.leave-calendar-grid .calendar-day.shift-v {
+  background: #ffeaf1;
+  border-color: #ff7aa2;
+  box-shadow: inset 0 0 0 2px #ffb6c8;
+}
+/* 讓 V 的字樣在清單中更醒目（不改動資料，只影響視覺） */
+.leave-names-list li:has(:is(strong):contains("V")), /* 非所有瀏覽器支援，備用下一條 */
+.leave-names-list li { /* 保守作法：維持原狀，避免過度影響其他班別 */
+}
+</style>
+
 </head>
 <body>
     <div class="container my-5">
@@ -79,7 +94,8 @@
     </div>
 
     <div class="modal fade" id="shift-modal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="shift-modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><div class="d-grid gap-2"><button class="btn btn-lg btn-outline-info shift-btn" data-shift="AM">AM (上午)</button><button class="btn btn-lg btn-outline-dark shift-btn" data-shift="PM">PM (下午)</button><hr><button class="btn btn-lg btn-outline-primary shift-btn" data-shift="D">D (白班)</button><button class="btn btn-lg btn-outline-warning shift-btn" data-shift="E">E (小夜)</button><button class="btn btn-lg btn-outline-secondary shift-btn" data-shift="N">N (大夜)</button><button class="btn btn-lg btn-outline-success shift-btn" data-shift="OF">OF (休假)</button></div></div><div class="modal-footer"><button type="button" class="btn btn-danger" id="clear-shift-btn">清除此日</button></div></div></div>
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="shift-modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><div class="d-grid gap-2"><button class="btn btn-lg btn-outline-info shift-btn" data-shift="AM">AM (上午)</button><button class="btn btn-lg btn-outline-dark shift-btn" data-shift="PM">PM (下午)</button><hr><button class="btn btn-lg btn-outline-primary shift-btn" data-shift="D">D (白班)</button><button class="btn btn-lg btn-outline-warning shift-btn" data-shift="E">E (小夜)</button><button class="btn btn-lg btn-outline-secondary shift-btn" data-shift="N">N (大夜)</button><button class="btn btn-lg btn-outline-success shift-btn" data-shift="OF">OF (休假)</button>
+    <button class="btn btn-lg btn-outline-danger shift-btn" data-shift="V">V (特休)</button></div></div><div class="modal-footer"><button type="button" class="btn btn-danger" id="clear-shift-btn">清除此日</button></div></div></div>
     </div>
     
     <footer class="site-footer d-print-none">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
