@@ -77,7 +77,28 @@
         </div>
     </div>
     <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="confirmationModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><ul class="list-group list-group-flush"><li class="list-group-item"><strong></strong> <span id="modal-confirm-date"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-time"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-residentName"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-visitorRelationship"></span></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="return_to_modify"></button><button type="button" id="final-submit-button" class="btn btn-primary" data-i18n="confirm_submission"></button></div></div></div>
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="confirmationModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"></div>
+<div class="modal-body p-0">
+  <ul class="list-group list-group-flush confirm-list">
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span class="text-muted small" data-i18n="date">日期</span>
+      <span id="modal-confirm-date" class="fw-semibold"></span>
+    </li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span class="text-muted small" data-i18n="time">時段</span>
+      <span id="modal-confirm-time" class="fw-semibold"></span>
+    </li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span class="text-muted small" data-i18n="resident_name">住民姓名</span>
+      <span id="modal-confirm-residentName" class="fw-semibold"></span>
+    </li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span class="text-muted small" data-i18n="visitor_relationship">與住民關係</span>
+      <span id="modal-confirm-visitorRelationship" class="fw-semibold"></span>
+    </li>
+  </ul>
+</div>
+</div></div></div>
     </div>
     <footer class="site-footer">
         <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
