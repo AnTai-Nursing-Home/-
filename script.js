@@ -1,4 +1,3 @@
-
 document.addEventListener('firebase-ready', () => {
 
     // 將空白欄位隱藏（或可改為顯示 "—"），僅動必要邏輯
