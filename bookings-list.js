@@ -10,47 +10,6 @@
     return d.toISOString().split('T')[0];
   }
 
-  // --- 登入 ---
-  async function handleLogin() {
-    const privacyCheck = $('privacyCheck');
-    if (!privacyCheck.checked) {
-      alert("請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》");
-      return;
-    }
-    const password = $('passwordInput').value;
-    if (!password) { alert('請輸入密碼'); return; }
-
-    $('loginButton').disabled = true;
-    try {
-      const resp = await fetch('/api/login', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ password })
-      });
-      const result = await resp.json();
-      if (resp.ok && result.success) {
-        $('password-section').classList.add('d-none');
-        $('toolbar-section').classList.remove('d-none');
-        $('stats-section').classList.remove('d-none');
-        $('results-section').classList.remove('d-none');
-        $('errorMessage').classList.add('d-none');
-
-        // 預設日期：起始=今天 結束=空（代表不限上限）
-        const today = fmtDate(new Date());
-        $('dateFrom').value = today;
-        $('dateTo').value = '';
-        loadAndRender();
-      } else {
-        $('errorMessage').classList.remove('d-none');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('登入時發生錯誤，請稍後再試');
-    } finally {
-      $('loginButton').disabled = false;
-    }
-  }
-
   // --- Firestore 查詢 ---
   async function queryBookings(dateFrom, dateTo) {
     const db = window.db;
