@@ -319,14 +319,6 @@ function applyTranslations() {
 // (embedded) Apply translations immediately on load if DOM is ready
 try { applyTranslations(); } catch (e) { /* ignore until DOM ready */ }
 
-// Helper: set label/value and show '—' for empty
-function fillOrDash(id, value){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.textContent = (value && String(value).trim()) ? value : '—';
-}
-
-
 document.addEventListener('firebase-ready', () => {
     // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
@@ -369,6 +361,7 @@ document.addEventListener('firebase-ready', () => {
     }
     
     let pendingBookingData = {};
+    let uiLocked = false;
     const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
     const maxBookingsPerSlot = 4;
     let selectedDate = '';
@@ -425,21 +418,25 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function displaySuccessMessage(bookingData) {
-        fillOrDash('confirmDate', selectedDate);
-        fillOrDash('confirmTime', selectedTime);
-        fillOrDash('confirmResidentName', bookingData.residentName);
-        fillOrDash('confirmBedNumber', bookingData.bedNumber);
-        fillOrDash('confirmVisitorRelationship', bookingData.visitorRelationship);
+        document.getElementById('confirmDate').textContent = selectedDate;
+        document.getElementById('confirmTime').textContent = selectedTime;
+        document.getElementById('confirmResidentName').textContent = bookingData.residentName;
+        document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
+        document.getElementById('confirmVisitorRelationship').textContent = bookingData.visitorRelationship;
         step1.classList.add('d-none');
         step2.classList.add('d-none');
         successMessage.classList.remove('d-none');
+        uiLocked = true;
+        try { window.scrollTo({top: 0, behavior: 'smooth'}); } catch(e){}
     }
 
-    if (visitDateInput) visitDateInput.addEventListener('change', (e) => {
+    visitDateInput.addEventListener('change', (e) => {
+        if (uiLocked) return;
         selectedDate = e.target.value;
         renderTimeSlots();
     });
-    if (timeSlotsContainer) timeSlotsContainer.addEventListener('click', (e) => {
+    timeSlotsContainer.addEventListener('click', (e) => {
+        if (uiLocked) return;
         if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
             selectedTime = e.target.dataset.time;
             selectedTimeDisplay.textContent = `${selectedDate} ${selectedTime}`;
@@ -447,7 +444,8 @@ document.addEventListener('firebase-ready', () => {
             step2.classList.remove('d-none');
         }
     });
-    if (backButton) backButton.addEventListener('click', () => {
+    backButton.addEventListener('click', () => {
+        uiLocked = false;
         step2.classList.add('d-none');
         step1.classList.remove('d-none');
         bookingForm.reset();
@@ -455,7 +453,7 @@ document.addEventListener('firebase-ready', () => {
         residentNameInput.classList.remove('is-valid', 'is-invalid');
         bedNumberInput.value = '';
     });
-    if (residentNameInput) residentNameInput.addEventListener('input', function() {
+    residentNameInput.addEventListener('input', function() {
         const name = this.value.trim();
         if (residentDatabase[name]) {
             this.classList.remove('is-invalid');
@@ -471,7 +469,7 @@ document.addEventListener('firebase-ready', () => {
             if(nameFeedback) nameFeedback.className = 'invalid-feedback';
         }
     });
-    if (bookingForm) bookingForm.addEventListener('submit', function(e) {
+    bookingForm.addEventListener('submit', function(e) {
         e.preventDefault();
         e.stopPropagation();
         bookingForm.classList.add('was-validated');
@@ -490,13 +488,13 @@ document.addEventListener('firebase-ready', () => {
             visitorRelationship: document.getElementById('visitorRelationship').value,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        fillOrDash('modal-confirm-date', selectedDate);
-        fillOrDash('modal-confirm-time', selectedTime);
-        fillOrDash('modal-confirm-residentName', pendingBookingData.residentName + (pendingBookingData.bedNumber? '（'+pendingBookingData.bedNumber+'）':''));
-        fillOrDash('modal-confirm-visitorRelationship', pendingBookingData.visitorRelationship);
+        document.getElementById('modal-confirm-date').textContent = selectedDate;
+        document.getElementById('modal-confirm-time').textContent = selectedTime;
+        document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
+        document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
         confirmationModal.show();
     });
-    if (finalSubmitButton) finalSubmitButton.addEventListener('click', async function() {
+    finalSubmitButton.addEventListener('click', async function() {
         finalSubmitButton.disabled = true;
         try {
             await db.collection('bookings').add({
