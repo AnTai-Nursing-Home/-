@@ -1,4 +1,20 @@
 document.addEventListener('firebase-ready', () => {
+
+    // 將空白欄位隱藏（或可改為顯示 "—"），僅動必要邏輯
+    function fillOrHide(spanId, value, mode='hide') {
+        var span = document.getElementById(spanId);
+        if (!span) return;
+        var li = span.parentElement; // 結構為 <li><strong>..</strong> <span id="..."></span></li>
+        var empty = !value || (typeof value === 'string' && value.trim() === '');
+        if (empty) {
+            if (mode === 'dash') { span.textContent = '—'; if (li) li.classList.remove('d-none'); }
+            else { span.textContent = ''; if (li) li.classList.add('d-none'); }
+        } else {
+            span.textContent = value;
+            if (li) li.classList.remove('d-none');
+        }
+    }
+
     // 透過尋找 bookingForm 來判斷是否在預約頁面
     const bookingForm = document.getElementById('bookingForm');
     if (!bookingForm) return;
@@ -100,9 +116,9 @@ document.addEventListener('firebase-ready', () => {
         document.getElementById('confirmTime').textContent = selectedTime;
         document.getElementById('confirmResidentName').textContent = bookingData.residentName;
         document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
-        document.getElementById('confirmVisitorName').textContent = bookingData.visitorName;
-        document.getElementById('confirmVisitorRelationship').textContent = bookingData.visitorRelationship;
-        document.getElementById('confirmVisitorPhone').textContent = bookingData.visitorPhone;
+        
+        fillOrHide('confirmVisitorRelationship', bookingData.visitorRelationship, 'dash');
+        
         step1.classList.add('d-none');
         step2.classList.add('d-none');
         successMessage.classList.remove('d-none');
@@ -168,9 +184,9 @@ document.addEventListener('firebase-ready', () => {
         document.getElementById('modal-confirm-date').textContent = selectedDate;
         document.getElementById('modal-confirm-time').textContent = selectedTime;
         document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
-        document.getElementById('modal-confirm-visitorName').textContent = pendingBookingData.visitorName;
-        document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
-        document.getElementById('modal-confirm-visitorPhone').textContent = pendingBookingData.visitorPhone;
+        
+        fillOrHide('modal-confirm-visitorRelationship', pendingBookingData.visitorRelationship, 'dash');
+        
         confirmationModal.show();
     });
     finalSubmitButton.addEventListener('click', async function() {
