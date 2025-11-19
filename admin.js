@@ -2,13 +2,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 元件宣告 ---
     const passwordSection = document.getElementById('password-section');
     const dashboardSection = document.getElementById('dashboard-section');
-    const resultsSection = document.getElementById('results-section');
+// removed booking-list:     const resultsSection = document.getElementById('results-section');
     const passwordInput = document.getElementById('passwordInput');
     const loginButton = document.getElementById('loginButton');
     const errorMessage = document.getElementById('errorMessage');
-    const showBookingsBtn = document.getElementById('show-bookings-btn');
-    const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
-    const bookingListContainer = document.getElementById('booking-list');
+// removed booking-list:     const showBookingsBtn = document.getElementById('show-bookings-btn');
+// removed booking-list:     const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+// removed booking-list:     const bookingListContainer = document.getElementById('booking-list');
 
     // --- 登入邏輯 (不需要等待 Firebase) ---
     async function handleLogin() {
@@ -54,7 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
             dashboardSection.classList.remove('d-none');
         }
 
-        async function displayBookings() {
+        /* removed booking-list function:
+// removed booking-list: async function displayBookings() {
             bookingListContainer.innerHTML = '讀取中...';
             try {
                 const todayString = new Date().toISOString().split('T')[0];
@@ -93,9 +94,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        if (showBookingsBtn) { showBookingsBtn.addEventListener('click', (e) => { e.preventDefault(); dashboardSection.classList.add('d-none'); resultsSection.classList.remove('d-none'); displayBookings(); }); }
-        if (backToDashboardBtn) { backToDashboardBtn.addEventListener('click', () => { resultsSection.classList.add('d-none'); dashboardSection.classList.remove('d-none'); }); }
-        if (bookingListContainer) { bookingListContainer.addEventListener('click', async (e) => {
+// removed booking-list:         if (showBookingsBtn) { showBookingsBtn.addEventListener('click', (e) => { e.preventDefault(); dashboardSection.classList.add('d-none'); resultsSection.classList.remove('d-none'); displayBookings(); }); }
+// removed booking-list:         if (backToDashboardBtn) { backToDashboardBtn.addEventListener('click', () => { resultsSection.classList.add('d-none'); dashboardSection.classList.remove('d-none'); }); }
+// removed booking-list:         if (bookingListContainer) { bookingListContainer.addEventListener('click', async (e) => {
             if (e.target.classList.contains('btn-admin-delete')) {
                 const docId = e.target.dataset.id;
                 if (confirm(`確定要刪除這筆預約嗎？\n此操作無法復原。`)) {
@@ -103,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         e.target.disabled = true;
                         await db.collection('bookings').doc(docId).delete();
                         alert('預約已刪除！');
-                        displayBookings();
+// removed booking-list:                         displayBookings();
                     } catch (error) {
                         console.error("管理員刪除失敗:", error);
                         alert("刪除失敗，請稍後再試。");
@@ -113,4 +114,5 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }); }
     });
-});
+}
+*/);
