@@ -29,7 +29,7 @@
                         </div>
                         <div id="step1">
                             <h4 class="mb-3" data-i18n="step1_title"></h4>
-                            <div class="mb-3">
+                            <div class="mb-3 d-none">
                                 <label for="visitDate" class="form-label" data-i18n="choose_date"></label>
                                 <input type="date" id="visitDate" class="form-control">
                             </div>
@@ -37,10 +37,10 @@
                             <div id="time-slots" class="d-flex flex-wrap gap-2"></div>
                         </div>
                         <div id="step2" class="d-none mt-4">
-                            <h4 class="mb-3 d-none" data-i18n="step2_title"></h4>
+                            <h4 class="mb-3" data-i18n="step2_title"></h4>
                             <p>您選擇的時段：<strong id="selected-time-display"></strong></p>
                             <form id="bookingForm" novalidate>
-                                <div class="mb-3">
+                                <div class="mb-3 d-none">
                                     <label for="residentName" class="form-label" data-i18n="resident_name"></label>
                                     <input type="text" class="form-control" id="residentName" required data-i18n-placeholder="resident_name">
                                     <div class="invalid-feedback" data-i18n="please_fill_resident_name"></div>
@@ -49,7 +49,7 @@
                                     <label for="bedNumber" class="form-label" data-i18n="bed_number"></label>
                                     <input type="text" class="form-control" id="bedNumber" readonly style="background-color: #e9ecef;">
                                 </div>
-                                <div class="mb-3 d-none">
+                                <div class="mb-3">
                                     <label for="visitorName" class="form-label" data-i18n="visitor_name"></label>
                                     <input type="text" class="form-control" id="visitorName" data-i18n-placeholder="visitor_name">
                                     <div class="invalid-feedback" data-i18n="please_fill_visitor_name"></div>
@@ -59,7 +59,7 @@
                                     <input type="text" class="form-control" id="visitorRelationship" data-i18n-placeholder="visitor_relationship">
                                     <div class="invalid-feedback" data-i18n="please_fill_visitor_relationship"></div>
                                 </div>
-                                <div class="mb-3 d-none">
+                                <div class="mb-3">
                                     <label for="visitorPhone" class="form-label" data-i18n="contact_phone"></label>
                                     <input type="tel" class="form-control" id="visitorPhone" data-i18n-placeholder="contact_phone">
                                     <div class="invalid-feedback" data-i18n="please_fill_contact_phone"></div>
@@ -75,7 +75,9 @@
                                 <li><strong data-i18n="date"></strong> <span id="confirmDate"></span></li>
                                 <li><strong data-i18n="time"></strong> <span id="confirmTime"></span></li>
                                 <li><strong data-i18n="resident_name"></strong> <span id="confirmResidentName"></span></li>
-                                <li><strong data-i18n="bed_number"></strong> <span id="confirmBedNumber"></span></li><li><strong data-i18n="visitor_relationship"></strong> <span id="confirmVisitorRelationship"></span></li></ul>
+                                <li><strong data-i18n="bed_number"></strong> <span id="confirmBedNumber"></span></li>
+                                <li><strong data-i18n="visitor_relationship"></strong> <span id="confirmVisitorRelationship"></span></li>
+                            </ul>
                             <hr>
                             <p class="fw-bold text-danger" data-i18n="important_notice"></p>
                             <a href="index.html" class="btn btn-primary mt-3" data-i18n="back_to_main_menu"></a>
@@ -86,7 +88,7 @@
         </div>
     </div>
     <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="confirmationModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><ul class="list-group list-group-flush"><li class="list-group-item"><strong></strong> <span id="modal-confirm-date"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-time"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-residentName"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-visitorName"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-visitorRelationship"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-visitorPhone"></span></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="return_to_modify"></button><button type="button" id="final-submit-button" class="btn btn-primary" data-i18n="confirm_submission"></button></div></div></div>
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="confirmationModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><ul class="list-group list-group-flush"><li class="list-group-item"><strong></strong> <span id="modal-confirm-date"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-time"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-residentName"></span></li><li class="list-group-item"><strong></strong> <span id="modal-confirm-visitorRelationship"></span></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="return_to_modify"></button><button type="button" id="final-submit-button" class="btn btn-primary" data-i18n="confirm_submission"></button></div></div></div>
     </div>
     <footer class="site-footer">
         <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
