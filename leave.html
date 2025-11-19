@@ -8,6 +8,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+<!-- Added style for V (特休) -->
+<style>
+/* 著色規則：只有「本人」在該日選了 V 時才會套用（JS 會加上 .shift-v） */
+.leave-calendar-grid .calendar-day.shift-v {
+  background: #ffeaf1;
+  border-color: #ff7aa2;
+  box-shadow: inset 0 0 0 2px #ffb6c8;
+}
+/* 讓 V 的字樣在清單中更醒目（不改動資料，只影響視覺） */
+.leave-names-list li:has(:is(strong):contains("V")), /* 非所有瀏覽器支援，備用下一條 */
+.leave-names-list li { /* 保守作法：維持原狀，避免過度影響其他班別 */
+}
+</style>
+
 </head>
 <body>
     <div class="container my-5">
