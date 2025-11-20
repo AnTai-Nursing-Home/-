@@ -365,6 +365,35 @@ async function loadResidents() {
             }
         }
         console.log('[booking] residents loaded:', Object.keys(residentDatabase).length);
+        // 將名單填入下拉選單
+        const sel = document.getElementById('residentName');
+        if (sel) {
+            // 先清空保留第一個 placeholder
+            sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
+            Object.keys(residentDatabase)
+              .sort((a,b)=>a.localeCompare(b,'zh-Hant'))
+              .forEach(name=>{
+                 const opt = document.createElement('option');
+                 opt.value = name; opt.textContent = name;
+                 sel.appendChild(opt);
+              });
+            // 當選擇變更時，自動帶出床號與驗證樣式
+            sel.addEventListener('change', ()=>{
+                const val = sel.value;
+                const bn = document.getElementById('bedNumber');
+                const fb = document.getElementById('nameFeedback');
+                if (val && residentDatabase[val]) {
+                    sel.classList.remove('is-invalid'); sel.classList.add('is-valid');
+                    if (bn) bn.value = residentDatabase[val] || '';
+                    if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+                } else {
+                    sel.classList.remove('is-valid'); sel.classList.add('is-invalid');
+                    if (bn) bn.value = '';
+                    if (fb) { fb.textContent = getText('name_not_found'); fb.className = 'invalid-feedback'; }
+                }
+            });
+        }
+
     } catch (e) {
         console.error('讀取 residents 失敗：', e);
     }
