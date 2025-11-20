@@ -345,12 +345,13 @@ async function loadResidents() {
         const map = {};
         snap.forEach(doc => {
             const data = doc.data() || {};
-            const name = doc.id; // 假設文件ID為住民姓名
+            const name = doc.id; // 目前文件ID作為姓名
             const bed = data.bedNumber || '';
             if (name) map[name] = bed;
         });
         residentDatabase = map;
-        // 若使用者已經輸入姓名，嘗試即時套用（友善體驗）
+
+        // 若輸入框已有值，嘗試即時補齊床號
         const rn = document.getElementById('residentName');
         const bn = document.getElementById('bedNumber');
         const fb = document.getElementById('nameFeedback');
@@ -382,7 +383,9 @@ async function loadResidents() {
     const nameFeedback = document.getElementById('nameFeedback');
     const confirmationModalElement = document.getElementById('confirmationModal');
     const confirmationModal = new bootstrap.Modal(confirmationModalElement);
-    const finalSubmitButton = document.getElementById('final-submit-button');\n    // 先載入住民資料\n    loadResidents();
+    const finalSubmitButton = document.getElementById('final-submit-button');
+    // 先載入住民資料
+    loadResidents();
     
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminMode = urlParams.get('mode') === 'admin';
