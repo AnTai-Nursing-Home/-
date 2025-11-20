@@ -370,14 +370,31 @@ async function loadResidents() {
         if (sel) {
             // 先清空保留第一個 placeholder
             sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
-            Object.keys(residentDatabase)
-              .sort((a,b)=>a.localeCompare(b,'zh-Hant'))
-              .forEach(name=>{
+            // 依床位排序 (如 "205-2")
+            const entries = Object.entries(residentDatabase); // [name, bed]
+            const bedKey = (bed) => {
+                if (!bed) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+                const m = String(bed).match(/(\d+)(?:-(\d+))?/);
+                const n1 = m ? parseInt(m[1],10) : Number.MAX_SAFE_INTEGER;
+                const n2 = m && m[2] ? parseInt(m[2],10) : 0;
+                return [n1, n2];
+            };
+            entries
+              .sort((a,b)=>{
+                 const A = bedKey(a[1]), B = bedKey(b[1]);
+                 if (A[0] !== B[0]) return A[0]-B[0];
+                 if (A[1] !== B[1]) return A[1]-B[1];
+                 // 若床位相同，再依姓名排序避免不穩定
+                 return String(a[0]).localeCompare(String(b[0]), 'zh-Hant');
+              })
+              .forEach(([name, bed])=>{
                  const opt = document.createElement('option');
-                 opt.value = name; opt.textContent = name;
+                 opt.value = name;
+                 // 顯示「床位｜姓名」以便家屬快速找到
+                 opt.textContent = (bed ? bed + '｜' : '') + name;
                  sel.appendChild(opt);
               });
-            // 當選擇變更時，自動帶出床號與驗證樣式
+// 當選擇變更時，自動帶出床號與驗證樣式
             sel.addEventListener('change', ()=>{
                 const val = sel.value;
                 const bn = document.getElementById('bedNumber');
