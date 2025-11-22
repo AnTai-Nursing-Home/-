@@ -1,4 +1,9 @@
-// Residents Admin - Layout A (第一個樣式), template export, ROC-date filename
+// residents-admin.merged.gridlike.js
+// 合併版：保留原有頁面行為（載入/渲染/匯入/新增/編輯/刪除/統計）
+// + 新增「窗格樣式」匯出（不套模板，非純文字，房號區塊感）
+// + 保留原本的「匯出 Excel」（表格式）
+// + 檔名：民國年月日-床位配置-消防位置圖-報告詞 -.xlsx
+
 (function(){
   let started = false;
   function canStart(){ return typeof db !== 'undefined' && db && typeof db.collection === 'function'; }
@@ -30,7 +35,7 @@ document.addEventListener('residents-init', () => {
   const importStatus = document.getElementById('import-status');
   const addBtn = document.getElementById('add-resident-btn');
 
-  // 還原「第一個」卡片式床位配置
+  // 版型模板（用於顯示與匯出表格式樓層）
   const LS_KEY = 'FLOOR_TEMPLATE_V1';
   function getTemplate(){
     try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {'1':[], '2':[], '3':[]}; }catch{ return {'1':[], '2':[], '3':[]}; }
@@ -89,6 +94,7 @@ document.addEventListener('residents-init', () => {
 
   let cache = [];
 
+  // ===== Basic 表格 =====
   function renderBasic(){
     if(!tbody) return;
     let html = '';
@@ -116,6 +122,7 @@ document.addEventListener('residents-init', () => {
     tbody.innerHTML = html;
   }
 
+  // ===== 樓層卡片（顯示用） =====
   function parseBedToken(s){
     const m = String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
     if(!m) return null;
@@ -223,6 +230,7 @@ document.addEventListener('residents-init', () => {
     renderFloorTo(floor3Grid, f3, 3);
   }
 
+  // ===== 總人數統計（含按鈕） =====
   function renderStats(){
     if(!statsArea) return;
     const total = cache.length;
@@ -283,14 +291,14 @@ document.addEventListener('residents-init', () => {
           <div class="text-end mt-2">
             <input type="file" id="export-template-input" accept=".xlsx,.xls" class="d-none">
             <button id="export-excel-btn" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>匯出 Excel</button>
-            <button id="export-with-template-btn" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>套用模板匯出</button>
+            <button id="export-excel-gridlike" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-border-all me-2"></i>匯出 Excel（窗格樣式）</button>
           </div>
         </div></div>
       </div>
     `;
   }
 
-  // 匯出資料表
+  // ===== 匯出（表格式） =====
   function aoaBasic(){
     const header = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
     const rows = cache.map(r=>[
@@ -340,7 +348,6 @@ document.addEventListener('residents-init', () => {
     return [head1, [], head2, row1, row2, row3];
   }
 
-  // 檔名（民國年月日）
   function buildExportName(){
     const d = new Date();
     const rocY = d.getFullYear() - 1911;
@@ -359,40 +366,92 @@ document.addEventListener('residents-init', () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaStats()), '總人數統計');
     XLSX.writeFile(wb, buildExportName()+'.xlsx');
   }
-  async function exportWithTemplate(file){
+
+  // ===== 匯出（窗格樣式，不套模板） =====
+  function buildFloorPaneSheet(all,floor){
+    // group by room
+    const list = all.filter(r=> new RegExp('^'+floor+'\\d\\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(floor))));
+    const map = new Map();
+    list.forEach(r=>{
+      const m = String(r.bedNumber||'').match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
+      if(!m) return;
+      const room=m[1], sub=m[2];
+      if(!map.has(room)) map.set(room,{});
+      map.get(room)[sub]=r;
+    });
+    const rooms = [...map.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+
+    const aoa=[]; const merges=[];
+    const ROOM_PER_ROW=3;
+    const BLOCK_W=6; // 3資料欄 + 3間隔/美觀
+    const TITLE_COLS=BLOCK_W*ROOM_PER_ROW;
+
+    // title
+    setCell(aoa,0,0, `${floor}樓床位配置`);
+    merges.push({s:{r:0,c:0}, e:{r:0,c:TITLE_COLS-1}});
+
+    let rCur=2, cCur=0, rowMax=0;
+    rooms.forEach((room, idx)=>{
+      // 房號 header 合併三格
+      setCell(aoa, rCur, cCur, `房號 ${room}`);
+      merges.push({s:{r:rCur,c:cCur}, e:{r:rCur,c:cCur+2}});
+      // 床位列
+      const subs = Object.keys(map.get(room)).sort((a,b)=> (parseInt(String(a).replace(/\D/g,''),10)||0) - (parseInt(String(b).replace(/\D/g,''),10)||0));
+      const lines = Math.max(2, subs.length||2);
+      for(let i=0;i<lines;i++){
+        const targetR = rCur+1+i;
+        const sub = subs[i];
+        const res = sub ? map.get(room)[sub] : null;
+        const label = sub ? `${room}-${sub}` : '';
+        const name  = res ? (res.id||'') : '';
+        const sexAge = res ? `${res.gender||''}${calcAge(res.birthday) !== '' ? ' / '+calcAge(res.birthday)+'歲' : ''}` : '';
+
+        setCell(aoa, targetR, cCur,   label);
+        setCell(aoa, targetR, cCur+1, name);
+        setCell(aoa, targetR, cCur+2, sexAge);
+      }
+      rowMax = Math.max(rowMax, lines+1);
+      // 下一間房的起始欄（含美觀間隔）
+      cCur += BLOCK_W;
+      // 每 3 間換行
+      if((idx+1)%ROOM_PER_ROW===0){
+        rCur += rowMax + 1; // +1 為區塊間留白
+        cCur = 0;
+        rowMax = 0;
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = merges;
+    ws['!cols'] = Array(TITLE_COLS).fill(0).map((_,i)=>({wch: i%BLOCK_W===3? 2 : 12})); // 狹窄間隔欄
+    return ws;
+  }
+
+  async function exportGridlike(){
     if(typeof XLSX === 'undefined'){ alert('缺少 XLSX 外掛，無法匯出'); return; }
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const put = (name, aoa)=>{
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const idx = wb.SheetNames.indexOf(name);
-      if(idx >= 0){ wb.Sheets[name] = ws; }
-      else { XLSX.utils.book_append_sheet(wb, ws, name); }
-    };
-    put('基本資料', aoaBasic());
-    put('1樓床位配置', aoaFloor(1));
-    put('2樓床位配置', aoaFloor(2));
-    put('3樓床位配置', aoaFloor(3));
-    put('總人數統計', aoaStats());
+    const wb = XLSX.utils.book_new();
+    // 重新以目前 cache 為主
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaBasic()), '基本資料');
+    XLSX.utils.book_append_sheet(wb, buildFloorPaneSheet(cache,1), '1樓床位配置');
+    XLSX.utils.book_append_sheet(wb, buildFloorPaneSheet(cache,2), '2樓床位配置');
+    XLSX.utils.book_append_sheet(wb, buildFloorPaneSheet(cache,3), '3樓床位配置');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaStats()), '總人數統計');
     XLSX.writeFile(wb, buildExportName()+'.xlsx');
   }
 
+  function setCell(aoa, r, c, v){
+    if(!aoa[r]) aoa[r]=[];
+    aoa[r][c]=v;
+  }
+
+  // ===== 事件 =====
   document.addEventListener('click', async (e)=>{
     const t = e.target;
     if(t.closest('#export-excel-btn')) exportDirect();
-    if(t.closest('#export-with-template-btn')){
-      const input = document.getElementById('export-template-input');
-      if(!input) return;
-      input.onchange = async (ev)=>{
-        const f = ev.target.files[0]; if(!f) return;
-        await exportWithTemplate(f);
-        input.value='';
-      };
-      input.click();
-    }
+    if(t.closest('#export-excel-gridlike')) exportGridlike();
   });
 
-  // 匯入
+  // ===== 匯入 =====
   if (importBtn && fileInput){
     importBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleExcelImport);
@@ -450,7 +509,7 @@ document.addEventListener('residents-init', () => {
     reader.readAsArrayBuffer(file);
   }
 
-  // 新增 / 編輯 / 刪除
+  // ===== 新增 / 編輯 / 刪除 =====
   let modal;
   const modalEl = document.getElementById('resident-modal');
   if (window.bootstrap && modalEl) modal = new bootstrap.Modal(modalEl);
