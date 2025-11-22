@@ -112,6 +112,41 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
+  
+  // ---- Smart date parsing (supports Date, Excel serial, ROC year like 113/08/09, and common strings) ----
+  function parseDateSmart(v){
+    if(!v && v!==0) return '';
+    // If it's already a Date
+    if(Object.prototype.toString.call(v)==='[object Date]' && !isNaN(v)) {
+      return v.toISOString().slice(0,10);
+    }
+    // Excel serial (number)
+    if(typeof v === 'number' && isFinite(v)){
+      // Excel serial: days since 1899-12-30
+      const ms = (v - 25569) * 86400000; // 25569 = days between 1899-12-30 and 1970-01-01
+      const d = new Date(ms);
+      if(!isNaN(d)) return new Date(d.getTime() + d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    }
+    // String parsing
+    let s = String(v).trim();
+    if(!s) return '';
+    // Normalize separators
+    s = s.replace(/[\.年\/\-]/g, '-').replace(/月/g,'-').replace(/日/g,'');
+    s = s.replace(/\s+/g,'').replace(/^0+(\d)/,'$1'); // trim zeros
+    // Possible formats: 2024-11-21, 113-11-21, 1131121
+    const m = s.match(/^(\d{1,4})-?(\d{1,2})-?(\d{1,2})$/);
+    if(m){
+      let y = parseInt(m[1],10), mo = parseInt(m[2],10), da = parseInt(m[3],10);
+      if(y < 1911) y += 1911; // ROC
+      const dd = new Date(Date.UTC(y, mo-1, da));
+      if(!isNaN(dd)) return dd.toISOString().slice(0,10);
+    }
+    // Fallback: Date.parse
+    const d2 = new Date(s);
+    if(!isNaN(d2)) return d2.toISOString().slice(0,10);
+    return '';
+  }
+
   // ===== Template import (XLSX/CSV/TXT) =====
   async function handleTemplateImport(evt){
     const file = evt.target.files[0];
@@ -154,7 +189,69 @@ document.addEventListener('firebase-ready', () => {
     saveTemplate(floorTpl);
     // 立即重繪
     renderFloors();
+  
+  // ===== Residents Excel import (improved header mapping + smart date parsing) =====
+  function norm(v){ return (v==null? '' : String(v).trim()); }
+  function pick(r, keys){ 
+    for(const k of keys){
+      for(const kk in r){
+        if(Object.prototype.hasOwnProperty.call(r, kk)){
+          const key = String(kk).replace(/\s+/g,'').trim();
+          if(key === String(k).replace(/\s+/g,'').trim()) return r[kk];
+        }
+      }
+    }
+    return '';
   }
+  async function handleExcelImport(evt){
+    const file = evt.target.files[0];
+    if(!file) return;
+    importStatus.className = 'alert alert-info'; importStatus.classList.remove('d-none');
+    importStatus.textContent = '正在讀取檔案...';
+
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      try{
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
+
+        const batch = db.batch();
+        let count = 0;
+        rows.forEach(r=>{
+          const name = norm(pick(r, ['姓名','住民姓名','Name']));
+          if(!name) return;
+          const birthdayRaw = pick(r, ['生日','生 日','出生日期','出生年月日','Birth','BirthDate']);
+          const checkinRaw = pick(r, ['入住日期','入 住 日 期','入院日期','入住日','Checkin','Admission']);
+          const payload = {
+            nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
+            bedNumber: norm(pick(r, ['床號','床位','Bed'])),
+            gender: norm(pick(r, ['性別','Gender'])),
+            idNumber: norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
+            birthday: parseDateSmart(birthdayRaw),
+            checkinDate: parseDateSmart(checkinRaw),
+            emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','Emergency Contact'])),
+            emergencyPhone: norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
+            mobility: norm(pick(r, ['行動方式','行動','Mobility'])),
+            leaveStatus: norm(pick(r, ['住民請假','請假','住院','Leave/Hosp']))
+          };
+          batch.set(db.collection(dbCol).doc(name), payload, {merge:true});
+          count++;
+        });
+        await batch.commit();
+        importStatus.className = 'alert alert-success';
+        importStatus.textContent = `成功匯入 ${count} 筆資料！重新載入中...`;
+        setTimeout(()=> location.reload(), 1200);
+      }catch(err){
+        console.error(err);
+        importStatus.className = 'alert alert-danger';
+        importStatus.textContent = '匯入失敗，請檢查檔案。';
+      }finally{ fileInput.value = ''; }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
 
   // ===== Render: 基本資料 =====
   function renderBasic(){
