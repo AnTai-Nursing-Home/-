@@ -1,5 +1,6 @@
 // 保留版面 + 五分頁（firebase-ready），床位配置依照消防檔案風格、統計含行動方式分類
 document.addEventListener('firebase-ready', () => {
+  const FLOOR_TEMPLATE = {'1': [101, 102, 103, 105, 106, 107, 108, 109, 110, 111, 112, 113, 115, 116], '2': [201, 202, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 215, 216, 217, 218, 219, 220, 221], '3': [301, 302, 303, 305, 306, 307, 308, 309, 310, 311, 312, 313, 315, 316, 317, 318, 319, 320, 321]};
   const dbCol = 'residents';
 
   // DOM
@@ -164,12 +165,24 @@ document.addEventListener('firebase-ready', () => {
       </div>
     </div>`;
   }
-  function renderFloorTo(container, list){
+  function renderFloorTo(container, list, floor){
     container.innerHTML = '';
-    const grouped = groupByRoom(list);
-    const rooms = Array.from(grouped.keys()).sort((a,b)=> parseInt(a,10)-parseInt(b,10));
+    const tplRooms = (FLOOR_TEMPLATE[String(floor)] || []).map(n => String(n));
+    const grouped = new Map();
+    tplRooms.forEach(rm => grouped.set(String(rm), {}));
+    // put residents into template slots
+    list.forEach(r=>{
+      const m = String(r.bedNumber||'').match(/^(\d+)[-_]?([A-Za-z0-9]*)/);
+      if(!m) return;
+      const room = m[1];
+      const sub = m[2] || '';
+      if(!grouped.has(room)) return; // skip rooms not in template
+      const g = grouped.get(room);
+      const key = sub || '—';
+      g[key] = r;
+    });
+    const rooms = tplRooms;
 
-    // compute floor stats
     let used = 0;
     let emptyList = [];
     rooms.forEach(rm=>{
@@ -211,13 +224,14 @@ document.addEventListener('firebase-ready', () => {
     html += '</div>';
     container.innerHTML = html;
   }
+}
   function renderFloors(){
     const f1 = cache.filter(r=> (r.nursingStation && /1/.test(r.nursingStation)) || isFloor(r.bedNumber,1));
     const f2 = cache.filter(r=> (r.nursingStation && /2/.test(r.nursingStation)) || isFloor(r.bedNumber,2));
     const f3 = cache.filter(r=> (r.nursingStation && /3/.test(r.nursingStation)) || isFloor(r.bedNumber,3));
-    renderFloorTo(floor1Grid, f1);
-    renderFloorTo(floor2Grid, f2);
-    renderFloorTo(floor3Grid, f3);
+    renderFloorTo(floor1Grid, f1, 1);
+    renderFloorTo(floor2Grid, f2, 2);
+    renderFloorTo(floor3Grid, f3, 3);
   }
 
   // ===== 總人數統計（含男/女、樓層、外出/住院、行動方式三類） =====
