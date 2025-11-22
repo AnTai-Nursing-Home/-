@@ -1,4 +1,4 @@
-// Residents Admin - Export with template support (see previous cell for description)
+// Residents Admin - Layout A (第一個樣式), template export, ROC-date filename
 (function(){
   let started = false;
   function canStart(){ return typeof db !== 'undefined' && db && typeof db.collection === 'function'; }
@@ -19,7 +19,6 @@
 
 document.addEventListener('residents-init', () => {
   const dbCol = 'residents';
-
   const tbody = document.getElementById('residents-table-body');
   const floor1Grid = document.getElementById('floor1-grid');
   const floor2Grid = document.getElementById('floor2-grid');
@@ -31,41 +30,11 @@ document.addEventListener('residents-init', () => {
   const importStatus = document.getElementById('import-status');
   const addBtn = document.getElementById('add-resident-btn');
 
-  (function injectTemplateExportControls(){
-    if(!statsArea) return;
-    const holder = document.createElement('div');
-    holder.className = 'col-12';
-    holder.innerHTML = `
-      <div class="d-flex justify-content-end gap-2 mt-2">
-        <input type="file" id="export-template-input" accept=".xlsx,.xls" class="d-none">
-        <button id="export-excel-btn" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>匯出 Excel</button>
-        <button id="export-with-template-btn" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>套用模板匯出</button>
-      </div>`;
-    statsArea.parentElement && statsArea.parentElement.appendChild(holder);
-  })();
-
-  let modal;
-  const modalEl = document.getElementById('resident-modal');
-  if (window.bootstrap && modalEl) modal = new bootstrap.Modal(modalEl);
-  const modalTitle = document.getElementById('resident-modal-title');
-  const saveBtn = document.getElementById('save-resident-btn');
-  const nameInput = document.getElementById('resident-name');
-  const stationInput = document.getElementById('resident-station');
-  const bedInput = document.getElementById('resident-bedNumber');
-  const genderInput = document.getElementById('resident-gender');
-  const birthdayInput = document.getElementById('resident-birthday');
-  const idInput = document.getElementById('resident-idNumber');
-  const emgNameInput = document.getElementById('resident-emgName');
-  const emgPhoneInput = document.getElementById('resident-emgPhone');
-  const mobilityInput = document.getElementById('resident-mobility');
-  const checkinInput = document.getElementById('resident-checkinDate');
-  const statusInput = document.getElementById('resident-status');
-
+  // 還原「第一個」卡片式床位配置
   const LS_KEY = 'FLOOR_TEMPLATE_V1';
   function getTemplate(){
     try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {'1':[], '2':[], '3':[]}; }catch{ return {'1':[], '2':[], '3':[]}; }
   }
-
   const norm = v => (v==null ? '' : String(v).trim());
   function bedToSortValue(bed){
     if(!bed) return 0;
@@ -97,9 +66,7 @@ document.addEventListener('residents-init', () => {
   }
   function parseDateSmart(v){
     if(!v && v!==0) return '';
-    if(Object.prototype.toString.call(v)==='[object Date]' && !isNaN(v)) {
-      return v.toISOString().slice(0,10);
-    }
+    if(Object.prototype.toString.call(v)==='[object Date]' && !isNaN(v)) return v.toISOString().slice(0,10);
     if(typeof v === 'number' && isFinite(v)){
       const ms = (v - 25569) * 86400000;
       const d = new Date(ms);
@@ -313,11 +280,17 @@ document.addEventListener('residents-init', () => {
               </tbody>
             </table>
           </div>
+          <div class="text-end mt-2">
+            <input type="file" id="export-template-input" accept=".xlsx,.xls" class="d-none">
+            <button id="export-excel-btn" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>匯出 Excel</button>
+            <button id="export-with-template-btn" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>套用模板匯出</button>
+          </div>
         </div></div>
       </div>
     `;
   }
 
+  // 匯出資料表
   function aoaBasic(){
     const header = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
     const rows = cache.map(r=>[
@@ -367,8 +340,7 @@ document.addEventListener('residents-init', () => {
     return [head1, [], head2, row1, row2, row3];
   }
 
-  
-  // ===== Filename builder (ROC date) =====
+  // 檔名（民國年月日）
   function buildExportName(){
     const d = new Date();
     const rocY = d.getFullYear() - 1911;
@@ -376,7 +348,8 @@ document.addEventListener('residents-init', () => {
     const dd = String(d.getDate()).padStart(2,'0');
     return `${rocY}${mm}${dd}-床位配置-消防位置圖-報告詞 -`;
   }
-function exportDirect(){
+
+  function exportDirect(){
     if(typeof XLSX === 'undefined'){ alert('缺少 XLSX 外掛，無法匯出'); return; }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaBasic()), '基本資料');
@@ -393,11 +366,8 @@ function exportDirect(){
     const put = (name, aoa)=>{
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const idx = wb.SheetNames.indexOf(name);
-      if(idx >= 0){
-        wb.Sheets[name] = ws;
-      }else{
-        XLSX.utils.book_append_sheet(wb, ws, name);
-      }
+      if(idx >= 0){ wb.Sheets[name] = ws; }
+      else { XLSX.utils.book_append_sheet(wb, ws, name); }
     };
     put('基本資料', aoaBasic());
     put('1樓床位配置', aoaFloor(1));
@@ -422,6 +392,148 @@ function exportDirect(){
     }
   });
 
+  // 匯入
+  if (importBtn && fileInput){
+    importBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleExcelImport);
+  }
+  function pick(row, aliases){
+    const map = {};
+    Object.keys(row).forEach(k => { map[String(k).replace(/\s+/g,'').trim()] = row[k]; });
+    for(const a of aliases){
+      const kk = String(a).replace(/\s+/g,'').trim();
+      if(Object.prototype.hasOwnProperty.call(map, kk)) return map[kk];
+    }
+    return '';
+  }
+  async function handleExcelImport(evt){
+    const file = evt.target.files[0];
+    if(!file) return;
+    if(importStatus){ importStatus.className = 'alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent = '正在讀取檔案...'; }
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      try{
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
+        const batch = db.batch();
+        let count = 0;
+        rows.forEach(r=>{
+          const name = norm(pick(r, ['姓名','住民姓名','Name']));
+          if(!name) return;
+          const birthdayRaw = pick(r, ['生日','出生日期','出生年月日','Birth','BirthDate']);
+          const checkinRaw = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
+          const payload = {
+            nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
+            bedNumber: norm(pick(r, ['床號','床位','Bed'])),
+            gender: norm(pick(r, ['性別','Gender'])),
+            idNumber: norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
+            birthday: parseDateSmart(birthdayRaw),
+            checkinDate: parseDateSmart(checkinRaw),
+            emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
+            emergencyPhone: norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
+            mobility: norm(pick(r, ['行動方式','行動','Mobility'])),
+            leaveStatus: norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
+          };
+          batch.set(db.collection(dbCol).doc(name), payload, {merge:true});
+          count++;
+        });
+        await batch.commit();
+        if(importStatus){ importStatus.className = 'alert alert-success'; importStatus.textContent = `成功匯入 ${count} 筆資料！重新載入中...`; }
+        setTimeout(()=> location.reload(), 1000);
+      }catch(err){
+        console.error(err);
+        if(importStatus){ importStatus.className = 'alert alert-danger'; importStatus.textContent = '匯入失敗，請檢查檔案。'; }
+      }finally{ if(fileInput) fileInput.value = ''; }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // 新增 / 編輯 / 刪除
+  let modal;
+  const modalEl = document.getElementById('resident-modal');
+  if (window.bootstrap && modalEl) modal = new bootstrap.Modal(modalEl);
+  const modalTitle = document.getElementById('resident-modal-title');
+  const saveBtn = document.getElementById('save-resident-btn');
+  const nameInput = document.getElementById('resident-name');
+  const stationInput = document.getElementById('resident-station');
+  const bedInput = document.getElementById('resident-bedNumber');
+  const genderInput = document.getElementById('resident-gender');
+  const birthdayInput = document.getElementById('resident-birthday');
+  const idInput = document.getElementById('resident-idNumber');
+  const emgNameInput = document.getElementById('resident-emgName');
+  const emgPhoneInput = document.getElementById('resident-emgPhone');
+  const mobilityInput = document.getElementById('resident-mobility');
+  const checkinInput = document.getElementById('resident-checkinDate');
+  const statusInput = document.getElementById('resident-status');
+
+  if (addBtn && modal){
+    addBtn.addEventListener('click', () => {
+      modalTitle && (modalTitle.textContent = '新增住民');
+      const form = document.getElementById('resident-form');
+      if(form) form.reset();
+      if(nameInput) { nameInput.disabled = false; nameInput.value = ''; }
+      modal.show();
+    });
+  }
+  if (saveBtn){
+    saveBtn.addEventListener('click', async () => {
+      const name = nameInput ? nameInput.value.trim() : '';
+      if(!name) return alert('請填寫姓名');
+      const payload = {
+        nursingStation: stationInput ? norm(stationInput.value) : '',
+        bedNumber: bedInput ? norm(bedInput.value) : '',
+        gender: genderInput ? genderInput.value : '',
+        birthday: birthdayInput ? parseDateSmart(birthdayInput.value) : '',
+        idNumber: idInput ? norm(idInput.value) : '',
+        emergencyContact: emgNameInput ? norm(emgNameInput.value) : '',
+        emergencyPhone: emgPhoneInput ? norm(emgPhoneInput.value) : '',
+        mobility: mobilityInput ? norm(mobilityInput.value) : '',
+        checkinDate: checkinInput ? parseDateSmart(checkinInput.value) : '',
+        leaveStatus: statusInput ? norm(statusInput.value) : ''
+      };
+      await db.collection(dbCol).doc(name).set(payload, {merge:true});
+      if(modal) modal.hide();
+      load();
+    });
+  }
+  if (tbody){
+    tbody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const row = btn.closest('tr');
+      const id = row?.dataset.id;
+      if(!id) return;
+      if(btn.classList.contains('btn-edit')){
+        if(!modal) return;
+        modalTitle && (modalTitle.textContent = '編輯住民資料');
+        if(nameInput){ nameInput.disabled = true; nameInput.value = id; }
+        const doc = await db.collection(dbCol).doc(id).get();
+        if(doc.exists){
+          const d = doc.data();
+          if(stationInput) stationInput.value = d.nursingStation || '';
+          if(bedInput) bedInput.value = d.bedNumber || '';
+          if(genderInput) genderInput.value = d.gender || '';
+          if(birthdayInput) birthdayInput.value = d.birthday || '';
+          if(idInput) idInput.value = d.idNumber || '';
+          if(emgNameInput) emgNameInput.value = d.emergencyContact || '';
+          if(emgPhoneInput) emgPhoneInput.value = d.emergencyPhone || '';
+          if(mobilityInput) mobilityInput.value = d.mobility || '';
+          if(checkinInput) checkinInput.value = d.checkinDate || '';
+          if(statusInput) statusInput.value = d.leaveStatus || '';
+        }
+        modal.show();
+      }
+      if(btn.classList.contains('btn-danger')){
+        if(confirm(`確定刪除「${id}」資料？`)){
+          await db.collection(dbCol).doc(id).delete();
+          load();
+        }
+      }
+    });
+  }
+
   async function load(){
     if(tbody) tbody.innerHTML = '<tr><td colspan="13" class="text-center">讀取中...</td></tr>';
     try{
@@ -436,6 +548,5 @@ function exportDirect(){
       if(tbody) tbody.innerHTML = '<tr><td colspan="13"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
     }
   }
-
   load();
 });
