@@ -9,7 +9,6 @@
   } else {
     document.addEventListener('DOMContentLoaded', ()=> { setTimeout(()=> { if(canStart()) startNow(); }, 300); });
   }
-  // safety retry: if db晚一點才掛上，也會啟動
   let tries = 0;
   const t = setInterval(()=>{
     if(started) { clearInterval(t); return; }
@@ -121,6 +120,32 @@ document.addEventListener('residents-init', () => {
 
   // ===== State =====
   let cache = [];
+
+function renderBasic(){
+    let html = '';
+    cache.forEach(r=>{
+      const age = calcAge(r.birthday);
+      html += `<tr data-id="${r.id}">
+        <td>${r.nursingStation || ''}</td>
+        <td>${r.bedNumber || ''}</td>
+        <td>${r.id || ''}</td>
+        <td>${r.idNumber || ''}</td>
+        <td>${r.birthday || ''}</td>
+        <td>${r.gender || ''}</td>
+        <td>${age !== '' ? age : ''}</td>
+        <td>${r.emergencyContact || ''}</td>
+        <td>${r.emergencyPhone || ''}</td>
+        <td>${r.mobility || ''}</td>
+        <td>${r.checkinDate || ''}</td>
+        <td>${r.leaveStatus || ''}</td>
+        <td>
+          <button class="btn btn-sm btn-primary btn-edit">編輯</button>
+          <button class="btn btn-sm btn-danger btn-delete">刪除</button>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
 
   // ===== Data load =====
   async function load(){
