@@ -1,8 +1,9 @@
-// residents-admin.merged.styledxls.fix1.js
-// 修正版：
-// 1) 若樓層模板(localStorage)為空，會自動由現有床號推導出 1/2/3樓床位清單（因此 1,2,3 樓不會空白）。
-// 2) 「總人數統計」頁面保留原有統計卡（總人數/男女/實到/分樓層+行動方式），並在右上角「附加」匯出按鈕，不會把原內容清掉。
-// 3) 保留 .xls（含框線與底色）匯出。
+// residents-admin.merged.styledxls.fix2.js
+// 修正版2：
+// - 匯出Excel：樓層與總人數統計不見 → 修正成用「目前快取資料 + 樓層模板(若無自動推導)」產生各分頁。
+// - 系統樓層卡片：把「空床」也列出（明顯顯示 🈳 空床）。
+// - 每層的「床位總數 / 空床數 / 已使用床位數」回來了（頁面底部統計 + 匯出分頁底部統計）。
+// - 若 localStorage 沒模板，會由現有床號推導並保存，避免樓層空白。
 
 (function(){
   let started=false;
@@ -34,7 +35,7 @@ document.addEventListener('residents-init', ()=>{
   }
   function setTemplate(tpl){ try{ localStorage.setItem(LS_KEY, JSON.stringify(tpl)); }catch{} }
   function normalizeToken(s){
-    const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
+    const m=String(s||'').trim().match(/^(\\d{3})[-_]?([A-Za-z0-9]+)$/);
     if(!m) return null;
     return `${m[1]}-${m[2]}`;
   }
@@ -43,21 +44,19 @@ document.addEventListener('residents-init', ()=>{
     let changed = false;
     [1,2,3].forEach(f=>{
       if(!tpl[String(f)] || tpl[String(f)].length===0){
-        // 推導
         const tokens = [];
         data.forEach(r=>{
           const bed = normalizeToken(r.bedNumber);
           if(!bed) return;
           if(String(bed).startsWith(`${f}`)){ tokens.push(bed); }
         });
-        // 去重、排序（房號+子床）
         const uniq = Array.from(new Set(tokens))
           .sort((a,b)=>{
-            const ma=a.match(/^(\d{3})-(.+)$/); const mb=b.match(/^(\d{3})-(.+)$/);
+            const ma=a.match(/^(\\d{3})-(.+)$/); const mb=b.match(/^(\\d{3})-(.+)$/);
             const ra=parseInt(ma[1],10), rb=parseInt(mb[1],10);
             if(ra!==rb) return ra-rb;
-            const sa=parseInt(String(ma[2]).replace(/\D/g,''),10)||0;
-            const sb=parseInt(String(mb[2]).replace(/\D/g,''),10)||0;
+            const sa=parseInt(String(ma[2]).replace(/\\D/g,''),10)||0;
+            const sb=parseInt(String(mb[2]).replace(/\\D/g,''),10)||0;
             return sa-sb;
           });
         tpl[String(f)] = uniq;
@@ -76,13 +75,13 @@ document.addEventListener('residents-init', ()=>{
   }
 
   const norm=v=>(v==null?'':String(v).trim());
-  function bedToSortValue(bed){ if(!bed) return 0; const m=String(bed).match(/^(\d+)(?:[-_]?([A-Za-z0-9]+))?/); if(!m) return 0; const base=parseInt(m[1],10); const sub=m[2]?parseInt(String(m[2]).replace(/\D/g,''),10)||0:0; return base+sub/100; }
+  function bedToSortValue(bed){ if(!bed) return 0; const m=String(bed).match(/^(\\d+)(?:[-_]?([A-Za-z0-9]+))?/); if(!m) return 0; const base=parseInt(m[1],10); const sub=m[2]?parseInt(String(m[2]).replace(/\\D/g,''),10)||0:0; return base+sub/100; }
   function calcAge(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); let a=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) a--; return a; }
   function parseDateSmart(v){
     if(!v&&v!==0) return '';
     if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v)) return v.toISOString().slice(0,10);
     if(typeof v==='number'&&isFinite(v)){const ms=(v-25569)*86400000; const d=new Date(ms); if(!isNaN(d)) return new Date(d.getTime()+d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
-    let s=String(v).trim(); if(!s) return ''; s=s.replace(/[\.年\/\-]/g,'-').replace(/月/g,'-').replace(/日/g,'').replace(/\s+/g,''); const m=s.match(/^(\d{1,4})-?(\d{1,2})-?(\d{1,2})$/); if(m){let y=+m[1],mo=+m[2],da=+m[3]; if(y<1911) y+=1911; const dd=new Date(Date.UTC(y,mo-1,da)); if(!isNaN(dd)) return dd.toISOString().slice(0,10);} const d2=new Date(s); if(!isNaN(d2)) return d2.toISOString().slice(0,10); return ''; }
+    let s=String(v).trim(); if(!s) return ''; s=s.replace(/[\\.年\\/-]/g,'-').replace(/月/g,'-').replace(/日/g,'').replace(/\\s+/g,''); const m=s.match(/^(\\d{1,4})-?(\\d{1,2})-?(\\d{1,2})$/); if(m){let y=+m[1],mo=+m[2],da=+m[3]; if(y<1911) y+=1911; const dd=new Date(Date.UTC(y,mo-1,da)); if(!isNaN(dd)) return dd.toISOString().slice(0,10);} const d2=new Date(s); if(!isNaN(d2)) return d2.toISOString().slice(0,10); return ''; }
   function rocName(){ const d=new Date(); const y=d.getFullYear()-1911; const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}${m}${dd}-床位配置-消防位置圖-報告詞 -`; }
 
   let cache=[];
@@ -103,8 +102,8 @@ document.addEventListener('residents-init', ()=>{
     tbody.innerHTML=html;
   }
 
-  function parseBedToken(s){ const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return null; return {room:m[1], sub:m[2], token:`${m[1]}-${m[2]}`}; }
-  function renderFloorTo(container,floor, tpl, data){
+  function parseBedToken(s){ const m=String(s||'').trim().match(/^(\\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return null; return {room:m[1], sub:m[2], token:`${m[1]}-${m[2]}`}; }
+  function buildFloorHtml(container,floor,tpl,data){
     if(!container) return;
     container.innerHTML='';
 
@@ -115,18 +114,25 @@ document.addEventListener('residents-init', ()=>{
     }
     const grouped=new Map();
     tokens.forEach(tok=>{const t=parseBedToken(tok); if(!t) return; if(!grouped.has(t.room)) grouped.set(t.room,{}); const g=grouped.get(t.room); if(!g.__keys) g.__keys=new Set(); g.__keys.add(t.sub);});
-    data.forEach(r=>{const t=parseBedToken(r.bedNumber); if(!t) return; if(!grouped.has(t.room)) return; const g=grouped.get(t.room); if(!g.__keys||!g.__keys.has(t.sub)) return; g[t.sub]=r;});
-    const rooms=[...grouped.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+    const resByToken=new Map(); data.forEach(r=>{ const key=normalizeToken(r.bedNumber); if(key) resByToken.set(key,r); });
 
+    const rooms=[...grouped.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
     let html='<div class="row g-2">';
+    let totalBeds=0, usedBeds=0;
+
     rooms.forEach(room=>{
-      const g=grouped.get(room); const keys=[...g.__keys].sort((a,b)=>(parseInt(a.replace(/\D/g,''),10)||0)-(parseInt(b.replace(/\D/g,''),10)||0));
-      let rows=''; keys.forEach(sub=>{
-        const r=g[sub]; const age=r?calcAge(r.birthday):'';
+      const g=grouped.get(room); const subs=[...g.__keys].sort((a,b)=>(parseInt(a.replace(/\\D/g,''),10)||0)-(parseInt(b.replace(/\\D/g,''),10)||0));
+      totalBeds += subs.length;
+      let rows='';
+      subs.forEach(sub=>{
+        const token=`${room}-${sub}`;
+        const r=resByToken.get(token);
+        const age=r?calcAge(r.birthday):'';
         const status = r ? (r.leaveStatus==='住院'?'bg-danger-subtle':(r.leaveStatus==='請假'?'bg-warning-subtle':'bg-success-subtle')) : 'bg-light';
+        if(r) usedBeds++;
         rows+=`<div class="d-flex justify-content-between border-bottom py-2 ${status}">
-          <div class="small text-muted">🛏 ${room}-${sub}</div>
-          <div>${r?(r.id||''):'—'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''} ${r?'': '🈳'}</div>
+          <div class="small text-muted">🛏 ${token}</div>
+          <div>${r?(r.id||'🈳 空床'):'🈳 空床'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</div>
         </div>`;
       });
       html+=`<div class="col-12 col-sm-6 col-lg-4"><div class="card h-100">
@@ -135,16 +141,26 @@ document.addEventListener('residents-init', ()=>{
       </div></div>`;
     });
     html+='</div>';
+
+    const emptyBeds = totalBeds - usedBeds;
+    html+= `<div class="mt-3">
+      <div class="row g-2">
+        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">樓層床位數 <strong>${totalBeds}</strong></div></div>
+        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">空床數 <strong>${emptyBeds}</strong></div></div>
+        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">已使用床位數 <strong>${usedBeds}</strong></div></div>
+      </div>
+    </div>`;
+
     container.innerHTML=html;
   }
 
   function renderFloors(tpl){
-    const f1=cache.filter(r=>/^1\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/1/.test(r.nursingStation)));
-    const f2=cache.filter(r=>/^2\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/2/.test(r.nursingStation)));
-    const f3=cache.filter(r=>/^3\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/3/.test(r.nursingStation)));
-    renderFloorTo(floor1Grid,1,tpl,f1);
-    renderFloorTo(floor2Grid,2,tpl,f2);
-    renderFloorTo(floor3Grid,3,tpl,f3);
+    const f1=cache.filter(r=>/^1\\d\\d/.test(String(r.bedNumber))||(r.nursingStation&&/1/.test(r.nursingStation)));
+    const f2=cache.filter(r=>/^2\\d\\d/.test(String(r.bedNumber))||(r.nursingStation&&/2/.test(r.nursingStation)));
+    const f3=cache.filter(r=>/^3\\d\\d/.test(String(r.bedNumber))||(r.nursingStation&&/3/.test(r.nursingStation)));
+    buildFloorHtml(floor1Grid,1,tpl,f1);
+    buildFloorHtml(floor2Grid,2,tpl,f2);
+    buildFloorHtml(floor3Grid,3,tpl,f3);
   }
 
   function renderStats(){
@@ -160,10 +176,6 @@ document.addEventListener('residents-init', ()=>{
     const normv=s=>(s==null?'':String(s));
     const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
     const mob = [1,2,3].map(f=>({wheel: fl(f).filter(r=>WHEEL.test(normv(r.mobility))).length, trolley: fl(f).filter(r=>TROLLEY.test(normv(r.mobility))).length, walk: fl(f).filter(r=>WALK.test(normv(r.mobility))).length }));
-
-    const tools = `<div class="card"><div class="card-body text-end">
-      <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
-    </div></div>`;
 
     statsArea.innerHTML = `
       <div class="col-md-6">
@@ -182,11 +194,13 @@ document.addEventListener('residents-init', ()=>{
           </div>
         </div></div>
       </div>
-      <div class="col-md-6">${tools}</div>
-    `;
+      <div class="col-md-6">
+        <div class="card"><div class="card-body text-end">
+          <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
+        </div></div>
+      </div>`;
   }
 
-  // ======= 匯出為 .xls（含樣式） =======
   function tableCss(){
     return `
       table { border-collapse: collapse; font-family: "Microsoft JhengHei", Arial; }
@@ -210,11 +224,13 @@ document.addEventListener('residents-init', ()=>{
   }
   function sheetFloorHTML(floor){
     const tpl=getTemplate(cache); const tokens=(tpl[String(floor)]||[]).slice();
-    const map=new Map(); tokens.forEach(t=>{ const m=t.match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return; const room=m[1], sub=m[2]; if(!map.has(room)) map.set(room,[]); map.get(room).push(sub); });
+    const map=new Map(); tokens.forEach(t=>{ const m=t.match(/^(\\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return; const room=m[1], sub=m[2]; if(!map.has(room)) map.set(room,[]); map.get(room).push(sub); });
     const resMap=new Map(); cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
     let html='<table>';
     html+=`<tr><th colspan="9" class="room-title">${floor}樓床位配置</th></tr>`;
     const rooms=[...map.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+
+    let floorTotal=0, floorUsed=0;
     for(let i=0;i<rooms.length;i+=3){
       const chunk=rooms.slice(i,i+3);
       let tr='<tr>';
@@ -227,18 +243,22 @@ document.addEventListener('residents-init', ()=>{
           const subs=map.get(room);
           const sub=subs[line];
           const key=sub? `${room}-${sub}`:'';
+          if(key) floorTotal++;
           const r=resMap.get(key);
+          if(r) floorUsed++;
           const age=r? calcAge(r.birthday):'';
           const status=r? (r.leaveStatus==='住院'?'bg-red':(r.leaveStatus==='請假'?'bg-yellow':'bg-green')):'';
           row+=`<td class="cell-muted">🛏 ${key||''}</td>`;
-          row+=`<td>${r?(r.id||''):'—'}</td>`;
-          row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''} ${r?'': '🈳'}</td>`;
+          row+=`<td>${r?(r.id||''):'🈳 空床'}</td>`;
+          row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</td>`;
           row+=`<td></td>`;
         });
         row+='</tr>'; html+=row;
       }
       html+='<tr><td colspan="9" style="border:none;height:6px"></td></tr>';
     }
+    const floorEmpty=floorTotal-floorUsed;
+    html+=`<tr><td>樓層床位數</td><td>${floorTotal}</td><td>空床數</td><td>${floorEmpty}</td><td>已使用床位數</td><td>${floorUsed}</td><td colspan="3"></td></tr>`;
     html+='</table>';
     return html;
   }
@@ -321,7 +341,7 @@ document.addEventListener('residents-init', ()=>{
     importBtn.addEventListener('click', ()=> fileInput.click());
     fileInput.addEventListener('change', handleExcelImport);
   }
-  function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
+  function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
   async function handleExcelImport(evt){
     const file=evt.target.files[0]; if(!file) return;
     if(importStatus){ importStatus.className='alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent='正在讀取檔案...'; }
