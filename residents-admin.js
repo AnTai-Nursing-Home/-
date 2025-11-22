@@ -191,6 +191,7 @@ document.addEventListener('firebase-ready', () => {
     const female = cache.filter(r=> r.gender==='女').length;
     const leave = cache.filter(r=> r.leaveStatus==='請假').length;
     const hosp = cache.filter(r=> r.leaveStatus==='住院').length;
+    const present = total - (leave + hosp);
 
     const byFloor = [1,2,3].map(f=> cache.filter(r=> isFloor(r.bedNumber,f) || (r.nursingStation && r.nursingStation.includes(String(f)))).length);
 
@@ -206,6 +207,7 @@ document.addEventListener('firebase-ready', () => {
           <div class="h5 mb-2">總人數</div>
           <div class="display-6">${total}</div>
           <div class="text-muted">男：${male} ・ 女：${female}</div>
+          <div class="mt-2">實到人數：<strong>${present}</strong></div>
         </div></div>
       </div>
       <div class="col-md-8">
