@@ -1,4 +1,4 @@
-// 保留原樣式 + 五分頁（使用 firebase-ready 事件啟動）
+// 保留版面 + 五分頁（firebase-ready），床位配置依照消防檔案風格、統計含行動方式分類
 document.addEventListener('firebase-ready', () => {
   const dbCol = 'residents';
 
@@ -30,6 +30,7 @@ document.addEventListener('firebase-ready', () => {
   const checkinInput = document.getElementById('resident-checkinDate');
   const statusInput = document.getElementById('resident-status');
 
+  // helpers
   function bedToSortValue(bed){
     if(!bed) return 0;
     const m = String(bed).match(/^(\d+)(?:[-_]?([A-Za-z0-9]+))?/);
@@ -48,6 +49,17 @@ document.addEventListener('firebase-ready', () => {
     if(m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
     return age;
   }
+  function sexBadge(g){
+    if(g === '男') return '<span class="badge bg-primary">男</span>';
+    if(g === '女') return '<span class="badge bg-pink text-white" style="background:#d63384">女</span>';
+    return '<span class="badge bg-secondary">—</span>';
+  }
+  function statusBadge(s){
+    if(s === '請假') return '<span class="badge bg-warning text-dark">請假</span>';
+    if(s === '住院') return '<span class="badge bg-danger">住院</span>';
+    return '';
+  }
+  function norm(v){ return (v==null? '': String(v).trim()); }
 
   let cache = [];
 
@@ -66,6 +78,7 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
+  // ===== 基本資料（表格） =====
   function renderBasic(){
     let html = '';
     cache.forEach(r=>{
@@ -92,52 +105,132 @@ document.addEventListener('firebase-ready', () => {
     tbody.innerHTML = html;
   }
 
+  // ===== 樓層配置（依消防檔案風格：以「房號」為卡片，內含 -1/-2 床） =====
   function isFloor(bed, floor){
     if(!bed) return false;
     const num = parseInt(String(bed).match(/^(\d+)/)?.[1] || '0',10);
-    if(floor===1) return num >=100 && num <200 || num<100;
-    if(floor===2) return num >=200 && num <300;
-    if(floor===3) return num >=300 && num <400;
+    if(floor===1) return (num >=100 && num <200) || num < 100;
+    if(floor===2) return (num >=200 && num <300);
+    if(floor===3) return (num >=300 && num <400);
     return false;
   }
-  function bedCard(r){
-    const badge = r.leaveStatus ? `<span class="badge bg-warning ms-1">${r.leaveStatus}</span>` : '';
-    return `<div class="bed-card">
-      <div class="title">${r.bedNumber || '—'} ${badge}</div>
-      <div>${r.id || ''} <small class="text-muted">(${r.gender || ''}${r.birthday ? '・'+calcAge(r.birthday)+'歲':''})</small></div>
-      <div class="text-muted small">行動：${r.mobility || '—'}</div>
-      <div class="text-muted small">聯絡：${r.emergencyContact || '—'}${r.emergencyPhone ? ' / '+r.emergencyPhone : ''}</div>
+  // 將床號拆成 {room:101, sub:'1'/'2'/...}
+  function splitBed(b){
+    const m = String(b||'').match(/^(\d+)[-_]?([A-Za-z0-9]*)/);
+    if(!m) return {room:'', sub:''};
+    return {room: m[1], sub: m[2] || ''};
+  }
+  // group: { room -> { '1':resident, '2':resident, others... }, meta }
+  function groupByRoom(list){
+    const map = new Map();
+    list.forEach(r=>{
+      const {room, sub} = splitBed(r.bedNumber);
+      if(!room) return;
+      if(!map.has(room)) map.set(room, {});
+      const g = map.get(room);
+      const key = sub || '—';
+      g[key] = r;
+    });
+    return map;
+  }
+  function personLine(res){
+    if(!res) return '<div class="text-muted">空床</div>';
+    const age = calcAge(res.birthday);
+    const sb = sexBadge(res.gender);
+    const st = statusBadge(res.leaveStatus);
+    const name = res.id || '';
+    const ageStr = (age!==''? `${age}歲` : '');
+    return `<div>${name} ${sb} ${st} <small class="text-muted">${ageStr}</small></div>`;
+  }
+  function roomCard(room, beds){
+    // -2 在上排、-1 在下排（若只有一床則顯示一排）
+    const r2 = beds['2'];
+    const r1 = beds['1'];
+    return `<div class="col-12 col-sm-6 col-lg-3">
+      <div class="card h-100">
+        <div class="card-header fw-bold">房號 ${room}</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+            <div class="small text-muted">床位 ${room}-2</div>
+            <div>${r2 ? sexBadge(r2.gender) : ''}</div>
+          </div>
+          ${personLine(r2)}
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mt-3 mb-2">
+            <div class="small text-muted">床位 ${room}-1</div>
+            <div>${r1 ? sexBadge(r1.gender) : ''}</div>
+          </div>
+          ${personLine(r1)}
+        </div>
+      </div>
     </div>`;
   }
+  function renderFloorTo(container, list){
+    container.innerHTML = '';
+    const grouped = groupByRoom(list);
+    const rooms = Array.from(grouped.keys()).sort((a,b)=> parseInt(a,10)-parseInt(b,10));
+    let html = '<div class="row g-2">';
+    rooms.forEach(room=>{
+      html += roomCard(room, grouped.get(room));
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
   function renderFloors(){
-    [floor1Grid,floor2Grid,floor3Grid].forEach(el=> el.innerHTML='');
     const f1 = cache.filter(r=> (r.nursingStation && /1/.test(r.nursingStation)) || isFloor(r.bedNumber,1));
     const f2 = cache.filter(r=> (r.nursingStation && /2/.test(r.nursingStation)) || isFloor(r.bedNumber,2));
     const f3 = cache.filter(r=> (r.nursingStation && /3/.test(r.nursingStation)) || isFloor(r.bedNumber,3));
-    f1.forEach(r=> floor1Grid.insertAdjacentHTML('beforeend', bedCard(r)));
-    f2.forEach(r=> floor2Grid.insertAdjacentHTML('beforeend', bedCard(r)));
-    f3.forEach(r=> floor3Grid.insertAdjacentHTML('beforeend', bedCard(r)));
+    renderFloorTo(floor1Grid, f1);
+    renderFloorTo(floor2Grid, f2);
+    renderFloorTo(floor3Grid, f3);
   }
+
+  // ===== 總人數統計（含男/女、樓層、外出/住院、行動方式三類） =====
   function renderStats(){
     const total = cache.length;
     const male = cache.filter(r=> r.gender==='男').length;
     const female = cache.filter(r=> r.gender==='女').length;
     const leave = cache.filter(r=> r.leaveStatus==='請假').length;
     const hosp = cache.filter(r=> r.leaveStatus==='住院').length;
+
     const byFloor = [1,2,3].map(f=> cache.filter(r=> isFloor(r.bedNumber,f) || (r.nursingStation && r.nursingStation.includes(String(f)))).length);
 
+    // 行動方式（檔案統計的三類：輪椅/推床/步行）—關鍵字對應
+    const mobi = (s)=> norm(s);
+    const wheel = cache.filter(r=> /輪椅/i.test(mobi(r.mobility))).length;
+    const trolley = cache.filter(r=> /(推床|臥床|平車|推車)/i.test(mobi(r.mobility))).length;
+    const walk = cache.filter(r=> /(步行|可獨立|助行|拐杖|walker)/i.test(mobi(r.mobility))).length;
+
     statsArea.innerHTML = `
-      <div class="col-md-3"><div class="card"><div class="card-body">
-        <div class="h5 mb-1">總人數</div><div class="display-6">${total}</div>
-        <div class="text-muted small">男：${male} ・ 女：${female}</div>
-      </div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body"><div class="h5 mb-1">1樓</div><div class="display-6">${byFloor[0]}</div></div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body"><div class="h5 mb-1">2樓</div><div class="display-6">${byFloor[1]}</div></div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body"><div class="h5 mb-1">3樓</div><div class="display-6">${byFloor[2]}</div></div></div></div>
-      <div class="col-md-6"><div class="card mt-3"><div class="card-body">
-        <div class="h6">外出/住院</div>
-        <div class="text-muted">請假：${leave} ・ 住院：${hosp}</div>
-      </div></div></div>
+      <div class="col-md-4">
+        <div class="card"><div class="card-body">
+          <div class="h5 mb-2">總人數</div>
+          <div class="display-6">${total}</div>
+          <div class="text-muted">男：${male} ・ 女：${female}</div>
+        </div></div>
+      </div>
+      <div class="col-md-8">
+        <div class="card"><div class="card-body">
+          <div class="h6 mb-2">各樓層人數</div>
+          <div class="d-flex gap-3 flex-wrap">
+            <div>1樓：<strong>${byFloor[0]}</strong></div>
+            <div>2樓：<strong>${byFloor[1]}</strong></div>
+            <div>3樓：<strong>${byFloor[2]}</strong></div>
+          </div>
+          <hr/>
+          <div class="h6 mb-2">外出 / 住院</div>
+          <div class="d-flex gap-3 flex-wrap">
+            <div>請假：<strong>${leave}</strong></div>
+            <div>住院：<strong>${hosp}</strong></div>
+          </div>
+          <hr/>
+          <div class="h6 mb-2">行動方式</div>
+          <div class="d-flex gap-3 flex-wrap">
+            <div>輪椅：<strong>${wheel}</strong></div>
+            <div>推床：<strong>${trolley}</strong></div>
+            <div>步行：<strong>${walk}</strong></div>
+          </div>
+        </div></div>
+      </div>
     `;
   }
 
@@ -206,7 +299,6 @@ document.addEventListener('firebase-ready', () => {
   importBtn.addEventListener('click', ()=> fileInput.click());
   fileInput.addEventListener('change', handleExcelImport);
 
-  function norm(v){ if(v===undefined||v===null) return ''; return String(v).trim(); }
   function fmtDate(d){
     if(!d) return '';
     if(d instanceof Date && !isNaN(d)) return d.toISOString().slice(0,10);
