@@ -50,6 +50,7 @@ document.addEventListener('firebase-ready', () => {
             { name: 'Jelly(潤滑液)', threshold: '＜3瓶=缺' },
             { name: '3M膠布', threshold: '＜1盒=缺' },
             { name: '血糖試紙', threshold: '＜1大箱=缺' },
+            { name: '血糖用採血針', threshold: '＜2盒=缺' },
         ]}
     ];
 
