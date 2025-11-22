@@ -1,4 +1,4 @@
-// 保留原樣式 + 五分頁
+// 保留原樣式 + 五分頁（使用 firebase-ready 事件啟動）
 document.addEventListener('firebase-ready', () => {
   const dbCol = 'residents';
 
@@ -104,9 +104,9 @@ document.addEventListener('firebase-ready', () => {
     const badge = r.leaveStatus ? `<span class="badge bg-warning ms-1">${r.leaveStatus}</span>` : '';
     return `<div class="bed-card">
       <div class="title">${r.bedNumber || '—'} ${badge}</div>
-      <div>${r.id || ''} <small class="muted">(${r.gender || ''}${r.birthday ? '・'+calcAge(r.birthday)+'歲':''})</small></div>
-      <div class="muted small">行動：${r.mobility || '—'}</div>
-      <div class="muted small">聯絡：${r.emergencyContact || '—'}${r.emergencyPhone ? ' / '+r.emergencyPhone : ''}</div>
+      <div>${r.id || ''} <small class="text-muted">(${r.gender || ''}${r.birthday ? '・'+calcAge(r.birthday)+'歲':''})</small></div>
+      <div class="text-muted small">行動：${r.mobility || '—'}</div>
+      <div class="text-muted small">聯絡：${r.emergencyContact || '—'}${r.emergencyPhone ? ' / '+r.emergencyPhone : ''}</div>
     </div>`;
   }
   function renderFloors(){
