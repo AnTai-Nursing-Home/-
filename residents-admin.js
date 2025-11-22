@@ -211,7 +211,6 @@ document.addEventListener('firebase-ready', () => {
     html += '</div>';
     container.innerHTML = html;
   }
-}
   function renderFloors(){
     const f1 = cache.filter(r=> (r.nursingStation && /1/.test(r.nursingStation)) || isFloor(r.bedNumber,1));
     const f2 = cache.filter(r=> (r.nursingStation && /2/.test(r.nursingStation)) || isFloor(r.bedNumber,2));
