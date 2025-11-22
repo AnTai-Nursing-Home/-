@@ -1,4 +1,4 @@
-// INIT-FIX: start either on 'firebase-ready' or when DOM is ready; retry until db is available.
+// Residents Admin - full build with: tabs kept, firebase-ready/DOM init, Excel import, add/edit/delete, floor template rendering, per-floor mobility stats, one-click Excel export.
 (function(){
   let started = false;
   function canStart(){ return typeof db !== 'undefined' && db && typeof db.collection === 'function'; }
@@ -17,7 +17,6 @@
   }, 500);
 })();
 
-// Residents Admin — keep style + tabs + floor template + full wiring (firebase-ready)
 document.addEventListener('residents-init', () => {
   const dbCol = 'residents';
 
@@ -33,7 +32,6 @@ document.addEventListener('residents-init', () => {
   const importStatus = document.getElementById('import-status');
   const addBtn = document.getElementById('add-resident-btn');
 
-  // Modal & fields
   let modal;
   const modalEl = document.getElementById('resident-modal');
   if (window.bootstrap && modalEl) modal = new bootstrap.Modal(modalEl);
@@ -51,17 +49,14 @@ document.addEventListener('residents-init', () => {
   const checkinInput = document.getElementById('resident-checkinDate');
   const statusInput = document.getElementById('resident-status');
 
-  // ===== Local storage template (optional) =====
+  // ===== Template storage =====
   const LS_KEY = 'FLOOR_TEMPLATE_V1';
-  function getSavedTemplate(){
-    try { const j = localStorage.getItem(LS_KEY); return j ? JSON.parse(j) : null; } catch { return null; }
+  function getTemplate(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {'1':[], '2':[], '3':[]}; }catch{ return {'1':[], '2':[], '3':[]}; }
   }
-  function saveTemplate(tpl){
-    try { localStorage.setItem(LS_KEY, JSON.stringify(tpl)); } catch {}
-  }
-  function getTemplate(){ return getSavedTemplate() || {'1':[], '2':[], '3':[]}; }
 
   // ===== Helpers =====
+  const norm = v => (v==null ? '' : String(v).trim());
   function bedToSortValue(bed){
     if(!bed) return 0;
     const m = String(bed).match(/^(\d+)(?:[-_]?([A-Za-z0-9]+))?/);
@@ -90,9 +85,8 @@ document.addEventListener('residents-init', () => {
     if(s === '住院') return '<span class="badge bg-danger">住院</span>';
     return '';
   }
-  const norm = v => (v==null ? '' : String(v).trim());
 
-  // Smart Date parsing (ROC / Excel serial / common strings)
+  // Smart date parsing
   function parseDateSmart(v){
     if(!v && v!==0) return '';
     if(Object.prototype.toString.call(v)==='[object Date]' && !isNaN(v)) {
@@ -121,7 +115,9 @@ document.addEventListener('residents-init', () => {
   // ===== State =====
   let cache = [];
 
-function renderBasic(){
+  // ===== Render: 基本資料 =====
+  function renderBasic(){
+    if(!tbody) return;
     let html = '';
     cache.forEach(r=>{
       const age = calcAge(r.birthday);
@@ -147,164 +143,12 @@ function renderBasic(){
     tbody.innerHTML = html;
   }
 
-  // ===== Data load =====
-  async function load(){
-    if(tbody) tbody.innerHTML = '<tr><td colspan="13" class="text-center">讀取中...</td></tr>';
-    try{
-      const snap = await db.collection(dbCol).get();
-      cache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      cache.sort((a,b)=> bedToSortValue(a.bedNumber) - bedToSortValue(b.bedNumber));
-      renderBasic();
-      renderFloors();
-      renderStats();
-    }catch(e){
-      console.error(e);
-      if(tbody) tbody.innerHTML = '<tr><td colspan="13"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
-    }
-  }
-
-  // ===== Import binding (Excel residents) =====
-  if (importBtn && fileInput){
-    importBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleExcelImport);
-  }
-
-  function pick(row, aliases){
-    // tolerant header picking (ignores spaces)
-    const map = {};
-    Object.keys(row).forEach(k => { map[String(k).replace(/\s+/g,'').trim()] = row[k]; });
-    for(const a of aliases){
-      const kk = String(a).replace(/\s+/g,'').trim();
-      if(Object.prototype.hasOwnProperty.call(map, kk)) return map[kk];
-    }
-    return '';
-  }
-
-  async function handleExcelImport(evt){
-    const file = evt.target.files[0];
-    if(!file) return;
-    if(importStatus){ importStatus.className = 'alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent = '正在讀取檔案...'; }
-
-    const reader = new FileReader();
-    reader.onload = async (e)=>{
-      try{
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, {type:'array', cellDates:true});
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
-
-        const batch = db.batch();
-        let count = 0;
-        rows.forEach(r=>{
-          const name = norm(pick(r, ['姓名','住民姓名','Name']));
-          if(!name) return;
-          const birthdayRaw = pick(r, ['生日','生日','出生日期','出生年月日','Birth','BirthDate']);
-          const checkinRaw = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
-          const payload = {
-            nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
-            bedNumber: norm(pick(r, ['床號','床位','Bed'])),
-            gender: norm(pick(r, ['性別','Gender'])),
-            idNumber: norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
-            birthday: parseDateSmart(birthdayRaw),
-            checkinDate: parseDateSmart(checkinRaw),
-            emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
-            emergencyPhone: norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
-            mobility: norm(pick(r, ['行動方式','行動','Mobility'])),
-            leaveStatus: norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
-          };
-          batch.set(db.collection(dbCol).doc(name), payload, {merge:true});
-          count++;
-        });
-        await batch.commit();
-        if(importStatus){ importStatus.className = 'alert alert-success'; importStatus.textContent = `成功匯入 ${count} 筆資料！重新載入中...`; }
-        setTimeout(()=> location.reload(), 1000);
-      }catch(err){
-        console.error(err);
-        if(importStatus){ importStatus.className = 'alert alert-danger'; importStatus.textContent = '匯入失敗，請檢查檔案。'; }
-      }finally{ if(fileInput) fileInput.value = ''; }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  // ===== Add / Edit / Delete =====
-  if (addBtn && modal){
-    addBtn.addEventListener('click', () => {
-      if(!modal) return;
-      modalTitle && (modalTitle.textContent = '新增住民');
-      const form = document.getElementById('resident-form');
-      if(form) form.reset();
-      if(nameInput) { nameInput.disabled = false; nameInput.value = ''; }
-      modal.show();
-    });
-  }
-
-  if (saveBtn){
-    saveBtn.addEventListener('click', async () => {
-      const name = nameInput ? nameInput.value.trim() : '';
-      if(!name) return alert('請填寫姓名');
-      const payload = {
-        nursingStation: stationInput ? norm(stationInput.value) : '',
-        bedNumber: bedInput ? norm(bedInput.value) : '',
-        gender: genderInput ? genderInput.value : '',
-        birthday: birthdayInput ? parseDateSmart(birthdayInput.value) : '',
-        idNumber: idInput ? norm(idInput.value) : '',
-        emergencyContact: emgNameInput ? norm(emgNameInput.value) : '',
-        emergencyPhone: emgPhoneInput ? norm(emgPhoneInput.value) : '',
-        mobility: mobilityInput ? norm(mobilityInput.value) : '',
-        checkinDate: checkinInput ? parseDateSmart(checkinInput.value) : '',
-        leaveStatus: statusInput ? norm(statusInput.value) : ''
-      };
-      await db.collection(dbCol).doc(name).set(payload, {merge:true});
-      if(modal) modal.hide();
-      load();
-    });
-  }
-
-  if (tbody){
-    tbody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('button');
-      if(!btn) return;
-      const row = btn.closest('tr');
-      const id = row?.dataset.id;
-      if(!id) return;
-
-      if(btn.classList.contains('btn-edit')){
-        if(!modal) return;
-        modalTitle && (modalTitle.textContent = '編輯住民資料');
-        if(nameInput){ nameInput.disabled = true; nameInput.value = id; }
-        const doc = await db.collection(dbCol).doc(id).get();
-        if(doc.exists){
-          const d = doc.data();
-          if(stationInput) stationInput.value = d.nursingStation || '';
-          if(bedInput) bedInput.value = d.bedNumber || '';
-          if(genderInput) genderInput.value = d.gender || '';
-          if(birthdayInput) birthdayInput.value = d.birthday || '';
-          if(idInput) idInput.value = d.idNumber || '';
-          if(emgNameInput) emgNameInput.value = d.emergencyContact || '';
-          if(emgPhoneInput) emgPhoneInput.value = d.emergencyPhone || '';
-          if(mobilityInput) mobilityInput.value = d.mobility || '';
-          if(checkinInput) checkinInput.value = d.checkinDate || '';
-          if(statusInput) statusInput.value = d.leaveStatus || '';
-        }
-        modal.show();
-      }
-
-      if(btn.classList.contains('btn-danger')){
-        if(confirm(`確定刪除「${id}」資料？`)){
-          await db.collection(dbCol).doc(id).delete();
-          load();
-        }
-      }
-    });
-  }
-
-  // ===== Floors & Stats (uses existing template in localStorage) =====
+  // ===== Render: Floors =====
   function parseBedToken(s){
     const m = String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
     if(!m) return null;
     return { room: m[1], sub: m[2], token: `${m[1]}-${m[2]}` };
   }
-
   function personLine(res){
     if(!res) return '<div class="text-muted">空床</div>';
     const age = calcAge(res.birthday);
@@ -335,7 +179,7 @@ function renderBasic(){
     if(!container) return;
     container.innerHTML = '';
     const tpl = getTemplate();
-    const tokens = (tpl[String(floor)] || []).slice(); // e.g., ['101-1','101-2',...]
+    const tokens = (tpl[String(floor)] || []).slice();
     const grouped = new Map();
     tokens.forEach(tok => {
       const t = parseBedToken(tok);
@@ -407,6 +251,7 @@ function renderBasic(){
     renderFloorTo(floor3Grid, f3, 3);
   }
 
+  // ===== Stats with per-floor mobility + Export button =====
   function renderStats(){
     if(!statsArea) return;
     const total = cache.length;
@@ -416,12 +261,19 @@ function renderBasic(){
     const hosp = cache.filter(r=> r.leaveStatus==='住院').length;
     const present = total - (leave + hosp);
     const byFloor = [1,2,3].map(f=> cache.filter(r=> new RegExp('^'+f+'\\d\\d').test(String(r.bedNumber)) || (r.nursingStation && r.nursingStation.includes(String(f)))).length);
-
-    const mobi = (s)=> norm(s);
-    const wheel = cache.filter(r=> /輪椅/i.test(mobi(r.mobility))).length;
-    const trolley = cache.filter(r=> /(推床|臥床|平車|推車)/i.test(mobi(r.mobility))).length;
-    const walk = cache.filter(r=> /(步行|可獨立|助行|拐杖|walker)/i.test(mobi(r.mobility))).length;
-
+    const normv = (s)=> (s==null?'':String(s));
+    const WHEEL = /(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
+    function countMob(list, re){ return list.filter(r=> re.test(normv(r.mobility))).length; }
+    const floors = {
+      1: cache.filter(r=> /^1\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /1/.test(r.nursingStation))),
+      2: cache.filter(r=> /^2\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /2/.test(r.nursingStation))),
+      3: cache.filter(r=> /^3\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /3/.test(r.nursingStation)))
+    };
+    const mobByFloor = [1,2,3].map(f=>({ 
+      wheel: countMob(floors[f], WHEEL),
+      trolley: countMob(floors[f], TROLLEY),
+      walk: countMob(floors[f], WALK)
+    }));
     statsArea.innerHTML = `
       <div class="col-md-4">
         <div class="card"><div class="card-body">
@@ -446,17 +298,228 @@ function renderBasic(){
             <div>住院：<strong>${hosp}</strong></div>
           </div>
           <hr/>
-          <div class="h6 mb-2">行動方式</div>
-          <div class="d-flex gap-3 flex-wrap">
-            <div>輪椅：<strong>${wheel}</strong></div>
-            <div>推床：<strong>${trolley}</strong></div>
-            <div>步行：<strong>${walk}</strong></div>
+          <div class="h6 mb-2">行動方式（分樓層）</div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th>樓層</th><th>輪椅</th><th>推床</th><th>步行</th></tr></thead>
+              <tbody>
+                <tr><td>1F</td><td>${mobByFloor[0].wheel}</td><td>${mobByFloor[0].trolley}</td><td>${mobByFloor[0].walk}</td></tr>
+                <tr><td>2F</td><td>${mobByFloor[1].wheel}</td><td>${mobByFloor[1].trolley}</td><td>${mobByFloor[1].walk}</td></tr>
+                <tr><td>3F</td><td>${mobByFloor[2].wheel}</td><td>${mobByFloor[2].trolley}</td><td>${mobByFloor[2].walk}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-end mt-2">
+            <button id="export-excel-btn" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-2"></i>匯出 Excel</button>
           </div>
         </div></div>
       </div>
     `;
+    const exportBtn = document.getElementById('export-excel-btn');
+    if(exportBtn) exportBtn.addEventListener('click', exportAllToExcel);
   }
 
-  // Go!
+  // ===== Import (Excel) =====
+  if (importBtn && fileInput){
+    importBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleExcelImport);
+  }
+  function pick(row, aliases){
+    const map = {};
+    Object.keys(row).forEach(k => { map[String(k).replace(/\s+/g,'').trim()] = row[k]; });
+    for(const a of aliases){
+      const kk = String(a).replace(/\s+/g,'').trim();
+      if(Object.prototype.hasOwnProperty.call(map, kk)) return map[kk];
+    }
+    return '';
+  }
+  async function handleExcelImport(evt){
+    const file = evt.target.files[0];
+    if(!file) return;
+    if(importStatus){ importStatus.className = 'alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent = '正在讀取檔案...'; }
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      try{
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
+        const batch = db.batch();
+        let count = 0;
+        rows.forEach(r=>{
+          const name = norm(pick(r, ['姓名','住民姓名','Name']));
+          if(!name) return;
+          const birthdayRaw = pick(r, ['生日','出生日期','出生年月日','Birth','BirthDate']);
+          const checkinRaw = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
+          const payload = {
+            nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
+            bedNumber: norm(pick(r, ['床號','床位','Bed'])),
+            gender: norm(pick(r, ['性別','Gender'])),
+            idNumber: norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
+            birthday: parseDateSmart(birthdayRaw),
+            checkinDate: parseDateSmart(checkinRaw),
+            emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
+            emergencyPhone: norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
+            mobility: norm(pick(r, ['行動方式','行動','Mobility'])),
+            leaveStatus: norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
+          };
+          batch.set(db.collection(dbCol).doc(name), payload, {merge:true});
+          count++;
+        });
+        await batch.commit();
+        if(importStatus){ importStatus.className = 'alert alert-success'; importStatus.textContent = `成功匯入 ${count} 筆資料！重新載入中...`; }
+        setTimeout(()=> location.reload(), 1000);
+      }catch(err){
+        console.error(err);
+        if(importStatus){ importStatus.className = 'alert alert-danger'; importStatus.textContent = '匯入失敗，請檢查檔案。'; }
+      }finally{ if(fileInput) fileInput.value = ''; }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ===== Add / Edit / Delete =====
+  if (addBtn && modal){
+    addBtn.addEventListener('click', () => {
+      if(!modal) return;
+      modalTitle && (modalTitle.textContent = '新增住民');
+      const form = document.getElementById('resident-form');
+      if(form) form.reset();
+      if(nameInput) { nameInput.disabled = false; nameInput.value = ''; }
+      modal.show();
+    });
+  }
+  if (saveBtn){
+    saveBtn.addEventListener('click', async () => {
+      const name = nameInput ? nameInput.value.trim() : '';
+      if(!name) return alert('請填寫姓名');
+      const payload = {
+        nursingStation: stationInput ? norm(stationInput.value) : '',
+        bedNumber: bedInput ? norm(bedInput.value) : '',
+        gender: genderInput ? genderInput.value : '',
+        birthday: birthdayInput ? parseDateSmart(birthdayInput.value) : '',
+        idNumber: idInput ? norm(idInput.value) : '',
+        emergencyContact: emgNameInput ? norm(emgNameInput.value) : '',
+        emergencyPhone: emgPhoneInput ? norm(emgPhoneInput.value) : '',
+        mobility: mobilityInput ? norm(mobilityInput.value) : '',
+        checkinDate: checkinInput ? parseDateSmart(checkinInput.value) : '',
+        leaveStatus: statusInput ? norm(statusInput.value) : ''
+      };
+      await db.collection(dbCol).doc(name).set(payload, {merge:true});
+      if(modal) modal.hide();
+      load();
+    });
+  }
+  if (tbody){
+    tbody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const row = btn.closest('tr');
+      const id = row?.dataset.id;
+      if(!id) return;
+      if(btn.classList.contains('btn-edit')){
+        if(!modal) return;
+        modalTitle && (modalTitle.textContent = '編輯住民資料');
+        if(nameInput){ nameInput.disabled = true; nameInput.value = id; }
+        const doc = await db.collection(dbCol).doc(id).get();
+        if(doc.exists){
+          const d = doc.data();
+          if(stationInput) stationInput.value = d.nursingStation || '';
+          if(bedInput) bedInput.value = d.bedNumber || '';
+          if(genderInput) genderInput.value = d.gender || '';
+          if(birthdayInput) birthdayInput.value = d.birthday || '';
+          if(idInput) idInput.value = d.idNumber || '';
+          if(emgNameInput) emgNameInput.value = d.emergencyContact || '';
+          if(emgPhoneInput) emgPhoneInput.value = d.emergencyPhone || '';
+          if(mobilityInput) mobilityInput.value = d.mobility || '';
+          if(checkinInput) checkinInput.value = d.checkinDate || '';
+          if(statusInput) statusInput.value = d.leaveStatus || '';
+        }
+        modal.show();
+      }
+      if(btn.classList.contains('btn-danger')){
+        if(confirm(`確定刪除「${id}」資料？`)){
+          await db.collection(dbCol).doc(id).delete();
+          load();
+        }
+      }
+    });
+  }
+
+  // ===== Export all tabs to one Excel =====
+  function aoaBasic(){
+    const header = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
+    const rows = cache.map(r=>[
+      r.nursingStation||'', r.bedNumber||'', r.id||'', r.idNumber||'', r.birthday||'', r.gender||'',
+      (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.emergencyContact||'', r.emergencyPhone||'',
+      r.mobility||'', r.checkinDate||'', r.leaveStatus||''
+    ]);
+    return [header, ...rows];
+  }
+  function aoaFloor(floor){
+    const tpl = getTemplate();
+    const tokens = (tpl[String(floor)] || []).slice();
+    const map = new Map();
+    tokens.forEach(t=>{ map.set(t, null); });
+    cache.forEach(r=>{
+      const key = String(r.bedNumber||'').replace('_','-');
+      if(map.has(key)) map.set(key, r);
+    });
+    const header = ['床位','姓名','性別','狀態','年齡'];
+    const rows = [];
+    tokens.forEach(t=>{
+      const r = map.get(t);
+      rows.push([t, r ? (r.id||'') : '', r ? (r.gender||'') : '', r ? (r.leaveStatus||'') : '空床', r ? (function(a){return a!==''?a:'';})(calcAge(r.birthday)) : '']);
+    });
+    return [header, ...rows];
+  }
+  function aoaStats(){
+    const total = cache.length;
+    const male = cache.filter(r=> r.gender==='男').length;
+    const female = cache.filter(r=> r.gender==='女').length;
+    const leave = cache.filter(r=> r.leaveStatus==='請假').length;
+    const hosp = cache.filter(r=> r.leaveStatus==='住院').length;
+    const present = total - (leave + hosp);
+    const floors = {
+      1: cache.filter(r=> /^1\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /1/.test(r.nursingStation))),
+      2: cache.filter(r=> /^2\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /2/.test(r.nursingStation))),
+      3: cache.filter(r=> /^3\d\d/.test(String(r.bedNumber)) || (r.nursingStation && /3/.test(r.nursingStation)))
+    };
+    const normv = (s)=> (s==null?'':String(s));
+    const WHEEL = /(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
+    function countMob(list, re){ return list.filter(r=> re.test(normv(r.mobility))).length; }
+    const head1 = ['總人數', total, '', '男', male, '女', female, '實到', present, '請假', leave, '住院', hosp];
+    const head2 = ['樓層','輪椅','推床','步行'];
+    const row1 = ['1F', countMob(floors[1],WHEEL), countMob(floors[1],TROLLEY), countMob(floors[1],WALK)];
+    const row2 = ['2F', countMob(floors[2],WHEEL), countMob(floors[2],TROLLEY), countMob(floors[2],WALK)];
+    const row3 = ['3F', countMob(floors[3],WHEEL), countMob(floors[3],TROLLEY), countMob(floors[3],WALK)];
+    return [head1, [], head2, row1, row2, row3];
+  }
+  function exportAllToExcel(){
+    if(typeof XLSX === 'undefined'){ alert('缺少 XLSX 外掛，無法匯出'); return; }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaBasic()), '基本資料');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaFloor(1)), '1樓床位配置');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaFloor(2)), '2樓床位配置');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaFloor(3)), '3樓床位配置');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaStats()), '總人數統計');
+    XLSX.writeFile(wb, '住民系統_匯出.xlsx');
+  }
+
+  // ===== Load =====
+  async function load(){
+    if(tbody) tbody.innerHTML = '<tr><td colspan="13" class="text-center">讀取中...</td></tr>';
+    try{
+      const snap = await db.collection(dbCol).get();
+      cache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cache.sort((a,b)=> bedToSortValue(a.bedNumber) - bedToSortValue(b.bedNumber));
+      renderBasic();
+      renderFloors();
+      renderStats();
+    }catch(e){
+      console.error(e);
+      if(tbody) tbody.innerHTML = '<tr><td colspan="13"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
+    }
+  }
+
   load();
 });
