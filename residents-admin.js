@@ -145,10 +145,10 @@ const idNumberInput = document.getElementById('resident-idNumber');
                         batch.set(docRef, {
                             bedNumber: String(r.床號 || ''),
                             gender: String(r.性別 || ''),
-                            idNumber: String(r.身分證字號 || ''), 
+                            idNumber: String(r.身份証字號 || ''), 
                             birthday: formatDate(r.生日),
                             checkinDate: formatDate(r.入住日期),
-                                    leaveStatus: String(r['請假/住院'] || ''),
+                                    leaveStatus: String(r['住民請假'] || ''),
                         });
                     }
                 });
