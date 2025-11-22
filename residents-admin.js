@@ -168,13 +168,50 @@ document.addEventListener('firebase-ready', () => {
     container.innerHTML = '';
     const grouped = groupByRoom(list);
     const rooms = Array.from(grouped.keys()).sort((a,b)=> parseInt(a,10)-parseInt(b,10));
-    let html = '<div class="row g-2">';
+
+    // compute floor stats
+    let used = 0;
+    let emptyList = [];
+    rooms.forEach(rm=>{
+      const beds = grouped.get(rm) || {};
+      const has1 = !!beds['1'];
+      const has2 = !!beds['2'];
+      if (has1) used++; else emptyList.push(`${rm}-1`);
+      if (has2) used++; else emptyList.push(`${rm}-2`);
+    });
+    const totalBeds = rooms.length * 2;
+    const empty = totalBeds - used;
+
+    const statsHtml = `
+    <div class="mb-2">
+      <div class="row g-2">
+        <div class="col-md-3"><div class="card"><div class="card-body text-center">
+          <div class="small text-muted">樓層床位數</div>
+          <div class="h3 m-0">${totalBeds}</div>
+        </div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body text-center">
+          <div class="small text-muted">空床數</div>
+          <div class="h3 m-0">${empty}</div>
+        </div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body text-center">
+          <div class="small text-muted">已使用床位數</div>
+          <div class="h3 m-0">${used}</div>
+        </div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body">
+          <div class="small text-muted">空床</div>
+          <div class="d-flex flex-wrap gap-2">${emptyList.length ? emptyList.map(b=>`<span class="badge bg-secondary">${b}</span>`).join('') : '—'}</div>
+        </div></div></div>
+      </div>
+    </div>`;
+
+    let html = statsHtml + '<div class="row g-2">';
     rooms.forEach(room=>{
       html += roomCard(room, grouped.get(room));
     });
     html += '</div>';
     container.innerHTML = html;
   }
+}
   function renderFloors(){
     const f1 = cache.filter(r=> (r.nursingStation && /1/.test(r.nursingStation)) || isFloor(r.bedNumber,1));
     const f2 = cache.filter(r=> (r.nursingStation && /2/.test(r.nursingStation)) || isFloor(r.bedNumber,2));
