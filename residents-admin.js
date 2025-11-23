@@ -487,21 +487,7 @@ document.addEventListener('residents-init', ()=>{
       [],
       ['樓層','輪椅','推床','步行']
     ];
-    const normv=s=>(s==null?'':String(s));
-    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
-    function fl(f){ return cache.filter(r=> new RegExp('^'+f+'\\d\\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(f)))); }
-    const mob = [1,2,3].map(f=>({wheel: fl(f).filter(r=>WHEEL.test(normv(r.mobility))).length, trolley: fl(f).filter(r=>TROLLEY.test(normv(r.mobility))).length, walk: fl(f).filter(r=>WALK.test(normv(r.mobility))).length }));
-    aoa_stats.push(['1F',mob[0].wheel,mob[0].trolley,mob[0].walk]);
-    aoa_stats.push(['2F',mob[1].wheel,mob[1].trolley,mob[1].walk]);
-    aoa_stats.push(['3F',mob[2].wheel,mob[2].trolley,mob[2].walk]);
-    const ws_stats = XLSX.utils.aoa_to_sheet(aoa_stats);
-    XLSX.utils.book_append_sheet(wb, ws_stats, '總人數統計');
-
-    // 寫檔
-    XLSX.writeFile(wb, rocName()+'.xlsx');
-  }
-
-  function hookEvents(){
+    function hookEvents(){
     document.addEventListener('click', (e)=>{
       const t=e.target;
       if(t.closest('#export-xls-styled')) exportStyledXls();
