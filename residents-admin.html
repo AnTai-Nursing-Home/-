@@ -23,6 +23,7 @@
                 <i class="fas fa-arrow-left me-2"></i>返回儀表板
               </a>
               <div>
+                <button id="open-template-btn" class="btn btn-outline-secondary me-2"><i class="fas fa-table-list me-2"></i>床位模板設定</button>
                 <button id="import-excel-btn" class="btn btn-info">
                   <i class="fas fa-file-excel me-2"></i>從 Excel 匯入
                 </button>
@@ -172,6 +173,28 @@
       </div>
     </div>
   </div>
+
+  <!-- Template Modal -->
+  <div class="modal fade" id="template-modal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="templateModalLabel">床位模板設定</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2 small text-muted">將所有床位代碼貼在下方（可用逗號、空白、換行分隔，例如：101-1 101-2 201-1 301-1 ...）。系統會自動依首位數分到 1F / 2F / 3F，並寫入本機瀏覽器的設定；重新整理後即可顯示空床。</p>
+          <textarea id="template-input" class="form-control" rows="10" placeholder="例：101-1 101-2 102-1 201-1 201-2 301-1 ..."></textarea>
+          <div class="form-text">若想清空目前模板，輸入空白並儲存即可回到自動推導模式。</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" id="save-template-btn" class="btn btn-primary">儲存模板</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
 
