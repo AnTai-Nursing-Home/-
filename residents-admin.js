@@ -118,6 +118,7 @@ document.addEventListener('residents-init', ()=>{
     const rooms=[...grouped.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
     let html='<div class="row g-2">';
     let totalBeds=0, usedBeds=0;
+    const emptyTokens=[];
 
     rooms.forEach(room=>{
       const g=grouped.get(room); const subs=[...g.__keys].sort((a,b)=>(parseInt(a.replace(/\D/g,''),10)||0)-(parseInt(b.replace(/\D/g,''),10)||0));
@@ -128,7 +129,7 @@ document.addEventListener('residents-init', ()=>{
         const r=resByToken.get(token);
         const age=r?calcAge(r.birthday):'';
         const status = r ? (r.leaveStatus==='住院'?'bg-danger-subtle':(r.leaveStatus==='請假'?'bg-warning-subtle':'bg-success-subtle')) : 'bg-light';
-        if(r) usedBeds++;
+        if(r) usedBeds++; else emptyTokens.push(token);
         rows+=`<div class="d-flex justify-content-between border-bottom py-2 ${status}">
           <div class="small text-muted">🛏 ${token}</div>
           <div>${r?(r.id||'🈳 空床'):'🈳 空床'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</div>
@@ -143,11 +144,12 @@ document.addEventListener('residents-init', ()=>{
 
     const emptyBeds = totalBeds - usedBeds;
     html+= `<div class="mt-3">
-      <div class="row g-2">
+      <div class="row g-2 align-items-start">
         <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">樓層床位數 <strong>${totalBeds}</strong></div></div>
         <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">空床數 <strong>${emptyBeds}</strong></div></div>
         <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">已使用床位數 <strong>${usedBeds}</strong></div></div>
       </div>
+      <div class="small text-muted mt-2">空床清單：${emptyTokens.length? emptyTokens.join('、') : '無'}</div>
     </div>`;
 
     container.innerHTML=html;
@@ -354,21 +356,76 @@ document.addEventListener('residents-init', ()=>{
         ${content}
       </body></html>`;
   }
+
   async function exportStyledXls(){
-    const wbHtml = buildWorkbookHTML([
-      {name:'基本資料', html: sheetBasicHTML()},
-      {name:'1樓床位配置', html: sheetFloorHTML(1)},
-      {name:'2樓床位配置', html: sheetFloorHTML(2)},
-      {name:'3樓床位配置', html: sheetFloorHTML(3)},
-      {name:'總人數統計', html: sheetStatsHTML()},
+    const wb = XLSX.utils.book_new();
+
+    // 基本資料
+    const headers = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
+    const data_basic = cache.map(r=>[
+      r.nursingStation||'', r.bedNumber||'', r.id||'', r.idNumber||'', r.birthday||'', r.gender||'',
+      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
+      r.emergencyContact||'', r.emergencyPhone||'', r.mobility||'', r.checkinDate||'', r.leaveStatus||''
     ]);
-    const blob = new Blob([wbHtml], {type: 'application/vnd.ms-excel'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rocName()+'.xls';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    const ws_basic = XLSX.utils.aoa_to_sheet([headers, ...data_basic]);
+    XLSX.utils.book_append_sheet(wb, ws_basic, '基本資料');
+
+    // 依模板輸出每層床位配置
+    function sheetFloorAoA(floor){
+      const tpl = getTemplate(cache);
+      const tokens = (tpl[String(floor)]||[]).slice();
+      const resMap = new Map();
+      cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
+      const aoa = [['床號','姓名','性別','年齡','狀態']];
+      let total=0, used=0;
+      const emptyList=[];
+      tokens.forEach(t=>{
+        total++;
+        const r = resMap.get(t);
+        if(r){ used++; aoa.push([t, r.id||'', r.gender||'', (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.leaveStatus||'']); }
+        else{ aoa.push([t, '🈳 空床', '', '', '']); emptyList.push(t); }
+      });
+      aoa.push([]);
+      aoa.push(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
+      aoa.push(['空床清單', emptyList.join('、') ]);
+      return aoa;
+    }
+    const ws_f1 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(1));
+    const ws_f2 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(2));
+    const ws_f3 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(3));
+    XLSX.utils.book_append_sheet(wb, ws_f1, '1樓床位配置');
+    XLSX.utils.book_append_sheet(wb, ws_f2, '2樓床位配置');
+    XLSX.utils.book_append_sheet(wb, ws_f3, '3樓床位配置');
+
+    // 總人數統計
+    const total=cache.length;
+    const male=cache.filter(r=>r.gender==='男').length;
+    const female=cache.filter(r=>r.gender==='女').length;
+    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
+    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
+    const present=total-(leave+hosp);
+    const aoa_stats=[
+      ['總人數統計'],
+      ['總人數', total],
+      ['男', male], ['女', female],
+      ['實到', present],
+      ['請假', leave],
+      ['住院', hosp],
+      [],
+      ['樓層','輪椅','推床','步行']
+    ];
+    const normv=s=>(s==null?'':String(s));
+    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
+    function fl(f){ return cache.filter(r=> new RegExp('^'+f+'\\d\\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(f)))); }
+    const mob = [1,2,3].map(f=>({wheel: fl(f).filter(r=>WHEEL.test(normv(r.mobility))).length, trolley: fl(f).filter(r=>TROLLEY.test(normv(r.mobility))).length, walk: fl(f).filter(r=>WALK.test(normv(r.mobility))).length }));
+    aoa_stats.push(['1F',mob[0].wheel,mob[0].trolley,mob[0].walk]);
+    aoa_stats.push(['2F',mob[1].wheel,mob[1].trolley,mob[1].walk]);
+    aoa_stats.push(['3F',mob[2].wheel,mob[2].trolley,mob[2].walk]);
+    const ws_stats = XLSX.utils.aoa_to_sheet(aoa_stats);
+    XLSX.utils.book_append_sheet(wb, ws_stats, '總人數統計');
+
+    // 寫檔
+    XLSX.writeFile(wb, rocName()+'.xlsx');
   }
 
   function hookEvents(){
