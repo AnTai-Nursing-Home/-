@@ -358,6 +358,7 @@ document.addEventListener('residents-init', ()=>{
   }
 
 
+  
   async function exportStyledXls(){
     if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
@@ -365,36 +366,58 @@ document.addEventListener('residents-init', ()=>{
     wb.creator = 'MSICAO';
     wb.created = new Date();
 
-    // 共用樣式
-    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+    // ===== 樣式 =====
+    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFEFEFEF'} };
     const headerFont = { name:'Microsoft JhengHei', bold:true, size:11 };
     const cellFont = { name:'Microsoft JhengHei', size:11 };
     const borderThin = { top:{style:'thin',color:{argb:'FF999999'}}, left:{style:'thin',color:{argb:'FF999999'}}, bottom:{style:'thin',color:{argb:'FF999999'}}, right:{style:'thin',color:{argb:'FF999999'}} };
+    const borderThick = { top:{style:'medium',color:{argb:'FF666666'}}, left:{style:'medium',color:{argb:'FF666666'}}, bottom:{style:'medium',color:{argb:'FF666666'}}, right:{style:'medium',color:{argb:'FF666666'}} };
+    const zebraFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
+    const titleFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFDCE6F1'} };
+    const titleFont = { name:'Microsoft JhengHei', bold:true, size:14 };
 
     function setColWidths(ws, widths){
       ws.columns = widths.map(w => ({ width:w }));
     }
-    function styleRow(row, {isHeader=false, alt=false}={}){
+    function styleRow(row, {isHeader=false, alt=false, thick=false, center=false}={}){
       row.eachCell(c=>{
         c.font = isHeader ? headerFont : cellFont;
-        c.border = borderThin;
-        if(isHeader){ c.fill = headerFill; c.alignment = { vertical:'middle', horizontal:'center'}; }
-        else{ c.alignment = { vertical:'middle'}; if(alt){ c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}}; } }
+        c.border = thick ? borderThick : borderThin;
+        if(isHeader){
+          c.fill = headerFill;
+          c.alignment = { vertical:'middle', horizontal:'center' };
+        }else{
+          c.alignment = { vertical:'middle', horizontal: center ? 'center' : (c.alignment?.horizontal || 'left') };
+          if(alt){ c.fill = zebraFill; }
+        }
       });
       row.height = 20;
     }
-    function addTable(ws, headers, rows, widths){
+    function addTitle(ws, text, colCount){
+      const titleRow = ws.addRow([text]);
+      // merge A1:Ax
+      ws.mergeCells(1,1,1,colCount);
+      titleRow.eachCell(c=>{
+        c.font = titleFont;
+        c.fill = titleFill;
+        c.alignment = { vertical:'middle', horizontal:'center' };
+        c.border = borderThick;
+      });
+      titleRow.height = 26;
+    }
+    function addTable(ws, headers, rows, widths, withTitle){
       setColWidths(ws, widths);
+      if(withTitle){ addTitle(ws, withTitle, widths.length); }
       const headerRow = ws.addRow(headers);
-      styleRow(headerRow, {isHeader:true});
+      styleRow(headerRow, {isHeader:true, thick:true});
       rows.forEach((r,i)=>{
         const row = ws.addRow(r);
         styleRow(row, {alt: i%2===1});
       });
-      ws.views = [{ state:'frozen', ySplit:1 }];
+      ws.views = [{ state:'frozen', ySplit: withTitle ? 2 : 1 }];
     }
 
-    // 基本資料
+    // ===== 基本資料 =====
     const wsBasic = wb.addWorksheet('基本資料');
     const headers = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
     const rowsBasic = cache.map(r=>[
@@ -402,9 +425,10 @@ document.addEventListener('residents-init', ()=>{
       (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
       r.emergencyContact||'', r.emergencyPhone||'', r.mobility||'', r.checkinDate||'', r.leaveStatus||''
     ]);
-    addTable(wsBasic, headers, rowsBasic, [10,10,10,18,12,8,10,16,14,12,12,10]);
+    // 參考樣式的欄寬（微調）：
+    addTable(wsBasic, headers, rowsBasic, [13,19,20,18,12,8,10,20,14,12,14,12], '住民基本資料');
 
-    // 依模板輸出樓層
+    // ===== 每層床位配置 =====
     function floorRows(floor){
       const tpl=getTemplate(cache);
       const tokens = (tpl[String(floor)]||[]).slice();
@@ -421,39 +445,35 @@ document.addEventListener('residents-init', ()=>{
     function addFloorSheet(name,floor){
       const ws = wb.addWorksheet(name);
       const {rows,total,used,emptyList} = floorRows(floor);
-      addTable(ws, ['床號','姓名','性別','年齡','狀態'], rows, [10,12,8,8,10]);
+      addTable(ws, ['床號','姓名','性別','年齡','狀態'], rows, [14,20,10,10,12], `${floor}樓床位配置（分性別）`);
       ws.addRow([]);
       const sumRow = ws.addRow(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
-      styleRow(sumRow);
+      styleRow(sumRow, {thick:true});
       const emptyRow = ws.addRow(['空床清單', emptyList.join('、')]);
       styleRow(emptyRow);
-      // 強制第一欄對齊靠左顯示字串
       ws.getColumn(1).alignment = { horizontal:'left', vertical:'middle' };
     }
     addFloorSheet('1樓床位配置',1);
     addFloorSheet('2樓床位配置',2);
     addFloorSheet('3樓床位配置',3);
 
-    // 總人數統計
+    // ===== 總人數統計 =====
     const wsStats = wb.addWorksheet('總人數統計');
+    addTitle(wsStats, '總人數統計', 2);
     const total=cache.length;
     const male=cache.filter(r=>r.gender==='男').length;
     const female=cache.filter(r=>r.gender==='女').length;
     const leave=cache.filter(r=>r.leaveStatus==='請假').length;
     const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
     const present=total-(leave+hosp);
-    const stats = [
-      ['項目','數量'],
-      ['總人數', total],
-      ['男', male],
-      ['女', female],
-      ['實到', present],
-      ['請假', leave],
-      ['住院', hosp]
-    ];
-    addTable(wsStats, stats[0], stats.slice(1), [12,10]);
+    setColWidths(wsStats, [12,10]);
+    const hdr = wsStats.addRow(['項目','數量']); styleRow(hdr, {isHeader:true, thick:true});
+    [['總人數', total],['男', male],['女', female],['實到', present],['請假', leave],['住院', hosp]].forEach((r,i)=>{
+      const row = wsStats.addRow(r); styleRow(row, {alt: i%2===1});
+    });
+    wsStats.views = [{ state:'frozen', ySplit:2 }];
 
-    // 下載
+    // ===== 下載 =====
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const a = document.createElement('a');
