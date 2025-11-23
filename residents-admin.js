@@ -357,39 +357,112 @@ document.addEventListener('residents-init', ()=>{
       </body></html>`;
   }
 
+
   async function exportStyledXls(){
-    const wb = XLSX.utils.book_new();
+    if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MSICAO';
+    wb.created = new Date();
+
+    // 共用樣式
+    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+    const headerFont = { name:'Microsoft JhengHei', bold:true, size:11 };
+    const cellFont = { name:'Microsoft JhengHei', size:11 };
+    const borderThin = { top:{style:'thin',color:{argb:'FF999999'}}, left:{style:'thin',color:{argb:'FF999999'}}, bottom:{style:'thin',color:{argb:'FF999999'}}, right:{style:'thin',color:{argb:'FF999999'}} };
+
+    function setColWidths(ws, widths){
+      ws.columns = widths.map(w => ({ width:w }));
+    }
+    function styleRow(row, {isHeader=false, alt=false}={}){
+      row.eachCell(c=>{
+        c.font = isHeader ? headerFont : cellFont;
+        c.border = borderThin;
+        if(isHeader){ c.fill = headerFill; c.alignment = { vertical:'middle', horizontal:'center'}; }
+        else{ c.alignment = { vertical:'middle'}; if(alt){ c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}}; } }
+      });
+      row.height = 20;
+    }
+    function addTable(ws, headers, rows, widths){
+      setColWidths(ws, widths);
+      const headerRow = ws.addRow(headers);
+      styleRow(headerRow, {isHeader:true});
+      rows.forEach((r,i)=>{
+        const row = ws.addRow(r);
+        styleRow(row, {alt: i%2===1});
+      });
+      ws.views = [{ state:'frozen', ySplit:1 }];
+    }
 
     // 基本資料
+    const wsBasic = wb.addWorksheet('基本資料');
     const headers = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const data_basic = cache.map(r=>[
+    const rowsBasic = cache.map(r=>[
       r.nursingStation||'', r.bedNumber||'', r.id||'', r.idNumber||'', r.birthday||'', r.gender||'',
       (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
       r.emergencyContact||'', r.emergencyPhone||'', r.mobility||'', r.checkinDate||'', r.leaveStatus||''
     ]);
-    const ws_basic = XLSX.utils.aoa_to_sheet([headers, ...data_basic]);
-    XLSX.utils.book_append_sheet(wb, ws_basic, '基本資料');
+    addTable(wsBasic, headers, rowsBasic, [10,10,10,18,12,8,10,16,14,12,12,10]);
 
-    // 依模板輸出每層床位配置
-    function sheetFloorAoA(floor){
-      const tpl = getTemplate(cache);
+    // 依模板輸出樓層
+    function floorRows(floor){
+      const tpl=getTemplate(cache);
       const tokens = (tpl[String(floor)]||[]).slice();
-      const resMap = new Map();
-      cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
-      const aoa = [['床號','姓名','性別','年齡','狀態']];
-      let total=0, used=0;
-      const emptyList=[];
+      const resMap = new Map(); cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
+      const rows=[]; let total=0, used=0; const emptyList=[];
       tokens.forEach(t=>{
         total++;
-        const r = resMap.get(t);
-        if(r){ used++; aoa.push([t, r.id||'', r.gender||'', (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.leaveStatus||'']); }
-        else{ aoa.push([t, '🈳 空床', '', '', '']); emptyList.push(t); }
+        const r=resMap.get(t);
+        if(r){ used++; rows.push([t, r.id||'', r.gender||'', (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.leaveStatus||'']); }
+        else{ rows.push([t, '🈳 空床', '', '', '']); emptyList.push(t); }
       });
-      aoa.push([]);
-      aoa.push(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
-      aoa.push(['空床清單', emptyList.join('、') ]);
-      return aoa;
+      return {rows,total,used,emptyList};
     }
+    function addFloorSheet(name,floor){
+      const ws = wb.addWorksheet(name);
+      const {rows,total,used,emptyList} = floorRows(floor);
+      addTable(ws, ['床號','姓名','性別','年齡','狀態'], rows, [10,12,8,8,10]);
+      ws.addRow([]);
+      const sumRow = ws.addRow(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
+      styleRow(sumRow);
+      const emptyRow = ws.addRow(['空床清單', emptyList.join('、')]);
+      styleRow(emptyRow);
+      // 強制第一欄對齊靠左顯示字串
+      ws.getColumn(1).alignment = { horizontal:'left', vertical:'middle' };
+    }
+    addFloorSheet('1樓床位配置',1);
+    addFloorSheet('2樓床位配置',2);
+    addFloorSheet('3樓床位配置',3);
+
+    // 總人數統計
+    const wsStats = wb.addWorksheet('總人數統計');
+    const total=cache.length;
+    const male=cache.filter(r=>r.gender==='男').length;
+    const female=cache.filter(r=>r.gender==='女').length;
+    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
+    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
+    const present=total-(leave+hosp);
+    const stats = [
+      ['項目','數量'],
+      ['總人數', total],
+      ['男', male],
+      ['女', female],
+      ['實到', present],
+      ['請假', leave],
+      ['住院', hosp]
+    ];
+    addTable(wsStats, stats[0], stats.slice(1), [12,10]);
+
+    // 下載
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = rocName()+'.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+  }
     const ws_f1 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(1));
     const ws_f2 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(2));
     const ws_f3 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(3));
