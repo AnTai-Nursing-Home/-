@@ -463,30 +463,6 @@ document.addEventListener('residents-init', ()=>{
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1200);
   }
-    const ws_f1 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(1));
-    const ws_f2 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(2));
-    const ws_f3 = XLSX.utils.aoa_to_sheet(sheetFloorAoA(3));
-    XLSX.utils.book_append_sheet(wb, ws_f1, '1樓床位配置');
-    XLSX.utils.book_append_sheet(wb, ws_f2, '2樓床位配置');
-    XLSX.utils.book_append_sheet(wb, ws_f3, '3樓床位配置');
-
-    // 總人數統計
-    const total=cache.length;
-    const male=cache.filter(r=>r.gender==='男').length;
-    const female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
-    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
-    const present=total-(leave+hosp);
-    const aoa_stats=[
-      ['總人數統計'],
-      ['總人數', total],
-      ['男', male], ['女', female],
-      ['實到', present],
-      ['請假', leave],
-      ['住院', hosp],
-      [],
-      ['樓層','輪椅','推床','步行']
-    ];
     function hookEvents(){
     document.addEventListener('click', (e)=>{
       const t=e.target;
