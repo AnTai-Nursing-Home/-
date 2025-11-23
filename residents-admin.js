@@ -656,25 +656,88 @@ async function exportStyledXls(){
 }
 
 
-// --- MSICAO: ensure template exists & trigger a soft refresh of floor counts ---
+
+// === Injected: MSICAO bed badges auto-compute ===
+
+// === MSICAO Bed Badge Fix ===
 (function(){
-  try {
-    const KEY = 'res_floor_template_v1';
-    if (!localStorage.getItem(KEY)) {
-      localStorage.setItem(KEY, JSON.stringify({"1": ["101-1", "101-2", "102-1", "102-2", "103-1", "103-2", "105-1", "105-2", "106-1", "106-2", "107-1", "107-2", "108-1", "108-2", "109-1", "109-2", "110-1", "110-2", "111-1", "111-2", "112-1", "112-2", "113-1", "115-1", "115-2", "116-1", "116-2"], "2": ["201-1", "202-1", "202-2", "203-1", "203-2", "205-1", "205-2", "206-1", "206-2", "207-1", "207-2", "208-1", "208-2", "208-5", "209-1", "209-2", "209-3", "209-5", "210-1", "210-2", "210-3", "210-5", "211-1", "211-2", "212-1", "212-2", "213-1", "213-2", "215-1", "215-2", "216-1", "216-2", "217-1", "217-3", "217-5", "218-1", "218-2", "218-3", "218-5", "219-1", "219-2", "219-3", "219-5", "219-6", "220-1", "220-2", "220-3", "220-5", "221-1", "221-2", "221-3", "221-5"], "3": ["301-1", "301-2", "301-3", "301-5", "302-1", "302-2", "302-3", "302-5", "303-2", "303-3", "303-5", "305-1", "306-1", "306-2", "307-1", "307-2", "308-1", "308-2", "309-1", "309-2", "310-1", "310-2", "311-1", "311-2", "311-3", "311-5", "312-1", "312-2", "312-3", "312-5", "312-6", "313-1", "313-2", "313-3", "313-5", "313-6", "315-1", "315-2", "316-1", "316-2", "317-1", "317-2", "318-1", "318-2", "319-1", "319-2", "320-1", "320-2", "320-3", "320-5", "321-1", "321-2", "321-3", "321-5"]}));
+  const KEY = 'res_floor_template_v1';
+  const TEMPLATE_DEFAULT = {
+    "1":["101-1","101-2","102-1","102-2","103-1","103-2","105-1","105-2","106-1","106-2","107-1","107-2","108-1","108-2","109-1","109-2","110-1","110-2","111-1","111-2","112-1","112-2","113-1","115-1","115-2","116-1","116-2"],
+    "2":["201-1","202-1","202-2","203-1","203-2","205-1","205-2","206-1","206-2","207-1","207-2","208-1","208-2","208-5","209-1","209-2","209-3","209-5","210-1","210-2","210-3","210-5","211-1","211-2","212-1","212-2","213-1","213-2","215-1","215-2","216-1","216-2","217-1","217-3","217-5","218-1","218-2","218-3","218-5","219-1","219-2","219-3","219-5","219-6","220-1","220-2","220-3","220-5","221-1","221-2","221-3","221-5"],
+    "3":["301-1","301-2","301-3","301-5","302-1","302-2","302-3","302-5","303-2","303-3","303-5","305-1","306-1","306-2","307-1","307-2","308-1","308-2","309-1","309-2","310-1","310-2","311-1","311-2","311-3","311-5","312-1","312-2","312-3","312-5","312-6","313-1","313-2","313-3","313-5","313-6","315-1","315-2","316-1","316-2","317-1","317-2","318-1","318-2","319-1","319-2","320-1","320-2","320-3","320-5","321-1","321-2","321-3","321-5"]
+  };
+
+  function ensureTemplate(){
+    let tplRaw = localStorage.getItem(KEY);
+    if(!tplRaw){ localStorage.setItem(KEY, JSON.stringify(TEMPLATE_DEFAULT)); return TEMPLATE_DEFAULT; }
+    try{
+      const tpl = JSON.parse(tplRaw);
+      const total = [].concat(tpl['1']||[],tpl['2']||[],tpl['3']||[]).length;
+      if(total===0){ localStorage.setItem(KEY, JSON.stringify(TEMPLATE_DEFAULT)); return TEMPLATE_DEFAULT; }
+      return tpl;
+    }catch(e){
+      localStorage.setItem(KEY, JSON.stringify(TEMPLATE_DEFAULT)); 
+      return TEMPLATE_DEFAULT;
     }
-  } catch(e) {}
-  // Poll for window.cache becoming available to recompute UI
-  let tries = 0;
-  const timer = setInterval(function(){
-    tries++;
-    if (window.cache && Array.isArray(window.cache)) {
-      try {
-        // fire an event some pages listen to
-        document.dispatchEvent(new Event('msicao-floor-template-ready'));
-      } catch(e){}
-      clearInterval(timer);
-    }
-    if (tries > 60) clearInterval(timer);
-  }, 500);
+  }
+
+  function normalize(b){ return String(b||'').replace('_','-'); }
+
+  function computeCounts(floor, cache){
+    const tpl = ensureTemplate();
+    const tokens = (tpl[String(floor)]||[]);
+    const map = new Map();
+    (Array.isArray(cache)? cache : (window.cache||[])).forEach(r=>{
+      const key = normalize(r.bedNumber);
+      if(key) map.set(key, true);
+    });
+    const total = tokens.length;
+    const used  = tokens.filter(t=> map.has(t)).length;
+    const empty = total - used;
+    return { total, used, empty, emptyList: tokens.filter(t=> !map.has(t)) };
+  }
+
+  function activeFloor(){
+    const active = document.querySelector('.nav-tabs .active, .active a') || document.querySelector('.tabs .active');
+    const txt = (active && (active.textContent||active.innerText||"")).trim();
+    const m = txt.match(/^([123])[樓F]/);
+    if(m) return m[1];
+    const h = location.hash || '';
+    const m2 = h.match(/([123])/);
+    return m2 ? m2[1] : '1';
+  }
+
+  function rewriteBadge(label, value){
+    const nodes = Array.from(document.querySelectorAll('span,div,button,li,small,b,em,strong'));
+    nodes.forEach(n=>{
+      const t = (n.textContent||'').trim();
+      if(t.startsWith(label)){
+        n.textContent = label + ' ' + value;
+      }
+    });
+  }
+
+  function updateUI(){
+    const f = activeFloor();
+    const c = computeCounts(f, window.cache);
+    rewriteBadge('樓層床位數', c.total);
+    rewriteBadge('空床數', c.empty);
+    rewriteBadge('已使用床位數', c.used);
+    const emptyListEl = document.querySelector('.empty-list, #emptyList');
+    if(emptyListEl){ emptyListEl.textContent = c.emptyList.join('、'); }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    ensureTemplate();
+    updateUI();
+    document.body.addEventListener('click', (e)=>{
+      const t = e.target;
+      if(!t) return;
+      const label = (t.textContent||'').trim();
+      if(/^([123])樓床位配置/.test(label)){ setTimeout(updateUI, 60); }
+    });
+    document.addEventListener('msicao-floor-template-ready', updateUI);
+  });
 })();
+
