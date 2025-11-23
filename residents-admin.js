@@ -180,7 +180,7 @@ document.addEventListener('residents-init', ()=>{
       <div class="col-md-6">
         <div class="card"><div class="card-body">
           <div class="h5 mb-2">總人數 <span class="ms-2 badge bg-secondary">${total}</span></div>
-          <div class="text-muted mb-2">男：${male} ・ 女：${female} ・ 實到：<strong>${present}</strong> ・ 🏖 ${leave} ・ 🏥 ${hosp}</div>
+          <div class="text-muted mb-2">男：${male} ・ 女：${female} ・ 實到：<strong>${present}</strong> ・ 請假：${leave} ・ 住院：${hosp}</div>
           <div class="table-responsive">
             <table class="table table-sm mb-0">
               <thead><tr><th>樓層</th><th>輪椅</th><th>推床</th><th>步行</th></tr></thead>
@@ -198,6 +198,63 @@ document.addEventListener('residents-init', ()=>{
           <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
         </div></div>
       </div>`;
+  }
+
+
+  // === 手動模板設定 ===
+  const openTplBtn = document.getElementById('open-template-btn');
+  const tplModalEl = document.getElementById('template-modal');
+  let tplModal = null;
+  if (window.bootstrap && tplModalEl) tplModal = new bootstrap.Modal(tplModalEl);
+  const tplTextarea = document.getElementById('template-input');
+  const saveTplBtn = document.getElementById('save-template-btn');
+
+  function parseTokensToTemplate(text){
+    const tpl = {'1':[], '2':[], '3':[]};
+    if(!text || !text.trim()) return tpl;
+    const raw = text.replace(/[,\s]+/g,' ').trim().split(' ');
+    const norm = s => {
+      const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
+      return m? `${m[1]}-${m[2]}` : null;
+    };
+    const set = {'1':new Set(),'2':new Set(),'3':new Set()};
+    raw.forEach(tok=>{
+      const t = norm(tok);
+      if(!t) return;
+      const floor = t[0];
+      if(floor==='1') set['1'].add(t);
+      else if(floor==='2') set['2'].add(t);
+      else if(floor==='3') set['3'].add(t);
+    });
+    ['1','2','3'].forEach(f=>{
+      tpl[f] = Array.from(set[f]).sort((a,b)=>{
+        const ma=a.match(/^(\d{3})-(.+)$/); const mb=b.match(/^(\d{3})-(.+)$/);
+        const ra=parseInt(ma[1],10), rb=parseInt(mb[1],10);
+        if(ra!==rb) return ra-rb;
+        const sa=parseInt(String(ma[2]).replace(/\D/g,''),10)||0;
+        const sb=parseInt(String(mb[2]).replace(/\D/g,''),10)||0;
+        return sa-sb;
+      });
+    });
+    return tpl;
+  }
+
+  if(openTplBtn && tplModal && tplTextarea && saveTplBtn){
+    openTplBtn.addEventListener('click', ()=>{
+      // 預填目前模板內容
+      const cur = JSON.parse(localStorage.getItem(LS_KEY) || '{"1":[],"2":[],"3":[]}');
+      const merged = [...(cur['1']||[]), ...(cur['2']||[]), ...(cur['3']||[])].join(' ');
+      tplTextarea.value = merged;
+      tplModal.show();
+    });
+    saveTplBtn.addEventListener('click', ()=>{
+      const text = tplTextarea.value;
+      const tpl = parseTokensToTemplate(text);
+      localStorage.setItem(LS_KEY, JSON.stringify(tpl));
+      if(tplModal) tplModal.hide();
+      // 重新渲染樓層（不刷新 Firestore）
+      renderFloors(tpl);
+    });
   }
 
   function tableCss(){
