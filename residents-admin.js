@@ -499,7 +499,6 @@ document.addEventListener('residents-init', ()=>{
 
     // 寫檔
     XLSX.writeFile(wb, rocName()+'.xlsx');
-  }
 
   function hookEvents(){
     document.addEventListener('click', (e)=>{
