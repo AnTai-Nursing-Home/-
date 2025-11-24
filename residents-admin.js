@@ -193,115 +193,114 @@ document.addEventListener('residents-init', ()=>{
 
   
 function renderStats(){
-    if(!statsArea) return;
-    const total=cache.length;
-    const male=cache.filter(r=>r.gender==='男').length;
-    const female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
-    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
-    const present=total-(leave+hosp);
+  if(!statsArea) return;
+  const total = cache.length;
+  const male = cache.filter(r=>r.gender==='男').length;
+  const female = cache.filter(r=>r.gender==='女').length;
+  const leave = cache.filter(r=>r.leaveStatus==='請假').length;
+  const hosp  = cache.filter(r=>r.leaveStatus==='住院').length;
+  const present = total - (leave + hosp);
 
-    // helpers
-    const normv=s=>(s==null?'':String(s));
-    const inFloor=(f)=> cache.filter(r=> new RegExp('^'+f+'\d\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(f))));
+  const normv = s => (s==null?'':String(s));
+  const inFloor = f => cache.filter(r => new RegExp('^'+f+'\d\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(f))));
 
-    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
+  const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
 
-    const floors=[1,2,3].map(f=>{
-      const arr=inFloor(f);
-      const fTotal=arr.length;
-      const fLeave=arr.filter(r=>r.leaveStatus==='請假').length;
-      const fHosp =arr.filter(r=>r.leaveStatus==='住院').length;
-      const fPresent=fTotal-(fLeave+fHosp);
-      const fWheel =arr.filter(r=>WHEEL.test(normv(r.mobility))).length;
-      const fTrolley=arr.filter(r=>TROLLEY.test(normv(r.mobility))).length;
-      const fWalk  =arr.filter(r=>WALK.test(normv(r.mobility))).length;
-      return {f, fTotal, fPresent, fLeave, fHosp, fWheel, fTrolley, fWalk};
-    });
+  const floors = [1,2,3].map(function(f){
+    const arr=inFloor(f);
+    const fTotal=arr.length;
+    const fLeave=arr.filter(r=>r.leaveStatus==='請假').length;
+    const fHosp =arr.filter(r=>r.leaveStatus==='住院').length;
+    const fPresent=fTotal-(fLeave+fHosp);
+    const fWheel =arr.filter(r=>WHEEL.test(normv(r.mobility))).length;
+    const fTrolley=arr.filter(r=>TROLLEY.test(normv(r.mobility))).length;
+    const fWalk  =arr.filter(r=>WALK.test(normv(r.mobility))).length;
+    return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
+  });
 
-    // overall mobility
-    const mWheel = cache.filter(r=>WHEEL.test(normv(r.mobility))).length;
-    const mTrolley = cache.filter(r=>TROLLEY.test(normv(r.mobility))).length;
-    const mWalk = cache.filter(r=>WALK.test(normv(r.mobility))).length;
+  const mWheel = cache.filter(r=>WHEEL.test(normv(r.mobility))).length;
+  const mTrolley = cache.filter(r=>TROLLEY.test(normv(r.mobility))).length;
+  const mWalk = cache.filter(r=>WALK.test(normv(r.mobility))).length;
 
-    statsArea.innerHTML = `
-      <div class="col-12 col-xl-5">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="h5 mb-0">總人數</div>
-              <span class="badge bg-dark fs-6">${total}</span>
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>${male}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>${female}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>${present}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>${leave}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>${hosp}</strong></span></div>
-            </div>
+  var html = '';
+  html += '<div class="col-12 col-xl-5">';
+  html +=   '<div class="card border-0 shadow-sm h-100">';
+  html +=     '<div class="card-body">';
+  html +=       '<div class="d-flex align-items-center justify-content-between mb-3">';
+  html +=         '<div class="h5 mb-0">總人數</div>';
+  html +=         '<span class="badge bg-dark fs-6">'+ total +'</span>';
+  html +=       '</div>';
+  html +=       '<div class="row g-2 mb-2">';
+  html +=         '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>'+ male +'</strong></span></div>';
+  html +=         '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>'+ female +'</strong></span></div>';
+  html +=         '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>'+ present +'</strong></span></div>';
+  html +=         '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>'+ leave +'</strong></span></div>';
+  html +=         '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>'+ hosp +'</strong></span></div>';
+  html +=       '</div>';
 
-            <div class="table-responsive mt-3">
-              <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>樓層</th>
-                    <th class="text-end">總數</th>
-                    <th class="text-end">實到</th>
-                    <th class="text-end">請假</th>
-                    <th class="text-end">住院</th>
-                    <th class="text-end">輪椅</th>
-                    <th class="text-end">推床</th>
-                    <th class="text-end">步行</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${floors.map(x=>`
-                    <tr>
-                      <td>${x.f}F</td>
-                      <td class="text-end">${x.fTotal}</td>
-                      <td class="text-end text-success">${x.fPresent}</td>
-                      <td class="text-end text-warning">${x.fLeave}</td>
-                      <td class="text-end text-danger">${x.fHosp}</td>
-                      <td class="text-end">${x.fWheel}</td>
-                      <td class="text-end">${x.fTrolley}</td>
-                      <td class="text-end">${x.fWalk}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
+  html +=       '<div class="table-responsive mt-3">';
+  html +=         '<table class="table table-sm align-middle mb-0">';
+  html +=           '<thead class="table-light">';
+  html +=             '<tr>';
+  html +=               '<th>樓層</th>';
+  html +=               '<th class="text-end">總數</th>';
+  html +=               '<th class="text-end">實到</th>';
+  html +=               '<th class="text-end">請假</th>';
+  html +=               '<th class="text-end">住院</th>';
+  html +=               '<th class="text-end">輪椅</th>';
+  html +=               '<th class="text-end">推床</th>';
+  html +=               '<th class="text-end">步行</th>';
+  html +=             '</tr>';
+  html +=           '</thead>';
+  html +=           '<tbody>';
+  floors.forEach(function(x){
+    html += '<tr>';
+    html +=   '<td>'+ x.f +'F</td>';
+    html +=   '<td class="text-end">'+ x.fTotal +'</td>';
+    html +=   '<td class="text-end text-success">'+ x.fPresent +'</td>';
+    html +=   '<td class="text-end text-warning">'+ x.fLeave +'</td>';
+    html +=   '<td class="text-end text-danger">'+ x.fHosp +'</td>';
+    html +=   '<td class="text-end">'+ x.fWheel +'</td>';
+    html +=   '<td class="text-end">'+ x.fTrolley +'</td>';
+    html +=   '<td class="text-end">'+ x.fWalk +'</td>';
+    html += '</tr>';
+  });
+  html +=           '</tbody>';
+  html +=         '</table>';
+  html +=       '</div>';
 
-            <div class="small text-muted mt-2">
-              <span class="me-3">行動方式總計：</span>
-              <span class="me-2">輪椅 ${mWheel}</span>
-              <span class="me-2">推床 ${mTrolley}</span>
-              <span>步行 ${mWalk}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+  html +=       '<div class="small text-muted mt-2">';
+  html +=         '<span class="me-3">行動方式總計：</span>';
+  html +=         '<span class="me-2">輪椅 '+ mWheel +'</span>';
+  html +=         '<span class="me-2">推床 '+ mTrolley +'</span>';
+  html +=         '<span>步行 '+ mWalk +'</span>';
+  html +=       '</div>';
 
-      <div class="col-12 col-xl-7">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="h6 mb-0 text-muted">動作區</div>
-              <button id="export-xls-styled" class="btn btn-success btn-sm">
-                <i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）
-              </button>
-            </div>
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>
-                <i class="fa-regular fa-circle-down"></i>
-              </li>
-              <li class="list-group-item">
-                <div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>`;
+  html +=     '</div>';
+  html +=   '</div>';
+  html += '</div>';
+
+  html += '<div class="col-12 col-xl-7">';
+  html +=   '<div class="card border-0 shadow-sm h-100">';
+  html +=     '<div class="card-body">';
+  html +=       '<div class="d-flex justify-content-between align-items-center mb-3">';
+  html +=         '<div class="h6 mb-0 text-muted">動作區</div>';
+  html +=         '<button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>';
+  html +=       '</div>';
+  html +=       '<ul class="list-group list-group-flush">';
+  html +=         '<li class="list-group-item d-flex justify-content-between align-items-center">';
+  html +=           '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>';
+  html +=           '<i class="fa-regular fa-circle-down"></i>';
+  html +=         '</li>';
+  html +=         '<li class="list-group-item">';
+  html +=           '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>';
+  html +=         '</li>';
+  html +=       '</ul>';
+  html +=     '</div>';
+  html +=   '</div>';
+  html += '</div>';
+
+  statsArea.innerHTML = html;
 }
 
     const normv=s=>(s==null?'':String(s));
@@ -329,7 +328,8 @@ function renderStats(){
         <div class="card"><div class="card-body text-end">
           <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
         </div></div>
-      </div>
+      </div>`;
+  }
 
 
   // === 手動模板設定 ===
