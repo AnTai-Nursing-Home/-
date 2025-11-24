@@ -735,7 +735,17 @@ const wb = new ExcelJS.Workbook();
     importBtn.addEventListener('click', ()=> fileInput.click());
     fileInput.addEventListener('change', handleExcelImport);
   }
-  function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
+  function pick(row, aliases){
+    if(!row || !Array.isArray(aliases)) return '';
+    for(var i=0;i<aliases.length;i++){
+      var kk = aliases[i];
+      if(Object.prototype.hasOwnProperty.call(row, kk)){
+        var v = row[kk];
+        if(v!=null && v!=='') return v;
+      }
+    }
+    return '';
+  }
   async function handleExcelImport(evt){
     const file=evt.target.files[0]; if(!file) return;
     if(importStatus){ importStatus.className='alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent='正在讀取檔案...'; }
