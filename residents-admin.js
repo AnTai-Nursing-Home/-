@@ -302,38 +302,8 @@ function renderStats(){
           </div>
         </div>
       </div>`;
-}
 
-    const normv=s=>(s==null?'':String(s));
-    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
-    const mob = [1,2,3].map(f=>({wheel: fl(f).filter(r=>WHEEL.test(normv(r.mobility))).length, trolley: fl(f).filter(r=>TROLLEY.test(normv(r.mobility))).length, walk: fl(f).filter(r=>WALK.test(normv(r.mobility))).length }));
-
-    statsArea.innerHTML = `
-      <div class="col-md-6">
-        <div class="card"><div class="card-body">
-          <div class="h5 mb-2">總人數 <span class="ms-2 badge bg-secondary">${total}</span></div>
-          <div class="text-muted mb-2">男：${male} ・ 女：${female} ・ 實到：<strong>${present}</strong> ・ 請假：${leave} ・ 住院：${hosp}</div>
-          <div class="table-responsive">
-            <table class="table table-sm mb-0">
-              <thead><tr><th>樓層</th><th>輪椅</th><th>推床</th><th>步行</th></tr></thead>
-              <tbody>
-                <tr><td>1F</td><td>${mob[0].wheel}</td><td>${mob[0].trolley}</td><td>${mob[0].walk}</td></tr>
-                <tr><td>2F</td><td>${mob[1].wheel}</td><td>${mob[1].trolley}</td><td>${mob[1].walk}</td></tr>
-                <tr><td>3F</td><td>${mob[2].wheel}</td><td>${mob[2].trolley}</td><td>${mob[2].walk}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div></div>
-      </div>
-      <div class="col-md-6">
-        <div class="card"><div class="card-body text-end">
-          <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
-        </div></div>
-      </div>`;
-  }
-
-
-  // === 手動模板設定 ===
+// === 手動模板設定 ===
   const openTplBtn = document.getElementById('open-template-btn');
   const tplModalEl = document.getElementById('template-modal');
   let tplModal = null;
