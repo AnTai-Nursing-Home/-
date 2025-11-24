@@ -470,10 +470,144 @@ function renderStats(){
   }
 
 
-  async function exportStyledXls(){
+  
+async function exportStyledXls(){
     if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
     const wb = new ExcelJS.Workbook();
+    wb.creator = 'MSICAO';
+    wb.created = new Date();
+
+    // 共用樣式
+    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+    const headerFont = { name:'Microsoft JhengHei', bold:true, size:11 };
+    const cellFont = { name:'Microsoft JhengHei', size:11 };
+    const borderThin = { top:{style:'thin',color:{argb:'FF999999'}},
+                         left:{style:'thin',color:{argb:'FF999999'}},
+                         bottom:{style:'thin',color:{argb:'FF999999'}},
+                         right:{style:'thin',color:{argb:'FF999999'}} };
+
+    function setColWidths(ws, widths){ ws.columns = widths.map(w => ({ width:w })); }
+    function styleRow(row, {isHeader=false, alt=false, align='center'}={}){
+      row.eachCell(c=>{
+        c.font = isHeader ? headerFont : cellFont;
+        c.border = borderThin;
+        c.alignment = { vertical:'middle', horizontal: align };
+        if(isHeader){ c.fill = headerFill; }
+        else if(alt){ c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}}; }
+      });
+      row.height = 20;
+    }
+    function addTable(ws, headers, rows, widths, aligns){
+      setColWidths(ws, widths);
+      const headerRow = ws.addRow(headers);
+      styleRow(headerRow, {isHeader:true});
+      rows.forEach((r,i)=>{
+        const row = ws.addRow(r);
+        row.eachCell((c, idx)=>{
+          c.alignment = {vertical:'middle', horizontal: (aligns && aligns[idx]) || 'center'};
+          c.font = cellFont; c.border = borderThin;
+        });
+        if(i%2===1) row.eachCell(c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}});
+        row.height = 20;
+      });
+      ws.views = [{ state:'frozen', ySplit:1 }];
+    }
+
+    // === 來源資料 ===
+    const total=cache.length;
+    const male=cache.filter(r=>r.gender==='男').length;
+    const female=cache.filter(r=>r.gender==='女').length;
+    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
+    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
+    const present=total-(leave+hosp);
+
+    function normv(s){ return (s==null?'':String(s)); }
+    function inFloor(f){
+      const reg = new RegExp('^' + f + '\\d\\d');
+      return cache.filter(function(r){
+        const bed = String(r.bedNumber||'');
+        return reg.test(bed) || (r.nursingStation && String(r.nursingStation).indexOf(String(f))>-1);
+      });
+    }
+    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
+    function mobCount(arr){
+      let w=0,t=0,walk=0;
+      for(const r of arr){
+        const v=normv(r.mobility);
+        if(WHEEL.test(v)) w++;
+        if(TROLLEY.test(v)) t++;
+        if(WALK.test(v)) walk++;
+      }
+      return {wheel:w, trolley:t, walk:walk};
+    }
+
+    // === 工作表 1：總表 ===
+    const wsMain = wb.addWorksheet('總表');
+    const mainRows = [
+      ['總人數', total],
+      ['男', male],
+      ['女', female],
+      ['實到', present],
+      ['請假', leave],
+      ['住院', hosp]
+    ];
+    addTable(wsMain, ['項目','數量'], mainRows, [12, 10], ['left','center']);
+
+    // === 工作表 2：樓層統計 ===
+    const wsFloor = wb.addWorksheet('樓層統計');
+    const floors=[1,2,3].map(f=>{
+      const arr=inFloor(f);
+      const fTotal = arr.length;
+      const fLeave = arr.filter(r=>r.leaveStatus==='請假').length;
+      const fHosp  = arr.filter(r=>r.leaveStatus==='住院').length;
+      const fPresent = fTotal - (fLeave + fHosp);
+      const mob = mobCount(arr);
+      return {f, fTotal, fPresent, fLeave, fHosp, mob};
+    });
+
+    const floorRows = floors.map(x=>[
+      x.f+'樓',
+      '輪椅:' + x.mob.wheel + '人　推床:' + x.mob.trolley + '人　步行:' + x.mob.walk + '人',
+      x.fLeave, x.fPresent, x.fTotal
+    ]);
+
+    // 標題與表格
+    addTable(wsFloor, ['樓層','活動能力分分','請假人數','實到人數','總人數'],
+             floorRows, [8, 28, 10, 10, 10],
+             ['center','left','center','center','center']);
+
+    // 總計列與男女數
+    const sumRow = wsFloor.addRow(['男:'+male+'人', '女:'+female+'人', '總計', present, total]);
+    styleRow(sumRow, {align:'center'});
+
+    wsFloor.addRow([]);
+    const note1 = wsFloor.addRow(['1. 本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數 ' + present + ' 人。']);
+    const note2 = wsFloor.addRow(['2. 起火房為____房，與其共通房，共____位住民，已全數離室避難，沒有人受困。']);
+    // 註記的樣式
+    note1.getCell(1).alignment = { vertical:'middle', horizontal:'left' };
+    note2.getCell(1).alignment = { vertical:'middle', horizontal:'left' };
+    note1.getCell(1).font = { name:'Microsoft JhengHei', size:11 };
+    note2.getCell(1).font = { name:'Microsoft JhengHei', size:11 };
+    note1.getCell(1).border = borderThin;
+    note2.getCell(1).border = borderThin;
+    wsFloor.mergeCells(note1.number,1,note1.number,5);
+    wsFloor.mergeCells(note2.number,1,note2.number,5);
+
+    // 列寬微調
+    wsFloor.columns = [{width:8},{width:28},{width:10},{width:10},{width:10}];
+
+    // 下載
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '總表與樓層統計.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+}
+const wb = new ExcelJS.Workbook();
     wb.creator = 'MSICAO';
     wb.created = new Date();
 
