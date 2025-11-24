@@ -194,154 +194,116 @@ document.addEventListener('residents-init', ()=>{
   
 function renderStats(){
     if(!statsArea) return;
-    var total = cache.length;
-    var male = cache.filter(function(r){ return r.gender==='男'; }).length;
-    var female = cache.filter(function(r){ return r.gender==='女'; }).length;
-    var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-    var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
-    var present = total - (leave + hosp);
+    const total=cache.length;
+    const male=cache.filter(r=>r.gender==='男').length;
+    const female=cache.filter(r=>r.gender==='女').length;
+    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
+    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
+    const present=total-(leave+hosp);
 
-    function normv(s){ return (s==null?'':String(s)); }
-    function inFloor(f){
-        var reg = new RegExp('^' + f + '\\d\\d');
-        return cache.filter(function(r){
-            var bed = String(r.bedNumber||'');
-            return reg.test(bed) || (r.nursingStation && String(r.nursingStation).indexOf(String(f))>-1);
-        });
-    }
+    // helpers
+    const normv=s=>(s==null?'':String(s));
+    const inFloor=(f)=> cache.filter(r=> new RegExp('^'+f+'\d\d').test(String(r.bedNumber||'')) || (r.nursingStation && r.nursingStation.includes(String(f))));
 
-    var WHEEL = /(輪椅)/i;
-    var TROLLEY = /(推床|臥床|平車|推車)/i;
-    var WALK = /(步行|可獨立|助行|拐杖|walker)/i;
+    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
 
-    var floors = [1,2,3].map(function(f){
-        var arr = inFloor(f);
-        var fTotal = arr.length;
-        var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-        var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
-        var fPresent = fTotal - (fLeave + fHosp);
-        var fWheel = arr.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-        var fTrolley = arr.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-        var fWalk = arr.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
-        return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
+    const floors=[1,2,3].map(f=>{
+      const arr=inFloor(f);
+      const fTotal=arr.length;
+      const fLeave=arr.filter(r=>r.leaveStatus==='請假').length;
+      const fHosp =arr.filter(r=>r.leaveStatus==='住院').length;
+      const fPresent=fTotal-(fLeave+fHosp);
+      const fWheel =arr.filter(r=>WHEEL.test(normv(r.mobility))).length;
+      const fTrolley=arr.filter(r=>TROLLEY.test(normv(r.mobility))).length;
+      const fWalk  =arr.filter(r=>WALK.test(normv(r.mobility))).length;
+      return {f, fTotal, fPresent, fLeave, fHosp, fWheel, fTrolley, fWalk};
     });
 
-    var mWheel = cache.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-    var mTrolley = cache.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-    var mWalk = cache.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
-
-    var rows = '';
-    for(var i=0;i<floors.length;i++){
-        var x = floors[i];
-        rows += ''
-        + '<tr>'
-        +   '<td>' + x.f + 'F</td>'
-        +   '<td class="text-end">' + x.fTotal + '</td>'
-        +   '<td class="text-end text-success">' + x.fPresent + '</td>'
-        +   '<td class="text-end text-warning">' + x.fLeave + '</td>'
-        +   '<td class="text-end text-danger">' + x.fHosp + '</td>'
-        +   '<td class="text-end">' + x.fWheel + '</td>'
-        +   '<td class="text-end">' + x.fTrolley + '</td>'
-        +   '<td class="text-end">' + x.fWalk + '</td>'
-        + '</tr>';
-    }
-
-    var html = ''
-      + '<div class="col-12 col-xl-5">'
-      +   '<div class="card border-0 shadow-sm h-100">'
-      +     '<div class="card-body">'
-      +       '<div class="d-flex align-items-center justify-content-between mb-3">'
-      +         '<div class="h5 mb-0">總人數</div>'
-      +         '<span class="badge bg-dark fs-6">' + total + '</span>'
-      +       '</div>'
-      +       '<div class="row g-2 mb-2">'
-      +         '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>' + male + '</strong></span></div>'
-      +         '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>' + female + '</strong></span></div>'
-      +         '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>' + present + '</strong></span></div>'
-      +         '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span></div>'
-      +         '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span></div>'
-      +       '</div>'
-      +       '<div class="table-responsive mt-3">'
-      +         '<table class="table table-sm align-middle mb-0">'
-      +           '<thead class="table-light">'
-      +             '<tr>'
-      +               '<th>樓層</th>'
-      +               '<th class="text-end">總數</th>'
-      +               '<th class="text-end">實到</th>'
-      +               '<th class="text-end">請假</th>'
-      +               '<th class="text-end">住院</th>'
-      +               '<th class="text-end">輪椅</th>'
-      +               '<th class="text-end">推床</th>'
-      +               '<th class="text-end">步行</th>'
-      +             '</tr>'
-      +           '</thead>'
-      +           '<tbody>' + rows + '</tbody>'
-      +         '</table>'
-      +       '</div>'
-      +       '<div class="small text-muted mt-2">'
-      +         '<span class="me-3">行動方式總計：</span>'
-      +         '<span class="me-2">輪椅 ' + mWheel + '</span>'
-      +         '<span class="me-2">推床 ' + mTrolley + '</span>'
-      +         '<span>步行 ' + mWalk + '</span>'
-      +       '</div>'
-      +     '</div>'
-      +   '</div>'
-      + '</div>'
-      + '<div class="col-12 col-xl-7">'
-      +   '<div class="card border-0 shadow-sm h-100">'
-      +     '<div class="card-body">'
-      +       '<div class="d-flex justify-content-between align-items-center mb-3">'
-      +         '<div class="h6 mb-0 text-muted">動作區</div>'
-      +         '<button id="export-xls-styled" class="btn btn-success btn-sm">'
-      +           '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
-      +         '</button>'
-      +       '</div>'
-      +       '<ul class="list-group list-group-flush">'
-      +         '<li class="list-group-item d-flex justify-content-between align-items-center">'
-      +           '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
-      +           '<i class="fa-regular fa-circle-down"></i>'
-      +         '</li>'
-      +         '<li class="list-group-item">'
-      +           '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>'
-      +         '</li>'
-      +       '</ul>'
-      +     '</div>'
-      +   '</div>'
-      + '</div>';
-
-    statsArea.innerHTML = html;
-}
-
-    const normv=s=>(s==null?'':String(s));
-    const WHEEL=/(輪椅)/i, TROLLEY=/(推床|臥床|平車|推車)/i, WALK=/(步行|可獨立|助行|拐杖|walker)/i;
-    const mob = [1,2,3].map(f=>({wheel: fl(f).filter(r=>WHEEL.test(normv(r.mobility))).length, trolley: fl(f).filter(r=>TROLLEY.test(normv(r.mobility))).length, walk: fl(f).filter(r=>WALK.test(normv(r.mobility))).length }));
+    // overall mobility
+    const mWheel = cache.filter(r=>WHEEL.test(normv(r.mobility))).length;
+    const mTrolley = cache.filter(r=>TROLLEY.test(normv(r.mobility))).length;
+    const mWalk = cache.filter(r=>WALK.test(normv(r.mobility))).length;
 
     statsArea.innerHTML = `
-      <div class="col-md-6">
-        <div class="card"><div class="card-body">
-          <div class="h5 mb-2">總人數 <span class="ms-2 badge bg-secondary">${total}</span></div>
-          <div class="text-muted mb-2">男：${male} ・ 女：${female} ・ 實到：<strong>${present}</strong> ・ 請假：${leave} ・ 住院：${hosp}</div>
-          <div class="table-responsive">
-            <table class="table table-sm mb-0">
-              <thead><tr><th>樓層</th><th>輪椅</th><th>推床</th><th>步行</th></tr></thead>
-              <tbody>
-                <tr><td>1F</td><td>${mob[0].wheel}</td><td>${mob[0].trolley}</td><td>${mob[0].walk}</td></tr>
-                <tr><td>2F</td><td>${mob[1].wheel}</td><td>${mob[1].trolley}</td><td>${mob[1].walk}</td></tr>
-                <tr><td>3F</td><td>${mob[2].wheel}</td><td>${mob[2].trolley}</td><td>${mob[2].walk}</td></tr>
-              </tbody>
-            </table>
+      <div class="col-12 col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="h5 mb-0">總人數</div>
+              <span class="badge bg-dark fs-6">${total}</span>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>${male}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>${female}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>${present}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>${leave}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>${hosp}</strong></span></div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>樓層</th>
+                    <th class="text-end">總數</th>
+                    <th class="text-end">實到</th>
+                    <th class="text-end">請假</th>
+                    <th class="text-end">住院</th>
+                    <th class="text-end">輪椅</th>
+                    <th class="text-end">推床</th>
+                    <th class="text-end">步行</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${floors.map(x=>`
+                    <tr>
+                      <td>${x.f}F</td>
+                      <td class="text-end">${x.fTotal}</td>
+                      <td class="text-end text-success">${x.fPresent}</td>
+                      <td class="text-end text-warning">${x.fLeave}</td>
+                      <td class="text-end text-danger">${x.fHosp}</td>
+                      <td class="text-end">${x.fWheel}</td>
+                      <td class="text-end">${x.fTrolley}</td>
+                      <td class="text-end">${x.fWalk}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="small text-muted mt-2">
+              <span class="me-3">行動方式總計：</span>
+              <span class="me-2">輪椅 ${mWheel}</span>
+              <span class="me-2">推床 ${mTrolley}</span>
+              <span>步行 ${mWalk}</span>
+            </div>
           </div>
-        </div></div>
+        </div>
       </div>
-      <div class="col-md-6">
-        <div class="card"><div class="card-body text-end">
-          <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
-        </div></div>
+
+      <div class="col-12 col-xl-7">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="h6 mb-0 text-muted">動作區</div>
+              <button id="export-xls-styled" class="btn btn-success btn-sm">
+                <i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）
+              </button>
+            </div>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>
+                <i class="fa-regular fa-circle-down"></i>
+              </li>
+              <li class="list-group-item">
+                <div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>`;
-  }
 
-
-  // === 手動模板設定 ===
+// === 手動模板設定 ===
   const openTplBtn = document.getElementById('open-template-btn');
   const tplModalEl = document.getElementById('template-modal');
   let tplModal = null;
@@ -708,14 +670,14 @@ function renderStats(){
         leaveStatus:statusInput?norm(statusInput.value):''
       };
       await db.collection(dbCol).doc(name).set(payload,{merge:true});
-      if (modal) { modal.hide(); }
+      if(modal) modal.hide();
       load();
     });
   }
   if(tbody){
     tbody.addEventListener('click', async (e)=>{
       const btn=e.target.closest('button'); if(!btn) return;
-      const row=btn.closest('tr'); const id=(row && row.dataset).id; if(!id) return;
+      const row=btn.closest('tr'); const id=row?.dataset.id; if(!id) return;
       if(btn.classList.contains('btn-edit')){
         if(!modal) return;
         modalTitle && (modalTitle.textContent='編輯住民資料');
