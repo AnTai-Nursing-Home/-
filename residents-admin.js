@@ -328,7 +328,7 @@ function renderStats(){
         <div class="card"><div class="card-body text-end">
           <button id="export-xls-styled" class="btn btn-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）</button>
         </div></div>
-      </div>`;
+      </div>
   }
 
 
