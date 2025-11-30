@@ -70,7 +70,7 @@ const translations = {
         'booking_success_info': '感謝您的預約，以下是您的預約資訊：',
         'date': '日期',
         'time': '時間',
-        'important_notice': '重要提醒：未來若需查詢或取消預約，請使用您的「電話號碼」作為憑證。',
+        'important_notice': '重要提醒：未來若需查詢或取消預約，請使用「住民名稱」用於查尋。',
         'error_resident_name_invalid': '住民姓名不正確，無法提交預約！',
         'name_validation_success': '姓名驗證成功！',
         'name_validation_fail': '查無此住民姓名，請確認輸入是否正確。',
