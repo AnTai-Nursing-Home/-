@@ -59,11 +59,90 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function render(rows) {
-    if (!rows || rows.length === 0) {
-      bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
-      countTotal.textContent = 0;
-      return;
-    }
+  if (!rows || rows.length === 0) {
+    bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
+    countTotal.textContent = 0;
+    return;
+  }
+  // group by date
+  const byDate = {};
+  rows.forEach(b => {
+    const k = b.date || '';
+    if (!byDate[k]) byDate[k] = [];
+    byDate[k].push(b);
+  });
+  const dates = Object.keys(byDate).sort();
+  let html = '';
+  let total = 0;
+
+  dates.forEach(date => {
+    const list = byDate[date];
+    total += list.length;
+    html += `<h4 class="mt-4 mb-2">${date}</h4>`;
+
+    // group by time within this date
+    const byTime = {};
+    list.forEach(b => {
+      const t = b.time || '';
+      if (!byTime[t]) byTime[t] = [];
+      byTime[t].push(b);
+    });
+    const times = Object.keys(byTime).sort();
+
+    html += `<table class="table table-bordered table-striped table-hover">
+      <thead class="table-light">
+        <tr>
+          <th style="width:90px">時段</th>
+          <th>住民姓名</th>
+          <th style="width:120px">床號</th>
+          <th>與住民關係</th>
+          <th style="width:100px;" class="no-print">操作</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    times.forEach(time => {
+      const items = byTime[time].slice().sort((a,b)=>{
+        // within same time, sort by bed then resident
+        const normDash = s => String(s || '').replace(/[－—–ｰ‒﹣－]/g, '-');
+        const parseBed = (bed) => {
+          if (!bed) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
+          const s = normDash(String(bed).trim());
+          const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
+          if (!m) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
+          const floor = parseInt(m[1], 10);
+          let pos = 0;
+          if (m[2]) pos = /^[A-Za-z]$/.test(m[2]) ? (m[2].toUpperCase().charCodeAt(0)-64)+1000 : parseInt(m[2],10);
+          return { floor, pos };
+        };
+        const A = parseBed(a.bedNumber), B = parseBed(b.bedNumber);
+        if (A.floor !== B.floor) return A.floor - B.floor;
+        if (A.pos !== B.pos) return A.pos - B.pos;
+        return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
+      });
+
+      // subheader row for the time slot
+      html += `<tr class="slot-header">
+        <td colspan="5"><strong>${time}</strong>（${items.length} 筆）</td>
+      </tr>`;
+
+      items.forEach(b => {
+        html += `<tr>
+          <td>${time}</td>
+          <td>${b.residentName || ''}</td>
+          <td>${b.bedNumber || ''}</td>
+          <td>${b.visitorRelationship || '未填寫'}</td>
+          <td class="no-print"><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">刪除</button></td>
+        </tr>`;
+      });
+    });
+
+    html += `</tbody></table>`;
+  });
+
+  bookingListContainer.innerHTML = html;
+  countTotal.textContent = total;
+}
 
     // group by date
     const groups = {};
