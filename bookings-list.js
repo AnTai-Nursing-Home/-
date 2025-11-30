@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bookingListContainer.innerHTML = html;
     countTotal.textContent = total;
+    }
   }
 
   async function displayBookings() {
