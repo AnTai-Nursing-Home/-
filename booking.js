@@ -81,6 +81,10 @@ const translations = {
         'please_fill_contact_phone': '請填寫您的聯絡電話。',
         'confirm_booking_info_title': '請確認您的預約資訊',
 
+        // --- 新增：每週上限相關 ---
+        'checking_quota': '正在檢查本週預約次數…',
+        'weekly_limit_exceeded': '此住民在該週的預約已達 3 次上限，請改選其他週期。',
+
         // --- 員工系統 (通用) ---
         'nurse_system': '護理師系統',
         'enter_nurse_password': '請輸入護理師密碼',
@@ -112,7 +116,6 @@ const translations = {
         'calendar_title_suffix': '月',
         'leave_period_open': '預假/預班開放中！期間：',
         'leave_period_closed': '目前非預假/預班開放期間。下次開放：',
-        'leave_period_open': '預假/預班開放中！期間：',
         'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
         'next_month_overview': '下個月預假/預班總覽',
         'export_word': '匯出 Word',
@@ -184,8 +187,6 @@ const translations = {
         'no_report_generated': '請先選擇月份並上傳當月份的 Excel 班表檔案。',
         'temp_report_title': '員工體溫紀錄總表', 'clockin_report_title': '員工打卡紀錄總表',
         'clock_in': '上班', 'clock_out': '下班',
-
-        // ... (其他靜態頁面翻譯不變) ...
     },
     'en': {
         // --- Common ---
@@ -212,16 +213,20 @@ const translations = {
         'step1_title': 'Step 1: Select Date and Time', 'choose_date': 'Select Date',
         'today_past_noon': 'Booking for today is closed after 12:00 PM. Please select another date.', 'reading_slots': 'Loading...',
         'read_slots_failed': 'Failed to load time slots, please refresh the page.', 'slot_full': 'Full', 'slot_past': 'Past',
-        'slot_remaining': 'Remaining: {remaining}', 'step2_title': 'Step 2: Fill in Information', 'resident_name': 'Resident\'s Name',
-        'bed_number': 'Bed Number', 'visitor_name': 'Visitor\'s Name', 'visitor_relationship': 'Relationship to Resident',
+        'slot_remaining': 'Remaining: {remaining}', 'step2_title': 'Step 2: Fill in Information', 'resident_name': 'Resident\\'s Name',
+        'bed_number': 'Bed Number', 'visitor_name': 'Visitor\\'s Name', 'visitor_relationship': 'Relationship to Resident',
         'contact_phone': 'Contact Phone', 'confirm_booking': 'Confirm Booking', 'back_to_time_select': 'Back to Time Selection',
         'booking_success_title': '✔ Booking Successful!', 'booking_success_info': 'Thank you for your booking. Here is your information:',
         'date': 'Date', 'time': 'Time', 'important_notice': 'Important: To query or cancel your booking in the future, please use your phone number.',
         'error_resident_name_invalid': 'Resident name is incorrect, cannot submit booking!', 'name_validation_success': 'Name verification successful!',
         'name_validation_fail': 'Resident name not found, please check your input.', 'booking_failed': 'Booking failed, please try again later.',
-        'enter_phone_to_query': 'Please enter the phone number used for the booking:', 'please_fill_resident_name': 'Please fill in resident\'s name.',
+        'enter_phone_to_query': 'Please enter the phone number used for the booking:', 'please_fill_resident_name': 'Please fill in resident\\'s name.',
         'please_fill_visitor_name': 'Please fill in your name.', 'please_fill_visitor_relationship': 'Please fill in your relationship to the resident.',
         'please_fill_contact_phone': 'Please fill in your contact phone.', 'confirm_booking_info_title': 'Please confirm your booking information',
+
+        // --- NEW: Weekly quota ---
+        'checking_quota': 'Checking weekly booking quota…',
+        'weekly_limit_exceeded': 'This resident has already reached the weekly limit of 3 bookings. Please choose another week.',
 
         // --- Employee Systems (Common) ---
         'nurse_system': 'Nurse System', 'enter_nurse_password': 'Please enter nurse password', 'booking_list_query': 'Booking List Query',
@@ -232,7 +237,7 @@ const translations = {
         'caregiver_temperature_log_title': 'Daily Temperature Log for Caregivers','temperature_log_nurse': 'Nurse Temperature Log',
         'nurse_temperature_log_title': 'Daily Temperature Log for Nurses',
         'login_network_error': 'A network error occurred during login, please try again later.', 'foley_care_assessment_menu': 'Foley Care Assessment',
-        'temperature_record_menu': 'Temperature Recording','caregiver_leave_system': 'Caregiver Leave/Shift System','save_today_temps': 'Save Today\'s Temperatures',
+        'temperature_record_menu': 'Temperature Recording','caregiver_leave_system': 'Caregiver Leave/Shift System','save_today_temps': 'Save Today\\'s Temperatures',
 
         // --- Leave Request System ---
         'your_name': 'Your Name', 'enter_your_name_to_book': 'Please enter your name to request', 'calendar_title_prefix': '',
@@ -258,7 +263,7 @@ const translations = {
         'foley_care_assessment': 'Foley Care Assessment Form', 'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
         'please_select_resident': 'Please select a resident', 'all_residents': 'All Residents', 'please_select_resident_first': 'Please select a resident from the top menu first!',
         'ongoing_care_forms': 'Ongoing Care Forms', 'closed_care_forms': 'Closed Care Forms', 'add_new_form': 'Add New Care Form',
-        'no_care_forms_found': 'No matching care form records found.', 'resident_basic_info': 'Resident\'s Basic Information',
+        'no_care_forms_found': 'No matching care form records found.', 'resident_basic_info': 'Resident\\'s Basic Information',
         'placement_date': 'Placement Date', 'closing_date': 'Closing Date', 'care_period': 'Care Period', 'ongoing': 'Ongoing',
         'assessment_items': 'Daily Assessment Items', 'signature': 'Signature', 'caregiver': 'Caregiver', 'nurse': 'Nurse',
         'hand_hygiene': '1. Hand Hygiene', 'fixed_position': '2. Fixed Position', 'unobstructed_drainage': '3. Unobstructed Drainage',
@@ -266,7 +271,7 @@ const translations = {
         'yes': 'Yes', 'no': 'No', 'save_this_care_form': 'Save This Care Form', 'delete_this_care_form': 'Delete This Care Form',
         'back_to_list': 'Back to List', 'load_care_form_failed': 'Failed to load care form, please try again later.',
         'fill_form_first': 'Please select a resident and fill in the placement date first!', 'care_form_saved': 'Care form has been saved successfully!',
-        'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\nThis action cannot be undone!',
+        'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\\nThis action cannot be undone!',
         'care_form_deleted': 'Care form has been deleted successfully!', 'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
         
         // --- Office System ---
@@ -338,83 +343,81 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // 🔄 改為從 Firestore 的 `residents` 集合載入住民名單與床號
-let residentDatabase = {};
-async function loadResidents() {
-    try {
-        const snap = await db.collection('residents').get();
-        const map = {};
-        snap.forEach(doc => {
-            const data = doc.data() || {};
-            const name = doc.id; // 目前文件ID作為姓名
-            const bed = data.bedNumber || '';
-            if (name) map[name] = bed;
-        });
-        residentDatabase = map;
-
-        // 若輸入框已有值，嘗試即時補齊床號
-        const rn = document.getElementById('residentName');
-        const bn = document.getElementById('bedNumber');
-        const fb = document.getElementById('nameFeedback');
-        if (rn && bn && rn.value.trim()) {
-            const val = rn.value.trim();
-            if (residentDatabase[val]) {
-                rn.classList.remove('is-invalid');
-                rn.classList.add('is-valid');
-                bn.value = residentDatabase[val];
-                if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
-            }
-        }
-        console.log('[booking] residents loaded:', Object.keys(residentDatabase).length);
-        // 將名單填入下拉選單
-        const sel = document.getElementById('residentName');
-        if (sel) {
-            // 先清空保留第一個 placeholder
-            sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
-            // 依床位排序 (如 "205-2")
-            const entries = Object.entries(residentDatabase); // [name, bed]
-            const bedKey = (bed) => {
-                if (!bed) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
-                const m = String(bed).match(/(\d+)(?:-(\d+))?/);
-                const n1 = m ? parseInt(m[1],10) : Number.MAX_SAFE_INTEGER;
-                const n2 = m && m[2] ? parseInt(m[2],10) : 0;
-                return [n1, n2];
-            };
-            entries
-              .sort((a,b)=>{
-                 const A = bedKey(a[1]), B = bedKey(b[1]);
-                 if (A[0] !== B[0]) return A[0]-B[0];
-                 if (A[1] !== B[1]) return A[1]-B[1];
-                 // 若床位相同，再依姓名排序避免不穩定
-                 return String(a[0]).localeCompare(String(b[0]), 'zh-Hant');
-              })
-              .forEach(([name, bed])=>{
-                 const opt = document.createElement('option');
-                 opt.value = name;
-                 // 顯示「床位｜姓名」以便家屬快速找到
-                 opt.textContent = (bed ? bed + '｜' : '') + name;
-                 sel.appendChild(opt);
-              });
-// 當選擇變更時，自動帶出床號與驗證樣式
-            sel.addEventListener('change', ()=>{
-                const val = sel.value;
-                const bn = document.getElementById('bedNumber');
-                const fb = document.getElementById('nameFeedback');
-                if (val && residentDatabase[val]) {
-                    sel.classList.remove('is-invalid'); sel.classList.add('is-valid');
-                    if (bn) bn.value = residentDatabase[val] || '';
-                    if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
-                } else {
-                    sel.classList.remove('is-valid'); sel.classList.add('is-invalid');
-                    if (bn) bn.value = '';
-                    if (fb) { fb.textContent = getText('name_not_found'); fb.className = 'invalid-feedback'; }
-                }
+    let residentDatabase = {};
+    async function loadResidents() {
+        try {
+            const snap = await db.collection('residents').get();
+            const map = {};
+            snap.forEach(doc => {
+                const data = doc.data() || {};
+                const name = doc.id; // 目前文件ID作為姓名
+                const bed = data.bedNumber || '';
+                if (name) map[name] = bed;
             });
-        }
+            residentDatabase = map;
 
-    } catch (e) {
-        console.error('讀取 residents 失敗：', e);
+            // 若輸入框已有值，嘗試即時補齊床號
+            const rn = document.getElementById('residentName');
+            const bn = document.getElementById('bedNumber');
+            const fb = document.getElementById('nameFeedback');
+            if (rn && bn && rn.value && rn.value.trim()) {
+                const val = rn.value.trim();
+                if (residentDatabase[val]) {
+                    rn.classList.remove('is-invalid');
+                    rn.classList.add('is-valid');
+                    bn.value = residentDatabase[val];
+                    if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+                }
+            }
+            // 將名單填入下拉選單
+            const sel = document.getElementById('residentName');
+            if (sel) {
+                // 先清空保留第一個 placeholder
+                sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
+                // 依床位排序 (如 "205-2")
+                const entries = Object.entries(residentDatabase); // [name, bed]
+                const bedKey = (bed) => {
+                    if (!bed) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+                    const m = String(bed).match(/(\\d+)(?:-(\\d+))?/);
+                    const n1 = m ? parseInt(m[1],10) : Number.MAX_SAFE_INTEGER;
+                    const n2 = m && m[2] ? parseInt(m[2],10) : 0;
+                    return [n1, n2];
+                };
+                entries
+                  .sort((a,b)=>{
+                     const A = bedKey(a[1]), B = bedKey(b[1]);
+                     if (A[0] !== B[0]) return A[0]-B[0];
+                     if (A[1] !== B[1]) return A[1]-B[1];
+                     return String(a[0]).localeCompare(String(b[0]), 'zh-Hant');
+                  })
+                  .forEach(([name, bed])=>{
+                     const opt = document.createElement('option');
+                     opt.value = name;
+                     opt.textContent = (bed ? bed + '｜' : '') + name;
+                     sel.appendChild(opt);
+                  });
+                // 當選擇變更時，自動帶出床號與驗證樣式
+                sel.addEventListener('change', ()=>{
+                    const val = sel.value;
+                    const bn = document.getElementById('bedNumber');
+                    const fb = document.getElementById('nameFeedback');
+                    if (val && residentDatabase[val]) {
+                        sel.classList.remove('is-invalid'); sel.classList.add('is-valid');
+                        if (bn) bn.value = residentDatabase[val] || '';
+                        if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+                    } else {
+                        sel.classList.remove('is-valid'); sel.classList.add('is-invalid');
+                        if (bn) bn.value = '';
+                        if (fb) { fb.textContent = getText('name_not_found'); fb.className = 'invalid-feedback'; }
+                    }
+                });
+            }
+
+        } catch (e) {
+            console.error('讀取 residents 失敗：', e);
+        }
     }
-}
+
     const adminNotice = document.getElementById('admin-mode-notice');
     const visitDateInput = document.getElementById('visitDate');
     const timeSlotsContainer = document.getElementById('time-slots');
@@ -430,6 +433,7 @@ async function loadResidents() {
     const confirmationModalElement = document.getElementById('confirmationModal');
     const confirmationModal = new bootstrap.Modal(confirmationModalElement);
     const finalSubmitButton = document.getElementById('final-submit-button');
+
     // 先載入住民資料
     loadResidents();
     
@@ -450,6 +454,21 @@ async function loadResidents() {
     visitDateInput.setAttribute('min', today);
     visitDateInput.value = today;
     selectedDate = today;
+
+    // 工具：取得以「週一為一週起始」的週起訖（本地時間）
+    function getWeekRange(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00'); // local
+        const day = d.getDay(); // 0=Sun..6=Sat
+        // 將週一視為一週的第一天：偏移 = (day+6)%7
+        const offsetToMonday = (day + 6) % 7;
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - offsetToMonday);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const pad = n => String(n).padStart(2,'0');
+        const toYMD = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+        return { start: toYMD(weekStart), end: toYMD(weekEnd) };
+    }
 
     async function renderTimeSlots() {
         timeSlotsContainer.innerHTML = getText('reading_slots');
@@ -492,13 +511,12 @@ async function loadResidents() {
                 timeSlotsContainer.appendChild(button);
             });
         } catch (error) {
-            console.error("讀取時段資料失敗:", error);
+            console.error('讀取時段資料失敗:', error);
             timeSlotsContainer.innerHTML = `<div class="alert alert-danger">${getText('read_slots_failed')}</div>`;
         }
     }
 
     function displaySuccessMessage(bookingData) {
-
         document.getElementById('confirmDate').textContent = selectedDate;
         document.getElementById('confirmTime').textContent = selectedTime;
         document.getElementById('confirmResidentName').textContent = bookingData.residentName;
@@ -534,27 +552,14 @@ async function loadResidents() {
         residentNameInput.classList.remove('is-valid', 'is-invalid');
         bedNumberInput.value = '';
     });
-    residentNameInput.addEventListener('input', function() {
-        const name = this.value.trim();
-        if (residentDatabase[name]) {
-            this.classList.remove('is-invalid');
-            this.classList.add('is-valid');
-            bedNumberInput.value = residentDatabase[name];
-            if(nameFeedback) nameFeedback.textContent = getText('name_validation_success');
-            if(nameFeedback) nameFeedback.className = 'valid-feedback';
-        } else {
-            this.classList.remove('is-valid');
-            this.classList.add('is-invalid');
-            bedNumberInput.value = '';
-            if(nameFeedback) nameFeedback.textContent = getText('name_validation_fail');
-            if(nameFeedback) nameFeedback.className = 'invalid-feedback';
-        }
-    });
-    bookingForm.addEventListener('submit', function(e) {
+
+    // 每週 3 次上限：提交前檢查
+    bookingForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         bookingForm.classList.add('was-validated');
         if (!bookingForm.checkValidity()) { return; }
+
         const residentName = residentNameInput.value.trim();
         if (!residentDatabase[residentName]) {
             bookingForm.classList.remove('was-validated');
@@ -563,6 +568,36 @@ async function loadResidents() {
             if(nameFeedback) nameFeedback.style.display = 'block';
             return;
         }
+
+        // 檢查本週預約次數（週一~週日）
+        const { start, end } = getWeekRange(selectedDate);
+        const submitBtn = bookingForm.querySelector('button[type="submit"]');
+        const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
+        try {
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = getText('checking_quota'); }
+
+            // 避免建立 composite index：先以住民姓名抓，再在前端篩選週期
+            const snap = await db.collection('bookings').where('residentName', '==', residentName).get();
+            let weeklyCount = 0;
+            snap.forEach(doc => {
+                const d = (doc.data() || {}).date || '';
+                if (d >= start && d <= end) weeklyCount++;
+            });
+
+            if (weeklyCount >= 3) {
+                alert(getText('weekly_limit_exceeded'));
+                return;
+            }
+        } catch (err) {
+            console.error('檢查每週上限時發生錯誤：', err);
+            // 若檢查失敗，保守處理：阻擋此次預約以避免超過上限
+            alert(getText('query_failed'));
+            return;
+        } finally {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHTML; }
+        }
+
+        // 進入確認視窗
         pendingBookingData = {
             residentName,
             bedNumber: bedNumberInput.value,
@@ -575,7 +610,8 @@ async function loadResidents() {
         document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
         confirmationModal.show();
     });
-    finalSubmitButton.addEventListener('click', async function() {
+
+    const finalSubmitButtonHandler = async function() {
         finalSubmitButton.disabled = true;
         try {
             await db.collection('bookings').add({
@@ -586,14 +622,13 @@ async function loadResidents() {
             confirmationModal.hide();
             displaySuccessMessage(pendingBookingData);
         } catch (error) {
-            console.error("預約儲存失敗:", error);
+            console.error('預約儲存失敗:', error);
             alert(getText('booking_failed'));
         } finally {
             finalSubmitButton.disabled = false;
         }
-    });
+    };
+    finalSubmitButton.addEventListener('click', finalSubmitButtonHandler);
+
     renderTimeSlots();
 });
-
-
-
