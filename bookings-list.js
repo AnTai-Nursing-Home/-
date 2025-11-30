@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(r => { if (r.residentName) set.add(r.residentName); });
     const names = Array.from(set).sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant-u-kn-true'));
     // 清空保留第一個「全部住民」
-    for (let i = filterResident.options.length - 1; i >= 1; i--) filterResident.remove(i);
+    while (filterResident.options.length > 1) filterResident.remove(1);
     names.forEach(n => {
       const opt = document.createElement('option');
       opt.value = n; opt.textContent = n;
@@ -58,162 +58,106 @@ document.addEventListener('DOMContentLoaded', () => {
     return true; // 'all'
   }
 
-  function render(rows) {
-  if (!rows || rows.length === 0) {
-    bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
-    countTotal.textContent = 0;
-    return;
+  function normalizeDash(s){ return String(s||'').replace(/[－—–ｰ‒﹣－]/g,'-'); }
+  function parseBed(bed){
+    if(!bed) return {floor:Number.MAX_SAFE_INTEGER, pos:Number.MAX_SAFE_INTEGER};
+    const s = normalizeDash(String(bed).trim());
+    const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
+    if(!m) return {floor:Number.MAX_SAFE_INTEGER, pos:Number.MAX_SAFE_INTEGER};
+    const floor = parseInt(m[1],10);
+    let pos = 0;
+    if(m[2]) pos = /^[A-Za-z]$/.test(m[2]) ? (m[2].toUpperCase().charCodeAt(0)-64)+1000 : parseInt(m[2],10);
+    return {floor,pos};
   }
-  // group by date
-  const byDate = {};
-  rows.forEach(b => {
-    const k = b.date || '';
-    if (!byDate[k]) byDate[k] = [];
-    byDate[k].push(b);
-  });
-  const dates = Object.keys(byDate).sort();
-  let html = '';
-  let total = 0;
 
-  dates.forEach(date => {
-    const list = byDate[date];
-    total += list.length;
-    html += `<h4 class="mt-4 mb-2">${date}</h4>`;
-
-    // group by time within this date
-    const byTime = {};
-    list.forEach(b => {
-      const t = b.time || '';
-      if (!byTime[t]) byTime[t] = [];
-      byTime[t].push(b);
-    });
-    const times = Object.keys(byTime).sort();
-
-    html += `<table class="table table-bordered table-striped table-hover">
-      <thead class="table-light">
-        <tr>
-          <th style="width:90px">時段</th>
-          <th>住民姓名</th>
-          <th style="width:120px">床號</th>
-          <th>與住民關係</th>
-          <th style="width:100px;" class="no-print">操作</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-    times.forEach(time => {
-      const items = byTime[time].slice().sort((a,b)=>{
-        // within same time, sort by bed then resident
-        const normDash = s => String(s || '').replace(/[－—–ｰ‒﹣－]/g, '-');
-        const parseBed = (bed) => {
-          if (!bed) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
-          const s = normDash(String(bed).trim());
-          const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
-          if (!m) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
-          const floor = parseInt(m[1], 10);
-          let pos = 0;
-          if (m[2]) pos = /^[A-Za-z]$/.test(m[2]) ? (m[2].toUpperCase().charCodeAt(0)-64)+1000 : parseInt(m[2],10);
-          return { floor, pos };
-        };
-        const A = parseBed(a.bedNumber), B = parseBed(b.bedNumber);
-        if (A.floor !== B.floor) return A.floor - B.floor;
-        if (A.pos !== B.pos) return A.pos - B.pos;
-        return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
-      });
-
-      // subheader row for the time slot
-      html += `<tr class="slot-header">
-        <td colspan="5"><strong>${time}</strong>（${items.length} 筆）</td>
-      </tr>`;
-
-      items.forEach(b => {
-        html += `<tr>
-          <td>${time}</td>
-          <td>${b.residentName || ''}</td>
-          <td>${b.bedNumber || ''}</td>
-          <td>${b.visitorRelationship || '未填寫'}</td>
-          <td class="no-print"><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">刪除</button></td>
-        </tr>`;
-      });
-    });
-
-    html += `</tbody></table>`;
-  });
-
-  bookingListContainer.innerHTML = html;
-  countTotal.textContent = total;
-}
+  function render(rows) {
+    if (!rows || rows.length === 0) {
+      bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
+      countTotal.textContent = 0;
+      return;
+    }
 
     // group by date
-    const groups = {};
+    const byDate = {};
     rows.forEach(b => {
       const k = b.date || '';
-      if (!groups[k]) groups[k] = [];
-      groups[k].push(b);
+      if (!byDate[k]) byDate[k] = [];
+      byDate[k].push(b);
     });
-    const dates = Object.keys(groups).sort();
+    const dates = Object.keys(byDate).sort();
     let html = '';
     let total = 0;
 
     dates.forEach(date => {
-      const list = groups[date];
+      const list = byDate[date];
       total += list.length;
-      html += `<h4>${date}</h4>`;
+      html += `<h4 class="mt-4 mb-2">${date}</h4>`;
+
+      // group by time within this date
+      const byTime = {};
+      list.forEach(b => {
+        const t = b.time || '';
+        if (!byTime[t]) byTime[t] = [];
+        byTime[t].push(b);
+      });
+      const times = Object.keys(byTime).sort();
+
       html += `<table class="table table-bordered table-striped table-hover">
         <thead class="table-light">
           <tr>
-            <th>時段</th>
+            <th style="width:90px">時段</th>
             <th>住民姓名</th>
-            <th>床號</th>
+            <th style="width:120px">床號</th>
             <th>與住民關係</th>
             <th style="width:100px;" class="no-print">操作</th>
           </tr>
         </thead>
         <tbody>`;
-      list.forEach(b => {
-        html += `<tr>
-          <td>${b.time || ''}</td>
-          <td>${b.residentName || ''}</td>
-          <td>${b.bedNumber || ''}</td>
-          <td>${b.visitorRelationship || '未填寫'}</td>
-          <td class="no-print"><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">刪除</button></td>
+
+      times.forEach(time => {
+        const items = byTime[time].slice().sort((a,b)=>{
+          const A = parseBed(a.bedNumber), B = parseBed(b.bedNumber);
+          if (A.floor !== B.floor) return A.floor - B.floor;
+          if (A.pos !== B.pos) return A.pos - B.pos;
+          return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
+        });
+
+        // subheader row for the time slot
+        html += `<tr class="slot-header">
+          <td colspan="5"><strong>${time}</strong>（${items.length} 筆）</td>
         </tr>`;
+
+        items.forEach(b => {
+          html += `<tr>
+            <td>${time}</td>
+            <td>${b.residentName || ''}</td>
+            <td>${b.bedNumber || ''}</td>
+            <td>${b.visitorRelationship || '未填寫'}</td>
+            <td class="no-print"><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">刪除</button></td>
+          </tr>`;
+        });
       });
+
       html += `</tbody></table>`;
     });
 
     bookingListContainer.innerHTML = html;
     countTotal.textContent = total;
-    }
   }
 
   async function displayBookings() {
     bookingListContainer.innerHTML = '讀取中...';
     try {
-      // 讀取原始資料
       const raw = await loadRawRows();
 
-      // 先填住民下拉
       populateResidentFilter(raw);
 
-      // 下拉篩選
       const mode = filterDate.value || 'all';
       const who = filterResident.value || 'all';
       let rows = raw.filter(r => inDateRange(r, mode));
       if (who !== 'all') rows = rows.filter(r => r.residentName === who);
 
-      // 同日期內再排序：時段 → 床號 → 住民（盡量不動視覺樣式）
-      const normDash = s => String(s || '').replace(/[－—–ｰ‒﹣－]/g, '-');
-      const parseBed = (bed) => {
-        if (!bed) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
-        const s = normDash(String(bed).trim());
-        const m = s.match(/^(\\d{1,4})(?:-([A-Za-z]|\\d{1,3}))?$/);
-        if (!m) return { floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER };
-        const floor = parseInt(m[1], 10);
-        let pos = 0;
-        if (m[2]) pos = /^[A-Za-z]$/.test(m[2]) ? (m[2].toUpperCase().charCodeAt(0)-64)+1000 : parseInt(m[2],10);
-        return { floor, pos };
-      };
+      // Sort by date -> time -> bed -> resident
       rows.sort((a,b)=>{
         if ((a.date||'') !== (b.date||'')) return (a.date||'').localeCompare(b.date||'');
         if ((a.time||'') !== (b.time||'')) return (a.time||'').localeCompare(b.time||'');
@@ -239,18 +183,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 刪除
   bookingListContainer.addEventListener('click', async (e) => {
-    if (!e.target.classList.contains('btn-admin-delete')) return;
-    const docId = e.target.dataset.id;
-    if (confirm('確定要刪除這筆預約嗎？\\n此操作無法復原。')) {
+    const btn = e.target.closest('.btn-admin-delete');
+    if (!btn) return;
+    const docId = btn.dataset.id;
+    if (confirm('確定要刪除這筆預約嗎？\n此操作無法復原。')) {
       try {
-        e.target.disabled = true;
+        btn.disabled = true;
         await db.collection('bookings').doc(docId).delete();
         alert('預約已刪除！');
         displayBookings();
       } catch (error) {
         console.error("管理員刪除失敗:", error);
         alert("刪除失敗，請稍後再試。");
-        e.target.disabled = false;
+        btn.disabled = false;
       }
     }
   });
