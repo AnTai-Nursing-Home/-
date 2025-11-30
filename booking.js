@@ -53,6 +53,7 @@ const translations = {
         'choose_date': '選擇日期',
         'today_past_noon': '今日已過中午12點，無法預約當天時段，請選擇其他日期。',
         'reading_slots': '讀取中...',
+        'please_select': '請選擇',
         'read_slots_failed': '讀取時段失敗，請重新整理頁面。',
         'slot_full': '已額滿',
         'slot_past': '已逾時',
@@ -212,6 +213,7 @@ const translations = {
         'booking_system_title': 'Visit Booking System', 'admin_mode_notice': 'Admin Mode: You can now book slots for today after 12:00 PM.',
         'step1_title': 'Step 1: Select Date and Time', 'choose_date': 'Select Date',
         'today_past_noon': 'Booking for today is closed after 12:00 PM. Please select another date.', 'reading_slots': 'Loading...',
+        'please_select': 'Please select',
         'read_slots_failed': 'Failed to load time slots, please refresh the page.', 'slot_full': 'Full', 'slot_past': 'Past',
         'slot_remaining': 'Remaining: {remaining}', 'step2_title': 'Step 2: Fill in Information', 'resident_name': 'Resident\'s Name',
         'bed_number': 'Bed Number', 'visitor_name': 'Visitor\'s Name', 'visitor_relationship': 'Relationship to Resident',
@@ -376,27 +378,43 @@ document.addEventListener('firebase-ready', () => {
                 sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
                 // 依床位排序 (如 "205-2")
                 const entries = Object.entries(residentDatabase); // [name, bed]
-                const bedKey = (bed) => {
-                    if (!bed) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
-                    const m = String(bed).match(/(\\d+)(?:-(\\d+))?/);
-                    const n1 = m ? parseInt(m[1],10) : Number.MAX_SAFE_INTEGER;
-                    const n2 = m && m[2] ? parseInt(m[2],10) : 0;
-                    return [n1, n2];
+                
+                // 依床位排序，嚴格數字排序 (支援 221-1 / 308-2 / 111-1A 等格式)
+                const normalizeDash = s => String(s).replace(/[－—–ｰ‒﹣－]/g, '-');
+                const parseBed = (bed) => {
+                    if (!bed) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: ''};
+                    const s = normalizeDash(String(bed).trim());
+                    // 支援數字-數字 或 數字-英文字母 (如 111-1A)，沒有 - 時 pos=0
+                    const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
+                    if (!m) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: s};
+                    const floor = parseInt(m[1], 10);
+                    let pos = 0;
+                    if (m[2]) {
+                        if (/^[A-Za-z]$/.test(m[2])) {
+                            // 字母床位：轉為數字排序，但排在數字之後（+1000）
+                            pos = (m[2].toUpperCase().charCodeAt(0) - 64) + 1000; // A=1001, B=1002...
+                        } else {
+                            pos = parseInt(m[2], 10);
+                        }
+                    }
+                    return {floor, pos, raw: s};
                 };
                 entries
-                  .sort((a,b)=>{
-                     const A = bedKey(a[1]), B = bedKey(b[1]);
-                     if (A[0] !== B[0]) return A[0]-B[0];
-                     if (A[1] !== B[1]) return A[1]-B[1];
-                     return String(a[0]).localeCompare(String(b[0]), 'zh-Hant');
+                  .sort((a, b) => {
+                      const A = parseBed(a[1]);
+                      const B = parseBed(b[1]);
+                      if (A.floor !== B.floor) return A.floor - B.floor;
+                      if (A.pos !== B.pos) return A.pos - B.pos;
+                      // 最後才以姓名排序（中文友善）
+                      return String(a[0]).localeCompare(String(b[0]), 'zh-Hant-u-kn-true');
                   })
-                  .forEach(([name, bed])=>{
-                     const opt = document.createElement('option');
-                     opt.value = name;
-                     opt.textContent = (bed ? bed + '｜' : '') + name;
-                     sel.appendChild(opt);
+                  .forEach(([name, bed]) => {
+                      const opt = document.createElement('option');
+                      opt.value = name;
+                      opt.textContent = (bed ? bed + '｜' : '') + name;
+                      sel.appendChild(opt);
                   });
-                // 當選擇變更時，自動帶出床號與驗證樣式
+// 當選擇變更時，自動帶出床號與驗證樣式
                 sel.addEventListener('change', ()=>{
                     const val = sel.value;
                     const bn = document.getElementById('bedNumber');
