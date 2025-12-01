@@ -263,7 +263,7 @@ checkTimePermissions();
 
         tableContent += '</tbody></table>';
         const headerContent = `<div style="text-align: center;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>`;
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #000 !important;padding:6px}thead th{border:1px solid #000 !important}</style></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
