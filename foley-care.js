@@ -249,7 +249,9 @@ checkTimePermissions();
         <th>${getText('caregiver')}</th><th>${getText('nurse')}</th></tr></thead><tbody>`;
 
         careTableBody.querySelectorAll('tr').forEach(row => {
-            const date = row.querySelector('th').textContent;
+            const dateAttr = row.getAttribute('data-date');
+            const dObj = new Date(dateAttr + 'T00:00:00');
+            const date = `${dObj.getMonth()+1}/${dObj.getDate()}`;
             let rowContent = `<tr><td style="border:1px solid black;">${date}</td>`;
             row.querySelectorAll('td').forEach((cell, index) => {
                 let cellValue = '';
