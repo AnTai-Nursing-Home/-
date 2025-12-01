@@ -29,7 +29,7 @@ document.addEventListener('firebase-ready', () => {
     const printReportBtn = document.getElementById('print-report-btn');
     
     // --- 變數 ---
-    const careItems = ['handHygiene', 'fixedPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
+    const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
     const careFormsCollection = 'foley_care_records';
     let currentCareFormId = null;
@@ -186,18 +186,48 @@ document.addEventListener('firebase-ready', () => {
     console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled} | 護理師填寫:${nurseEnabled}`);
 }
     
+    
     function generateReportHTML() {
         const residentName = residentNameSelectForm.value;
-        const residentData = residentsData[residentName];
+        const residentData = residentsData[residentName] || {};
+        const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
+        const gender = genderInput.value || residentData.gender || '';
+        const birthday = birthdayInput.value || residentData.birthday || '';
+        const checkinDate = checkinDateInput.value || residentData.checkinDate || '';
+        const placementDate = placementDateInput.value || '';
+        const closingDate = closingDateInput.value || '';
+
+        // --- 基本資料區塊（列印用） ---
+        const basicInfoTable = `
+        <table style="width:100%; border-collapse:collapse; font-size:10pt; margin: 10px 0 14px 0;">
+          <tr>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('birthday')}</b>：${birthday}</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('checkin_date')}</b>：${checkinDate}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('placement_date')}</b>：${placementDate}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('closing_date')}</b>：${closingDate || getText('ongoing')}</td>
+            <td style="border:1px solid #000; padding:6px;"></td>
+          </tr>
+        </table>`;
+
         let tableContent = `<table style="width:100%; border-collapse: collapse; font-size: 9pt;">
         <thead>
         <tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;">
         <th rowspan="2" style="border: 1px solid black;">${getText('date')}</th>
-        <th colspan="6" style="border: 1px solid black;">${getText('assessment_items')}</th>
+        <th colspan="7" style="border: 1px solid black;">${getText('assessment_items')}</th>
         <th colspan="2" style="border: 1px solid black;">${getText('signature')}</th></tr>
         <tr style="text-align:center;font-weight:bold;background-color:#f2f2f2;">
-        <th>${getText('hand_hygiene')}</th><th>${getText('fixed_position')}</th><th>${getText('unobstructed_drainage')}</th>
-        <th>${getText('avoid_overfill')}</th><th>${getText('urethral_cleaning')}</th><th>${getText('single_use_container')}</th>
+        <th>${getText('hand_hygiene')}</th>
+        <th>${getText('fixed_position')}</th>
+        <th>${getText('urine_bag_position')}</th>
+        <th>${getText('unobstructed_drainage')}</th>
+        <th>${getText('avoid_overfill')}</th>
+        <th>${getText('urethral_cleaning')}</th>
+        <th>${getText('single_use_container')}</th>
         <th>${getText('caregiver')}</th><th>${getText('nurse')}</th></tr></thead><tbody>`;
 
         careTableBody.querySelectorAll('tr').forEach(row => {
@@ -219,7 +249,7 @@ document.addEventListener('firebase-ready', () => {
 
         tableContent += '</tbody></table>';
         const headerContent = `<div style="text-align: center;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>`;
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title></head><body>${headerContent}${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
