@@ -123,6 +123,8 @@ document.addEventListener('firebase-ready', () => {
 
     function renderCareTable(placementDate, closingDate, careData = {}) {
         const startDate = new Date(placementDate + 'T00:00:00');
+        // 開始日期改為置放日+1天
+        startDate.setDate(startDate.getDate() + 1);
         const endDate = closingDate ? new Date(closingDate + 'T00:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0);
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
@@ -153,13 +155,25 @@ document.addEventListener('firebase-ready', () => {
             const caregiverSign = dailyRecord.caregiverSign || '';
             const nurseSign = dailyRecord.nurseSign || '';
             const row = `<tr data-date="${dateString}">
-                <th>${month}/${day}</th>${itemCells}
+                <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">全Yes</button></th>${itemCells}
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td>
             </tr>`;
             careTableBody.innerHTML += row;
         }
-        checkTimePermissions();
+        
+        // 綁定一鍵全Yes
+        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const dateStr = btn.getAttribute('data-date');
+                const row = careTableBody.querySelector(`tr[data-date="${dateStr}"]`);
+                if (!row) return;
+                // 將該列所有 careItems radio 都設為 Yes
+                const radios = row.querySelectorAll('input[type="radio"][value="Yes"]');
+                radios.forEach(r => { r.checked = true; });
+            });
+        });
+checkTimePermissions();
     }
 
     function checkTimePermissions() {
