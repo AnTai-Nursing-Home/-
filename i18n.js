@@ -267,7 +267,7 @@ const translations = {
         'urine_bag_position': '3. Urine bag position', 'unobstructed_drainage': '4. Unobstructed Drainage',
         'avoid_overfill': '5. Avoid Overfill', 'urethral_cleaning': '6. Urethral Cleaning', 'single_use_container': '7. Single Use Container',
         'yes': 'Yes', 'no': 'No',
-        'fill_all_yes': '全Yes', 'save_this_care_form': 'Save This Care Form', 'delete_this_care_form': 'Delete This Care Form',
+        'fill_all_yes': 'All Yes', 'save_this_care_form': 'Save This Care Form', 'delete_this_care_form': 'Delete This Care Form',
         'back_to_list': 'Back to List', 'load_care_form_failed': 'Failed to load care form, please try again later.',
         'fill_form_first': 'Please select a resident and fill in the placement date first!', 'care_form_saved': 'Care form has been saved successfully!',
         'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\nThis action cannot be undone!',
