@@ -155,7 +155,7 @@ document.addEventListener('firebase-ready', () => {
             const caregiverSign = dailyRecord.caregiverSign || '';
             const nurseSign = dailyRecord.nurseSign || '';
             const row = `<tr data-date="${dateString}">
-                <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">全Yes</button></th>${itemCells}
+                <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td>
             </tr>`;
