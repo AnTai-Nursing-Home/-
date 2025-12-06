@@ -648,7 +648,7 @@ function renderStats(){
     ws.getCell('A1').font = fontTitle;
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
+    const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:20});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
@@ -723,8 +723,10 @@ function renderStats(){
     ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
 
     // 自動調整第 2 欄（活動能力力區分）欄寬
-    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
-    ws.getColumn(2).width = Math.max(20, Math.min(45, Math.ceil(maxLen * 1.1)));
+    const maxLen = Math.max('活動能力區分'.length, ...abilityStrings.map(s=>s.length));
+    // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
+    ws.getColumn(2).width = Math.max(28, Math.min(60, Math.ceil(maxLen * 2)));
+    ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
 
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
