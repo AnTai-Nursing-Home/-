@@ -471,110 +471,248 @@ function renderStats(){
 
 
   async function exportStyledXls(){
-    if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
+  if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'MSICAO';
-    wb.created = new Date();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'MSICAO';
+  wb.created = new Date();
 
-    // 共用樣式
-    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
-    const headerFont = { name:'Microsoft JhengHei', bold:true, size:11 };
-    const cellFont = { name:'Microsoft JhengHei', size:11 };
-    const borderThin = { top:{style:'thin',color:{argb:'FF999999'}}, left:{style:'thin',color:{argb:'FF999999'}}, bottom:{style:'thin',color:{argb:'FF999999'}}, right:{style:'thin',color:{argb:'FF999999'}} };
+  // ===== 共用樣式 =====
+  const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
+  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:10 };
+  const fontCell   = { name:'Microsoft JhengHei', size:10 };
+  const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+  const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
+  const borderThin = { top:{style:'thin',color:{argb:'FF9E9E9E'}},
+                       left:{style:'thin',color:{argb:'FF9E9E9E'}},
+                       bottom:{style:'thin',color:{argb:'FF9E9E9E'}},
+                       right:{style:'thin',color:{argb:'FF9E9E9E'}} };
 
-    function setColWidths(ws, widths){
-      ws.columns = widths.map(w => ({ width:w }));
-    }
-    function styleRow(row, {isHeader=false, alt=false}={}){
-      row.eachCell(c=>{
-        c.font = isHeader ? headerFont : cellFont;
-        c.border = borderThin;
-        if(isHeader){ c.fill = headerFill; c.alignment = { vertical:'middle', horizontal:'center'}; }
-        else{ c.alignment = { vertical:'middle'}; if(alt){ c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}}; } }
-      });
-      row.height = 20;
-    }
-    function addTable(ws, headers, rows, widths){
-      setColWidths(ws, widths);
-      const headerRow = ws.addRow(headers);
-      styleRow(headerRow, {isHeader:true});
-      rows.forEach((r,i)=>{
-        const row = ws.addRow(r);
-        styleRow(row, {alt: i%2===1});
-      });
-      ws.views = [{ state:'frozen', ySplit:1 }];
-    }
-
-    // 基本資料
-    const wsBasic = wb.addWorksheet('基本資料');
-    const headers = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const rowsBasic = cache.map(r=>[
-      r.nursingStation||'', r.bedNumber||'', r.id||'', r.idNumber||'', r.birthday||'', r.gender||'',
-      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
-      r.emergencyContact||'', r.emergencyPhone||'', r.mobility||'', r.checkinDate||'', r.leaveStatus||''
-    ]);
-    addTable(wsBasic, headers, rowsBasic, [10,10,10,18,12,8,10,16,14,12,12,10]);
-
-    // 依模板輸出樓層
-    function floorRows(floor){
-      const tpl=getTemplate(cache);
-      const tokens = (tpl[String(floor)]||[]).slice();
-      const resMap = new Map(); cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
-      const rows=[]; let total=0, used=0; const emptyList=[];
-      tokens.forEach(t=>{
-        total++;
-        const r=resMap.get(t);
-        if(r){ used++; rows.push([t, r.id||'', r.gender||'', (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.leaveStatus||'']); }
-        else{ rows.push([t, '🈳 空床', '', '', '']); emptyList.push(t); }
-      });
-      return {rows,total,used,emptyList};
-    }
-    function addFloorSheet(name,floor){
-      const ws = wb.addWorksheet(name);
-      const {rows,total,used,emptyList} = floorRows(floor);
-      addTable(ws, ['床號','姓名','性別','年齡','狀態'], rows, [10,12,8,8,10]);
-      ws.addRow([]);
-      const sumRow = ws.addRow(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
-      styleRow(sumRow);
-      const emptyRow = ws.addRow(['空床清單', emptyList.join('、')]);
-      styleRow(emptyRow);
-      // 強制第一欄對齊靠左顯示字串
-      ws.getColumn(1).alignment = { horizontal:'left', vertical:'middle' };
-    }
-    addFloorSheet('1樓床位配置',1);
-    addFloorSheet('2樓床位配置',2);
-    addFloorSheet('3樓床位配置',3);
-
-    // 總人數統計
-    const wsStats = wb.addWorksheet('總人數統計');
-    const total=cache.length;
-    const male=cache.filter(r=>r.gender==='男').length;
-    const female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
-    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
-    const present=total-(leave+hosp);
-    const stats = [
-      ['項目','數量'],
-      ['總人數', total],
-      ['男', male],
-      ['女', female],
-      ['實到', present],
-      ['請假', leave],
-      ['住院', hosp]
-    ];
-    addTable(wsStats, stats[0], stats.slice(1), [12,10]);
-
-    // 下載
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rocName()+'.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+  function styleRow(row,{isHeader=false,alt=false,center=false,height=18,wrap=false}={}){
+    row.eachCell((c,idx)=>{
+      c.font = isHeader ? fontHeader : fontCell;
+      c.border = borderThin;
+      const isBedNoCol = [2,7,12].includes(idx); // 床號欄置中
+      c.alignment = { vertical:'middle', horizontal: (isHeader||center) ? 'center' : (isBedNoCol?'center':'left'), wrapText: wrap };
+      if(isHeader) c.fill = fillHeader;
+      else if(alt) c.fill = fillAlt;
+    });
+    row.height = height;
   }
+  function addTitle(ws, text, lastCol){
+    ws.mergeCells(1,1,1,lastCol);
+    const c = ws.getCell(1,1);
+    c.value = text;
+    c.font = fontTitle;
+    c.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 26;
+  }
+  function formatDate(d, sep='/'){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+    return `${y}${sep}${m}${sep}${da}`;
+  }
+  function getTpl(){
+    try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
+    catch{ return {'1':[],'2':[],'3':[]}; }
+  }
+  function computeAge(iso){
+    if(!iso) return '';
+    const d=new Date(iso); if(isNaN(d)) return '';
+    const now=new Date();
+    let a=now.getFullYear()-d.getFullYear();
+    const m=now.getMonth()-d.getMonth();
+    if(m<0||(m===0&&now.getDate()<d.getDate())) a--;
+    return a;
+  }
+
+  // ===== 基本資料（第一張） =====
+  (function addBasicSheet(){
+    const ws = wb.addWorksheet('基本資料', {views:[{state:'frozen', ySplit:1}]});
+    ws.columns = [
+      {width:8},{width:8},{width:14},{width:16},{width:6},{width:6},{width:12},{width:22}
+    ];
+    ws.mergeCells(1,1,1,8);
+    ws.getCell('A1').value='基本資料'; ws.getCell('A1').font=fontTitle; ws.getCell('A1').alignment={vertical:'middle',horizontal:'center'};
+    const header = ws.addRow(['房號','床號','床位代碼','姓名','性別','年齡','狀態','備註']);
+    styleRow(header,{isHeader:true,center:true});
+    const rows = (cache||[]).slice().sort((a,b)=>String(a.bedNumber||'').localeCompare(String(b.bedNumber||''),'zh-Hant'));
+    for(const r of rows){
+      const [room, bed] = String(r.bedNumber||'').split(/[-_]/);
+      const age = computeAge(r.birthday);
+      const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
+      styleRow(row,{});
+    }
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+  })();
+
+  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
+  function addFloorSheet(name, floor){
+    const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
+    ws.columns = [
+      {width:8},{width:8},{width:18},{width:12},{width:2},
+      {width:10},{width:10},{width:18},{width:12},{width:2},
+      {width:10},{width:10},{width:18},{width:12}
+    ];
+
+    addTitle(ws, name, 14);
+    const head1 = ws.addRow(['房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡']);
+    styleRow(head1, {isHeader:true,height:18});
+    [[1],[6],[11]].forEach(([s])=>ws.mergeCells(2,s,3,s));
+
+    const tpl = getTpl();
+    const tokens = (tpl[String(floor)]||[]).slice();
+    const byRoom = {};
+    tokens.forEach(tok=>{
+      const m = String(tok).match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
+      if(!m) return;
+      const room=m[1], sub=m[2].toUpperCase();
+      (byRoom[room]=byRoom[room]||[]).push(sub);
+    });
+    const dataMap = new Map();
+    (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-').toUpperCase(); dataMap.set(key,r); });
+
+    const rooms = Object.keys(byRoom).sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+    let rowCursor = 4;
+    let totalBeds=0, usedBeds=0;
+    for(let i=0;i<rooms.length;i+=3){
+      const group = rooms.slice(i, i+3);
+      const lines = Math.max(...group.map(rm => (byRoom[rm]||[]).length), 0) || 1;
+      for(let r=0;r<lines;r++){
+        const rowCells = [];
+        for(let k=0;k<3;k++){
+          const rm = group[k];
+          const isLast = (k===2);
+          if(!rm){
+            // 無此房：填滿該區塊
+            rowCells.push('','','','');
+            if(!isLast) rowCells.push(''); // 只有前兩房加 spacer
+            continue;
+          }
+          const subs = byRoom[rm]||[];
+          const sub = subs[r];
+          // 房號列只在這組的首行顯示
+          rowCells.push(r===0 ? rm : '');
+          if(sub){
+            totalBeds++;
+            const token = `${rm}-${sub}`.toUpperCase();
+            const rec = dataMap.get(token);
+            if(rec) usedBeds++;
+            const age = rec ? computeAge(rec.birthday) : '';
+            const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
+            const nameText = rec ? (rec.id||'') : '空床';
+            rowCells.push(sub, nameText, sexAge);
+          }else{
+            rowCells.push('', '', '');
+          }
+          if(!isLast) rowCells.push(''); // spacer only for first & second blocks
+        }
+        // 確保長度為 14
+        while(rowCells.length < 14) rowCells.push('');
+        if(rowCells.length > 14) rowCells.length = 14;
+
+        const row = ws.insertRow(rowCursor++, rowCells);
+        styleRow(row, {alt:(rowCursor%2===0), height:18, wrap:false});
+      }
+      // 區隔空白行
+      const sep = ws.insertRow(rowCursor++, Array(14).fill(''));
+      sep.height = 6;
+    }
+    const emptyBeds = totalBeds - usedBeds;
+    rowCursor += 1;
+    const sumRow = ws.getRow(rowCursor);
+    sumRow.getCell(1).value = '樓層床位數';
+    sumRow.getCell(2).value = totalBeds;
+    sumRow.getCell(6).value = '空床數';
+    sumRow.getCell(7).value = emptyBeds;
+    sumRow.getCell(11).value = '已使用床位數';
+    sumRow.getCell(12).value = usedBeds;
+    ;[2,7,12].forEach(ci=>{ const c=sumRow.getCell(ci); c.alignment={vertical:'middle', horizontal:'center', shrinkToFit:true}; c.numFmt='0'; });
+    styleRow(sumRow, {isHeader:true, height:20});
+
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+  }
+
+  addFloorSheet('1樓床位配置', 1);
+  addFloorSheet('2樓床位配置', 2);
+  addFloorSheet('3樓床位配置', 3);
+
+  // ===== 各樓層人數統計 =====
+  (function addPeopleStats(){
+    const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
+    ws.columns = [{width:10},{width:28},{width:12},{width:12},{width:16},{width:6},{width:12}];
+    ws.mergeCells('A1:G1');
+    ws.getCell('A1').value = '各樓層人數統計';
+    ws.getCell('A1').font = fontTitle;
+    ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
+    ws.getRow(1).height = 28;
+    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
+    styleRow(header,{isHeader:true,center:true,height:20});
+
+    const floors = {'1':[],'2':[],'3':[]};
+    (cache||[]).forEach(r=>{
+      const bed = String(r.bedNumber||''); const m=bed.match(/^(\d{3})[-_]/);
+      const fl = m?m[1][0]:null;
+      if(fl && floors[fl]) floors[fl].push(r);
+    });
+    function sumFloor(list){
+      const leave = list.filter(r=>r.leaveStatus==='請假').length;
+      const hosp  = list.filter(r=>r.leaveStatus==='住院').length;
+      const present = list.length - leave - hosp;
+      return {leave, hosp, present, total:list.length};
+    }
+    function abilityCount(list){
+      const acc = {wheel:0,push:0,walk:0};
+      list.forEach(r=>{
+        const a = (r.mobility||r.ability||'').trim();
+        if(a.includes('輪椅')) acc.wheel++;
+        else if(a.includes('推')) acc.push++;
+        else if(a.includes('步')) acc.walk++;
+      });
+      return acc;
+    }
+
+    let sumLeave=0,sumPresent=0,sumTotal=0;
+    ['1','2','3'].forEach(fl=>{
+      const acc = sumFloor(floors[fl]);
+      const ab  = abilityCount(floors[fl]);
+      sumLeave += acc.leave; sumPresent += acc.present; sumTotal += acc.total;
+      const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
+      const row = ws.addRow([`${fl}樓`, abilityText, acc.leave, acc.present, acc.total, '', '']);
+      styleRow(row,{center:true});
+    });
+
+    const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
+    styleRow(totalRow,{isHeader:true,center:true});
+    ws.getCell(`C${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFF00'}};
+    ws.getCell(`D${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2F80ED'}};
+    ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
+    const badge = ws.getCell(`F${totalRow.number+1}`);
+    badge.value = sumPresent;
+    badge.font = {name:'Microsoft JhengHei', size:18, bold:true};
+    badge.alignment = {horizontal:'center', vertical:'middle'};
+    badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}};
+    ws.getCell(`E${totalRow.number+1}`).value = '＝';
+    ws.getCell(`E${totalRow.number+1}`).alignment = {horizontal:'center', vertical:'middle'};
+
+    ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
+    ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
+    ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
+    ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
+
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+  })();
+
+  // ===== 下載 =====
+  const blob = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
     function hookEvents(){
     document.addEventListener('click', (e)=>{
       const t=e.target;
