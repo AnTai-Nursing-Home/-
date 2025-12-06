@@ -6,8 +6,28 @@
   <title>住民資料管理 - 員工系統</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    .room-card{ border:3px solid #2b2b2b; border-radius:8px; background:#fff; }
+    .room-head{ font-weight:800; text-align:center; padding:6px 8px; border-bottom:2px solid #2b2b2b; background:#f8f9fa; }
+    .room-body{ padding:4px 6px; }
+    .slot{ border-bottom:1px solid #e5e7eb; padding:6px 4px; }
+    .slot:last-child{ border-bottom:0; }
+    .slot-green{ background:#e9f9ee; }
+    .slot-yellow{ background:#fff6cd; }
+    .slot-red{ background:#ffe2e2; }
+    .slot-empty{ background:#fafafa; }
+    .stats-frame{ border:3px solid #2b2b2b; border-radius:12px; overflow:hidden; background:#fff; }
+    .stats-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:2px solid #2b2b2b; background:#fdfdf6; }
+    .stats-header .title{ font-weight:800; }
+    .total-badge{ font-weight:900; font-size:28px; line-height:1; background:#d8f5a2; padding:6px 12px; border-radius:8px; }
+    .stats-body{ padding:12px 14px; }
+    .mini-cards{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px; }
+    .mini{ border:1px solid #e5e7eb; border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; background:#fcfcfc; }
+    .mini.ok{ background:#e9f9ee; }
+    .mini.warn{ background:#fff6cd; }
+    .mini.danger{ background:#ffe2e2; }
+  </style>
 </head>
 <body>
   <div class="container my-5">
@@ -19,21 +39,16 @@
           </div>
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-              <a href="admin.html?view=dashboard" class="btn btn-back-menu">
+              <a href="admin.html?view=dashboard" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>返回儀表板
               </a>
-              <div>
-                <button id="open-template-btn" class="btn btn-outline-secondary me-2"><i class="fas fa-table-list me-2"></i>床位模板設定</button>
-                <button id="import-excel-btn" class="btn btn-info">
-                  <i class="fas fa-file-excel me-2"></i>從 Excel 匯入
-                </button>
+              <div class="d-flex gap-2">
+                <button id="open-template-btn" class="btn btn-outline-secondary"><i class="fas fa-table-list me-2"></i>床位模板設定</button>
+                <button id="import-excel-btn" class="btn btn-info"><i class="fas fa-file-excel me-2"></i>從 Excel 匯入</button>
                 <input type="file" id="excel-file-input" class="d-none" accept=".xlsx, .xls">
-                <button id="add-resident-btn" class="btn btn-success">
-                  <i class="fas fa-plus me-2"></i>單筆新增住民
-                </button>
+                <button id="add-resident-btn" class="btn btn-success"><i class="fas fa-plus me-2"></i>單筆新增住民</button>
               </div>
             </div>
-            <div id="import-status" class="alert alert-info d-none" role="alert"></div>
 
             <ul class="nav nav-tabs mb-3" id="resTabs" role="tablist">
               <li class="nav-item" role="presentation">
@@ -98,111 +113,11 @@
     </div>
   </div>
 
-  <!-- Modal -->
-  <div class="modal fade" id="resident-modal" tabindex="-1" aria-labelledby="residentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="resident-modal-title"></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="resident-form">
-            <div class="mb-3">
-              <label for="resident-sortOrder" class="form-label">排序 (數字越小越前面)</label>
-              <input type="number" class="form-control" id="resident-sortOrder" value="999">
-            </div>
-            <div class="mb-3">
-              <label for="resident-name" class="form-label">姓名</label>
-              <input type="text" class="form-control" id="resident-name" required>
-            </div>
-            <div class="mb-3">
-              <label for="resident-bedNumber" class="form-label">床號</label>
-              <input type="text" class="form-control" id="resident-bedNumber" required>
-            </div>
-            <div class="mb-3">
-              <label for="resident-station" class="form-label">護理站</label>
-              <input type="text" class="form-control" id="resident-station" placeholder="例如：1F護理站">
-            </div>
-            <div class="mb-3">
-              <label for="resident-emgName" class="form-label">緊急連絡人或家屬</label>
-              <input type="text" class="form-control" id="resident-emgName">
-            </div>
-            <div class="mb-3">
-              <label for="resident-emgPhone" class="form-label">連絡電話</label>
-              <input type="tel" class="form-control" id="resident-emgPhone">
-            </div>
-            <div class="mb-3">
-              <label for="resident-mobility" class="form-label">行動方式</label>
-              <input type="text" class="form-control" id="resident-mobility" placeholder="例如：輪椅／步行／推床">
-            </div>
-            <div class="mb-3">
-              <label for="resident-gender" class="form-label">性別</label>
-              <select class="form-select" id="resident-gender" required>
-                <option value="" disabled selected>請選擇</option>
-                <option value="男">男</option>
-                <option value="女">女</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="resident-idNumber" class="form-label">身份証字號</label>
-              <input type="text" class="form-control" id="resident-idNumber" placeholder="請輸入身份証字號">
-            </div>
-            <div class="mb-3">
-              <label for="resident-birthday" class="form-label">生日</label>
-              <input type="date" class="form-control" id="resident-birthday" required>
-            </div>
-            <div class="mb-3">
-              <label for="resident-checkinDate" class="form-label">入住日期</label>
-              <input type="date" class="form-control" id="resident-checkinDate" required>
-            </div>
-            <div class="mb-3">
-              <label for="resident-status" class="form-label">請假 / 住院</label>
-              <select class="form-select" id="resident-status">
-                <option value="">無</option>
-                <option value="請假">請假</option>
-                <option value="住院">住院</option>
-              </select>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" id="save-resident-btn" class="btn btn-primary">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Template Modal -->
-  <div class="modal fade" id="template-modal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="templateModalLabel">床位模板設定</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-2 small text-muted">將所有床位代碼貼在下方（可用逗號、空白、換行分隔，例如：101-1 101-2 201-1 301-1 ...）。系統會自動依首位數分到 1F / 2F / 3F，並寫入本機瀏覽器的設定；重新整理後即可顯示空床。</p>
-          <textarea id="template-input" class="form-control" rows="10" placeholder="例：101-1 101-2 102-1 201-1 201-2 301-1 ..."></textarea>
-          <div class="form-text">若想清空目前模板，輸入空白並儲存即可回到自動推導模式。</div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" id="save-template-btn" class="btn btn-primary">儲存模板</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-  <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="firebase-init.js"></script>
   <script src="residents-admin.js"></script>
 </body>
