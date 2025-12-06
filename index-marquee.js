@@ -16,15 +16,18 @@ document.addEventListener("firebase-ready", async () => {
     }
 
     const data = snap.docs[0].data();
-    const text = data.title;
-    const colors = data.marqueeColors || ["#000000"];
-    let html = "";
+    const text = data.title || "";
+    // ✅ 兼容兩種儲存方式：marqueeColors(Array) 或 marqueeColor(String)
+    let colors = Array.isArray(data.marqueeColors) && data.marqueeColors.length
+      ? data.marqueeColors
+      : (data.marqueeColor ? [data.marqueeColor] : ["#000000"]);
 
+    // 建立彩色字元
+    let html = "";
     for (let i = 0; i < text.length; i++) {
       const color = colors[i % colors.length];
       html += `<span style="color:${color}">${text[i]}</span>`;
     }
-
     marquee.innerHTML = html;
   } catch (err) {
     console.error("❌ 載入跑馬燈公告失敗：", err);
