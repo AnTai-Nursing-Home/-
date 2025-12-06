@@ -479,8 +479,8 @@ function renderStats(){
 
   // ===== 共用樣式 =====
   const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
-  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:10 };
-  const fontCell   = { name:'Microsoft JhengHei', size:10 };
+  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
+  const fontCell   = { name:'Microsoft JhengHei', size:11 };
   const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
   const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
   const borderThin = { top:{style:'thin',color:{argb:'FF9E9E9E'}},
@@ -642,14 +642,14 @@ function renderStats(){
   
 (function addPeopleStats(){
     const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
-    ws.columns = [{width:16},{width:40},{width:16},{width:16},{width:24},{width:10},{width:18}];
+    ws.columns = [{width:20},{width:46},{width:20},{width:20},{width:28},{width:12},{width:22}];
     ws.mergeCells('A1:G1');
     ws.getCell('A1').value = '各樓層人數統計';
-    ws.getCell('A1').font = { ...fontTitle, size:24 };
+    ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:26});
+    styleRow(header,{isHeader:true,center:true,height:30});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
     function getStatus(r){
@@ -700,7 +700,7 @@ function renderStats(){
       const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, acc.present, acc.total, '', '']);
-      styleRow(row,{center:true,height:24});
+      styleRow(row,{center:true,height:28});
     });
 
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
@@ -710,7 +710,7 @@ function renderStats(){
     ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
     const badge = ws.getCell(`F${totalRow.number+1}`);
     badge.value = sumPresent;
-    badge.font = {name:'Microsoft JhengHei', size:28, bold:true};
+    badge.font = {name:'Microsoft JhengHei', size:36, bold:true};
     badge.alignment = {horizontal:'center', vertical:'middle'};
     badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}};
     ws.getCell(`E${totalRow.number+1}`).value = '＝';
@@ -725,12 +725,12 @@ function renderStats(){
     // 自動調整第 2 欄（活動能力力區分）欄寬
     const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
-    ws.getColumn(2).width = Math.max(34, Math.min(72, Math.ceil(maxLen * 2.2)));
+    ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
 
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
-                     margins:{left:0.2,right:0.2,top:0.25,bottom:0.25,header:0.08,footer:0.08} };
+                     margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
 })();
 
 
