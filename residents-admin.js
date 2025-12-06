@@ -191,45 +191,14 @@ document.addEventListener('residents-init', ()=>{
   }
 
   
-function renderStats(container, data){
-  if(!container) return;
-  const total=(data||[]).length;
-  const male=(data||[]).filter(x=>x.gender==='男').length;
-  const female=(data||[]).filter(x=>x.gender==='女').length;
-  const leave=(data||[]).filter(x=>x.leaveStatus==='請假').length;
-  const hosp=(data||[]).filter(x=>x.leaveStatus==='住院').length;
-  const present=total-(leave+hosp);
-  const fl=n=>(data||[]).filter(x=>{ const p=parseBed(x.bedNumber); return p && p.room.startsWith(String(n)); });
-  const frows=[1,2,3].map(f=>{
-    const arr=fl(f); const t=arr.length; const lv=arr.filter(x=>x.leaveStatus==='請假').length;
-    const hp=arr.filter(x=>x.leaveStatus==='住院').length; const pr=t-(lv+hp);
-    return {f,total:t, pr, lv, hp};
-  });
-
-  const panes=`
-    <div class="pane-grid">
-      <div class="pane"><span class="label">總人數</span><div class="num">${total}</div></div>
-      <div class="pane"><span class="label">男</span><div class="num">${male}</div></div>
-      <div class="pane"><span class="label">女</span><div class="num">${female}</div></div>
-      <div class="pane ok"><span class="label">實到</span><div class="num">${present}</div></div>
-      <div class="pane warn"><span class="label">請假</span><div class="num">${leave}</div></div>
-      <div class="pane danger"><span class="label">住院</span><div class="num">${hosp}</div></div>
-    </div>
-    <div class="table-responsive mt-3">
-      <table class="table table-sm align-middle">
-        <thead class="table-light"><tr><th>樓層</th><th class="text-end">總數</th><th class="text-end">實到</th><th class="text-end">請假</th><th class="text-end">住院</th></tr></thead>
-        <tbody>
-          ${frows.map(x=>`<tr><td>${x.f}F</td><td class="text-end">${x.total}</td><td class="text-end text-success">${x.pr}</td><td class="text-end text-warning">${x.lv}</td><td class="text-end text-danger">${x.hp}</td></tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-
-  container.innerHTML = `
-    <div class="stats-frame">
-      <div class="stats-header"><div class="title">各樓層人數統計</div><div class="stats-total">${present}</div></div>
-      <div class="stats-body">${panes}</div>
-    </div>`;
-}
+function renderStats(){
+  if(!statsArea) return;
+  var total = cache.length;
+  var male = cache.filter(function(r){ return r.gender==='男'; }).length;
+  var female = cache.filter(function(r){ return r.gender==='女'; }).length;
+  var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
+  var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
+  var present = total - (leave + hosp);
 
   function normv(s){ return (s==null?'':String(s)); }
   function inFloor(f){
@@ -276,84 +245,70 @@ function renderStats(container, data){
       + '</tr>';
   }
 
-  var html = `
-    <div class="row g-3">
-      <div class="col-12 col-xl-5">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="h5 mb-0">總人數</div>
-              <span class="badge bg-dark fs-6">${total}</span>
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>${male}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>${female}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>${present}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>${leave}</strong></span></div>
-              <div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>${hosp}</strong></span></div>
-            </div>
-            <div class="table-responsive mt-3">
-              <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>樓層</th>
-                    <th class="text-end">總數</th>
-                    <th class="text-end">實到</th>
-                    <th class="text-end">請假</th>
-                    <th class="text-end">住院</th>
-                    <th class="text-end">輪椅</th>
-                    <th class="text-end">推床</th>
-                    <th class="text-end">步行</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${[1,2,3].map(f=>{
-                    const x = frows.find(y=>y.f===f) || {total:0, pr:0, lv:0, hp:0, fWheel:0, fTrolley:0, fWalk:0};
-                    return `<tr>
-                      <td>${f}F</td>
-                      <td class="text-end">${x.total}</td>
-                      <td class="text-end text-success">${x.pr}</td>
-                      <td class="text-end text-warning">${x.lv}</td>
-                      <td class="text-end text-danger">${x.hp}</td>
-                      <td class="text-end">${x.fWheel||0}</td>
-                      <td class="text-end">${x.fTrolley||0}</td>
-                      <td class="text-end">${x.fWalk||0}</td>
-                    </tr>`;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-xl-7">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="h6 mb-0 text-muted">動作區</div>
-              <div class="d-flex gap-2">
-                <button id="export-xls-legacy" class="btn btn-outline-dark btn-sm">
-                  <i class="fa-regular fa-file-excel me-1"></i>匯出 XLS（圖片樣式）
-                </button>
-                <button id="export-xls-styled" class="btn btn-success btn-sm">
-                  <i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）
-                </button>
-              </div>
-            </div>
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>
-                <i class="fa-regular fa-circle-down"></i>
-              </li>
-              <li class="list-group-item">
-                <div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>`;
+  var html = ''
+    + '<div class="row g-3">'
+    +   '<div class="col-12 col-xl-5">'
+    +     '<div class="card border-0 shadow-sm h-100">'
+    +       '<div class="card-body">'
+    +         '<div class="d-flex align-items-center justify-content-between mb-3">'
+    +           '<div class="h5 mb-0">總人數</div>'
+    +           '<span class="badge bg-dark fs-6">' + total + '</span>'
+    +         '</div>'
+    +         '<div class="row g-2 mb-2">'
+    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>' + male + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>' + female + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>' + present + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span></div>'
+    +         '</div>'
+    +         '<div class="table-responsive mt-3">'
+    +           '<table class="table table-sm align-middle mb-0">'
+    +             '<thead class="table-light">'
+    +               '<tr>'
+    +                 '<th>樓層</th>'
+    +                 '<th class="text-end">總數</th>'
+    +                 '<th class="text-end">實到</th>'
+    +                 '<th class="text-end">請假</th>'
+    +                 '<th class="text-end">住院</th>'
+    +                 '<th class="text-end">輪椅</th>'
+    +                 '<th class="text-end">推床</th>'
+    +                 '<th class="text-end">步行</th>'
+    +               '</tr>'
+    +             '</thead>'
+    +             '<tbody>' + rows + '</tbody>'
+    +           '</table>'
+    +         '</div>'
+    +         '<div class="small text-muted mt-2">'
+    +           '<span class="me-3">行動方式總計：</span>'
+    +           '<span class="me-2">輪椅 ' + mWheel + '</span>'
+    +           '<span class="me-2">推床 ' + mTrolley + '</span>'
+    +           '<span>步行 ' + mWalk + '</span>'
+    +         '</div>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="col-12 col-xl-7">'
+    +     '<div class="card border-0 shadow-sm h-100">'
+    +       '<div class="card-body">'
+    +         '<div class="d-flex justify-content-between align-items-center mb-3">'
+    +           '<div class="h6 mb-0 text-muted">動作區</div>'
+    +           '<button id="export-xls-styled" class="btn btn-success btn-sm">'
+    +             '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
+    +           '</button>'
+    +         '</div>'
+    +         '<ul class="list-group list-group-flush">'
+    +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
+    +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
+    +             '<i class="fa-regular fa-circle-down"></i>'
+    +           '</li>'
+    +           '<li class="list-group-item">'
+    +             '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>'
+    +           '</li>'
+    +         '</ul>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
 
   statsArea.innerHTML = html;
 }
@@ -516,110 +471,220 @@ function renderStats(container, data){
 
 
   async function exportStyledXls(){
-    if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
+  if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'MSICAO';
-    wb.created = new Date();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'MSICAO';
+  wb.created = new Date();
 
-    // 共用樣式
-    const headerFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
-    const headerFont = { name:'Microsoft JhengHei', bold:true, size:11 };
-    const cellFont = { name:'Microsoft JhengHei', size:11 };
-    const borderThin = { top:{style:'thin',color:{argb:'FF999999'}}, left:{style:'thin',color:{argb:'FF999999'}}, bottom:{style:'thin',color:{argb:'FF999999'}}, right:{style:'thin',color:{argb:'FF999999'}} };
+  // 共用樣式
+  const fontTitle = { name:'Microsoft JhengHei', bold:true, size:14 };
+  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:11 };
+  const fontCell = { name:'Microsoft JhengHei', size:11 };
+  const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+  const fillAlt = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
+  const borderThin = { top:{style:'thin',color:{argb:'FFB0B0B0'}},
+                       left:{style:'thin',color:{argb:'FFB0B0B0'}},
+                       bottom:{style:'thin',color:{argb:'FFB0B0B0'}},
+                       right:{style:'thin',color:{argb:'FFB0B0B0'}} };
 
-    function setColWidths(ws, widths){
-      ws.columns = widths.map(w => ({ width:w }));
-    }
-    function styleRow(row, {isHeader=false, alt=false}={}){
-      row.eachCell(c=>{
-        c.font = isHeader ? headerFont : cellFont;
-        c.border = borderThin;
-        if(isHeader){ c.fill = headerFill; c.alignment = { vertical:'middle', horizontal:'center'}; }
-        else{ c.alignment = { vertical:'middle'}; if(alt){ c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'}}; } }
-      });
-      row.height = 20;
-    }
-    function addTable(ws, headers, rows, widths){
-      setColWidths(ws, widths);
-      const headerRow = ws.addRow(headers);
-      styleRow(headerRow, {isHeader:true});
-      rows.forEach((r,i)=>{
-        const row = ws.addRow(r);
-        styleRow(row, {alt: i%2===1});
-      });
-      ws.views = [{ state:'frozen', ySplit:1 }];
-    }
-
-    // 基本資料
-    const wsBasic = wb.addWorksheet('基本資料');
-    const headers = ['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const rowsBasic = cache.map(r=>[
-      r.nursingStation||'', r.bedNumber||'', r.id||'', r.idNumber||'', r.birthday||'', r.gender||'',
-      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
-      r.emergencyContact||'', r.emergencyPhone||'', r.mobility||'', r.checkinDate||'', r.leaveStatus||''
-    ]);
-    addTable(wsBasic, headers, rowsBasic, [10,10,10,18,12,8,10,16,14,12,12,10]);
-
-    // 依模板輸出樓層
-    function floorRows(floor){
-      const tpl=getTemplate(cache);
-      const tokens = (tpl[String(floor)]||[]).slice();
-      const resMap = new Map(); cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
-      const rows=[]; let total=0, used=0; const emptyList=[];
-      tokens.forEach(t=>{
-        total++;
-        const r=resMap.get(t);
-        if(r){ used++; rows.push([t, r.id||'', r.gender||'', (function(a){return a!==''?a:'';})(calcAge(r.birthday)), r.leaveStatus||'']); }
-        else{ rows.push([t, '🈳 空床', '', '', '']); emptyList.push(t); }
-      });
-      return {rows,total,used,emptyList};
-    }
-    function addFloorSheet(name,floor){
-      const ws = wb.addWorksheet(name);
-      const {rows,total,used,emptyList} = floorRows(floor);
-      addTable(ws, ['床號','姓名','性別','年齡','狀態'], rows, [10,12,8,8,10]);
-      ws.addRow([]);
-      const sumRow = ws.addRow(['樓層床位數', total, '空床數', total-used, '已使用床位數', used]);
-      styleRow(sumRow);
-      const emptyRow = ws.addRow(['空床清單', emptyList.join('、')]);
-      styleRow(emptyRow);
-      // 強制第一欄對齊靠左顯示字串
-      ws.getColumn(1).alignment = { horizontal:'left', vertical:'middle' };
-    }
-    addFloorSheet('1樓床位配置',1);
-    addFloorSheet('2樓床位配置',2);
-    addFloorSheet('3樓床位配置',3);
-
-    // 總人數統計
-    const wsStats = wb.addWorksheet('總人數統計');
-    const total=cache.length;
-    const male=cache.filter(r=>r.gender==='男').length;
-    const female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length;
-    const hosp=cache.filter(r=>r.leaveStatus==='住院').length;
-    const present=total-(leave+hosp);
-    const stats = [
-      ['項目','數量'],
-      ['總人數', total],
-      ['男', male],
-      ['女', female],
-      ['實到', present],
-      ['請假', leave],
-      ['住院', hosp]
-    ];
-    addTable(wsStats, stats[0], stats.slice(1), [12,10]);
-
-    // 下載
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rocName()+'.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+  function styleRow(row,{isHeader=false,alt=false,center=false}={}){
+    row.eachCell(c=>{
+      c.font = isHeader ? fontHeader : fontCell;
+      c.border = borderThin;
+      c.alignment = { vertical:'middle', horizontal: center ? 'center' : (isHeader?'center':'left'), wrapText:true };
+      if(isHeader) c.fill = fillHeader;
+      else if(alt) c.fill = fillAlt;
+    });
+    row.height = 20;
   }
+  function addTitle(ws, text, lastCol){
+    ws.mergeCells(1,1,1,lastCol);
+    const c = ws.getCell(1,1);
+    c.value = text;
+    c.font = fontTitle;
+    c.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 24;
+  }
+  function formatDate(d, sep='/'){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+    return `${y}${sep}${m}${sep}${da}`;
+  }
+  function getTpl(){
+    try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
+    catch{ return {'1':[],'2':[],'3':[]}; }
+  }
+
+  // ===== 樓層表（參考第一個 Excel）：一列三個房間、每房三欄（床號/姓名/狀態），組間留一欄空白，底部合計 =====
+  function addFloorSheet(name, floor){
+    const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
+
+    // 一列：每房 3 欄 + 間隔 1 欄；三房 = 12 欄
+    ws.columns = Array.from({length:12}, (_,i)=>({ width:[10,16,14, 3, 10,16,14, 3, 10,16,14, 0][i] || 12 }));
+
+    addTitle(ws, name, 12);
+    const head1 = ws.addRow(['房號','床號','姓名','','房號','床號','姓名','','房號','床號','姓名','']);
+    styleRow(head1, {isHeader:true});
+    const head2 = ws.addRow(['','(A/B/C)','(含備註/性別/年齡)','', '', '(A/B/C)','(含備註/性別/年齡)','', '', '(A/B/C)','(含備註/性別/年齡)','', '']);
+    styleRow(head2, {isHeader:true});
+    // 合併每房的房號兩列
+    [[1,1],[5,5],[9,9]].forEach(([s])=>ws.mergeCells(2,s,3,s));
+
+    // 依模板展開
+    const tpl = getTpl();
+    const tokens = (tpl[String(floor)]||[]).slice();
+    const map = new Map(); // room -> [subs]
+    tokens.forEach(tok=>{
+      const m = String(tok).match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
+      if(!m) return;
+      const room=m[1], sub=m[2];
+      if(!map.has(room)) map.set(room,[]);
+      map.get(room).push(sub);
+    });
+    const resMap = new Map();
+    (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
+
+    const rooms = [...map.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+    let rowCursor = 4;
+    let totalBeds=0, usedBeds=0;
+    for(let i=0;i<rooms.length;i+=3){
+      const chunk = rooms.slice(i, i+3);
+      const maxLines = Math.max(...chunk.map(rm => (map.get(rm)||[]).length), 0) || 1;
+      for(let r=0;r<maxLines;r++){
+        const line = [];
+        for(let k=0;k<3;k++){
+          const rm = chunk[k];
+          if(!rm){ line.push('','','',''); continue; }
+          const subs = map.get(rm)||[];
+          const sub = subs[r];
+          if(r===0) line.push(rm); else line.push('');
+          if(sub){
+            totalBeds++;
+            const token = `${rm}-${sub}`;
+            const rec = resMap.get(token);
+            if(rec) usedBeds++;
+            const age = rec && rec.birthday ? (function(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); let a=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) a--; return a; })(rec.birthday) : '';
+            line.push(sub, rec ? (rec.id||'') : '🈳 空床', rec ? ((rec.gender||'') + (age!==''?` / ${age}歲`:'')) : '');
+            line.push(''); // 間隔
+          }else{
+            line.push('','','','');
+          }
+        }
+        const row = ws.insertRow(rowCursor++, line);
+        styleRow(row, {alt:(rowCursor%2===0)});
+      }
+      // 區隔空白行
+      ws.insertRow(rowCursor++, ['', '', '', '', '', '', '', '', '', '', '', '']);
+    }
+    const emptyBeds = totalBeds - usedBeds;
+    rowCursor += 1;
+    const sumRow = ws.getRow(rowCursor);
+    sumRow.getCell(1).value = '樓層床位數';
+    sumRow.getCell(2).value = totalBeds;
+    sumRow.getCell(4).value = '空床數';
+    sumRow.getCell(5).value = emptyBeds;
+    sumRow.getCell(7).value = '已使用床位數';
+    sumRow.getCell(8).value = usedBeds;
+    styleRow(sumRow, {isHeader:true});
+  }
+
+  addFloorSheet('1樓床位配置', 1);
+  addFloorSheet('2樓床位配置', 2);
+  addFloorSheet('3樓床位配置', 3);
+
+  // ===== 總人數統計（參考第二個 Excel） =====
+  const wsT = wb.addWorksheet('4總人數統計', {views:[{state:'frozen', ySplit:1}]});
+  wsT.columns = [
+    {width:10},{width:14},{width:12},{width:12},{width:10},{width:12},{width:12},{width:12},{width:10}
+  ];
+
+  // A1:I1 標題
+  wsT.mergeCells('A1:I1');
+  wsT.getCell('A1').value = '總人數統計';
+  wsT.getCell('A1').font = fontTitle;
+  wsT.getCell('A1').alignment = { vertical:'middle', horizontal:'center' };
+  wsT.getRow(1).height = 26;
+
+  // B2:D2 統計日期
+  wsT.mergeCells('B2:D2');
+  wsT.getCell('B2').value = `統計日期：${formatDate(new Date())}`;
+  // 畫框線
+  for(let r=2;r<=2;r++) for(let c=2;c<=4;c++) wsT.getCell(r,c).border = borderThin;
+
+  // 右側四格 KPI：G2:H2 ~ G5:H5
+  function boxMerge(a1){
+    const c1 = wsT.getCell(a1.split(':')[0]);
+    const c2 = wsT.getCell(a1.split(':')[1]);
+    wsT.mergeCells(a1);
+    for(let r=c1.row;r<=c2.row;r++){
+      for(let c=c1.col;c<=c2.col;c++){
+        wsT.getCell(r,c).border = borderThin;
+        wsT.getCell(r,c).alignment = {horizontal:'center', vertical:'middle'};
+      }
+    }
+  }
+
+  const total = (cache||[]).length;
+  const male = (cache||[]).filter(r=>r.gender==='男').length;
+  const female = (cache||[]).filter(r=>r.gender==='女').length;
+  const leave = (cache||[]).filter(r=>r.leaveStatus==='請假').length;
+  const hosp  = (cache||[]).filter(r=>r.leaveStatus==='住院').length;
+  const present = total - (leave + hosp);
+
+  boxMerge('G2:H2'); wsT.getCell('G2').value = `總人數：${total}`;
+  boxMerge('G3:H3'); wsT.getCell('G3').value = `實到：${present}`;
+  boxMerge('G4:H4'); wsT.getCell('G4').value = `請假：${leave}`;
+  boxMerge('G5:H5'); wsT.getCell('G5').value = `住院：${hosp}`;
+
+  // A7:F7 次標、A8:H8 小標
+  wsT.mergeCells('A7:F7'); wsT.getCell('A7').value = '性別與樓層彙整';
+  wsT.getCell('A7').font = fontHeader;
+  wsT.getCell('A7').alignment = {vertical:'middle', horizontal:'left'};
+  wsT.getRow(7).height = 22;
+  wsT.mergeCells('A8:H8'); wsT.getCell('A8').value = '下表列出性別分布與各樓使用/空床';
+  wsT.getCell('A8').alignment = {vertical:'middle', horizontal:'left'};
+  wsT.getRow(8).height = 20;
+  for(let r=7;r<=7;r++) for(let c=1;c<=6;c++) wsT.getCell(r,c).border = borderThin;
+  for(let r=8;r<=8;r++) for(let c=1;c<=8;c++) wsT.getCell(r,c).border = borderThin;
+
+  // 性別表：A9:B11
+  const sexHeader = wsT.addRow(['項目','人數','','','','','','','']); styleRow(sexHeader,{isHeader:true,center:true});
+  // 合併 A~B
+  wsT.mergeCells(sexHeader.number,1,sexHeader.number,2);
+  const sexRows = [
+    ['男', male],
+    ['女', female],
+  ];
+  for(const [lab,val] of sexRows){
+    const r = wsT.addRow([lab,val,'','','','','','','']); styleRow(r,{center:true}); wsT.mergeCells(r.number,1,r.number,2);
+  }
+
+  // 空一行
+  wsT.addRow(['']);
+
+  // 樓層表
+  const floorHeader = wsT.addRow(['樓層','總床位','已使用','空床','','','','','']); styleRow(floorHeader,{isHeader:true,center:true});
+  function floorStats(f){
+    const tpl = getTpl();
+    const tokens = (tpl[String(f)]||[]).slice();
+    const resMap = new Map(); (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
+    const totalBeds = tokens.length;
+    let used=0; tokens.forEach(t=>{ if(resMap.get(t)) used++; });
+    return {beds: totalBeds, used: used, empty: totalBeds - used};
+  }
+  [1,2,3].forEach(f=>{
+    const fs = floorStats(f);
+    const r = wsT.addRow([`${f}樓`, fs.beds, fs.used, fs.empty,'','','','','']); styleRow(r,{center:true});
+  });
+
+  // 下載
+  const blob = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
     function hookEvents(){
     document.addEventListener('click', (e)=>{
       const t=e.target;
@@ -766,14 +831,3 @@ function renderStats(container, data){
 
   load();
 });
-
-document.addEventListener('click', (e)=>{
-  const t=e.target;
-  if(t && (t.id==='export-xls-legacy' || t.closest && t.closest('#export-xls-legacy'))) {
-    exportImageStyleXLS();
-  }
-});
-
-// cache exposure for exporters
-if(!window.__residents_cache__) window.__residents_cache__ = [];
-if(!window.__roc_name__) window.__roc_name__ = function(){ const d=new Date(); const y=d.getFullYear()-1911; const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}${m}${dd}`; };
