@@ -82,8 +82,8 @@ function latestItemTemplate(a) {
   return `
     <div class="latest-item">
       <div class="latest-date">${dateStr}</div>
-      <a class="latest-title flex-grow-1" href="announcement-view.html?id=${a.id}">${escapeHTML(a.title)}</a>
-      ${chip}
+      <a class="latest-title" href="announcement-view.html?id=${a.id}">${escapeHTML(a.title)}</a>
+      <div class="chip-bottom">${chip}</div>
     </div>
   `;
 }
