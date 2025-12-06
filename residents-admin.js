@@ -639,7 +639,8 @@ function renderStats(){
   addFloorSheet('3樓床位配置', 3);
 
   // ===== 各樓層人數統計 =====
-  (function addPeopleStats(){
+  
+(function addPeopleStats(){
     const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
     ws.columns = [{width:10},{width:28},{width:12},{width:12},{width:16},{width:6},{width:12}];
     ws.mergeCells('A1:G1');
@@ -650,21 +651,36 @@ function renderStats(){
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:20});
 
+    // 將狀態標準化：只要是「請假」或「住院」各種寫法/欄位都能抓到
+    function getStatus(r){
+      // 只看 leaveStatus：'請假' or '住院'；其他視為 present
+      const raw = ((r.leaveStatus||'')+'').trim();
+      if (raw === '住院') return 'hospital';
+      if (raw === '請假') return 'leave';
+      return 'present';
+    }
+
     const floors = {'1':[],'2':[],'3':[]};
     (cache||[]).forEach(r=>{
       const bed = String(r.bedNumber||''); const m=bed.match(/^(\d{3})[-_]/);
       const fl = m?m[1][0]:null;
       if(fl && floors[fl]) floors[fl].push(r);
     });
+
     function sumFloor(list){
-      const leave = list.filter(r=>r.leaveStatus==='請假').length;
-      const hosp  = list.filter(r=>r.leaveStatus==='住院').length;
-      const present = list.length - leave - hosp;
+      let leave=0, hosp=0, present=0;
+      list.forEach(r=>{
+        const s = getStatus(r);
+        if(s==='leave') leave++;
+        else if(s==='hospital') hosp++;
+        else present++;
+      });
       return {leave, hosp, present, total:list.length};
     }
-    function abilityCount(list){
+    function abilityCountPresentOnly(list){
       const acc = {wheel:0,push:0,walk:0};
       list.forEach(r=>{
+        if (getStatus(r) !== 'present') return; // 只算實到的人
         const a = (r.mobility||r.ability||'').trim();
         if(a.includes('輪椅')) acc.wheel++;
         else if(a.includes('推')) acc.push++;
@@ -676,7 +692,7 @@ function renderStats(){
     let sumLeave=0,sumPresent=0,sumTotal=0;
     ['1','2','3'].forEach(fl=>{
       const acc = sumFloor(floors[fl]);
-      const ab  = abilityCount(floors[fl]);
+      const ab  = abilityCountPresentOnly(floors[fl]); // 只算實到
       sumLeave += acc.leave; sumPresent += acc.present; sumTotal += acc.total;
       const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
       const row = ws.addRow([`${fl}樓`, abilityText, acc.leave, acc.present, acc.total, '', '']);
@@ -703,7 +719,8 @@ function renderStats(){
 
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
-  })();
+})();
+;
 
   // ===== 下載 =====
   const blob = await wb.xlsx.writeBuffer();
