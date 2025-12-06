@@ -477,12 +477,12 @@ function renderStats(){
   wb.creator = 'MSICAO';
   wb.created = new Date();
 
-  // 共用樣式
-  const fontTitle = { name:'Microsoft JhengHei', bold:true, size:14 };
+  // ===== 0) 共用樣式 =====
+  const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:14 };
   const fontHeader = { name:'Microsoft JhengHei', bold:true, size:11 };
-  const fontCell = { name:'Microsoft JhengHei', size:11 };
+  const fontCell   = { name:'Microsoft JhengHei', size:11 };
   const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
-  const fillAlt = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
+  const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
   const borderThin = { top:{style:'thin',color:{argb:'FFB0B0B0'}},
                        left:{style:'thin',color:{argb:'FFB0B0B0'}},
                        bottom:{style:'thin',color:{argb:'FFB0B0B0'}},
@@ -514,18 +514,57 @@ function renderStats(){
     try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
     catch{ return {'1':[],'2':[],'3':[]}; }
   }
+  function computeAge(iso){
+    if(!iso) return '';
+    const d=new Date(iso); if(isNaN(d)) return '';
+    const now=new Date();
+    let a=now.getFullYear()-d.getFullYear();
+    const m=now.getMonth()-d.getMonth();
+    if(m<0||(m===0&&now.getDate()<d.getDate())) a--;
+    return a;
+  }
 
-  // ===== 樓層表（參考第一個 Excel）：一列三個房間、每房三欄（床號/姓名/狀態），組間留一欄空白，底部合計 =====
+  // ===== 1) 基本資料（放在第一張） =====
+  (function addBasicSheet(){
+    const ws = wb.addWorksheet('基本資料', {views:[{state:'frozen', ySplit:1}]});
+    ws.columns = [
+      {width:10},{width:10},{width:12},{width:16},{width:8},{width:8},{width:12},{width:18}
+    ];
+    const title = ws.addRow(['基本資料']); title.font = fontTitle; title.height = 24;
+    ws.mergeCells(1,1,1,8);
+    const header = ws.addRow(['房號','床號','床位代碼','姓名','性別','年齡','狀態','備註']);
+    styleRow(header,{isHeader:true,center:true});
+
+    const rows = (cache||[]).slice().sort((a,b)=>String(a.bedNumber||'').localeCompare(String(b.bedNumber||''),'zh-Hant'));
+    for(const r of rows){
+      const room = String(r.bedNumber||'').split(/[-_]/)[0] || '';
+      const bed = (String(r.bedNumber||'').split(/[-_]/)[1]||'').toUpperCase();
+      const age = computeAge(r.birthday);
+      const line = [
+        room,
+        bed,
+        r.bedNumber || '',
+        r.id || '',
+        r.gender || '',
+        age===''?'':age,
+        r.leaveStatus || '',
+        r.note || ''
+      ];
+      const row = ws.addRow(line);
+      styleRow(row,{center:false});
+    }
+  })();
+
+  // ===== 2) 樓層表（參考第一個 Excel）：一列三房、每房三欄（床號/姓名/狀態），組間留一欄空白，底部合計 =====
   function addFloorSheet(name, floor){
     const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
-
     // 一列：每房 3 欄 + 間隔 1 欄；三房 = 12 欄
-    ws.columns = Array.from({length:12}, (_,i)=>({ width:[10,16,14, 3, 10,16,14, 3, 10,16,14, 0][i] || 12 }));
+    ws.columns = Array.from({length:12}, (_,i)=>({ width:[10,20,16, 3, 10,20,16, 3, 10,20,16, 0][i] || 12 }));
 
     addTitle(ws, name, 12);
     const head1 = ws.addRow(['房號','床號','姓名','','房號','床號','姓名','','房號','床號','姓名','']);
     styleRow(head1, {isHeader:true});
-    const head2 = ws.addRow(['','(A/B/C)','(含備註/性別/年齡)','', '', '(A/B/C)','(含備註/性別/年齡)','', '', '(A/B/C)','(含備註/性別/年齡)','', '']);
+    const head2 = ws.addRow(['','(A/B/C)','(百歲在/性別/年齡)','', '', '(A/B/C)','(百歲在/性別/年齡)','', '', '(A/B/C)','(百歲在/性別/年齡)','', '']);
     styleRow(head2, {isHeader:true});
     // 合併每房的房號兩列
     [[1,1],[5,5],[9,9]].forEach(([s])=>ws.mergeCells(2,s,3,s));
@@ -533,39 +572,39 @@ function renderStats(){
     // 依模板展開
     const tpl = getTpl();
     const tokens = (tpl[String(floor)]||[]).slice();
-    const map = new Map(); // room -> [subs]
+    const byRoom = {};
     tokens.forEach(tok=>{
       const m = String(tok).match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
       if(!m) return;
       const room=m[1], sub=m[2];
-      if(!map.has(room)) map.set(room,[]);
-      map.get(room).push(sub);
+      (byRoom[room]=byRoom[room]||[]).push(sub);
     });
-    const resMap = new Map();
-    (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
+    const dataMap = new Map();
+    (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); dataMap.set(key,r); });
 
-    const rooms = [...map.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+    const rooms = Object.keys(byRoom).sort((a,b)=>parseInt(a,10)-parseInt(b,10));
     let rowCursor = 4;
     let totalBeds=0, usedBeds=0;
     for(let i=0;i<rooms.length;i+=3){
-      const chunk = rooms.slice(i, i+3);
-      const maxLines = Math.max(...chunk.map(rm => (map.get(rm)||[]).length), 0) || 1;
-      for(let r=0;r<maxLines;r++){
+      const group = rooms.slice(i, i+3);
+      const lines = Math.max(...group.map(rm => (byRoom[rm]||[]).length), 0) || 1;
+      for(let r=0;r<lines;r++){
         const line = [];
         for(let k=0;k<3;k++){
-          const rm = chunk[k];
+          const rm = group[k];
           if(!rm){ line.push('','','',''); continue; }
-          const subs = map.get(rm)||[];
+          const subs = byRoom[rm]||[];
           const sub = subs[r];
           if(r===0) line.push(rm); else line.push('');
           if(sub){
             totalBeds++;
             const token = `${rm}-${sub}`;
-            const rec = resMap.get(token);
+            const rec = dataMap.get(token);
             if(rec) usedBeds++;
-            const age = rec && rec.birthday ? (function(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); let a=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) a--; return a; })(rec.birthday) : '';
-            line.push(sub, rec ? (rec.id||'') : '🈳 空床', rec ? ((rec.gender||'') + (age!==''?` / ${age}歲`:'')) : '');
-            line.push(''); // 間隔
+            const age = rec ? computeAge(rec.birthday) : '';
+            const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
+            const nameCell = rec ? `${rec.id||''}\n${sexAge}` : '空床';
+            line.push(sub, nameCell, '');
           }else{
             line.push('','','','');
           }
@@ -592,7 +631,7 @@ function renderStats(){
   addFloorSheet('2樓床位配置', 2);
   addFloorSheet('3樓床位配置', 3);
 
-  // ===== 總人數統計（參考第二個 Excel） =====
+  // ===== 3) 總人數統計（參考第二個 Excel） =====
   const wsT = wb.addWorksheet('4總人數統計', {views:[{state:'frozen', ySplit:1}]});
   wsT.columns = [
     {width:10},{width:14},{width:12},{width:12},{width:10},{width:12},{width:12},{width:12},{width:10}
@@ -608,7 +647,6 @@ function renderStats(){
   // B2:D2 統計日期
   wsT.mergeCells('B2:D2');
   wsT.getCell('B2').value = `統計日期：${formatDate(new Date())}`;
-  // 畫框線
   for(let r=2;r<=2;r++) for(let c=2;c<=4;c++) wsT.getCell(r,c).border = borderThin;
 
   // 右側四格 KPI：G2:H2 ~ G5:H5
@@ -623,20 +661,18 @@ function renderStats(){
       }
     }
   }
-
   const total = (cache||[]).length;
   const male = (cache||[]).filter(r=>r.gender==='男').length;
   const female = (cache||[]).filter(r=>r.gender==='女').length;
   const leave = (cache||[]).filter(r=>r.leaveStatus==='請假').length;
   const hosp  = (cache||[]).filter(r=>r.leaveStatus==='住院').length;
   const present = total - (leave + hosp);
-
   boxMerge('G2:H2'); wsT.getCell('G2').value = `總人數：${total}`;
   boxMerge('G3:H3'); wsT.getCell('G3').value = `實到：${present}`;
   boxMerge('G4:H4'); wsT.getCell('G4').value = `請假：${leave}`;
   boxMerge('G5:H5'); wsT.getCell('G5').value = `住院：${hosp}`;
 
-  // A7:F7 次標、A8:H8 小標
+  // A7:F7、A8:H8
   wsT.mergeCells('A7:F7'); wsT.getCell('A7').value = '性別與樓層彙整';
   wsT.getCell('A7').font = fontHeader;
   wsT.getCell('A7').alignment = {vertical:'middle', horizontal:'left'};
@@ -647,17 +683,12 @@ function renderStats(){
   for(let r=7;r<=7;r++) for(let c=1;c<=6;c++) wsT.getCell(r,c).border = borderThin;
   for(let r=8;r<=8;r++) for(let c=1;c<=8;c++) wsT.getCell(r,c).border = borderThin;
 
-  // 性別表：A9:B11
+  // 性別表
   const sexHeader = wsT.addRow(['項目','人數','','','','','','','']); styleRow(sexHeader,{isHeader:true,center:true});
-  // 合併 A~B
   wsT.mergeCells(sexHeader.number,1,sexHeader.number,2);
-  const sexRows = [
-    ['男', male],
-    ['女', female],
-  ];
-  for(const [lab,val] of sexRows){
+  [['男', male],['女', female]].forEach(([lab,val])=>{
     const r = wsT.addRow([lab,val,'','','','','','','']); styleRow(r,{center:true}); wsT.mergeCells(r.number,1,r.number,2);
-  }
+  });
 
   // 空一行
   wsT.addRow(['']);
@@ -677,7 +708,7 @@ function renderStats(){
     const r = wsT.addRow([`${f}樓`, fs.beds, fs.used, fs.empty,'','','','','']); styleRow(r,{center:true});
   });
 
-  // 下載
+  // ===== 4) 下載 =====
   const blob = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
