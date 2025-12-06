@@ -479,8 +479,8 @@ function renderStats(){
 
   // ===== 共用樣式 =====
   const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
-  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:11 };
-  const fontCell   = { name:'Microsoft JhengHei', size:11 };
+  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:10 };
+  const fontCell   = { name:'Microsoft JhengHei', size:10 };
   const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
   const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
   const borderThin = { top:{style:'thin',color:{argb:'FF9E9E9E'}},
@@ -488,11 +488,11 @@ function renderStats(){
                        bottom:{style:'thin',color:{argb:'FF9E9E9E'}},
                        right:{style:'thin',color:{argb:'FF9E9E9E'}} };
 
-  function styleRow(row,{isHeader=false,alt=false,center=false,height=20}={}){
+  function styleRow(row,{isHeader=false,alt=false,center=false,height=18,wrap=false}={}){
     row.eachCell(c=>{
       c.font = isHeader ? fontHeader : fontCell;
       c.border = borderThin;
-      c.alignment = { vertical:'middle', horizontal: center ? 'center' : (isHeader?'center':'left'), wrapText:true };
+      c.alignment = { vertical:'middle', horizontal: center ? 'center' : (isHeader?'center':'left'), wrapText: wrap };
       if(isHeader) c.fill = fillHeader;
       else if(alt) c.fill = fillAlt;
     });
@@ -528,7 +528,7 @@ function renderStats(){
   (function addBasicSheet(){
     const ws = wb.addWorksheet('基本資料', {views:[{state:'frozen', ySplit:1}]});
     ws.columns = [
-      {width:10},{width:10},{width:14},{width:16},{width:8},{width:8},{width:12},{width:22}
+      {width:8},{width:8},{width:14},{width:16},{width:6},{width:6},{width:12},{width:22}
     ];
     ws.mergeCells(1,1,1,8);
     ws.getCell('A1').value='基本資料'; ws.getCell('A1').font=fontTitle; ws.getCell('A1').alignment={vertical:'middle',horizontal:'center'};
@@ -541,23 +541,30 @@ function renderStats(){
       const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
       styleRow(row,{});
     }
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   })();
 
-  // ===== 樓層表（三房並排，姓名=兩行：姓名/性別年齡；支援數字床位） =====
+  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；A4 橫式一頁） =====
   function addFloorSheet(name, floor){
     const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
-    ws.columns = Array.from({length:12}, (_,i)=>({ width:[10,22,18, 3, 10,22,18, 3, 10,22,18, 1][i] || 12 }));
+    // 14 欄：4*3 + 2 空白
+    ws.columns = [
+      {width:7},{width:6},{width:16},{width:12},{width:2},
+      {width:7},{width:6},{width:16},{width:12},{width:2},
+      {width:7},{width:6},{width:16},{width:12}
+    ];
 
-    addTitle(ws, name, 12);
-    const head1 = ws.addRow(['房號','床號','姓名','','房號','床號','姓名','','房號','床號','姓名','']);
-    styleRow(head1, {isHeader:true});
-    const head2 = ws.addRow(['','(A/B/C 或 1~6)','(性別/年齡自動換行)','', '', '(A/B/C 或 1~6)','(性別/年齡自動換行)','', '', '(A/B/C 或 1~6)','(性別/年齡自動換行)','', '']);
-    styleRow(head2, {isHeader:true,height:18});
-    [[1,1],[5,5],[9,9]].forEach(([s])=>ws.mergeCells(2,s,3,s));
+    addTitle(ws, name, 14);
+    const head1 = ws.addRow(['房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡']);
+    styleRow(head1, {isHeader:true,height:18});
+    const head2 = ws.addRow(['','','（單行顯示）','（例如：女/80歲）','', '','','（單行顯示）','（例如：女/80歲）','', '','','（單行顯示）','（例如：女/80歲）']);
+    styleRow(head2, {isHeader:true,height:16});
+    // 合併每房的房號兩列
+    [[1],[6],[11]].forEach(([s])=>ws.mergeCells(2,s,3,s));
 
     const tpl = getTpl();
     const tokens = (tpl[String(floor)]||[]).slice();
-    // 解析為 room->list of beds (保持原順序；同時確保 1..N 順序不跑掉)
     const byRoom = {};
     tokens.forEach(tok=>{
       const m = String(tok).match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
@@ -578,7 +585,7 @@ function renderStats(){
         const line = [];
         for(let k=0;k<3;k++){
           const rm = group[k];
-          if(!rm){ line.push('','','',''); continue; }
+          if(!rm){ line.push('','','','',''); continue; }
           const subs = byRoom[rm]||[];
           const sub = subs[r];
           if(r===0) line.push(rm); else line.push('');
@@ -589,17 +596,17 @@ function renderStats(){
             if(rec) usedBeds++;
             const age = rec ? computeAge(rec.birthday) : '';
             const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
-            const nameCell = rec ? `${rec.id||''}\n${sexAge}` : '空床';
-            line.push(sub, nameCell, '');
+            const nameText = rec ? (rec.id||'') : '空床';
+            line.push(sub, nameText, sexAge, '');
           }else{
-            line.push('','','','');
+            line.push('','','','', '');
           }
         }
         const row = ws.insertRow(rowCursor++, line);
-        styleRow(row, {alt:(rowCursor%2===0), height:22});
+        styleRow(row, {alt:(rowCursor%2===0), height:18, wrap:false});
       }
       // 區隔空白行（細線）
-      const sep = ws.insertRow(rowCursor++, ['', '', '', '', '', '', '', '', '', '', '', '']);
+      const sep = ws.insertRow(rowCursor++, ['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
       sep.height = 6;
     }
     const emptyBeds = totalBeds - usedBeds;
@@ -611,34 +618,33 @@ function renderStats(){
     sumRow.getCell(5).value = emptyBeds;
     sumRow.getCell(7).value = '已使用床位數';
     sumRow.getCell(8).value = usedBeds;
-    styleRow(sumRow, {isHeader:true, height:22});
+    styleRow(sumRow, {isHeader:true, height:20});
+
+    // A4 橫式一頁
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   }
 
   addFloorSheet('1樓床位配置', 1);
   addFloorSheet('2樓床位配置', 2);
   addFloorSheet('3樓床位配置', 3);
 
-  // ===== 各樓層人數統計（完全比照你給的第二張圖排版） =====
+  // ===== 各樓層人數統計（同上一版） =====
   (function addPeopleStats(){
     const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
     ws.columns = [{width:10},{width:28},{width:12},{width:12},{width:16},{width:6},{width:12}];
-
-    // 標題
     ws.mergeCells('A1:G1');
     ws.getCell('A1').value = '各樓層人數統計';
     ws.getCell('A1').font = fontTitle;
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-
-    // 表頭
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:22});
+    styleRow(header,{isHeader:true,center:true,height:20});
 
-    // 架構資料：由 cache 推算（mobility 欄位: '輪椅' | '推' | '步行'；若無則歸為空白）
     const floors = {'1':[],'2':[],'3':[]};
     (cache||[]).forEach(r=>{
       const bed = String(r.bedNumber||''); const m=bed.match(/^(\d{3})[-_]/);
-      const fl = m?m[1][0]:null; // 101->'1'
+      const fl = m?m[1][0]:null;
       if(fl && floors[fl]) floors[fl].push(r);
     });
     function sumFloor(list){
@@ -668,29 +674,26 @@ function renderStats(){
       styleRow(row,{center:true});
     });
 
-    // 總計行（請假：黃底；實到：藍底）
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
     styleRow(totalRow,{isHeader:true,center:true});
-    ws.getCell(`C${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFF00'}}; // 黃
-    ws.getCell(`D${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2F80ED'}}; // 藍
-
-    // 備註區（兩行）
-    ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
-    ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
-    ws.getCell(`A${totalRow.number+2}`).alignment = {vertical:'middle'};
-    ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
-    ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
-
-    // 右下角綠色大數字（實到總數）
-    const badgeRow = totalRow.number+1;
-    ws.mergeCells(`F${badgeRow}:G${badgeRow}`);
-    const badge = ws.getCell(`F${badgeRow}`);
+    ws.getCell(`C${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFF00'}};
+    ws.getCell(`D${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2F80ED'}};
+    ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
+    const badge = ws.getCell(`F${totalRow.number+1}`);
     badge.value = sumPresent;
     badge.font = {name:'Microsoft JhengHei', size:18, bold:true};
     badge.alignment = {horizontal:'center', vertical:'middle'};
-    badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}}; // 淡綠
-    ws.getCell(`E${badgeRow}`).value = '＝';
-    ws.getCell(`E${badgeRow}`).alignment = {horizontal:'center', vertical:'middle'};
+    badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}};
+    ws.getCell(`E${totalRow.number+1}`).value = '＝';
+    ws.getCell(`E${totalRow.number+1}`).alignment = {horizontal:'center', vertical:'middle'};
+
+    ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
+    ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
+    ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
+    ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
+
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   })();
 
   // ===== 下載 =====
