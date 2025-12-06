@@ -276,70 +276,84 @@ function renderStats(container, data){
       + '</tr>';
   }
 
-  var html = ''
-    + '<div class="row g-3">'
-    +   '<div class="col-12 col-xl-5">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
-    +         '<div class="d-flex align-items-center justify-content-between mb-3">'
-    +           '<div class="h5 mb-0">總人數</div>'
-    +           '<span class="badge bg-dark fs-6">' + total + '</span>'
-    +         '</div>'
-    +         '<div class="row g-2 mb-2">'
-    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>' + male + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>' + female + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>' + present + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span></div>'
-    +         '</div>'
-    +         '<div class="table-responsive mt-3">'
-    +           '<table class="table table-sm align-middle mb-0">'
-    +             '<thead class="table-light">'
-    +               '<tr>'
-    +                 '<th>樓層</th>'
-    +                 '<th class="text-end">總數</th>'
-    +                 '<th class="text-end">實到</th>'
-    +                 '<th class="text-end">請假</th>'
-    +                 '<th class="text-end">住院</th>'
-    +                 '<th class="text-end">輪椅</th>'
-    +                 '<th class="text-end">推床</th>'
-    +                 '<th class="text-end">步行</th>'
-    +               '</tr>'
-    +             '</thead>'
-    +             '<tbody>' + rows + '</tbody>'
-    +           '</table>'
-    +         '</div>'
-    +         '<div class="small text-muted mt-2">'
-    +           '<span class="me-3">行動方式總計：</span>'
-    +           '<span class="me-2">輪椅 ' + mWheel + '</span>'
-    +           '<span class="me-2">推床 ' + mTrolley + '</span>'
-    +           '<span>步行 ' + mWalk + '</span>'
-    +         '</div>'
-    +       '</div>'
-    +     '</div>'
-    +   '</div>'
-    +   '<div class="col-12 col-xl-7">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
-    +         '<div class="d-flex justify-content-between align-items-center mb-3">'
-    +           '<div class="h6 mb-0 text-muted">動作區</div>'
-    +           '<button id="export-xls-styled" class="btn btn-success btn-sm">'
-    +             '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
-    +           '</button>'
-    +         '</div>'
-    +         '<ul class="list-group list-group-flush">'
-    +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
-    +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
-    +             '<i class="fa-regular fa-circle-down"></i>'
-    +           '</li>'
-    +           '<li class="list-group-item">'
-    +             '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>'
-    +           '</li>'
-    +         '</ul>'
-    +       '</div>'
-    +     '</div>'
-    +   '</div>'
-    + '</div>';
+  var html = `
+    <div class="row g-3">
+      <div class="col-12 col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="h5 mb-0">總人數</div>
+              <span class="badge bg-dark fs-6">${total}</span>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>${male}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>${female}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>${present}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>${leave}</strong></span></div>
+              <div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>${hosp}</strong></span></div>
+            </div>
+            <div class="table-responsive mt-3">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>樓層</th>
+                    <th class="text-end">總數</th>
+                    <th class="text-end">實到</th>
+                    <th class="text-end">請假</th>
+                    <th class="text-end">住院</th>
+                    <th class="text-end">輪椅</th>
+                    <th class="text-end">推床</th>
+                    <th class="text-end">步行</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${[1,2,3].map(f=>{
+                    const x = frows.find(y=>y.f===f) || {total:0, pr:0, lv:0, hp:0, fWheel:0, fTrolley:0, fWalk:0};
+                    return `<tr>
+                      <td>${f}F</td>
+                      <td class="text-end">${x.total}</td>
+                      <td class="text-end text-success">${x.pr}</td>
+                      <td class="text-end text-warning">${x.lv}</td>
+                      <td class="text-end text-danger">${x.hp}</td>
+                      <td class="text-end">${x.fWheel||0}</td>
+                      <td class="text-end">${x.fTrolley||0}</td>
+                      <td class="text-end">${x.fWalk||0}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-7">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="h6 mb-0 text-muted">動作區</div>
+              <div class="d-flex gap-2">
+                <button id="export-xls-legacy" class="btn btn-outline-dark btn-sm">
+                  <i class="fa-regular fa-file-excel me-1"></i>匯出 XLS（圖片樣式）
+                </button>
+                <button id="export-xls-styled" class="btn btn-success btn-sm">
+                  <i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）
+                </button>
+              </div>
+            </div>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>
+                <i class="fa-regular fa-circle-down"></i>
+              </li>
+              <li class="list-group-item">
+                <div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>`;
 
   statsArea.innerHTML = html;
 }
