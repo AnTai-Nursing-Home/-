@@ -8,6 +8,22 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
+<style>
+/* --- Window-pane styled stats (minimal diff) --- */
+.stats-frame{ border:3px solid #2b2b2b; border-radius:12px; overflow:hidden; background:#fff; }
+.stats-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:2px solid #2b2b2b; background:#fffef2; }
+.stats-header .title{ font-weight:800; }
+.stats-total{ font-weight:900; font-size:28px; line-height:1; background:#d8f5a2; padding:6px 12px; border-radius:10px; }
+.stats-body{ padding:12px 14px; }
+.pane-grid{ display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:8px; }
+.pane{ border:1px solid #e5e7eb; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:2px; background:#fcfcfc; }
+.pane .label{ color:#6b7280; font-size:12px; }
+.pane .num{ font-weight:900; font-size:20px; }
+.pane.ok{ background:#e9f9ee; }
+.pane.warn{ background:#fff6cd; }
+.pane.danger{ background:#ffe2e2; }
+@media (max-width: 992px){ .pane-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
+</style>
 </head>
 <body>
   <div class="container my-5">
@@ -88,6 +104,10 @@
                 <div id="floor3-grid" class="row g-2"></div>
               </div>
               <div class="tab-pane fade" id="pane-stats" role="tabpanel" aria-labelledby="tab-stats">
+<div class="mb-3 d-flex justify-content-end gap-2">
+  <button id="export-xls-legacy" class="btn btn-outline-dark btn-sm"><i class="fa-regular fa-file-excel me-1"></i>匯出 XLS（圖片樣式）</button>
+</div>
+
                 <div id="stats-area" class="row g-3"></div>
               </div>
             </div>
