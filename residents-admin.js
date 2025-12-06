@@ -191,10 +191,46 @@ document.addEventListener('residents-init', ()=>{
   }
 
   
-function renderStats(){
-  if(!statsArea) return;
-  var total = cache.length;
-  var male = cache.filter(function(r){ return r.gender==='男'; }).length;
+function renderStats(container, data){
+  if(!container) return;
+  const total=(data||[]).length;
+  const male=(data||[]).filter(x=>x.gender==='男').length;
+  const female=(data||[]).filter(x=>x.gender==='女').length;
+  const leave=(data||[]).filter(x=>x.leaveStatus==='請假').length;
+  const hosp=(data||[]).filter(x=>x.leaveStatus==='住院').length;
+  const present=total-(leave+hosp);
+  const fl=n=>(data||[]).filter(x=>{ const p=parseBed(x.bedNumber); return p && p.room.startsWith(String(n)); });
+  const frows=[1,2,3].map(f=>{
+    const arr=fl(f); const t=arr.length; const lv=arr.filter(x=>x.leaveStatus==='請假').length;
+    const hp=arr.filter(x=>x.leaveStatus==='住院').length; const pr=t-(lv+hp);
+    return {f,total:t, pr, lv, hp};
+  });
+
+  const panes=`
+    <div class="pane-grid">
+      <div class="pane"><span class="label">總人數</span><div class="num">${total}</div></div>
+      <div class="pane"><span class="label">男</span><div class="num">${male}</div></div>
+      <div class="pane"><span class="label">女</span><div class="num">${female}</div></div>
+      <div class="pane ok"><span class="label">實到</span><div class="num">${present}</div></div>
+      <div class="pane warn"><span class="label">請假</span><div class="num">${leave}</div></div>
+      <div class="pane danger"><span class="label">住院</span><div class="num">${hosp}</div></div>
+    </div>
+    <div class="table-responsive mt-3">
+      <table class="table table-sm align-middle">
+        <thead class="table-light"><tr><th>樓層</th><th class="text-end">總數</th><th class="text-end">實到</th><th class="text-end">請假</th><th class="text-end">住院</th></tr></thead>
+        <tbody>
+          ${frows.map(x=>`<tr><td>${x.f}F</td><td class="text-end">${x.total}</td><td class="text-end text-success">${x.pr}</td><td class="text-end text-warning">${x.lv}</td><td class="text-end text-danger">${x.hp}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="stats-frame">
+      <div class="stats-header"><div class="title">各樓層人數統計</div><div class="stats-total">${present}</div></div>
+      <div class="stats-body">${panes}</div>
+    </div>`;
+}
+).length;
   var female = cache.filter(function(r){ return r.gender==='女'; }).length;
   var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
   var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
@@ -721,3 +757,14 @@ function renderStats(){
 
   load();
 });
+
+document.addEventListener('click', (e)=>{
+  const t=e.target;
+  if(t && (t.id==='export-xls-legacy' || t.closest && t.closest('#export-xls-legacy'))) {
+    exportImageStyleXLS();
+  }
+});
+
+// cache exposure for exporters
+if(!window.__residents_cache__) window.__residents_cache__ = [];
+if(!window.__roc_name__) window.__roc_name__ = function(){ const d=new Date(); const y=d.getFullYear()-1911; const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}${m}${dd}`; };
