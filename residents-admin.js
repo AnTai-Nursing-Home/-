@@ -239,8 +239,8 @@ document.addEventListener('residents-init', ()=>{
   const mobilityInput=document.getElementById('resident-mobility');
   const checkinInput=document.getElementById('resident-checkinDate');
   const statusInput=document.getElementById('resident-status');
-  const importBtn=document.getElementById('import-excel-btn');
-  const fileInput=document.getElementById('excel-file-input');
+// (removed duplicate)
+// (removed duplicate)
 
   if(importBtn && fileInput){
     importBtn.addEventListener('click', ()=> fileInput.click());
