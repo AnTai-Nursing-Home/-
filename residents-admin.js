@@ -230,11 +230,6 @@ function renderStats(container, data){
       <div class="stats-body">${panes}</div>
     </div>`;
 }
-).length;
-  var female = cache.filter(function(r){ return r.gender==='女'; }).length;
-  var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-  var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
-  var present = total - (leave + hosp);
 
   function normv(s){ return (s==null?'':String(s)); }
   function inFloor(f){
