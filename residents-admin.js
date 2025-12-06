@@ -649,7 +649,7 @@ function renderStats(){
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:34});
+    styleRow(header,{isHeader:true,center:true,height:54});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
     function getStatus(r){
@@ -700,7 +700,7 @@ function renderStats(){
       const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, acc.present, acc.total, '', '']);
-      styleRow(row,{center:true,height:32});
+      styleRow(row,{center:true,height:54});
     });
 
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
