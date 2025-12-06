@@ -489,10 +489,11 @@ function renderStats(){
                        right:{style:'thin',color:{argb:'FF9E9E9E'}} };
 
   function styleRow(row,{isHeader=false,alt=false,center=false,height=18,wrap=false}={}){
-    row.eachCell(c=>{
+    row.eachCell((c,idx)=>{
       c.font = isHeader ? fontHeader : fontCell;
       c.border = borderThin;
-      c.alignment = { vertical:'middle', horizontal: center ? 'center' : (isHeader?'center':'left'), wrapText: wrap };
+      const isBedNoCol = [2,7,12].includes(idx); // 床號欄置中
+      c.alignment = { vertical:'middle', horizontal: (isHeader||center) ? 'center' : (isBedNoCol?'center':'left'), wrapText: wrap };
       if(isHeader) c.fill = fillHeader;
       else if(alt) c.fill = fillAlt;
     });
@@ -545,10 +546,9 @@ function renderStats(){
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   })();
 
-  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；A4 橫式一頁） =====
+  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
   function addFloorSheet(name, floor){
     const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
-    // 14 欄：4*3 + 2 空白
     ws.columns = [
       {width:7},{width:6},{width:16},{width:12},{width:2},
       {width:7},{width:6},{width:16},{width:12},{width:2},
@@ -560,7 +560,6 @@ function renderStats(){
     styleRow(head1, {isHeader:true,height:18});
     const head2 = ws.addRow(['','','（單行顯示）','（例如：女/80歲）','', '','','（單行顯示）','（例如：女/80歲）','', '','','（單行顯示）','（例如：女/80歲）']);
     styleRow(head2, {isHeader:true,height:16});
-    // 合併每房的房號兩列
     [[1],[6],[11]].forEach(([s])=>ws.mergeCells(2,s,3,s));
 
     const tpl = getTpl();
@@ -582,13 +581,20 @@ function renderStats(){
       const group = rooms.slice(i, i+3);
       const lines = Math.max(...group.map(rm => (byRoom[rm]||[]).length), 0) || 1;
       for(let r=0;r<lines;r++){
-        const line = [];
+        const rowCells = [];
         for(let k=0;k<3;k++){
           const rm = group[k];
-          if(!rm){ line.push('','','','',''); continue; }
+          const isLast = (k===2);
+          if(!rm){
+            // 無此房：填滿該區塊
+            rowCells.push('','','','');
+            if(!isLast) rowCells.push(''); // 只有前兩房加 spacer
+            continue;
+          }
           const subs = byRoom[rm]||[];
           const sub = subs[r];
-          if(r===0) line.push(rm); else line.push('');
+          // 房號列只在這組的首行顯示
+          rowCells.push(r===0 ? rm : '');
           if(sub){
             totalBeds++;
             const token = `${rm}-${sub}`.toUpperCase();
@@ -597,16 +603,21 @@ function renderStats(){
             const age = rec ? computeAge(rec.birthday) : '';
             const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
             const nameText = rec ? (rec.id||'') : '空床';
-            line.push(sub, nameText, sexAge, '');
+            rowCells.push(sub, nameText, sexAge);
           }else{
-            line.push('','','','', '');
+            rowCells.push('', '', '');
           }
+          if(!isLast) rowCells.push(''); // spacer only for first & second blocks
         }
-        const row = ws.insertRow(rowCursor++, line);
+        // 確保長度為 14
+        while(rowCells.length < 14) rowCells.push('');
+        if(rowCells.length > 14) rowCells.length = 14;
+
+        const row = ws.insertRow(rowCursor++, rowCells);
         styleRow(row, {alt:(rowCursor%2===0), height:18, wrap:false});
       }
-      // 區隔空白行（細線）
-      const sep = ws.insertRow(rowCursor++, ['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+      // 區隔空白行
+      const sep = ws.insertRow(rowCursor++, Array(14).fill(''));
       sep.height = 6;
     }
     const emptyBeds = totalBeds - usedBeds;
@@ -620,7 +631,6 @@ function renderStats(){
     sumRow.getCell(8).value = usedBeds;
     styleRow(sumRow, {isHeader:true, height:20});
 
-    // A4 橫式一頁
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   }
@@ -629,7 +639,7 @@ function renderStats(){
   addFloorSheet('2樓床位配置', 2);
   addFloorSheet('3樓床位配置', 3);
 
-  // ===== 各樓層人數統計（同上一版） =====
+  // ===== 各樓層人數統計 =====
   (function addPeopleStats(){
     const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
     ws.columns = [{width:10},{width:28},{width:12},{width:12},{width:16},{width:6},{width:12}];
