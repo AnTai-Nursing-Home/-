@@ -649,7 +649,7 @@ function renderStats(){
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:30});
+    styleRow(header,{isHeader:true,center:true,height:34});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
     function getStatus(r){
@@ -700,7 +700,7 @@ function renderStats(){
       const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, acc.present, acc.total, '', '']);
-      styleRow(row,{center:true,height:28});
+      styleRow(row,{center:true,height:32});
     });
 
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
@@ -719,8 +719,12 @@ function renderStats(){
     // 備註
     ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
     ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
+    ws.getCell(`A${totalRow.number+2}`).font = { name:'Microsoft JhengHei', size:16 };
+    ws.getRow(totalRow.number+2).height = 28;
     ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
     ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
+    ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
+    ws.getRow(totalRow.number+3).height = 28;
 
     // 自動調整第 2 欄（活動能力力區分）欄寬
     const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
