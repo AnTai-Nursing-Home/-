@@ -642,14 +642,14 @@ function renderStats(){
   
 (function addPeopleStats(){
     const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
-    ws.columns = [{width:12},{width:34},{width:14},{width:14},{width:20},{width:8},{width:14}];
+    ws.columns = [{width:16},{width:40},{width:16},{width:16},{width:24},{width:10},{width:18}];
     ws.mergeCells('A1:G1');
     ws.getCell('A1').value = '各樓層人數統計';
-    ws.getCell('A1').font = { ...fontTitle, size:20 };
+    ws.getCell('A1').font = { ...fontTitle, size:24 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
     const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:24});
+    styleRow(header,{isHeader:true,center:true,height:26});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
     function getStatus(r){
@@ -700,7 +700,7 @@ function renderStats(){
       const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, acc.present, acc.total, '', '']);
-      styleRow(row,{center:true,height:22});
+      styleRow(row,{center:true,height:24});
     });
 
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
@@ -710,7 +710,7 @@ function renderStats(){
     ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
     const badge = ws.getCell(`F${totalRow.number+1}`);
     badge.value = sumPresent;
-    badge.font = {name:'Microsoft JhengHei', size:22, bold:true};
+    badge.font = {name:'Microsoft JhengHei', size:28, bold:true};
     badge.alignment = {horizontal:'center', vertical:'middle'};
     badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}};
     ws.getCell(`E${totalRow.number+1}`).value = '＝';
@@ -725,12 +725,12 @@ function renderStats(){
     // 自動調整第 2 欄（活動能力力區分）欄寬
     const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
-    ws.getColumn(2).width = Math.max(28, Math.min(60, Math.ceil(maxLen * 2)));
+    ws.getColumn(2).width = Math.max(34, Math.min(72, Math.ceil(maxLen * 2.2)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
 
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
-                     margins:{left:0.25,right:0.25,top:0.35,bottom:0.35,header:0.1,footer:0.1} };
+                     margins:{left:0.2,right:0.2,top:0.25,bottom:0.25,header:0.08,footer:0.08} };
 })();
 
 
