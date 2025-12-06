@@ -653,12 +653,12 @@ function renderStats(){
 
     // 將狀態標準化：只要是「請假」或「住院」各種寫法/欄位都能抓到
     function getStatus(r){
-      // 只看 leaveStatus：'請假' or '住院'；其他視為 present
-      const raw = ((r.leaveStatus||'')+'').trim();
-      if (raw === '住院') return 'hospital';
-      if (raw === '請假') return 'leave';
-      return 'present';
-    }
+  // 只看 leaveStatus，容許包含詞（去空白）；例：'請假'、'請假中'、'住院(轉院)'
+  const raw = ((r.leaveStatus||'')+'').replace(/\s/g,'');
+  if (raw.includes('住院')) return 'hospital';
+  if (raw.includes('請假')) return 'leave';
+  return 'present';
+}
 
     const floors = {'1':[],'2':[],'3':[]};
     (cache||[]).forEach(r=>{
