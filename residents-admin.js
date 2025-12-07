@@ -193,125 +193,136 @@ document.addEventListener('residents-init', ()=>{
   
 function renderStats(){
   if(!statsArea) return;
+  var total = cache.length;
+  var male = cache.filter(function(r){ return r.gender==='男'; }).length;
+  var female = cache.filter(function(r){ return r.gender==='女'; }).length;
+  var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
+  var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
+  var present = total - (leave + hosp);
 
   function normv(s){ return (s==null?'':String(s)); }
-  function isLeaveOnly(r){
-    const raw = normv(r.leaveStatus).replace(/\s/g,'');
-    return raw.includes('請假') && !raw.includes('住院');
-  }
-  function isHosp(r){
-    const raw = normv(r.leaveStatus).replace(/\s/g,'');
-    return raw.includes('住院');
-  }
   function inFloor(f){
-    const reg = new RegExp('^'+f+'\\d\\d');
-    return cache.filter(function(r){
-      const bed = String(r.bedNumber||'');
-      return reg.test(bed) || (r.nursingStation && String(r.nursingStation).indexOf(String(f))>-1);
-    });
+      var reg = new RegExp('^' + f + '\\d\\d');
+      return cache.filter(function(r){
+          var bed = String(r.bedNumber||'');
+          return reg.test(bed) || (r.nursingStation && String(r.nursingStation).indexOf(String(f))>-1);
+      });
   }
 
-  const total   = cache.length;
-  const male    = cache.filter(r=>r.gender==='男').length;
-  const female  = cache.filter(r=>r.gender==='女').length;
-  const leaveOnly = cache.filter(r=>isLeaveOnly(r)).length; // 只請假（不含住院）
-  const hospOnly  = cache.filter(r=>isHosp(r)).length;      // 住院
-  const present = total - leaveOnly - hospOnly;
+  var WHEEL = /(輪椅)/i;
+  var TROLLEY = /(推床|臥床|平車|推車)/i;
+  var WALK = /(步行|可獨立|助行|拐杖|walker)/i;
 
-  // Mobility（只計沒請假＆沒住院）
-  const WHEEL = /(輪椅)/i;
-  const TROLLEY = /(推床|臥床|平車|推車)/i;
-  const WALK = /(步行|可獨立|助行|拐杖|walker)/i;
-  const active = cache.filter(r=>!isLeaveOnly(r) && !isHosp(r));
-  const mWheel = active.filter(r=>WHEEL.test(normv(r.mobility))).length;
-  const mTrolley = active.filter(r=>TROLLEY.test(normv(r.mobility))).length;
-  const mWalk = active.filter(r=>WALK.test(normv(r.mobility))).length;
-
-  // Each floor
-  const floors = [1,2,3].map(function(f){
-    const arr = inFloor(f);
-    const fTotal = arr.length;
-    const fLeave = arr.filter(r=>isLeaveOnly(r)).length;
-    const fHosp  = arr.filter(r=>isHosp(r)).length;
-    const fPresent = fTotal - fLeave - fHosp;
-    const arrActive = arr.filter(r=>!isLeaveOnly(r) && !isHosp(r));
-    const fWheel = arrActive.filter(r=>WHEEL.test(normv(r.mobility))).length;
-    const fTrolley = arrActive.filter(r=>TROLLEY.test(normv(r.mobility))).length;
-    const fWalk = arrActive.filter(r=>WALK.test(normv(r.mobility))).length;
-    return {f, fTotal, fPresent, fLeave, fHosp, fWheel, fTrolley, fWalk};
+  var floors = [1,2,3].map(function(f){
+      var arr = inFloor(f);
+      var fTotal = arr.length;
+      var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
+      var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
+      var fPresent = fTotal - (fLeave + fHosp);
+      var fWheel = arr.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+      var fTrolley = arr.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+      var fWalk = arr.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
+      return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
   });
 
-  // Tiles, grouped
-  let tiles = '';
-  // 重點
-  tiles += `<div class="section-label">重點</div>`;
-  tiles += `<div class="stats-grid">
-    <div class="stats-tile tile-hero tile-present"><div class="label">實到</div><div class="num">${present}</div></div>
-    <div class="stats-tile tile-hero tile-total"><div class="label">總數</div><div class="num">${total}</div></div>
-  </div>`;
+  var mWheel = cache.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+  var mTrolley = cache.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+  var mWalk = cache.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
 
-  // 狀態
-  tiles += `<div class="section-label mt-2">狀態</div>`;
-  tiles += `<div class="stats-grid">
-    <div class="stats-tile"><div class="label">男</div><div class="num">${male}</div></div>
-    <div class="stats-tile"><div class="label">女</div><div class="num">${female}</div></div>
-    <div class="stats-tile tile-leave"><div class="label">請假</div><div class="num">${leaveOnly}</div></div>
-    <div class="stats-tile tile-hosp"><div class="label">住院</div><div class="num">${hospOnly}</div></div>
-  </div>`;
+  var rows = '';
+  for(var i=0;i<floors.length;i++){
+      var x = floors[i];
+      rows += ''
+      + '<tr>'
+      +   '<td>' + x.f + 'F</td>'
+      +   '<td class="text-end">' + x.fTotal + '</td>'
+      +   '<td class="text-end text-success">' + x.fPresent + '</td>'
+      +   '<td class="text-end text-warning">' + x.fLeave + '</td>'
+      +   '<td class="text-end text-danger">' + x.fHosp + '</td>'
+      +   '<td class="text-end">' + x.fWheel + '</td>'
+      +   '<td class="text-end">' + x.fTrolley + '</td>'
+      +   '<td class="text-end">' + x.fWalk + '</td>'
+      + '</tr>';
+  }
 
-  // 行動能力（只算非請假）
-  tiles += `<div class="section-label mt-2">行動能力（不含請假與住院）</div>`;
-  tiles += `<div class="stats-grid">
-    <div class="stats-tile"><div class="label">輪椅</div><div class="num">${mWheel}</div></div>
-    <div class="stats-tile"><div class="label">推床</div><div class="num">${mTrolley}</div></div>
-    <div class="stats-tile"><div class="label">步行</div><div class="num">${mWalk}</div></div>
-  </div>`;
-
-  // per-floor rows
-  let rows='';
-  floors.forEach(x=>{
-    rows += `<tr>
-      <td>${x.f}F</td>
-      <td class="text-end">${x.fTotal}</td>
-      <td class="text-end text-success fw-bold">${x.fPresent}</td>
-      <td class="text-end text-warning">${x.fLeave}</td>
-      <td class="text-end text-danger">${x.fHosp}</td>
-      <td class="text-end">${x.fWheel}</td>
-      <td class="text-end">${x.fTrolley}</td>
-      <td class="text-end">${x.fWalk}</td>
-    </tr>`;
-  });
-
-  const html = `
-    <div class="stats-wrap">
-      <div class="stats-head"><h5 class="title mb-0">總人數統計</h5><div class="actions"><button class="btn btn-success btn-sm" onclick="exportStyledXls()">匯出 Excel</button><div class="total"><span class="mini">實到</span><span class="big">${present}</span><span class="slash">／</span><span class="mini">總數</span><span class="big">${total}</span></div></div></div>
-      ${tiles}
-    </div>
-
-    <div class="card border-0 shadow-sm mt-3">
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>樓層</th>
-                <th class="text-end">總數</th>
-                <th class="text-end">實到</th>
-                <th class="text-end">請假</th>
-                <th class="text-end">住院</th>
-                <th class="text-end">輪椅</th>
-                <th class="text-end">推床</th>
-                <th class="text-end">步行</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
+  var html = ''
+    + '<div class="row g-3">'
+    +   '<div class="col-12 col-xl-5">'
+    +     '<div class="card border-0 shadow-sm h-100">'
+    +       '<div class="card-body">'
+    +         '<div class="d-flex align-items-center justify-content-between mb-3">'
+    +           '<div class="h5 mb-0">總人數</div>'
+    +           '<span class="badge bg-dark fs-6">' + total + '</span>'
+    +         '</div>'
+    +         '<div class="row g-2 mb-2">'
+    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>' + male + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>' + female + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>' + present + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span></div>'
+    +           '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span></div>'
+    +         '</div>'
+    +         '<div class="table-responsive mt-3">'
+    +           '<table class="table table-sm align-middle mb-0">'
+    +             '<thead class="table-light">'
+    +               '<tr>'
+    +                 '<th>樓層</th>'
+    +                 '<th class="text-end">總數</th>'
+    +                 '<th class="text-end">實到</th>'
+    +                 '<th class="text-end">請假</th>'
+    +                 '<th class="text-end">住院</th>'
+    +                 '<th class="text-end">輪椅</th>'
+    +                 '<th class="text-end">推床</th>'
+    +                 '<th class="text-end">步行</th>'
+    +               '</tr>'
+    +             '</thead>'
+    +             '<tbody>' + rows + '</tbody>'
+    +           '</table>'
+    +         '</div>'
+    +         '<div class="small text-muted mt-2">'
+    +           '<span class="me-3">行動方式總計：</span>'
+    +           '<span class="me-2">輪椅 ' + mWheel + '</span>'
+    +           '<span class="me-2">推床 ' + mTrolley + '</span>'
+    +           '<span>步行 ' + mWalk + '</span>'
+    +         '</div>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="col-12 col-xl-7">'
+    +     '<div class="card border-0 shadow-sm h-100">'
+    +       '<div class="card-body">'
+    +         '<div class="d-flex justify-content-between align-items-center mb-3">'
+    +           '<div class="h6 mb-0 text-muted">動作區</div>'
+    +           '<button id="export-xls-styled" class="btn btn-success btn-sm">'
+    +             '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
+    +           '</button>'
+    +         '</div>'
+    +         '<ul class="list-group list-group-flush">'
+    +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
+    +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
+    +             '<i class="fa-regular fa-circle-down"></i>'
+    +           '</li>'
+    +           '<li class="list-group-item">'
+    +             '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>'
+    +           '</li>'
+    +         '</ul>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
 
   statsArea.innerHTML = html;
+  try{ updateStatsHeaderCounts(present, total); }catch(e){}
+}
+
+// Fill top "實到 / 總數" header badges if present
+function updateStatsHeaderCounts(present, total){
+  var bar = document.getElementById('statsHeadBar');
+  if(!bar) return;
+  var pb = document.getElementById('presentBadge');
+  var tb = document.getElementById('totalBadge');
+  if(pb) pb.textContent = '實到 ' + present;
+  if(tb) tb.textContent = '總數 ' + total;
+  bar.classList.remove('d-none');
 }
 
 
@@ -894,19 +905,3 @@ function renderStats(){
 
   load();
 });
-
-
-
-// --- Export shim: ensure exportStyledXls exists ---
-(function(){
-  if (typeof window.exportStyledXls === 'function') return;
-  window.exportStyledXls = function(){
-    if (typeof window.exportAllXls === 'function') return window.exportAllXls();
-    if (typeof window.exportExcelStyled === 'function') return window.exportExcelStyled();
-    if (typeof window.exportExcel === 'function') return window.exportExcel();
-    if (typeof window.handleExportXls === 'function') return window.handleExportXls();
-    if (typeof window.downloadXls === 'function') return window.downloadXls();
-    console.warn('No export function found. Please bind your export function to one of: exportAllXls / exportExcelStyled / exportExcel / handleExportXls / downloadXls');
-    alert('找不到匯出功能：請確認目前頁面已載入匯出程式碼（exportAllXls 或 exportExcelStyled 等）。');
-  };
-})();
