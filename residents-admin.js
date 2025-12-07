@@ -1,4 +1,3 @@
-window.__exportingXls=false;window.__xlsWired=false;
 // === Inject: hardcoded floor template & localStorage bootstrap ===
 (function() {
   try {
@@ -477,11 +476,10 @@ function renderStats(){
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-async async function exportStyledXls(){
-  if (window.__exportingXls) { return; }
+function exportStyledXls(){
+  if (window.__exportingXls) return;
   window.__exportingXls = true;
-  try{var b=document.getElementById('btnExportXls'); if(b){ if(!b.dataset.idleText){ b.dataset.idleText=b.innerText||''; } b.disabled=true; b.innerText=(b.dataset.busy||'匯出中…'); }}catch(e){}
-  try {
+  (async () => {
 
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
@@ -759,7 +757,13 @@ async async function exportStyledXls(){
   a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);
+
+  })().catch(err=>{ console.error(err); alert('匯出失敗：'+(err&&err.message?err.message:err)); }).finally(()=>{
+    window.__exportingXls = false;
+    try{ var b=document.getElementById('btnExportXls'); if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } } }catch(e){}
+  });
 }
+
     function hookEvents(){
     document.addEventListener('click', (e)=>{
       const t=e.target;
@@ -919,25 +923,4 @@ function updateStatsHeaderCounts(present, total){
     if(tb) tb.textContent = '總數 ' + total;
     bar.classList.remove('d-none');
   }catch(e){ console.warn('updateStatsHeaderCounts failed:', e); }
-  } finally {
-    window.__exportingXls = false;
-    try{
-      var b=document.getElementById('btnExportXls');
-      if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } }
-    }catch(e){}
-  }
 }
-
-function wireExportXlsOnce(){
-  try{
-    const btn = document.getElementById('btnExportXls');
-    if(!btn) return;
-    if (btn.dataset.wired === '1') return;
-    btn.dataset.wired = '1';
-    btn.addEventListener('click', async (e)=>{
-      if(window.__exportingXls) return;
-      try{ await exportStyledXls(); }catch(err){ console.error(err); }
-    });
-  }catch(e){}
-}
-document.addEventListener('DOMContentLoaded', wireExportXlsOnce);
