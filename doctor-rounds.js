@@ -51,7 +51,6 @@ document.addEventListener("firebase-ready", () => {
   });
   return html;
 }
-' ${sel}>${b}</option>`;
     });
     return html;
   }
@@ -69,7 +68,6 @@ document.addEventListener("firebase-ready", () => {
   var dd = String(d).padStart(2, "0");
   return ry + "/" + mm + "/" + dd;
 }
-/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
   }
 
   
