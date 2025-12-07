@@ -648,7 +648,7 @@ function renderStats(){
     ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
+    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
@@ -727,8 +727,8 @@ function renderStats(){
     ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
     ws.getRow(totalRow.number+3).height = 28;
 
-    // 自動調整第 2 欄（活動能力區分）欄寬
-    const maxLen = Math.max('活動能力區分'.length, ...abilityStrings.map(s=>s.length));
+    // 自動調整第 2 欄（活動能力力區分）欄寬
+    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
@@ -740,7 +740,40 @@ function renderStats(){
 
 
   // ===== 下載 =====
-  const blob = await wb.xlsx.writeBuffer();
+  
+  // === 修正「實到人數」欄：用公式 = 住民總人數合計 - 請假人數 ===
+  (function fixPresentColumn(ws){
+    try{
+      const headerRow = ws.getRow(2);
+      let colLeave=0, colPresent=0, colTotal=0;
+      headerRow.eachCell((cell, col) => {
+        const t = String(cell.value || '').trim();
+        if (t.indexOf('請假人數')>-1) colLeave = col;
+        if (t.indexOf('實到人數')>-1) colPresent = col;
+        if (t.indexOf('住民總人數合計')>-1) colTotal = col;
+      });
+      if(!colLeave || !colPresent || !colTotal) return;
+
+      const toCol = (n)=>{ let s=''; while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26);} return s; };
+      const L = toCol(colLeave), P = toCol(colPresent), T = toCol(colTotal);
+
+      // 掃描資料列：從第3列開始直到遇到「總計」
+      let r=3;
+      while(true){
+        const label = String(ws.getCell('A'+r).value || '').trim();
+        if(!label) break;
+        if(label.indexOf('總計')>-1) break;
+        ws.getCell(P + r).value = { formula: `${T}${r}-${L}${r}` };
+        r++;
+      }
+      // 總計列
+      const totalLabel = String(ws.getCell('A'+r).value || '').trim();
+      if (totalLabel.indexOf('總計')>-1) {
+        ws.getCell(P + r).value = { formula: `${T}${r}-${L}${r}` };
+      }
+    }catch(e){ console.warn('fixPresentColumn failed:', e); }
+  })(ws);
+const blob = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
