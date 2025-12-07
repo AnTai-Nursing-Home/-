@@ -311,6 +311,7 @@ function renderStats(){
     + '</div>';
 
   statsArea.innerHTML = html;
+  try{ updateStatsHeaderCounts(present, total); }catch(e){}
 }
 
 
@@ -894,3 +895,17 @@ function renderStats(){
 
   load();
 });
+
+
+// Fill top "實到 / 總數" header badges for the Stats tab
+function updateStatsHeaderCounts(present, total){
+  try{
+    var bar = document.getElementById('statsHeadBar');
+    if(!bar) return;
+    var pb = document.getElementById('presentBadge');
+    var tb = document.getElementById('totalBadge');
+    if(pb) pb.textContent = '實到 ' + present;
+    if(tb) tb.textContent = '總數 ' + total;
+    bar.classList.remove('d-none');
+  }catch(e){ console.warn('updateStatsHeaderCounts failed:', e); }
+}
