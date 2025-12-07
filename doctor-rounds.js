@@ -43,20 +43,31 @@ document.addEventListener("firebase-ready", () => {
   }
 
   function buildBedOptions(selected) {
-    const beds = Object.keys(RESIDENTS_BY_BED).sort((a, b) => a.localeCompare(b, "zh-Hant"));
-    let html = <option value=''>選擇床號</option>;
-    beds.forEach(b => {
-      const sel = b === selected ? "selected" : "";
-      html += <option value='${b}' ${sel}>${b}</option>;
+  const beds = Object.keys(RESIDENTS_BY_BED).sort((a, b) => a.localeCompare(b, "zh-Hant"));
+  let html = "<option value=''>選擇床號</option>";
+  beds.forEach(function(b){
+    const sel = (b === selected) ? "selected" : "";
+    html += "<option value='" + b + "' " + sel + ">" + b + "</option>";
+  });
+  return html;
+}
     });
     return html;
   }
 
   function toRoc(iso) {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-").map(Number);
-    if (!y || !m || !d) return "";
-    return ${y - 1911}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")};
+  if (!iso) return "";
+  const parts = iso.split("-");
+  if (parts.length !== 3) return "";
+  var y = parseInt(parts[0], 10) || 0;
+  var m = parseInt(parts[1], 10) || 0;
+  var d = parseInt(parts[2], 10) || 0;
+  if (!y || !m || !d) return "";
+  var ry = (y - 1911);
+  var mm = String(m).padStart(2, "0");
+  var dd = String(d).padStart(2, "0");
+  return ry + "/" + mm + "/" + dd;
+}
   }
 
   
@@ -91,19 +102,20 @@ document.addEventListener("firebase-ready", () => {
   }
 
   function createRow(row = {}) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = 
-      <td class="text-center idx"></td>
-      <td><select class="form-select form-select-sm bed-select">${buildBedOptions(row.bedNumber || "")}</select></td>
-      <td><input type="text" class="form-control form-control-sm name-input text-center" value="${row.name || ""}" readonly></td>
-      <td><input type="text" class="form-control form-control-sm id-input text-center" value="${row.idNumber || ""}" readonly></td>
-      <td><input type="text" class="form-control form-control-sm vitals-input text-center" value="${row.vitals || ""}"></td>
-      <td><textarea class="form-control form-control-sm cond-input text-center" rows="1">${row.condition || ""}</textarea></td>
-      <td><textarea class="form-control form-control-sm note-input text-center" rows="1">${row.doctorNote || ""}</textarea></td>
-      <td class="text-center"><button class="btn btn-outline-danger btn-sm del-btn"><i class="fa fa-trash"></i></button></td>
-    ;
+  const tr = document.createElement("tr");
+  function escAttr(v){ return (v==null?'':String(v)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  var html = ""
+    + '<td class="text-center idx"></td>'
+    + '<td><select class="form-select form-select-sm bed-select">' + buildBedOptions(row.bedNumber || "") + '</select></td>'
+    + '<td><input type="text" class="form-control form-control-sm name-input text-center" value="' + escAttr(row.name || "") + '" readonly></td>'
+    + '<td><input type="text" class="form-control form-control-sm id-input text-center" value="' + escAttr(row.idNumber || "") + '" readonly></td>'
+    + '<td><input type="text" class="form-control form-control-sm vitals-input text-center" value="' + escAttr(row.vitals || "") + '"></td>'
+    + '<td><textarea class="form-control form-control-sm condition-input text-center" rows="1">' + escAttr(row.condition || "") + '</textarea></td>'
+    + '<td><textarea class="form-control form-control-sm note-input text-center" rows="1">' + escAttr(row.doctorNote || "") + '</textarea></td>'
+    + '<td class="text-center"><button class="btn btn-outline-danger btn-sm del-btn"><i class="fa fa-trash"></i></button></td>';
+  tr.innerHTML = html;
 
-    const bedSelect = tr.querySelector(".bed-select");
+  const bedSelect = tr.querySelector(".bed-select");
     bedSelect.addEventListener("change", () => {
       const bed = bedSelect.value;
       const info = RESIDENTS_BY_BED[bed];
