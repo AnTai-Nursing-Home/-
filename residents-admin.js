@@ -311,18 +311,6 @@ function renderStats(){
     + '</div>';
 
   statsArea.innerHTML = html;
-  try{ updateStatsHeaderCounts(present, total); }catch(e){}
-}
-
-// Fill top "實到 / 總數" header badges if present
-function updateStatsHeaderCounts(present, total){
-  var bar = document.getElementById('statsHeadBar');
-  if(!bar) return;
-  var pb = document.getElementById('presentBadge');
-  var tb = document.getElementById('totalBadge');
-  if(pb) pb.textContent = '實到 ' + present;
-  if(tb) tb.textContent = '總數 ' + total;
-  bar.classList.remove('d-none');
 }
 
 
@@ -905,10 +893,3 @@ function updateStatsHeaderCounts(present, total){
 
   load();
 });
-
-
-// --- ensure present numbers in XLS = total - (leave + hospital) ---
-function __fixPresent(total, leave, hosp){
-  var h = typeof hosp === 'number' ? hosp : 0;
-  return total - (leave + h);
-}
