@@ -894,3 +894,19 @@ function renderStats(){
 
   load();
 });
+
+
+
+// --- Export shim: ensure exportStyledXls exists ---
+(function(){
+  if (typeof window.exportStyledXls === 'function') return;
+  window.exportStyledXls = function(){
+    if (typeof window.exportAllXls === 'function') return window.exportAllXls();
+    if (typeof window.exportExcelStyled === 'function') return window.exportExcelStyled();
+    if (typeof window.exportExcel === 'function') return window.exportExcel();
+    if (typeof window.handleExportXls === 'function') return window.handleExportXls();
+    if (typeof window.downloadXls === 'function') return window.downloadXls();
+    console.warn('No export function found. Please bind your export function to one of: exportAllXls / exportExcelStyled / exportExcel / handleExportXls / downloadXls');
+    alert('找不到匯出功能：請確認目前頁面已載入匯出程式碼（exportAllXls 或 exportExcelStyled 等）。');
+  };
+})();
