@@ -25,6 +25,16 @@
 @media (max-width: 992px){ .pane-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
 
 /* ===== Stats Pane (window-like) ===== */
+
+/* --- Emphasis tiles & sections --- */
+.section-label{font-weight:800;margin:4px 14px 0;color:#374151}
+.tile-hero{grid-column: span 2; border-width:2px;background:#f0f9ff}
+.tile-hero .num{font-size:34px}
+.tile-total{background:#dcfce7}
+.tile-present{background:#fef9c3}
+.tile-leave{background:#fde68a}
+.tile-hosp{background:#fecaca}
+
 .stats-wrap{border:3px solid #1f2937;border-radius:14px;background:#fff;overflow:hidden}
 .stats-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px solid #1f2937;background:#fffef5}
 .stats-head .title{font-weight:800;margin:0}
