@@ -286,7 +286,7 @@ function renderStats(){
     <div class="stats-wrap">
       <div class="stats-head">
         <h5 class="title mb-0">總人數統計</h5>
-        <div class="total">${present}/${total}</div>
+        <div class="total"><span class="mini">實到</span><span class="big">${present}</span><span class="slash">／</span><span class="mini">總數</span><span class="big">${total}</span></div>
       </div>
       ${tiles}
     </div>
