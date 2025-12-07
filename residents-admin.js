@@ -742,7 +742,7 @@ function renderStats(){
   // ===== 下載 =====
   const blob = await wb.
 // === 強制修正：Excel 的「實到人數」=「住民總人數合計」－「請假人數(含住院)」 ===
-(function enforcePresentByFormula(wb){
+;(function enforcePresentByFormula(wb){
   try{
     var sheet = (typeof ws !== 'undefined' && ws) ? ws
              : (wb.getWorksheet('各樓層人數統計') || (wb.worksheets && wb.worksheets[0]));
