@@ -1,4 +1,3 @@
-
 // 醫療巡迴門診掛號及就診狀況交班單 - 表格內讀取中版本
 // ✅ 讀取時表格中顯示「讀取中...」
 // ✅ 匯出 Excel、儲存、自動載入功能齊全
@@ -216,7 +215,7 @@ function exportExcel() {
 
   var parts = [];
   parts.push("<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>");
-  parts.push("<head><meta charset='UTF-8'><style>@page { size: A4 landscape; margin: 10mm; } table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:12px;} th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}</style></head>");
+  parts.push("<head><meta charset='UTF-8'><style>@page { size: A4 portrait; margin: 10mm; } table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:11px;} th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}</style></head>");
   parts.push("<body>");
   parts.push("<table border='1'>");
   parts.push(colHtml);
