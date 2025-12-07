@@ -476,7 +476,7 @@ function renderStats(){
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-function exportStyledXls(){
+async function exportStyledXls(){
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
   const wb = new ExcelJS.Workbook();
