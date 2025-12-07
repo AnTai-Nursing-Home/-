@@ -1,3 +1,4 @@
+window.__exportingXls=false;window.__xlsWired=false;
 // === Inject: hardcoded floor template & localStorage bootstrap ===
 (function() {
   try {
@@ -222,17 +223,15 @@ function renderStats(){
       var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
       var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
       var fPresent = fTotal - (fLeave + fHosp);
-      var active = arr.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
-      var fWheel = active.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-      var fTrolley = active.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-      var fWalk = active.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
+      var fWheel = arr.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+      var fTrolley = arr.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+      var fWalk = arr.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
       return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
   });
 
-  var activeAll = cache.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
-  var mWheel = activeAll.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-  var mTrolley = activeAll.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-  var mWalk = activeAll.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
+  var mWheel = cache.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+  var mTrolley = cache.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+  var mWalk = cache.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
 
   var rows = '';
   for(var i=0;i<floors.length;i++){
@@ -478,7 +477,12 @@ function renderStats(){
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-async function exportStyledXls(){
+async async function exportStyledXls(){
+  if (window.__exportingXls) { return; }
+  window.__exportingXls = true;
+  try{var b=document.getElementById('btnExportXls'); if(b){ if(!b.dataset.idleText){ b.dataset.idleText=b.innerText||''; } b.disabled=true; b.innerText=(b.dataset.busy||'匯出中…'); }}catch(e){}
+  try {
+
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
   const wb = new ExcelJS.Workbook();
@@ -656,7 +660,7 @@ async function exportStyledXls(){
     ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
+    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
@@ -689,7 +693,7 @@ async function exportStyledXls(){
       const acc = {wheel:0,push:0,walk:0};
       list.forEach(r=>{
         const s = getStatus(r);
-        if (s !== 'present') return; // 排除請假與住院
+        if (s === 'leave') return;
         const a = (r.mobility||r.ability||'').trim();
         if(a.includes('輪椅')) acc.wheel++;
         else if(a.includes('推')) acc.push++;
@@ -736,8 +740,8 @@ async function exportStyledXls(){
     ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
     ws.getRow(totalRow.number+3).height = 28;
 
-    // 自動調整第 2 欄（活動能力區分）欄寬
-    const maxLen = Math.max('活動能力區分'.length, ...abilityStrings.map(s=>s.length));
+    // 自動調整第 2 欄（活動能力力區分）欄寬
+    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
@@ -915,4 +919,25 @@ function updateStatsHeaderCounts(present, total){
     if(tb) tb.textContent = '總數 ' + total;
     bar.classList.remove('d-none');
   }catch(e){ console.warn('updateStatsHeaderCounts failed:', e); }
+  } finally {
+    window.__exportingXls = false;
+    try{
+      var b=document.getElementById('btnExportXls');
+      if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } }
+    }catch(e){}
+  }
 }
+
+function wireExportXlsOnce(){
+  try{
+    const btn = document.getElementById('btnExportXls');
+    if(!btn) return;
+    if (btn.dataset.wired === '1') return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', async (e)=>{
+      if(window.__exportingXls) return;
+      try{ await exportStyledXls(); }catch(err){ console.error(err); }
+    });
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', wireExportXlsOnce);
