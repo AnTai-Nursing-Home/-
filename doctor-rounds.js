@@ -178,7 +178,121 @@ document.addEventListener("firebase-ready", () => {
     alert("✅ 已儲存醫巡單");
   }
 
-  function exportExcel() {
+  function exportExcelStyled() {
+    let data;
+    try {
+      data = collectData();
+    } catch {
+      alert("請先選擇日期");
+      return;
+    }
+
+    const rocDate = toRoc(data.date);
+    // --- Column widths (mm approx via px). Adjust these constants to fine-tune ---
+    const COLS = [
+      { w: 42 },   // 排序
+      { w: 70 },   // 床號
+      { w: 120 },  // 姓名
+      { w: 180 },  // 身分證
+      { w: 180 },  // 生命徵象
+      { w: 260 },  // 病情簡述
+      { w: 260 },  // 醫師手記
+    ];
+
+    // Row height in px for body rows (Excel will map roughly)
+    const BODY_ROW_HEIGHT = 36;  // 可依你需求調整（單行略高、利於書寫）
+    const HEADER_ROW_HEIGHT = 36;
+    const TITLE_ROW_HEIGHT = 42;
+
+    const rowsHtml = data.entries.map((e, i) => `
+      <tr style="height:${BODY_ROW_HEIGHT}px">
+        <td style='text-align:center;vertical-align:middle;'>${i + 1}</td>
+        <td style='text-align:center;vertical-align:middle;'>${e.bedNumber||""}</td>
+        <td style='text-align:center;vertical-align:middle;'>${e.name||""}</td>
+        <td style='text-align:center;vertical-align:middle;'>${e.idNumber||""}</td>
+        <td style='text-align:center;vertical-align:middle;'>${(e.vitals||"").replace(/\n/g,'<br>')}</td>
+        <td style='text-align:center;vertical-align:middle;'>${(e.condition||"").replace(/\n/g,'<br>')}</td>
+        <td style='text-align:center;vertical-align:middle;'>${(e.doctorNote||"").replace(/\n/g,'<br>')}</td>
+      </tr>`).join("");
+
+    // Additional instruction/footer lines (you可自訂)
+    const extraTop = `
+      <tr>
+        <td colspan="7" style="text-align:left;font-size:12px;padding:4px 0;">
+          ※ 請於就診當日完成掛號與交班紀錄；生命徵象請以最新測量值填寫
+        </td>
+      </tr>`;
+
+    const extraBottom = `
+      <tr>
+        <td colspan="7" style="text-align:left;font-size:12px;padding:8px 0 0 0;">
+          備註：病情簡述可包含主訴、現況重點、需追蹤事項；醫師手記請書寫可辨識之醫囑與建議
+        </td>
+      </tr>`;
+
+    // Build column group with widths
+    const colgroup = '<colgroup>' + COLS.map(c => `<col style="width:${c.w}px">`).join('') + '</colgroup>';
+
+    const tableHTML = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:x="urn:schemas-microsoft-com:office:excel"
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset='UTF-8'>
+      <!-- Force landscape A4 and default font -->
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        table { border-collapse: collapse; font-family: 'Microsoft JhengHei', Arial, sans-serif; font-size: 12px; }
+        th, td { border: 1px solid #000; }
+        thead th { background: #f3f6f9; font-weight: 600; }
+      </style>
+      </head>
+      <body>
+      <table border='1'>
+        ${colgroup}
+        <thead>
+          <tr>
+            <th colspan='7' style='text-align:center;height:${TITLE_ROW_HEIGHT}px;font-size:16px;font-weight:bold;'>
+              醫療巡迴門診掛號及就診狀況交班單
+            </th>
+          </tr>
+          <tr style="height:${HEADER_ROW_HEIGHT}px">
+            <th colspan='3' style='text-align:left;padding-left:6px;'>醫巡日期：${rocDate}</th>
+            <th colspan='4' style='text-align:right;padding-right:6px;'>看診人數：${data.totalPatients}</th>
+          </tr>
+          ${extraTop}
+          <tr style="height:${HEADER_ROW_HEIGHT}px">
+            <th>排序</th>
+            <th>床號</th>
+            <th>姓名</th>
+            <th>身分證字號</th>
+            <th>生命徵象</th>
+            <th>病情簡述/主訴</th>
+            <th>醫師手記/囑語</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          ${extraBottom}
+          <tr>
+            <td colspan="7" style="text-align:right;padding:6px 8px;">
+              簽名日期：${rocDate}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </body></html>`;
+
+    const blob = new Blob([`\ufeff${tableHTML}`], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 保留舊函式名稱以相容既有按鈕事件
+  function exportExcel(){ return exportExcelStyled(); }
     let data;
     try {
       data = collectData();
