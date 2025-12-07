@@ -189,13 +189,13 @@ function exportExcel() {
   var rocDate = toRoc(data.date);
 
   var colHtml = '<colgroup>' +
-    '<col style="width:42px">' +
-    '<col style="width:70px">' +
-    '<col style="width:120px">' +
-    '<col style="width:180px">' +
-    '<col style="width:180px">' +
-    '<col style="width:260px">' +
-    '<col style="width:260px">' +
+    '<col style="width:4.78px">' +
+    '<col style="width:5.67px">' +
+    '<col style="width:9.22px">' +
+    '<col style="width:10.89px">' +
+    '<col style="width:16.22px">' +
+    '<col style="width:20.44px">' +
+    '<col style="width:14.45px">' +
   '</colgroup>';
 
   var rows = [];
@@ -220,15 +220,15 @@ function exportExcel() {
   parts.push("<table border='1'>");
   parts.push(colHtml);
   parts.push("<thead>");
-  parts.push("<tr><th colspan='7' style='text-align:center;height:42px;font-size:16px;font-weight:bold;'>醫療巡迴門診掛號及就診狀況交班單</th></tr>");
-  parts.push("<tr style='height:32px'><th colspan='3' style='text-align:left;padding-left:6px;'>醫巡日期：" + rocDate + "</th><th colspan='4' style='text-align:right;padding-right:6px;'>看診人數：" + data.totalPatients + "</th></tr>");
+  parts.push("<tr><th colspan='7' style='text-align:center;height:60px;font-size:16px;font-weight:bold;'>醫療巡迴門診掛號及就診狀況交班單</th></tr>");
+  parts.push("<tr style='height:33.6px'><th colspan='3' style='text-align:left;padding-left:6px;'>醫巡日期：" + rocDate + "</th><th colspan='4' style='text-align:right;padding-right:6px;'>看診人數：" + data.totalPatients + "</th></tr>");
   parts.push("<tr><td colspan='7' style='text-align:left;font-size:12px;padding:4px 0;'>※ 請於就診當日完成掛號與交班紀錄；生命徵象請以最新測量值填寫</td></tr>");
   parts.push("<tr style='height:32px'><th>排序</th><th>床號</th><th>姓名</th><th>身分證字號</th><th>生命徵象</th><th>病情簡述/主訴</th><th>醫師手記/囑語</th></tr>");
   parts.push("</thead>");
   parts.push("<tbody>");
   parts.push(rows.join(""));
-  parts.push("<tr><td colspan='7' style='text-align:left;font-size:12px;padding:8px 0 0 0;'>備註：病情簡述可包含主訴、現況重點、需追蹤事項；醫師手記請書寫可辨識之醫囑與建議</td></tr>");
-  parts.push("<tr><td colspan='7' style='text-align:right;padding:6px 8px;'>簽名日期：" + rocDate + "</td></tr>");
+  parts.push("<tr><td colspan='7' style='text-align:left;font-size:11px;padding:8px 0 0 0;'>醫師簽章:</td></tr>");
+  parts.push("<tr><td colspan='7' style='text-align:left;font-size:11px;padding:8px 0 0 0;'>跟診護理師簽章:</td></tr>");
   parts.push("</tbody>");
   parts.push("</table>");
   parts.push("</body></html>");
