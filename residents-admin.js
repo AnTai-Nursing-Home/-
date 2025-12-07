@@ -222,15 +222,17 @@ function renderStats(){
       var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
       var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
       var fPresent = fTotal - (fLeave + fHosp);
-      var fWheel = arr.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-      var fTrolley = arr.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-      var fWalk = arr.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
+      var active = arr.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
+      var fWheel = active.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+      var fTrolley = active.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+      var fWalk = active.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
       return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
   });
 
-  var mWheel = cache.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-  var mTrolley = cache.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-  var mWalk = cache.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
+  var activeAll = cache.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
+  var mWheel = activeAll.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
+  var mTrolley = activeAll.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
+  var mWalk = activeAll.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
 
   var rows = '';
   for(var i=0;i<floors.length;i++){
@@ -687,7 +689,7 @@ async function exportStyledXls(){
       const acc = {wheel:0,push:0,walk:0};
       list.forEach(r=>{
         const s = getStatus(r);
-        if (s === 'leave') return;
+        if (s !== 'present') return; // 排除請假與住院
         const a = (r.mobility||r.ability||'').trim();
         if(a.includes('輪椅')) acc.wheel++;
         else if(a.includes('推')) acc.push++;
