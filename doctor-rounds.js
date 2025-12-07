@@ -1,3 +1,4 @@
+
 // 醫療巡迴門診掛號及就診狀況交班單 - 表格內讀取中版本
 // ✅ 讀取時表格中顯示「讀取中...」
 // ✅ 匯出 Excel、儲存、自動載入功能齊全
@@ -177,7 +178,6 @@ document.addEventListener("firebase-ready", () => {
     alert("✅ 已儲存醫巡單");
   }
 
-  
 function exportExcel() {
   var data;
   try {
@@ -188,53 +188,87 @@ function exportExcel() {
   }
   var rocDate = toRoc(data.date);
 
+  // 欄寬百分比（以總寬 81.22 為基準）
   var colHtml = '<colgroup>' +
-    '<col style="width:4.78px">' +
-    '<col style="width:5.67px">' +
-    '<col style="width:9.22px">' +
-    '<col style="width:10.89px">' +
-    '<col style="width:16.22px">' +
-    '<col style="width:20.44px">' +
-    '<col style="width:14.45px">' +
+    '<col style="width:6.5624%">' +   // 排序 5.33
+    '<col style="width:8.4831%">' +   // 床號 6.89
+    '<col style="width:12.4477%">' +  // 姓名 10.11
+    '<col style="width:13.5435%">' +  // 身分證字號 11
+    '<col style="width:19.5641%">' +  // 生命徵象 15.89
+    '<col style="width:20.5245%">' +  // 病情簡述/主訴 16.67
+    '<col style="width:18.8747%">' +  // 醫師手記/囑語 15.33
   '</colgroup>';
+
+  // 列高（px）與字體
+  var TITLE_ROW_HEIGHT  = 60;    // 標題列高 60
+  var META_ROW_HEIGHT   = 33.6;  // 醫巡日期/看診人數、簽名列 高 33.6
+  var HEADER_ROW_HEIGHT = 60;    // 排序~醫師手記 這列 高 60
+  var BODY_ROW_HEIGHT   = 60;    // 內容列 高 60
 
   var rows = [];
   for (var i = 0; i < data.entries.length; i++) {
     var e = data.entries[i] || {};
     function esc(v){ return (v==null?'':String(v)).replace(/\n/g,'<br>'); }
     rows.push(
-      "<tr><td style='text-align:center;vertical-align:middle;'>" + (i+1) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.bedNumber) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.name) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.idNumber) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.vitals) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.condition) + "</td>" +
-      "<td style='text-align:center;vertical-align:middle;'>" + esc(e.doctorNote) + "</td></tr>"
+      "<tr style='height:"+BODY_ROW_HEIGHT+"px'>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + (i+1) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.bedNumber) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.name) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.idNumber) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.vitals) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.condition) + "</td>" +
+      "<td style='text-align:center;vertical-align:middle;font-size:10px;'>" + esc(e.doctorNote) + "</td></tr>"
     );
   }
 
   var parts = [];
   parts.push("<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>");
-  parts.push("<head><meta charset='UTF-8'><style>@page { size: A4 portrait; margin: 10mm; } table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:11px;} th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}</style></head>");
+  parts.push("<head><meta charset='UTF-8'><style>"+
+             "@page { size: A4 portrait; margin: 10mm; } "+
+             "table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:11px;width:100%;} "+
+             "th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}"+
+             "</style></head>");
   parts.push("<body>");
-  parts.push("<table border='1'>");
+  parts.push("<table border='1' style='width:100%'>");
   parts.push(colHtml);
+
+  // 標題列（欄寬 81.22，列高 60，字體 16）
   parts.push("<thead>");
-  parts.push("<tr><th colspan='7' style='text-align:center;height:60px;font-size:16px;font-weight:bold;'>醫療巡迴門診掛號及就診狀況交班單</th></tr>");
-  parts.push("<tr style='height:33.6px'><th colspan='3' style='text-align:left;padding-left:6px;'>醫巡日期：" + rocDate + "</th><th colspan='4' style='text-align:right;padding-right:6px;'>看診人數：" + data.totalPatients + "</th></tr>");
-  parts.push("<tr><td colspan='7' style='text-align:left;font-size:12px;padding:4px 0;'>※ 請於就診當日完成掛號與交班紀錄；生命徵象請以最新測量值填寫</td></tr>");
-  parts.push("<tr style='height:32px'><th>排序</th><th>床號</th><th>姓名</th><th>身分證字號</th><th>生命徵象</th><th>病情簡述/主訴</th><th>醫師手記/囑語</th></tr>");
+  parts.push("<tr><th colspan='7' style='text-align:center;height:"+TITLE_ROW_HEIGHT+"px;font-size:16px;font-weight:bold;'>醫療巡迴門診掛號及就診狀況交班單</th></tr>");
+
+  // 醫巡日期 / 看診人數（同一行不同格，欄寬各 40.61 -> 50%/50%，列高 33.6，字體 10）
+  parts.push("<tr style='height:"+META_ROW_HEIGHT+"px'>"+
+             "<th colspan='3' style='text-align:left;padding-left:6px;font-size:10px;width:50%'>醫巡日期："+ rocDate +"</th>"+
+             "<th colspan='4' style='text-align:right;padding-right:6px;font-size:10px;width:50%'>看診人數："+ data.totalPatients +"</th>"+
+             "</tr>");
+
+  // 欄位表頭（列高 60、字體 10）
+  parts.push("<tr style='height:"+HEADER_ROW_HEIGHT+"px'>"+
+             "<th style='font-size:10px'>排序</th>"+
+             "<th style='font-size:10px'>床號</th>"+
+             "<th style='font-size:10px'>姓名</th>"+
+             "<th style='font-size:10px'>身分證字號</th>"+
+             "<th style='font-size:10px'>生命徵象</th>"+
+             "<th style='font-size:10px'>病情簡述/主訴</th>"+
+             "<th style='font-size:10px'>醫師手記/囑語</th>"+
+             "</tr>");
   parts.push("</thead>");
+
   parts.push("<tbody>");
   parts.push(rows.join(""));
-  parts.push("<tr><td colspan='7' style='text-align:left;font-size:11px;padding:8px 0 0 0;'>醫師簽章:</td></tr>");
-  parts.push("<tr><td colspan='7' style='text-align:left;font-size:11px;padding:8px 0 0 0;'>跟診護理師簽章:</td></tr>");
+
+  // 簽名列（同一行不同格，欄寬各 40.61 -> 50%/50%，列高 33.6，字體 10）
+  parts.push("<tr style='height:"+META_ROW_HEIGHT+"px'>"+
+             "<td colspan='3' style='text-align:left;font-size:10px;padding:6px;width:50%'>巡診醫師簽名：</td>"+
+             "<td colspan='4' style='text-align:left;font-size:10px;padding:6px;width:50%'>跟診護理師簽名：</td>"+
+             "</tr>");
+
   parts.push("</tbody>");
   parts.push("</table>");
   parts.push("</body></html>");
 
   var html = parts.join("");
-  var blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" });
+  var blob = new Blob([\"\ufeff\" + html], { type: "application/vnd.ms-excel" });
   var url = URL.createObjectURL(blob);
   var a = document.createElement("a");
   a.href = url;
@@ -243,6 +277,28 @@ function exportExcel() {
   URL.revokeObjectURL(url);
 }
 
+    const rocDate = toRoc(data.date);
+    const rowsHtml = data.entries.map((e, i) => `
+      <tr><td style='text-align:center;vertical-align:middle;'>${i + 1}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.bedNumber}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.name}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.idNumber}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.vitals}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.condition}</td>
+      <td style='text-align:center;vertical-align:middle;'>${e.doctorNote}</td></tr>`).join("");
+    const tableHTML = `<table border='1' style='border-collapse:collapse;'><thead>
+    <tr><th colspan='7' style='text-align:center;'>醫療巡迴門診掛號及就診狀況交班單</th></tr>
+    <tr><th colspan='3'>醫巡日期：${rocDate}</th><th colspan='4'>看診人數：${data.totalPatients}</th></tr>
+    <tr><th>排序</th><th>床號</th><th>姓名</th><th>身分證字號</th><th>生命徵象</th><th>病情簡述/主訴</th><th>醫師手記/囑語</th></tr>
+    </thead><tbody>${rowsHtml}</tbody></table>`;
+    const blob = new Blob([`\ufeff${tableHTML}`], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
