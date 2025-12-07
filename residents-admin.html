@@ -1,896 +1,237 @@
-// === Inject: hardcoded floor template & localStorage bootstrap ===
-(function() {
-  try {
-    var KEY = 'FLOOR_TEMPLATE_V1';
-    var cur = localStorage.getItem(KEY);
-    if (!cur) {
-      localStorage.setItem(KEY, {"1": ["101-1", "101-2", "102-1", "102-2", "103-1", "103-2", "105-1", "105-2", "106-1", "106-2", "107-1", "107-2", "108-1", "108-2", "109-1", "109-2", "110-1", "110-2", "111-1", "111-2", "112-1", "112-2", "113-1", "115-1", "115-2", "116-1", "116-2"], "2": ["201-1", "202-1", "202-2", "203-1", "203-2", "205-1", "205-2", "206-1", "206-2", "207-1", "207-2", "208-1", "208-2", "208-5", "209-1", "209-2", "209-3", "209-5", "210-1", "210-2", "210-3", "210-5", "211-1", "211-2", "212-1", "212-2", "213-1", "213-2", "215-1", "215-2", "216-1", "216-2", "217-1", "217-3", "217-5", "218-1", "218-2", "218-3", "218-5", "219-1", "219-2", "219-3", "219-5", "219-6", "220-1", "220-2", "220-3", "220-5", "221-1", "221-2", "221-3", "221-5"], "3": ["301-1", "301-2", "301-3", "301-5", "302-1", "302-2", "302-3", "302-5", "303-2", "303-3", "303-5", "305-1", "306-1", "306-2", "307-1", "307-2", "308-1", "308-2", "309-1", "309-2", "310-1", "310-2", "311-1", "311-2", "311-3", "311-5", "312-1", "312-2", "312-3", "312-5", "312-6", "313-1", "313-2", "313-3", "313-5", "313-6", "315-1", "315-2", "316-1", "316-2", "317-1", "317-2", "318-1", "318-2", "319-1", "319-2", "320-1", "320-2", "320-3", "320-5", "321-1", "321-2", "321-3", "321-5"]});
-      console.log('[MSICAO] Default floor template installed.');
-    } else {
-      try {
-        var tpl = JSON.parse(cur);
-        var total = [].concat(tpl['1']||[], tpl['2']||[], tpl['3']||[]).length;
-        if (!total) {
-          localStorage.setItem(KEY, {"1": ["101-1", "101-2", "102-1", "102-2", "103-1", "103-2", "105-1", "105-2", "106-1", "106-2", "107-1", "107-2", "108-1", "108-2", "109-1", "109-2", "110-1", "110-2", "111-1", "111-2", "112-1", "112-2", "113-1", "115-1", "115-2", "116-1", "116-2"], "2": ["201-1", "202-1", "202-2", "203-1", "203-2", "205-1", "205-2", "206-1", "206-2", "207-1", "207-2", "208-1", "208-2", "208-5", "209-1", "209-2", "209-3", "209-5", "210-1", "210-2", "210-3", "210-5", "211-1", "211-2", "212-1", "212-2", "213-1", "213-2", "215-1", "215-2", "216-1", "216-2", "217-1", "217-3", "217-5", "218-1", "218-2", "218-3", "218-5", "219-1", "219-2", "219-3", "219-5", "219-6", "220-1", "220-2", "220-3", "220-5", "221-1", "221-2", "221-3", "221-5"], "3": ["301-1", "301-2", "301-3", "301-5", "302-1", "302-2", "302-3", "302-5", "303-2", "303-3", "303-5", "305-1", "306-1", "306-2", "307-1", "307-2", "308-1", "308-2", "309-1", "309-2", "310-1", "310-2", "311-1", "311-2", "311-3", "311-5", "312-1", "312-2", "312-3", "312-5", "312-6", "313-1", "313-2", "313-3", "313-5", "313-6", "315-1", "315-2", "316-1", "316-2", "317-1", "317-2", "318-1", "318-2", "319-1", "319-2", "320-1", "320-2", "320-3", "320-5", "321-1", "321-2", "321-3", "321-5"]});
-          console.log('[MSICAO] Empty template fixed with default.');
-        }
-      } catch(e) {
-        localStorage.setItem(KEY, {"1": ["101-1", "101-2", "102-1", "102-2", "103-1", "103-2", "105-1", "105-2", "106-1", "106-2", "107-1", "107-2", "108-1", "108-2", "109-1", "109-2", "110-1", "110-2", "111-1", "111-2", "112-1", "112-2", "113-1", "115-1", "115-2", "116-1", "116-2"], "2": ["201-1", "202-1", "202-2", "203-1", "203-2", "205-1", "205-2", "206-1", "206-2", "207-1", "207-2", "208-1", "208-2", "208-5", "209-1", "209-2", "209-3", "209-5", "210-1", "210-2", "210-3", "210-5", "211-1", "211-2", "212-1", "212-2", "213-1", "213-2", "215-1", "215-2", "216-1", "216-2", "217-1", "217-3", "217-5", "218-1", "218-2", "218-3", "218-5", "219-1", "219-2", "219-3", "219-5", "219-6", "220-1", "220-2", "220-3", "220-5", "221-1", "221-2", "221-3", "221-5"], "3": ["301-1", "301-2", "301-3", "301-5", "302-1", "302-2", "302-3", "302-5", "303-2", "303-3", "303-5", "305-1", "306-1", "306-2", "307-1", "307-2", "308-1", "308-2", "309-1", "309-2", "310-1", "310-2", "311-1", "311-2", "311-3", "311-5", "312-1", "312-2", "312-3", "312-5", "312-6", "313-1", "313-2", "313-3", "313-5", "313-6", "315-1", "315-2", "316-1", "316-2", "317-1", "317-2", "318-1", "318-2", "319-1", "319-2", "320-1", "320-2", "320-3", "320-5", "321-1", "321-2", "321-3", "321-5"]});
-        console.log('[MSICAO] Corrupt template fixed with default.');
-      }
-    }
-  } catch(e) {
-    console.warn('[MSICAO] Template bootstrap failed', e);
-  }
-})();
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住民資料管理 - 員工系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+<style>
+/* --- Window-pane styled stats (minimal diff) --- */
+.stats-frame{ border:3px solid #2b2b2b; border-radius:12px; overflow:hidden; background:#fff; }
+.stats-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:2px solid #2b2b2b; background:#fffef2; }
+.stats-header .title{ font-weight:800; }
+.stats-total{ font-weight:900; font-size:28px; line-height:1; background:#d8f5a2; padding:6px 12px; border-radius:10px; }
+.stats-body{ padding:12px 14px; }
+.pane-grid{ display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:8px; }
+.pane{ border:1px solid #e5e7eb; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:2px; background:#fcfcfc; }
+.pane .label{ color:#6b7280; font-size:12px; }
+.pane .num{ font-weight:900; font-size:20px; }
+.pane.ok{ background:#e9f9ee; }
+.pane.warn{ background:#fff6cd; }
+.pane.danger{ background:#ffe2e2; }
+@media (max-width: 992px){ .pane-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
 
-// residents-admin.fixed.js
-// 修正：
-// 1) 基本資料依「床號」排序（含 3 碼房號與子床號自然序）。
-// 2) 床位配置空白：若尚未建立樓層模板，會依現有床號自動推導模板並存到 localStorage，再依模板顯示空床/實床。
-// 3) 匯出 Excel 保留（含框線、底色、各樓層統計與總人數統計）。
+/* stats header bar */
+.stats-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:2px solid #1f2937;border-radius:12px;background:#fffef3;margin-bottom:10px}
+.stats-head .title{font-weight:800}
+.stats-head .badge-pair{display:flex;align-items:center;gap:10px}
+.stats-head .pill{font-weight:900;font-size:18px;padding:6px 10px;border-radius:10px}
+.stats-head .pill.present{background:#e2f7c2}
+.stats-head .pill.total{background:#e5e7eb}
+</style>
+</head>
+<body>
+  <div class="container my-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="card shadow">
+          <div class="card-header text-center bg-dark text-white">
+            <h2>住民資料管理</h2>
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+              <a href="admin.html?view=dashboard" class="btn btn-back-menu">
+                <i class="fas fa-arrow-left me-2"></i>返回儀表板
+              </a>
+              <div>
+                <button id="open-template-btn" class="btn btn-outline-secondary me-2"><i class="fas fa-table-list me-2"></i>床位模板設定</button>
+                <button id="import-excel-btn" class="btn btn-info">
+                  <i class="fas fa-file-excel me-2"></i>從 Excel 匯入
+                </button>
+                <input type="file" id="excel-file-input" class="d-none" accept=".xlsx, .xls">
+                <button id="add-resident-btn" class="btn btn-success">
+                  <i class="fas fa-plus me-2"></i>單筆新增住民
+                </button>
+              </div>
+            </div>
+            <div id="import-status" class="alert alert-info d-none" role="alert"></div>
 
-(function(){
-  let started=false;
-  function canStart(){return typeof db!=='undefined' && db && typeof db.collection==='function'}
-  function startNow(){if(started)return; started=true; document.dispatchEvent(new Event('residents-init'));}
-  document.addEventListener('firebase-ready', ()=>startNow());
-  if(document.readyState==='complete'||document.readyState==='interactive'){setTimeout(()=>{if(canStart())startNow()},300)}
-  else{document.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>{if(canStart())startNow()},300)})}
-  let tries=0; const t=setInterval(()=>{ if(started){clearInterval(t);return} if(canStart()){startNow();clearInterval(t)} if(++tries>20)clearInterval(t) },500);
-})();
+            <ul class="nav nav-tabs mb-3" id="resTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-basic" data-bs-toggle="tab" data-bs-target="#pane-basic" type="button" role="tab">基本資料</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-floor1" data-bs-toggle="tab" data-bs-target="#pane-floor1" type="button" role="tab">1樓床位配置</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-floor2" data-bs-toggle="tab" data-bs-target="#pane-floor2" type="button" role="tab">2樓床位配置</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-floor3" data-bs-toggle="tab" data-bs-target="#pane-floor3" type="button" role="tab">3樓床位配置</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-stats" data-bs-toggle="tab" data-bs-target="#pane-stats" type="button" role="tab">總人數統計</button>
+              </li>
+            </ul>
 
-document.addEventListener('residents-init', ()=>{
-  const dbCol='residents';
-  const tbody=document.getElementById('residents-table-body');
-  const floor1Grid=document.getElementById('floor1-grid');
-  const floor2Grid=document.getElementById('floor2-grid');
-  const floor3Grid=document.getElementById('floor3-grid');
-  const statsArea=document.getElementById('stats-area');
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="pane-basic" role="tabpanel" aria-labelledby="tab-basic">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>護理站</th>
+                        <th>床號</th>
+                        <th>姓名</th>
+                        <th>身份證字號</th>
+                        <th>生日</th>
+                        <th>性別</th>
+                        <th>住民年齡</th>
+                        <th>緊急連絡人或家屬</th>
+                        <th>連絡電話</th>
+                        <th>行動方式</th>
+                        <th>入住日期</th>
+                        <th>住民請假</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="residents-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-pane fade" id="pane-floor1" role="tabpanel" aria-labelledby="tab-floor1">
+                <div id="floor1-grid" class="row g-2"></div>
+              </div>
+              <div class="tab-pane fade" id="pane-floor2" role="tabpanel" aria-labelledby="tab-floor2">
+                <div id="floor2-grid" class="row g-2"></div>
+              </div>
+              <div class="tab-pane fade" id="pane-floor3" role="tabpanel" aria-labelledby="tab-floor3">
+                <div id="floor3-grid" class="row g-2"></div>
+              </div>
+              <div class="tab-pane fade" id="pane-stats" role="tabpanel" aria-labelledby="tab-stats">
+<div class="mb-3 d-flex justify-content-end gap-2">
+  <button id="export-xls-legacy" class="btn btn-outline-dark btn-sm"><i class="fa-regular fa-file-excel me-1"></i>匯出 XLS（圖片樣式）</button>
+</div>
 
-  const importBtn=document.getElementById('import-excel-btn');
-  const fileInput=document.getElementById('excel-file-input');
-  const importStatus=document.getElementById('import-status');
-  const addBtn=document.getElementById('add-resident-btn');
+                <div id="statsHeadBar" class="stats-head d-none">  <div class="title">總人數統計</div>  <div class="badge-pair">    <span class="pill present" id="presentBadge">實到 0</span>    <span class="pill total" id="totalBadge">總數 0</span>  </div></div><div id="stats-area" class="row g-3"></div>
+              </div>
+            </div>
 
-  const LS_KEY='FLOOR_TEMPLATE_V1';
-  function getTemplateRaw(){
-    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {'1':[], '2':[], '3':[]}; }
-    catch{ return {'1':[], '2':[], '3':[]}; }
-  }
-  function setTemplate(tpl){ try{ localStorage.setItem(LS_KEY, JSON.stringify(tpl)); }catch{} }
-  function normalizeToken(s){
-    const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
-    if(!m) return null;
-    return `${m[1]}-${m[2]}`;
-  }
-  function ensureTemplateFromCache(data){
-    const tpl = getTemplateRaw();
-    let changed = false;
-    [1,2,3].forEach(f=>{
-      if(!tpl[String(f)] || tpl[String(f)].length===0){
-        const tokens = [];
-        data.forEach(r=>{
-          const bed = normalizeToken(r.bedNumber);
-          if(!bed) return;
-          if(String(bed).startsWith(`${f}`)){ tokens.push(bed); }
-        });
-        const uniq = Array.from(new Set(tokens))
-          .sort((a,b)=>{
-            const ma=a.match(/^(\d{3})-(.+)$/); const mb=b.match(/^(\d{3})-(.+)$/);
-            const ra=parseInt(ma[1],10), rb=parseInt(mb[1],10);
-            if(ra!==rb) return ra-rb;
-            const sa=parseInt(String(ma[2]).replace(/\D/g,''),10)||0;
-            const sb=parseInt(String(mb[2]).replace(/\D/g,''),10)||0;
-            return sa-sb;
-          });
-        tpl[String(f)] = uniq;
-        changed = true;
-      }
-    });
-    if(changed) setTemplate(tpl);
-    return tpl;
-  }
-  function getTemplate(data){
-    const raw = getTemplateRaw();
-    if((raw['1']||[]).length===0 && (raw['2']||[]).length===0 && (raw['3']||[]).length===0){
-      return ensureTemplateFromCache(data);
-    }
-    return raw;
-  }
-
-  const norm=v=>(v==null?'':String(v).trim());
-  function bedToSortValue(bed){ if(!bed) return 0; const m=String(bed).match(/^(\d+)(?:[-_]?([A-Za-z0-9]+))?/); if(!m) return 0; const base=parseInt(m[1],10); const sub=m[2]?parseInt(String(m[2]).replace(/\D/g,''),10)||0:0; return base+sub/100; }
-  function calcAge(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); let a=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) a--; return a; }
-  function parseDateSmart(v){
-    if(!v&&v!==0) return '';
-    if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v)) return v.toISOString().slice(0,10);
-    if(typeof v==='number'&&isFinite(v)){const ms=(v-25569)*86400000; const d=new Date(ms); if(!isNaN(d)) return new Date(d.getTime()+d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
-    let s=String(v).trim(); if(!s) return ''; s=s.replace(/[\.年\/-]/g,'-').replace(/月/g,'-').replace(/日/g,'').replace(/\s+/g,''); const m=s.match(/^(\d{1,4})-?(\d{1,2})-?(\d{1,2})$/); if(m){let y=+m[1],mo=+m[2],da=+m[3]; if(y<1911) y+=1911; const dd=new Date(Date.UTC(y,mo-1,da)); if(!isNaN(dd)) return dd.toISOString().slice(0,10);} const d2=new Date(s); if(!isNaN(d2)) return d2.toISOString().slice(0,10); return ''; }
-  function rocName(){ const d=new Date(); const y=d.getFullYear()-1911; const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}${m}${dd}-床位配置-消防位置圖-報告詞 -`; }
-
-  let cache=[];
-
-  function renderBasic(){
-    if(!tbody) return;
-    let html='';
-    cache.forEach(r=>{
-      const age=calcAge(r.birthday);
-      html+=`<tr data-id="${r.id}">
-        <td>${r.nursingStation||''}</td><td>${r.bedNumber||''}</td><td>${r.id||''}</td><td>${r.idNumber||''}</td>
-        <td>${r.birthday||''}</td><td>${r.gender||''}</td><td>${age!==''?age:''}</td>
-        <td>${r.emergencyContact||''}</td><td>${r.emergencyPhone||''}</td><td>${r.mobility||''}</td>
-        <td>${r.checkinDate||''}</td><td>${r.leaveStatus||''}</td>
-        <td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td>
-      </tr>`;
-    });
-    tbody.innerHTML=html;
-  }
-
-  function parseBedToken(s){ const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return null; return {room:m[1], sub:m[2], token:`${m[1]}-${m[2]}`}; }
-  function buildFloorHtml(container,floor,tpl,data){
-    if(!container) return;
-    container.innerHTML='';
-
-    const tokens=(tpl[String(floor)]||[]).slice();
-    if(tokens.length===0){
-      container.innerHTML = '<div class="alert alert-warning">尚未設定床位模板，已自動建立。請重新整理。</div>';
-      return;
-    }
-    const grouped=new Map();
-    tokens.forEach(tok=>{const t=parseBedToken(tok); if(!t) return; if(!grouped.has(t.room)) grouped.set(t.room,{}); const g=grouped.get(t.room); if(!g.__keys) g.__keys=new Set(); g.__keys.add(t.sub);});
-    const resByToken=new Map(); data.forEach(r=>{ const key=normalizeToken(r.bedNumber); if(key) resByToken.set(key,r); });
-
-    const rooms=[...grouped.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
-    let html='<div class="row g-2">';
-    let totalBeds=0, usedBeds=0;
-    const emptyTokens=[];
-
-    rooms.forEach(room=>{
-      const g=grouped.get(room); const subs=[...g.__keys].sort((a,b)=>(parseInt(a.replace(/\D/g,''),10)||0)-(parseInt(b.replace(/\D/g,''),10)||0));
-      totalBeds += subs.length;
-      let rows='';
-      subs.forEach(sub=>{
-        const token=`${room}-${sub}`;
-        const r=resByToken.get(token);
-        const age=r?calcAge(r.birthday):'';
-        const status = r ? (r.leaveStatus==='住院'?'bg-danger-subtle':(r.leaveStatus==='請假'?'bg-warning-subtle':'bg-success-subtle')) : 'bg-light';
-        if(r) usedBeds++; else emptyTokens.push(token);
-        rows+=`<div class="d-flex justify-content-between border-bottom py-2 ${status}">
-          <div class="small text-muted">🛏 ${token}</div>
-          <div>${r?(r.id||'🈳 空床'):'🈳 空床'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</div>
-        </div>`;
-      });
-      html+=`<div class="col-12 col-sm-6 col-lg-4"><div class="card h-100">
-        <div class="card-header fw-bold">房號 ${room}</div>
-        <div class="card-body">${rows}</div>
-      </div></div>`;
-    });
-    html+='</div>';
-
-    const emptyBeds = totalBeds - usedBeds;
-    html+= `<div class="mt-3">
-      <div class="row g-2 align-items-start">
-        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">樓層床位數 <strong>${totalBeds}</strong></div></div>
-        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">空床數 <strong>${emptyBeds}</strong></div></div>
-        <div class="col-auto"><div class="badge bg-secondary-subtle text-dark p-2">已使用床位數 <strong>${usedBeds}</strong></div></div>
+          </div>
+        </div>
       </div>
-      <div class="small text-muted mt-2">空床清單：${emptyTokens.length? emptyTokens.join('、') : '無'}</div>
-    </div>`;
+    </div>
+  </div>
 
-    container.innerHTML=html;
-  }
+  <!-- Modal -->
+  <div class="modal fade" id="resident-modal" tabindex="-1" aria-labelledby="residentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resident-modal-title"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="resident-form">
+            <div class="mb-3">
+              <label for="resident-sortOrder" class="form-label">排序 (數字越小越前面)</label>
+              <input type="number" class="form-control" id="resident-sortOrder" value="999">
+            </div>
+            <div class="mb-3">
+              <label for="resident-name" class="form-label">姓名</label>
+              <input type="text" class="form-control" id="resident-name" required>
+            </div>
+            <div class="mb-3">
+              <label for="resident-bedNumber" class="form-label">床號</label>
+              <input type="text" class="form-control" id="resident-bedNumber" required>
+            </div>
+            <div class="mb-3">
+              <label for="resident-station" class="form-label">護理站</label>
+              <input type="text" class="form-control" id="resident-station" placeholder="例如：1F護理站">
+            </div>
+            <div class="mb-3">
+              <label for="resident-emgName" class="form-label">緊急連絡人或家屬</label>
+              <input type="text" class="form-control" id="resident-emgName">
+            </div>
+            <div class="mb-3">
+              <label for="resident-emgPhone" class="form-label">連絡電話</label>
+              <input type="tel" class="form-control" id="resident-emgPhone">
+            </div>
+            <div class="mb-3">
+              <label for="resident-mobility" class="form-label">行動方式</label>
+              <input type="text" class="form-control" id="resident-mobility" placeholder="例如：輪椅／步行／推床">
+            </div>
+            <div class="mb-3">
+              <label for="resident-gender" class="form-label">性別</label>
+              <select class="form-select" id="resident-gender" required>
+                <option value="" disabled selected>請選擇</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="resident-idNumber" class="form-label">身份証字號</label>
+              <input type="text" class="form-control" id="resident-idNumber" placeholder="請輸入身份証字號">
+            </div>
+            <div class="mb-3">
+              <label for="resident-birthday" class="form-label">生日</label>
+              <input type="date" class="form-control" id="resident-birthday" required>
+            </div>
+            <div class="mb-3">
+              <label for="resident-checkinDate" class="form-label">入住日期</label>
+              <input type="date" class="form-control" id="resident-checkinDate" required>
+            </div>
+            <div class="mb-3">
+              <label for="resident-status" class="form-label">請假 / 住院</label>
+              <select class="form-select" id="resident-status">
+                <option value="">無</option>
+                <option value="請假">請假</option>
+                <option value="住院">住院</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" id="save-resident-btn" class="btn btn-primary">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  function renderFloors(tpl){
-    const f1=cache.filter(r=>/^1\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/1/.test(r.nursingStation)));
-    const f2=cache.filter(r=>/^2\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/2/.test(r.nursingStation)));
-    const f3=cache.filter(r=>/^3\d\d/.test(String(r.bedNumber))||(r.nursingStation&&/3/.test(r.nursingStation)));
-    buildFloorHtml(floor1Grid,1,tpl,f1);
-    buildFloorHtml(floor2Grid,2,tpl,f2);
-    buildFloorHtml(floor3Grid,3,tpl,f3);
-  }
-
-  
-function renderStats(){
-  if(!statsArea) return;
-  var total = cache.length;
-  var male = cache.filter(function(r){ return r.gender==='男'; }).length;
-  var female = cache.filter(function(r){ return r.gender==='女'; }).length;
-  var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-  var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
-  var present = total - (leave + hosp);
-
-  function normv(s){ return (s==null?'':String(s)); }
-  function inFloor(f){
-      var reg = new RegExp('^' + f + '\\d\\d');
-      return cache.filter(function(r){
-          var bed = String(r.bedNumber||'');
-          return reg.test(bed) || (r.nursingStation && String(r.nursingStation).indexOf(String(f))>-1);
-      });
-  }
-
-  var WHEEL = /(輪椅)/i;
-  var TROLLEY = /(推床|臥床|平車|推車)/i;
-  var WALK = /(步行|可獨立|助行|拐杖|walker)/i;
-
-  var floors = [1,2,3].map(function(f){
-      var arr = inFloor(f);
-      var fTotal = arr.length;
-      var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-      var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
-      var fPresent = fTotal - (fLeave + fHosp);
-      var fWheel = arr.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-      var fTrolley = arr.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-      var fWalk = arr.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
-      return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
-  });
-
-  var mWheel = cache.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
-  var mTrolley = cache.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
-  var mWalk = cache.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
-
-  var rows = '';
-  for(var i=0;i<floors.length;i++){
-      var x = floors[i];
-      rows += ''
-      + '<tr>'
-      +   '<td>' + x.f + 'F</td>'
-      +   '<td class="text-end">' + x.fTotal + '</td>'
-      +   '<td class="text-end text-success">' + x.fPresent + '</td>'
-      +   '<td class="text-end text-warning">' + x.fLeave + '</td>'
-      +   '<td class="text-end text-danger">' + x.fHosp + '</td>'
-      +   '<td class="text-end">' + x.fWheel + '</td>'
-      +   '<td class="text-end">' + x.fTrolley + '</td>'
-      +   '<td class="text-end">' + x.fWalk + '</td>'
-      + '</tr>';
-  }
-
-  var html = ''
-    + '<div class="row g-3">'
-    +   '<div class="col-12 col-xl-5">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
-    +         '<div class="d-flex align-items-center justify-content-between mb-3">'
-    +           '<div class="h5 mb-0">總人數</div>'
-    +           '<span class="badge bg-dark fs-6">' + total + '</span>'
-    +         '</div>'
-    +         '<div class="row g-2 mb-2">'
-    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">男 <strong>' + male + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-secondary-subtle text-dark">女 <strong>' + female + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-success-subtle text-success">實到 <strong>' + present + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span></div>'
-    +           '<div class="col-auto"><span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span></div>'
-    +         '</div>'
-    +         '<div class="table-responsive mt-3">'
-    +           '<table class="table table-sm align-middle mb-0">'
-    +             '<thead class="table-light">'
-    +               '<tr>'
-    +                 '<th>樓層</th>'
-    +                 '<th class="text-end">總數</th>'
-    +                 '<th class="text-end">實到</th>'
-    +                 '<th class="text-end">請假</th>'
-    +                 '<th class="text-end">住院</th>'
-    +                 '<th class="text-end">輪椅</th>'
-    +                 '<th class="text-end">推床</th>'
-    +                 '<th class="text-end">步行</th>'
-    +               '</tr>'
-    +             '</thead>'
-    +             '<tbody>' + rows + '</tbody>'
-    +           '</table>'
-    +         '</div>'
-    +         '<div class="small text-muted mt-2">'
-    +           '<span class="me-3">行動方式總計：</span>'
-    +           '<span class="me-2">輪椅 ' + mWheel + '</span>'
-    +           '<span class="me-2">推床 ' + mTrolley + '</span>'
-    +           '<span>步行 ' + mWalk + '</span>'
-    +         '</div>'
-    +       '</div>'
-    +     '</div>'
-    +   '</div>'
-    +   '<div class="col-12 col-xl-7">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
-    +         '<div class="d-flex justify-content-between align-items-center mb-3">'
-    +           '<div class="h6 mb-0 text-muted">動作區</div>'
-    +           '<button id="export-xls-styled" class="btn btn-success btn-sm">'
-    +             '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
-    +           '</button>'
-    +         '</div>'
-    +         '<ul class="list-group list-group-flush">'
-    +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
-    +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
-    +             '<i class="fa-regular fa-circle-down"></i>'
-    +           '</li>'
-    +           '<li class="list-group-item">'
-    +             '<div class="small text-muted">提示：請於「床位模板設定」維護各樓層床號清單，即可在樓層頁顯示空床並於報表列出空床名單。</div>'
-    +           '</li>'
-    +         '</ul>'
-    +       '</div>'
-    +     '</div>'
-    +   '</div>'
-    + '</div>';
-
-  statsArea.innerHTML = html;
-}
+  <!-- Template Modal -->
+  <div class="modal fade" id="template-modal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="templateModalLabel">床位模板設定</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2 small text-muted">將所有床位代碼貼在下方（可用逗號、空白、換行分隔，例如：101-1 101-2 201-1 301-1 ...）。系統會自動依首位數分到 1F / 2F / 3F，並寫入本機瀏覽器的設定；重新整理後即可顯示空床。</p>
+          <textarea id="template-input" class="form-control" rows="10" placeholder="例：101-1 101-2 102-1 201-1 201-2 301-1 ..."></textarea>
+          <div class="form-text">若想清空目前模板，輸入空白並儲存即可回到自動推導模式。</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" id="save-template-btn" class="btn btn-primary">儲存模板</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 
+  <footer class="site-footer">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
 
-  // === 手動模板設定 ===
-  const openTplBtn = document.getElementById('open-template-btn');
-  const tplModalEl = document.getElementById('template-modal');
-  let tplModal = null;
-  if (window.bootstrap && tplModalEl) tplModal = new bootstrap.Modal(tplModalEl);
-  const tplTextarea = document.getElementById('template-input');
-  const saveTplBtn = document.getElementById('save-template-btn');
-
-  function parseTokensToTemplate(text){
-    const tpl = {'1':[], '2':[], '3':[]};
-    if(!text || !text.trim()) return tpl;
-    const raw = text.replace(/[,\s]+/g,' ').trim().split(' ');
-    const norm = s => {
-      const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
-      return m? `${m[1]}-${m[2]}` : null;
-    };
-    const set = {'1':new Set(),'2':new Set(),'3':new Set()};
-    raw.forEach(tok=>{
-      const t = norm(tok);
-      if(!t) return;
-      const floor = t[0];
-      if(floor==='1') set['1'].add(t);
-      else if(floor==='2') set['2'].add(t);
-      else if(floor==='3') set['3'].add(t);
-    });
-    ['1','2','3'].forEach(f=>{
-      tpl[f] = Array.from(set[f]).sort((a,b)=>{
-        const ma=a.match(/^(\d{3})-(.+)$/); const mb=b.match(/^(\d{3})-(.+)$/);
-        const ra=parseInt(ma[1],10), rb=parseInt(mb[1],10);
-        if(ra!==rb) return ra-rb;
-        const sa=parseInt(String(ma[2]).replace(/\D/g,''),10)||0;
-        const sb=parseInt(String(mb[2]).replace(/\D/g,''),10)||0;
-        return sa-sb;
-      });
-    });
-    return tpl;
-  }
-
-  if(openTplBtn && tplModal && tplTextarea && saveTplBtn){
-    openTplBtn.addEventListener('click', ()=>{
-      // 預填目前模板內容
-      const cur = JSON.parse(localStorage.getItem(LS_KEY) || '{"1":[],"2":[],"3":[]}');
-      const merged = [...(cur['1']||[]), ...(cur['2']||[]), ...(cur['3']||[])].join(' ');
-      tplTextarea.value = merged;
-      tplModal.show();
-    });
-    saveTplBtn.addEventListener('click', ()=>{
-      const text = tplTextarea.value;
-      const tpl = parseTokensToTemplate(text);
-      localStorage.setItem(LS_KEY, JSON.stringify(tpl));
-      if(tplModal) tplModal.hide();
-      // 重新渲染樓層（不刷新 Firestore）
-      renderFloors(tpl);
-    });
-  }
-
-  function tableCss(){
-    return `
-      table { border-collapse: collapse; font-family: "Microsoft JhengHei", Arial; }
-      th, td { border: 1px solid #999; padding: 4px 6px; mso-number-format:"\\@"; }
-      th { background: #f1f3f5; }
-      .room-title { background:#e7f1ff; font-weight:bold; }
-      .cell-muted { color:#6c757d; }
-      .bg-green { background:#e6ffed; }
-      .bg-yellow { background:#fff7cc; }
-      .bg-red { background:#ffe3e3; }
-    `;
-  }
-  function sheetBasicHTML(){
-    const header=['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const rows=cache.map(r=>[r.nursingStation||'',r.bedNumber||'',r.id||'',r.idNumber||'',r.birthday||'',r.gender||'',
-      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),r.emergencyContact||'',r.emergencyPhone||'',r.mobility||'',r.checkinDate||'',r.leaveStatus||'']);
-    let html='<table><thead><tr>'+header.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
-    rows.forEach(tr=>{ html+='<tr>'+tr.map(td=>`<td>${td||''}</td>`).join('')+'</tr>'; });
-    html+='</tbody></table>';
-    return html;
-  }
-  function sheetFloorHTML(floor){
-    const tpl=getTemplate(cache); const tokens=(tpl[String(floor)]||[]).slice();
-    const map=new Map(); tokens.forEach(t=>{ const m=t.match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return; const room=m[1], sub=m[2]; if(!map.has(room)) map.set(room,[]); map.get(room).push(sub); });
-    const resMap=new Map(); cache.forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-'); resMap.set(key,r); });
-    let html='<table>';
-    html+=`<tr><th colspan="9" class="room-title">${floor}樓床位配置</th></tr>`;
-    const rooms=[...map.keys()].sort((a,b)=>parseInt(a,10)-parseInt(b,10));
-
-    let floorTotal=0, floorUsed=0;
-    for(let i=0;i<rooms.length;i+=3){
-      const chunk=rooms.slice(i,i+3);
-      let tr='<tr>';
-      chunk.forEach(room=>{ tr+=`<th colspan="3" class="room-title">房號 ${room}</th><td></td>`; });
-      tr+='</tr>'; html+=tr;
-      const maxLines=Math.max(...chunk.map(rm=> map.get(rm).length));
-      for(let line=0; line<maxLines; line++){
-        let row='<tr>';
-        chunk.forEach(room=>{
-          const subs=map.get(room);
-          const sub=subs[line];
-          const key=sub? `${room}-${sub}`:'';
-          if(key) floorTotal++;
-          const r=resMap.get(key);
-          if(r) floorUsed++;
-          const age=r? calcAge(r.birthday):'';
-          const status=r? (r.leaveStatus==='住院'?'bg-red':(r.leaveStatus==='請假'?'bg-yellow':'bg-green')):'';
-          row+=`<td class="cell-muted">🛏 ${key||''}</td>`;
-          row+=`<td>${r?(r.id||''):'🈳 空床'}</td>`;
-          row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</td>`;
-          row+=`<td></td>`;
-        });
-        row+='</tr>'; html+=row;
-      }
-      html+='<tr><td colspan="9" style="border:none;height:6px"></td></tr>';
-    }
-    const floorEmpty=floorTotal-floorUsed;
-    html+=`<tr><td>樓層床位數</td><td>${floorTotal}</td><td>空床數</td><td>${floorEmpty}</td><td>已使用床位數</td><td>${floorUsed}</td><td colspan="3"></td></tr>`;
-    html+='</table>';
-    return html;
-  }
-  function sheetStatsHTML(){
-    const total=cache.length, male=cache.filter(r=>r.gender==='男').length, female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length, hosp=cache.filter(r=>r.leaveStatus==='住院').length;
-    const present=total-(leave+hosp);
-    let html='<table>';
-    html+=`<tr><th colspan="8" class="room-title">總人數統計</th></tr>`;
-    html+=`<tr><td>總人數</td><td>${total}</td><td>男</td><td>${male}</td><td>女</td><td>${female}</td><td>實到</td><td>${present}</td></tr>`;
-    html+=`<tr><td>請假</td><td>${leave}</td><td>住院</td><td>${hosp}</td><td colspan="4"></td></tr>`;
-    html+='</table>';
-    return html;
-  }
-  function buildWorkbookHTML(sheets){
-    const worksheetXml = sheets.map(s=>`
-      <x:ExcelWorksheet>
-        <x:Name>${s.name}</x:Name>
-        <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-      </x:ExcelWorksheet>`).join('');
-    const content = sheets.map(s=>`<div id="${s.name}">${s.html}</div>`).join('');
-    return `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office"
-            xmlns:x="urn:schemas-microsoft-com:office:excel"
-            xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="UTF-8">
-        <!--[if gte mso 9]><xml>
-          <x:ExcelWorkbook>
-            <x:ExcelWorksheets>${worksheetXml}
-            </x:ExcelWorksheets>
-          </x:ExcelWorkbook>
-        </xml><![endif]-->
-        <style>${tableCss()}</style>
-      </head>
-      <body>
-        ${content}
-      </body></html>`;
-  }
-
-
-  async function exportStyledXls(){
-  if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
-
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'MSICAO';
-  wb.created = new Date();
-
-  // ===== 共用樣式 =====
-  const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
-  const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
-  const fontCell   = { name:'Microsoft JhengHei', size:11 };
-  const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
-  const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
-  const borderThin = { top:{style:'thin',color:{argb:'FF9E9E9E'}},
-                       left:{style:'thin',color:{argb:'FF9E9E9E'}},
-                       bottom:{style:'thin',color:{argb:'FF9E9E9E'}},
-                       right:{style:'thin',color:{argb:'FF9E9E9E'}} };
-
-  function styleRow(row,{isHeader=false,alt=false,center=false,height=18,wrap=false}={}){
-    row.eachCell((c,idx)=>{
-      c.font = isHeader ? fontHeader : fontCell;
-      c.border = borderThin;
-      const isBedNoCol = [2,7,12].includes(idx); // 床號欄置中
-      c.alignment = { vertical:'middle', horizontal: (isHeader||center) ? 'center' : (isBedNoCol?'center':'left'), wrapText: wrap };
-      if(isHeader) c.fill = fillHeader;
-      else if(alt) c.fill = fillAlt;
-    });
-    row.height = height;
-  }
-  function addTitle(ws, text, lastCol){
-    ws.mergeCells(1,1,1,lastCol);
-    const c = ws.getCell(1,1);
-    c.value = text;
-    c.font = fontTitle;
-    c.alignment = { vertical:'middle', horizontal:'center' };
-    ws.getRow(1).height = 26;
-  }
-  function formatDate(d, sep='/'){
-    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
-    return `${y}${sep}${m}${sep}${da}`;
-  }
-  function getTpl(){
-    try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
-    catch{ return {'1':[],'2':[],'3':[]}; }
-  }
-  function computeAge(iso){
-    if(!iso) return '';
-    const d=new Date(iso); if(isNaN(d)) return '';
-    const now=new Date();
-    let a=now.getFullYear()-d.getFullYear();
-    const m=now.getMonth()-d.getMonth();
-    if(m<0||(m===0&&now.getDate()<d.getDate())) a--;
-    return a;
-  }
-
-  // ===== 基本資料（第一張） =====
-  (function addBasicSheet(){
-    const ws = wb.addWorksheet('基本資料', {views:[{state:'frozen', ySplit:1}]});
-    ws.columns = [
-      {width:8},{width:8},{width:14},{width:16},{width:6},{width:6},{width:12},{width:22}
-    ];
-    ws.mergeCells(1,1,1,8);
-    ws.getCell('A1').value='基本資料'; ws.getCell('A1').font=fontTitle; ws.getCell('A1').alignment={vertical:'middle',horizontal:'center'};
-    const header = ws.addRow(['房號','床號','床位代碼','姓名','性別','年齡','狀態','備註']);
-    styleRow(header,{isHeader:true,center:true});
-    const rows = (cache||[]).slice().sort((a,b)=>String(a.bedNumber||'').localeCompare(String(b.bedNumber||''),'zh-Hant'));
-    for(const r of rows){
-      const [room, bed] = String(r.bedNumber||'').split(/[-_]/);
-      const age = computeAge(r.birthday);
-      const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
-      styleRow(row,{});
-    }
-    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
-  })();
-
-  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
-  function addFloorSheet(name, floor){
-    const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
-    ws.columns = [
-      {width:8},{width:8},{width:18},{width:12},{width:2},
-      {width:10},{width:10},{width:18},{width:12},{width:2},
-      {width:10},{width:10},{width:18},{width:12}
-    ];
-
-    addTitle(ws, name, 14);
-    const head1 = ws.addRow(['房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡','', '房號','床號','姓名','性別/年齡']);
-    styleRow(head1, {isHeader:true,height:18});
-    [[1],[6],[11]].forEach(([s])=>ws.mergeCells(2,s,3,s));
-
-    const tpl = getTpl();
-    const tokens = (tpl[String(floor)]||[]).slice();
-    const byRoom = {};
-    tokens.forEach(tok=>{
-      const m = String(tok).match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/);
-      if(!m) return;
-      const room=m[1], sub=m[2].toUpperCase();
-      (byRoom[room]=byRoom[room]||[]).push(sub);
-    });
-    const dataMap = new Map();
-    (cache||[]).forEach(r=>{ const key=String(r.bedNumber||'').replace('_','-').toUpperCase(); dataMap.set(key,r); });
-
-    const rooms = Object.keys(byRoom).sort((a,b)=>parseInt(a,10)-parseInt(b,10));
-    let rowCursor = 4;
-    let totalBeds=0, usedBeds=0;
-    for(let i=0;i<rooms.length;i+=3){
-      const group = rooms.slice(i, i+3);
-      const lines = Math.max(...group.map(rm => (byRoom[rm]||[]).length), 0) || 1;
-      for(let r=0;r<lines;r++){
-        const rowCells = [];
-        for(let k=0;k<3;k++){
-          const rm = group[k];
-          const isLast = (k===2);
-          if(!rm){
-            // 無此房：填滿該區塊
-            rowCells.push('','','','');
-            if(!isLast) rowCells.push(''); // 只有前兩房加 spacer
-            continue;
-          }
-          const subs = byRoom[rm]||[];
-          const sub = subs[r];
-          // 房號列只在這組的首行顯示
-          rowCells.push(r===0 ? rm : '');
-          if(sub){
-            totalBeds++;
-            const token = `${rm}-${sub}`.toUpperCase();
-            const rec = dataMap.get(token);
-            if(rec) usedBeds++;
-            const age = rec ? computeAge(rec.birthday) : '';
-            const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
-            const nameText = rec ? (rec.id||'') : '空床';
-            rowCells.push(sub, nameText, sexAge);
-          }else{
-            rowCells.push('', '', '');
-          }
-          if(!isLast) rowCells.push(''); // spacer only for first & second blocks
-        }
-        // 確保長度為 14
-        while(rowCells.length < 14) rowCells.push('');
-        if(rowCells.length > 14) rowCells.length = 14;
-
-        const row = ws.insertRow(rowCursor++, rowCells);
-        styleRow(row, {alt:(rowCursor%2===0), height:18, wrap:false});
-      }
-      // 區隔空白行
-      const sep = ws.insertRow(rowCursor++, Array(14).fill(''));
-      sep.height = 6;
-    }
-    const emptyBeds = totalBeds - usedBeds;
-    rowCursor += 1;
-    const sumRow = ws.getRow(rowCursor);
-    sumRow.getCell(1).value = '樓層床位數';
-    sumRow.getCell(2).value = totalBeds;
-    sumRow.getCell(6).value = '空床數';
-    sumRow.getCell(7).value = emptyBeds;
-    sumRow.getCell(11).value = '已使用床位數';
-    sumRow.getCell(12).value = usedBeds;
-    ;[2,7,12].forEach(ci=>{ const c=sumRow.getCell(ci); c.alignment={vertical:'middle', horizontal:'center', shrinkToFit:true}; c.numFmt='0'; });
-    styleRow(sumRow, {isHeader:true, height:20});
-
-    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
-  }
-
-  addFloorSheet('1樓床位配置', 1);
-  addFloorSheet('2樓床位配置', 2);
-  addFloorSheet('3樓床位配置', 3);
-
-  // ===== 各樓層人數統計 =====
-  
-(function addPeopleStats(){
-    const ws = wb.addWorksheet('各樓層人數統計', {views:[{state:'frozen', ySplit:1}]});
-    ws.columns = [{width:20},{width:46},{width:20},{width:20},{width:28},{width:12},{width:22}];
-    ws.mergeCells('A1:G1');
-    ws.getCell('A1').value = '各樓層人數統計';
-    ws.getCell('A1').font = { ...fontTitle, size:28 };
-    ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
-    ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
-    styleRow(header,{isHeader:true,center:true,height:54});
-
-    // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
-    function getStatus(r){
-      const raw = ((r.leaveStatus||'')+'').replace(/\s/g,'');
-      if (raw.includes('住院')) return 'hospital';
-      if (raw.includes('請假')) return 'leave';
-      return 'present';
-    }
-
-    const floors = {'1':[],'2':[],'3':[]};
-    (cache||[]).forEach(r=>{
-      const bed = String(r.bedNumber||''); const m=bed.match(/^(\d{3})[-_]/);
-      const fl = m?m[1][0]:null;
-      if(fl && floors[fl]) floors[fl].push(r);
-    });
-
-    function sumFloor(list){
-      let leave=0, hosp=0, present=0;
-      list.forEach(r=>{
-        const s = getStatus(r);
-        if(s==='leave') leave++;
-        else if(s==='hospital') { hosp++; present++; } // 住院不算請假，但列為非請假（計入實到）
-        else present++;
-      });
-      return {leave, hosp, present, total:list.length};
-    }
-    // 活動能力只算「非請假」（present + hospital）
-    function abilityCountExcludeLeave(list){
-      const acc = {wheel:0,push:0,walk:0};
-      list.forEach(r=>{
-        const s = getStatus(r);
-        if (s === 'leave') return;
-        const a = (r.mobility||r.ability||'').trim();
-        if(a.includes('輪椅')) acc.wheel++;
-        else if(a.includes('推')) acc.push++;
-        else if(a.includes('步')) acc.walk++;
-      });
-      return acc;
-    }
-
-    let sumLeave=0,sumPresent=0,sumTotal=0;
-    let abilityStrings = [];
-    ['1','2','3'].forEach(fl=>{
-      const acc = sumFloor(floors[fl]);
-      const ab  = abilityCountExcludeLeave(floors[fl]); // 只算沒請假的
-      const leaveCombined = acc.leave + acc.hosp; // Excel 欄位：請假=請假+住院
-      sumLeave += leaveCombined; sumPresent += (acc.total - leaveCombined);
-      sumTotal += acc.total;
-      const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
-      abilityStrings.push(abilityText);
-      const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, (acc.total - leaveCombined), acc.total, '', '']);
-      styleRow(row,{center:true,height:54});
-    });
-
-    const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
-    styleRow(totalRow,{isHeader:true,center:true});
-    ws.getRow(totalRow.number).height = 54;
-    ws.getCell(`C${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFF00'}};
-    ws.getCell(`D${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2F80ED'}};
-    ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
-    const badge = ws.getCell(`F${totalRow.number+1}`);
-    badge.value = sumPresent;
-    badge.font = {name:'Microsoft JhengHei', size:36, bold:true};
-    badge.alignment = {horizontal:'center', vertical:'middle'};
-    badge.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFB7E1CD'}};
-    ws.getCell(`E${totalRow.number+1}`).value = '＝';
-    ws.getCell(`E${totalRow.number+1}`).alignment = {horizontal:'center', vertical:'middle'};
-
-    // 備註
-    ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
-    ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
-    ws.getCell(`A${totalRow.number+2}`).font = { name:'Microsoft JhengHei', size:16 };
-    ws.getRow(totalRow.number+2).height = 28;
-    ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
-    ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
-    ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
-    ws.getRow(totalRow.number+3).height = 28;
-
-    // 自動調整第 2 欄（活動能力力區分）欄寬
-    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
-    // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
-    ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
-    ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
-
-    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     horizontalCentered:true, verticalCentered:false,
-                     margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
-})();
-
-
-  // ===== 下載 =====
-  const blob = await wb.xlsx.writeBuffer();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-  a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-    function hookEvents(){
-    document.addEventListener('click', (e)=>{
-      const t=e.target;
-      if(t.closest('#export-xls-styled')) exportStyledXls();
-    });
-  }
-
-  async function load(){
-    if(tbody) tbody.innerHTML='<tr><td colspan="13" class="text-center">讀取中...</td></tr>';
-    try{
-      const snap=await db.collection(dbCol).get();
-      cache=snap.docs.map(d=>({id:d.id,...d.data()}));
-      cache.sort((a,b)=> bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
-      const tpl = getTemplate(cache);
-      renderBasic(); renderFloors(tpl); renderStats(); hookEvents();
-    }catch(e){
-      console.error(e);
-      if(tbody) tbody.innerHTML='<tr><td colspan="13"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
-    }
-  }
-
-  // 匯入（保留）
-  if(importBtn && fileInput){
-    importBtn.addEventListener('click', ()=> fileInput.click());
-    fileInput.addEventListener('change', handleExcelImport);
-  }
-  function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
-  async function handleExcelImport(evt){
-    const file=evt.target.files[0]; if(!file) return;
-    if(importStatus){ importStatus.className='alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent='正在讀取檔案...'; }
-    const reader=new FileReader();
-    reader.onload=async (e)=>{
-      try{
-        const data=new Uint8Array(e.target.result);
-        const wb=XLSX.read(data,{type:'array',cellDates:true});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
-        const batch=db.batch(); let count=0;
-        rows.forEach(r=>{
-          const name=norm(pick(r,['姓名','住民姓名','Name'])); if(!name) return;
-          const birthdayRaw=pick(r,['生日','出生日期','出生年月日','Birth','BirthDate']);
-          const checkinRaw=pick(r,['入住日期','入住日','入院日期','Checkin','Admission']);
-          const payload={
-            nursingStation:norm(pick(r,['護理站','站別','樓層','Floor'])),
-            bedNumber:norm(pick(r,['床號','床位','Bed'])),
-            gender:norm(pick(r,['性別','Gender'])),
-            idNumber:norm(pick(r,['身份證字號','身份証字號','ID','身分證'])),
-            birthday:parseDateSmart(birthdayRaw),
-            checkinDate:parseDateSmart(checkinRaw),
-            emergencyContact:norm(pick(r,['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
-            emergencyPhone:norm(pick(r,['連絡電話','聯絡電話','電話','Phone'])),
-            mobility:norm(pick(r,['行動方式','行動','Mobility'])),
-            leaveStatus:norm(pick(r,['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
-          };
-          batch.set(db.collection(dbCol).doc(name), payload, {merge:true}); count++;
-        });
-        await batch.commit();
-        if(importStatus){ importStatus.className='alert alert-success'; importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...`; }
-        setTimeout(()=>location.reload(),1000);
-      }catch(err){
-        console.error(err);
-        if(importStatus){ importStatus.className='alert alert-danger'; importStatus.textContent='匯入失敗，請檢查檔案。'; }
-      }finally{ if(fileInput) fileInput.value=''; }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  // 新增/編輯/刪除（保留原 DOM）
-  let modal; const modalEl=document.getElementById('resident-modal'); if(window.bootstrap && modalEl) modal=new bootstrap.Modal(modalEl);
-  const modalTitle=document.getElementById('resident-modal-title');
-  const saveBtn=document.getElementById('save-resident-btn');
-  const nameInput=document.getElementById('resident-name');
-  const stationInput=document.getElementById('resident-station');
-  const bedInput=document.getElementById('resident-bedNumber');
-  const genderInput=document.getElementById('resident-gender');
-  const birthdayInput=document.getElementById('resident-birthday');
-  const idInput=document.getElementById('resident-idNumber');
-  const emgNameInput=document.getElementById('resident-emgName');
-  const emgPhoneInput=document.getElementById('resident-emgPhone');
-  const mobilityInput=document.getElementById('resident-mobility');
-  const checkinInput=document.getElementById('resident-checkinDate');
-  const statusInput=document.getElementById('resident-status');
-
-  if(addBtn && modal){
-    addBtn.addEventListener('click', ()=>{
-      modalTitle && (modalTitle.textContent='新增住民');
-      const form=document.getElementById('resident-form'); if(form) form.reset();
-      if(nameInput){ nameInput.disabled=false; nameInput.value=''; }
-      modal.show();
-    });
-  }
-  if(saveBtn){
-    saveBtn.addEventListener('click', async ()=>{
-      const name=nameInput? nameInput.value.trim():''; if(!name) return alert('請填寫姓名');
-      const payload={
-        nursingStation:stationInput?norm(stationInput.value):'',
-        bedNumber:bedInput?norm(bedInput.value):'',
-        gender:genderInput?genderInput.value:'',
-        birthday:birthdayInput?parseDateSmart(birthdayInput.value):'',
-        idNumber:idInput?norm(idInput.value):'',
-        emergencyContact:emgNameInput?norm(emgNameInput.value):'',
-        emergencyPhone:emgPhoneInput?norm(emgPhoneInput.value):'',
-        mobility:mobilityInput?norm(mobilityInput.value):'',
-        checkinDate:checkinInput?parseDateSmart(checkinInput.value):'',
-        leaveStatus:statusInput?norm(statusInput.value):''
-      };
-      await db.collection(dbCol).doc(name).set(payload,{merge:true});
-      if(modal) modal.hide();
-      load();
-    });
-  }
-  if(tbody){
-    tbody.addEventListener('click', async (e)=>{
-      const btn=e.target.closest('button'); if(!btn) return;
-      const row=btn.closest('tr'); const id=row?.dataset.id; if(!id) return;
-      if(btn.classList.contains('btn-edit')){
-        if(!modal) return;
-        modalTitle && (modalTitle.textContent='編輯住民資料');
-        if(nameInput){ nameInput.disabled=true; nameInput.value=id; }
-        const doc=await db.collection(dbCol).doc(id).get();
-        if(doc.exists){
-          const d=doc.data();
-          if(stationInput) stationInput.value=d.nursingStation||'';
-          if(bedInput) bedInput.value=d.bedNumber||'';
-          if(genderInput) genderInput.value=d.gender||'';
-          if(birthdayInput) birthdayInput.value=d.birthday||'';
-          if(idInput) idInput.value=d.idNumber||'';
-          if(emgNameInput) emgNameInput.value=d.emergencyContact||'';
-          if(emgPhoneInput) emgPhoneInput.value=d.emergencyPhone||'';
-          if(mobilityInput) mobilityInput.value=d.mobility||'';
-          if(checkinInput) checkinInput.value=d.checkinDate||'';
-          if(statusInput) statusInput.value=d.leaveStatus||'';
-        }
-        modal.show();
-      }
-      if(btn.classList.contains('btn-danger')){
-        if(confirm(`確定刪除「${id}」資料？`)){
-          await db.collection(dbCol).doc(id).delete();
-          load();
-        }
-      }
-    });
-  }
-
-  load();
-});
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="residents-admin.js"></script>
+</body>
+</html>
