@@ -195,9 +195,13 @@ function renderStats(){
   if(!statsArea) return;
 
   function normv(s){ return (s==null?'':String(s)); }
-  function isLeave(r){
-    const v = normv(r.leaveStatus).replace(/\s/g,'');
-    return v.includes('請假') || v.includes('住院');
+  function isLeaveOnly(r){
+    const raw = normv(r.leaveStatus).replace(/\s/g,'');
+    return raw.includes('請假') && !raw.includes('住院');
+  }
+  function isHosp(r){
+    const raw = normv(r.leaveStatus).replace(/\s/g,'');
+    return raw.includes('住院');
   }
   function inFloor(f){
     const reg = new RegExp('^'+f+'\\d\\d');
@@ -207,52 +211,69 @@ function renderStats(){
     });
   }
 
-  const total = cache.length;
-  const male  = cache.filter(r=>r.gender==='男').length;
-  const female= cache.filter(r=>r.gender==='女').length;
-  const leave = cache.filter(r=>isLeave(r)).length;
-  const hosp  = cache.filter(r=>normv(r.leaveStatus).includes('住院')).length;
-  const present = total - leave;
+  const total   = cache.length;
+  const male    = cache.filter(r=>r.gender==='男').length;
+  const female  = cache.filter(r=>r.gender==='女').length;
+  const leaveOnly = cache.filter(r=>isLeaveOnly(r)).length; // 只請假（不含住院）
+  const hospOnly  = cache.filter(r=>isHosp(r)).length;      // 住院
+  const present = total - leaveOnly - hospOnly;
 
+  // Mobility（只計沒請假＆沒住院）
   const WHEEL = /(輪椅)/i;
   const TROLLEY = /(推床|臥床|平車|推車)/i;
   const WALK = /(步行|可獨立|助行|拐杖|walker)/i;
-
-  const active = cache.filter(r=>!isLeave(r));
+  const active = cache.filter(r=>!isLeaveOnly(r) && !isHosp(r));
   const mWheel = active.filter(r=>WHEEL.test(normv(r.mobility))).length;
   const mTrolley = active.filter(r=>TROLLEY.test(normv(r.mobility))).length;
   const mWalk = active.filter(r=>WALK.test(normv(r.mobility))).length;
 
+  // Each floor
   const floors = [1,2,3].map(function(f){
     const arr = inFloor(f);
     const fTotal = arr.length;
-    const fLeave = arr.filter(r=>isLeave(r)).length;
-    const fHosp  = arr.filter(r=>normv(r.leaveStatus).includes('住院')).length;
-    const fPresent = fTotal - fLeave;
-    const arrActive = arr.filter(r=>!isLeave(r));
+    const fLeave = arr.filter(r=>isLeaveOnly(r)).length;
+    const fHosp  = arr.filter(r=>isHosp(r)).length;
+    const fPresent = fTotal - fLeave - fHosp;
+    const arrActive = arr.filter(r=>!isLeaveOnly(r) && !isHosp(r));
     const fWheel = arrActive.filter(r=>WHEEL.test(normv(r.mobility))).length;
     const fTrolley = arrActive.filter(r=>TROLLEY.test(normv(r.mobility))).length;
     const fWalk = arrActive.filter(r=>WALK.test(normv(r.mobility))).length;
     return {f, fTotal, fPresent, fLeave, fHosp, fWheel, fTrolley, fWalk};
   });
 
+  // Tiles, grouped
   let tiles = '';
-  tiles += `<div class="stats-tile"><div class="label">總數</div><div class="num">${total}</div></div>`;
-  tiles += `<div class="stats-tile"><div class="label">男</div><div class="num">${male}</div></div>`;
-  tiles += `<div class="stats-tile"><div class="label">女</div><div class="num">${female}</div></div>`;
-  tiles += `<div class="stats-tile ok"><div class="label">實到</div><div class="num">${present}</div></div>`;
-  tiles += `<div class="stats-tile warn"><div class="label">請假(含住院)</div><div class="num">${leave}</div></div>`;
-  tiles += `<div class="stats-tile danger"><div class="label">住院</div><div class="num">${hosp}</div></div>`;
-  tiles += `<div class="stats-tile"><div class="label">輪椅(非請假)</div><div class="num">${mWheel}</div></div>`;
-  tiles += `<div class="stats-tile"><div class="label">推床(非請假)</div><div class="num">${mTrolley}</div></div>`;
-  tiles += `<div class="stats-tile"><div class="label">步行(非請假)</div><div class="num">${mWalk}</div></div>`;
+  // 重點
+  tiles += `<div class="section-label">重點</div>`;
+  tiles += `<div class="stats-grid">
+    <div class="stats-tile tile-hero tile-present"><div class="label">實到</div><div class="num">${present}</div></div>
+    <div class="stats-tile tile-hero tile-total"><div class="label">總數</div><div class="num">${total}</div></div>
+  </div>`;
 
-  let rows = '';
+  // 狀態
+  tiles += `<div class="section-label mt-2">狀態</div>`;
+  tiles += `<div class="stats-grid">
+    <div class="stats-tile"><div class="label">男</div><div class="num">${male}</div></div>
+    <div class="stats-tile"><div class="label">女</div><div class="num">${female}</div></div>
+    <div class="stats-tile tile-leave"><div class="label">請假</div><div class="num">${leaveOnly}</div></div>
+    <div class="stats-tile tile-hosp"><div class="label">住院</div><div class="num">${hospOnly}</div></div>
+  </div>`;
+
+  // 行動能力（只算非請假）
+  tiles += `<div class="section-label mt-2">行動能力（不含請假與住院）</div>`;
+  tiles += `<div class="stats-grid">
+    <div class="stats-tile"><div class="label">輪椅</div><div class="num">${mWheel}</div></div>
+    <div class="stats-tile"><div class="label">推床</div><div class="num">${mTrolley}</div></div>
+    <div class="stats-tile"><div class="label">步行</div><div class="num">${mWalk}</div></div>
+  </div>`;
+
+  // per-floor rows
+  let rows='';
   floors.forEach(x=>{
     rows += `<tr>
       <td>${x.f}F</td>
       <td class="text-end">${x.fTotal}</td>
-      <td class="text-end text-success">${x.fPresent}</td>
+      <td class="text-end text-success fw-bold">${x.fPresent}</td>
       <td class="text-end text-warning">${x.fLeave}</td>
       <td class="text-end text-danger">${x.fHosp}</td>
       <td class="text-end">${x.fWheel}</td>
@@ -265,11 +286,9 @@ function renderStats(){
     <div class="stats-wrap">
       <div class="stats-head">
         <h5 class="title mb-0">總人數統計</h5>
-        <div class="total">${total}</div>
+        <div class="total">${present}/${total}</div>
       </div>
-      <div class="stats-grid">
-        ${tiles}
-      </div>
+      ${tiles}
     </div>
 
     <div class="card border-0 shadow-sm mt-3">
@@ -281,11 +300,11 @@ function renderStats(){
                 <th>樓層</th>
                 <th class="text-end">總數</th>
                 <th class="text-end">實到</th>
-                <th class="text-end">請假(含住院)</th>
+                <th class="text-end">請假</th>
                 <th class="text-end">住院</th>
-                <th class="text-end">輪椅(非請假)</th>
-                <th class="text-end">推床(非請假)</th>
-                <th class="text-end">步行(非請假)</th>
+                <th class="text-end">輪椅</th>
+                <th class="text-end">推床</th>
+                <th class="text-end">步行</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -633,7 +652,7 @@ function renderStats(){
     ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
+    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
@@ -712,8 +731,8 @@ function renderStats(){
     ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
     ws.getRow(totalRow.number+3).height = 28;
 
-    // 自動調整第 2 欄（活動能力區分）欄寬
-    const maxLen = Math.max('活動能力區分'.length, ...abilityStrings.map(s=>s.length));
+    // 自動調整第 2 欄（活動能力力區分）欄寬
+    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
