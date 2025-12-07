@@ -24,43 +24,13 @@
 .pane.danger{ background:#ffe2e2; }
 @media (max-width: 992px){ .pane-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
 
-/* ===== Stats Pane (window-like) ===== */
-
-/* --- Emphasis tiles & sections --- */
-
-/* --- Labeled total badge --- */
-
-/* --- header action button --- */
-.stats-head .actions { display:flex; align-items:center; gap:8px; }
-.stats-head .actions .btn { padding:4px 10px; font-size:12px; }
-
-.stats-head .total{display:flex;align-items:center;gap:6px}
-.stats-head .total .mini{font-size:12px;font-weight:700;opacity:.85}
-.stats-head .total .big{font-size:26px;font-weight:900}
-.stats-head .total .slash{margin:0 4px;font-weight:800}
-
-.section-label{font-weight:800;margin:4px 14px 0;color:#374151}
-.tile-hero{grid-column: span 2; border-width:2px;background:#f0f9ff}
-.tile-hero .num{font-size:34px}
-.tile-total{background:#dcfce7}
-.tile-present{background:#fef9c3}
-.tile-leave{background:#fde68a}
-.tile-hosp{background:#fecaca}
-
-.stats-wrap{border:3px solid #1f2937;border-radius:14px;background:#fff;overflow:hidden}
-.stats-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px solid #1f2937;background:#fffef5}
-.stats-head .title{font-weight:800;margin:0}
-.stats-head .total{font-weight:900;font-size:28px;line-height:1;background:#d8f5a2;padding:6px 12px;border-radius:10px}
-.stats-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;padding:14px}
-.stats-tile{border:1px solid #e5e7eb;border-radius:10px;padding:10px;background:#fcfcfc;display:flex;flex-direction:column;gap:2px}
-.stats-tile .label{color:#6b7280;font-size:12px}
-.stats-tile .num{font-weight:900;font-size:20px}
-.stats-tile.ok{background:#e9f9ee}
-.stats-tile.warn{background:#fff6cd}
-.stats-tile.danger{background:#ffe2e2}
-@media (max-width: 1200px){.stats-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width: 576px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
+/* stats header bar */
+.stats-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:2px solid #1f2937;border-radius:12px;background:#fffef3;margin-bottom:10px}
+.stats-head .title{font-weight:800}
+.stats-head .badge-pair{display:flex;align-items:center;gap:10px}
+.stats-head .pill{font-weight:900;font-size:18px;padding:6px 10px;border-radius:10px}
+.stats-head .pill.present{background:#e2f7c2}
+.stats-head .pill.total{background:#e5e7eb}
 </style>
 </head>
 <body>
@@ -142,7 +112,11 @@
                 <div id="floor3-grid" class="row g-2"></div>
               </div>
               <div class="tab-pane fade" id="pane-stats" role="tabpanel" aria-labelledby="tab-stats">
-<div id="stats-area" class="row g-3"></div>
+<div class="mb-3 d-flex justify-content-end gap-2">
+  <button id="export-xls-legacy" class="btn btn-outline-dark btn-sm"><i class="fa-regular fa-file-excel me-1"></i>匯出 XLS（圖片樣式）</button>
+</div>
+
+                <div id="statsHeadBar" class="stats-head d-none">  <div class="title">總人數統計</div>  <div class="badge-pair">    <span class="pill present" id="presentBadge">實到 0</span>    <span class="pill total" id="totalBadge">總數 0</span>  </div></div><div id="stats-area" class="row g-3"></div>
               </div>
             </div>
 
