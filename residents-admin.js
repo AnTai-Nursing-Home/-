@@ -192,7 +192,7 @@ document.addEventListener('residents-init', ()=>{
 
   
 function renderStats(){
-  function _norm(s){return (s==null?'':String(s));}
+  function _norm(v){return (v==null?'':String(v));}
   function isLeaveOnly(r){const v=_norm(r.leaveStatus).replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
   function isHosp(r){const v=_norm(r.leaveStatus).replace(/\s/g,'');return v.includes('住院');}
   if(!statsArea) return;
@@ -474,7 +474,9 @@ function renderStats(){
   }
 
 
-  async function exportStyledXls(){
+  async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
+function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
+function exportStyledXls(){
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
   const wb = new ExcelJS.Workbook();
@@ -652,7 +654,7 @@ function renderStats(){
     ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
     ws.getRow(1).height = 28;
-    const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
+    const header = ws.addRow(['樓層','活動能力力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
@@ -732,8 +734,8 @@ function renderStats(){
     ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
     ws.getRow(totalRow.number+3).height = 28;
 
-    // 自動調整第 2 欄（活動能力區分）欄寬
-    const maxLen = Math.max('活動能力區分'.length, ...abilityStrings.map(s=>s.length));
+    // 自動調整第 2 欄（活動能力力區分）欄寬
+    const maxLen = Math.max('活動能力力區分'.length, ...abilityStrings.map(s=>s.length));
     // CJK 字寬較大，乘以 2 作保守估算，限制 28~60
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
