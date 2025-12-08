@@ -191,13 +191,13 @@ function exportExcel() {
 
   const rocDate = toRoc(data.date);
   const rowsHtml = data.entries.map((e, i) => `
-    <tr>
-      <td style="text-align:center;vertical-align:middle;">${i + 1}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.bedNumber}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.name}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.vitals}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.condition}</td>
+    <tr style="height:60pt;">
+      <td class="body" style="text-align:center;vertical-align:middle;">${i + 1}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.bedNumber}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.name}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.vitals}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.condition}</td>
       <td style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
     </tr>`).join("");
 
@@ -208,10 +208,12 @@ function exportExcel() {
     <head>
       <meta charset="UTF-8" />
       <style>
-        table, td, th {
-          border: 1px solid #000;
+        table {
           border-collapse: collapse;
           mso-border-alt: solid #000 1px;
+        }
+        table, td, th {
+          border: 1px solid #000;
           font-family: "DFKai-SB", "標楷體";
           mso-font-charset: 136;
         }
@@ -228,24 +230,36 @@ function exportExcel() {
           font-weight: bold;
         }
         .header {
-          font-size: 10pt;
+          font-size: 12pt;
           font-weight: bold;
         }
         .body {
-          font-size: 10pt;
+          font-size: 12pt;
+        }
+        .sign {
+          font-size: 12pt;
         }
       </style>
     </head>
     <body>
       <table>
-        <tr>
+        <colgroup>
+          <col style="width:5.33ch;" />
+          <col style="width:6.89ch;" />
+          <col style="width:10.11ch;" />
+          <col style="width:11ch;" />
+          <col style="width:15.89ch;" />
+          <col style="width:16.67ch;" />
+          <col style="width:15.33ch;" />
+        </colgroup>
+        <tr style="height:60pt;">
           <td class="title" colspan="7">醫療巡迴門診掛號及就診狀況交班單</td>
         </tr>
-        <tr>
+        <tr style="height:33.6pt;">
           <td class="info" colspan="3">醫巡日期：${rocDate}</td>
           <td class="info" colspan="4">看診人數：${data.totalPatients}</td>
         </tr>
-        <tr>
+        <tr style="height:60pt;">
           <th class="header">排序</th>
           <th class="header">床號</th>
           <th class="header">姓名</th>
@@ -255,6 +269,10 @@ function exportExcel() {
           <th class="header">醫師手記/囑語</th>
         </tr>
         ${rowsHtml}
+        <tr style="height:33.6pt;">
+          <td class="sign" colspan="3">巡診醫師簽名：</td>
+          <td class="sign" colspan="4">跟診護理師簽名：</td>
+        </tr>
       </table>
     </body>
   </html>`;
