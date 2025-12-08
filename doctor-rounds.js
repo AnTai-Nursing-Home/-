@@ -208,14 +208,14 @@ function exportExcel() {
       <meta charset="UTF-8" />
       <style>
         @page { 
-          margin-top: 1.50cm; 
-          margin-bottom: 1.50cm; 
-          margin-left: 0.23cm;
-          margin-right: 0.23cm;
+          margin-top: 1.91cm; 
+          margin-bottom: 1.91cm; 
+          margin-left: 0.64cm;
+          margin-right: 0.64cm;
         }
         body {
-          mso-header-margin: 0.35cm;
-          mso-footer-margin: 0.35cm;
+          mso-header-margin: 0.76cm;
+          mso-footer-margin: 0.76cm;
         }
         table {
           border-collapse: collapse;
