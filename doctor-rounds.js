@@ -168,7 +168,7 @@ document.addEventListener("firebase-ready", () => {
     let data;
     try {
       data = collectData();
-    } catch {
+    } catch (e) {
       alert("請先選擇日期");
       return;
     }
@@ -179,7 +179,7 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
-// 依照《醫巡格式.xlsx》樣式直接在程式裡產生 Excel（不需要額外樣板檔）
+// 依照《醫巡格式》直接在程式裡產生 Excel，不需要外部樣板檔
 function exportExcel() {
   let data;
   try {
@@ -192,7 +192,7 @@ function exportExcel() {
   const wb = XLSX.utils.book_new();
   const ws = {};
 
-  // 欄位寬度（依照樣板 A~G 欄）
+  // 欄位寬度（A~G）
   ws["!cols"] = [
     { wch: 5.0 },    // A 排序
     { wch: 6.0 },    // B 床號
@@ -203,7 +203,7 @@ function exportExcel() {
     { wch: 18.375 }  // G 醫師手記/囑語
   ];
 
-  // 邊框樣式（全部都細框線）
+  // 邊框樣式（全部細框線）
   const thinBorder = {
     top:    { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
@@ -211,10 +211,8 @@ function exportExcel() {
     right:  { style: "thin", color: { rgb: "000000" } }
   };
 
-  // 共用：置中＋自動換行
   const alignCenter = { horizontal: "center", vertical: "center", wrapText: true };
 
-  // 各種字型樣式（依照樣板）
   const titleStyle = {
     font: { name: "標楷體", sz: 16, bold: true },
     alignment: alignCenter,
@@ -250,10 +248,10 @@ function exportExcel() {
     return { v: v, t: isNumber ? "n" : "s", s: style };
   }
 
-  // ① 標題列 A1:G1（合併）
+  // ① 標題 A1:G1（合併）
   ws["A1"] = sc("醫療巡迴門診掛號及就診狀況交班單", titleStyle);
 
-  // ② 日期 & 看診人數（A2:C2、D2:G2 合併）
+  // ② 日期 & 看診人數（A2:C2、D2:G2）
   const rocDate = toRoc(data.date) || "";
   ws["A2"] = sc("醫巡日期：" + rocDate, infoStyle);
   ws["D2"] = sc("看診人數：" + data.totalPatients, infoStyle);
@@ -261,36 +259,32 @@ function exportExcel() {
   // ③ 表頭（第 3 列）
   const headers = ["排序", "床號", "姓名", "身分證字號", "生命徵象", "病情簡述/主訴", "醫師手記/囑語"];
   for (let c = 0; c < headers.length; c++) {
-    const colLetter = String.fromCharCode(65 + c); // 65 => "A"
+    const colLetter = String.fromCharCode(65 + c); // 65 => A
     const addr = colLetter + "3";
     ws[addr] = sc(headers[c], headerStyle);
   }
 
-  // ④ 寫入明細資料（第 4 列開始）
+  // ④ 寫入明細（第 4 列開始）
   const startRow = 4;
   data.entries.forEach((item, index) => {
     const row = startRow + index;
-    const rowIndex = row;
-
-    ws["A" + rowIndex] = sc(index + 1, bodyStyle);
-    ws["B" + rowIndex] = sc(item.bedNumber || "", bodyStyle);
-    ws["C" + rowIndex] = sc(item.name || "", bodyStyle);
-    ws["D" + rowIndex] = sc(item.idNumber || "", bodyStyle);
-    ws["E" + rowIndex] = sc(item.vitals || "", bodyStyle);
-    ws["F" + rowIndex] = sc(item.condition || "", bodyStyle);
-    ws["G" + rowIndex] = sc(item.doctorNote || "", bodyStyle);
+    ws["A" + row] = sc(index + 1, bodyStyle);
+    ws["B" + row] = sc(item.bedNumber || "", bodyStyle);
+    ws["C" + row] = sc(item.name || "", bodyStyle);
+    ws["D" + row] = sc(item.idNumber || "", bodyStyle);
+    ws["E" + row] = sc(item.vitals || "", bodyStyle);
+    ws["F" + row] = sc(item.condition || "", bodyStyle);
+    ws["G" + row] = sc(item.doctorNote || "", bodyStyle);
   });
 
   // ⑤ N 筆資料 + 6 列空白後的簽章列
   const extraBlankRows = 6;
   const signRow = startRow + data.entries.length + extraBlankRows;
 
-  // 左側：A~E（實際文字在 A 欄）
   ws["A" + signRow] = sc("醫巡醫師簽章：", signStyle);
-  // 右側：F~G（實際文字在 F 欄；與樣板接近配置）
   ws["F" + signRow] = sc("跟診護理師簽章：", signStyle);
 
-  // ⑥ 設定列高（依樣板：第 2 列 33，其餘 60）
+  // ⑥ 列高設定：第 2 列 33，其餘 60
   const totalRows = signRow;
   const rows = [];
   for (let r = 1; r <= totalRows; r++) {
@@ -302,26 +296,25 @@ function exportExcel() {
   }
   ws["!rows"] = rows;
 
-  // ⑦ 合併儲存格設定（依樣板）
+  // ⑦ 合併儲存格
   ws["!merges"] = [
-    // A1:G1 標題
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
-    // A2:C2 日期
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
-    // D2:G2 看診人數
-    { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },
-    // 簽章列：A~E
-    { s: { r: signRow - 1, c: 0 }, e: { r: signRow - 1, c: 4 } },
-    // 簽章列：F~G
-    { s: { r: signRow - 1, c: 5 }, e: { r: signRow - 1, c: 6 } }
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },          // A1:G1 標題
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },          // A2:C2 日期
+    { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },          // D2:G2 看診人數
+    { s: { r: signRow - 1, c: 0 }, e: { r: signRow - 1, c: 4 } }, // 簽章 A~E
+    { s: { r: signRow - 1, c: 5 }, e: { r: signRow - 1, c: 6 } }  // 簽章 F~G
   ];
 
-  // ⑧ 將工作表加入活頁簿並匯出
+  // ⑧ 設定工作表範圍（一定要有，否則可能出現空白）
+  ws["!ref"] = "A1:G" + String(signRow);
+
   XLSX.utils.book_append_sheet(wb, ws, "醫巡交班單");
   XLSX.writeFile(wb, "醫療巡迴門診掛號及就診狀況交班單_" + data.date + ".xlsx");
 }
 
-addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
+
+
+  addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
