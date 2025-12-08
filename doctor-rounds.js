@@ -1,3 +1,4 @@
+
 // 醫療巡迴門診掛號及就診狀況交班單 - 表格內讀取中版本
 // ✅ 讀取時表格中顯示「讀取中...」
 // ✅ 匯出 Excel、儲存、自動載入功能齊全
@@ -178,7 +179,6 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
-// 以 HTML 偽 Excel 匯出，並在 style 中強制指定標楷體、字體大小、欄寬、列高與頁面邊界
 function exportExcel() {
   let data;
   try {
@@ -191,13 +191,13 @@ function exportExcel() {
   const rocDate = toRoc(data.date);
   const rowsHtml = data.entries.map((e, i) => `
     <tr style="height:60pt;">
-      <td class="body" style="text-align:center;vertical-align:middle;">${i + 1}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.bedNumber}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.name}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.vitals}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.condition}</td>
-      <td class="body" style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
+      <td style="text-align:center;vertical-align:middle;">${i + 1}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.bedNumber}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.name}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.vitals}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.condition}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
     </tr>`).join("");
 
   const html = `
@@ -253,13 +253,13 @@ function exportExcel() {
     <body>
       <table>
         <colgroup>
-          <col style="width:5.33ch;" />
-          <col style="width:6.89ch;" />
-          <col style="width:10.11ch;" />
-          <col style="width:11ch;" />
-          <col style="width:19ch;" />
-          <col style="width:19ch;" />
-          <col style="width:19ch;" />
+          <col width="5.33" style="mso-width-source:userset;mso-width-alt:1365;" />
+          <col width="6.89" style="mso-width-source:userset;mso-width-alt:1763;" />
+          <col width="10.11" style="mso-width-source:userset;mso-width-alt:2589;" />
+          <col width="11" style="mso-width-source:userset;mso-width-alt:2816;" />
+          <col width="19" style="mso-width-source:userset;mso-width-alt:4864;" />
+          <col width="19" style="mso-width-source:userset;mso-width-alt:4864;" />
+          <col width="19" style="mso-width-source:userset;mso-width-alt:4864;" />
         </colgroup>
         <tr style="height:60pt;">
           <td class="title" colspan="7">醫療巡迴門診掛號及就診狀況交班單</td>
@@ -294,10 +294,7 @@ function exportExcel() {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-
-
-  addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
+addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
