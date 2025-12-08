@@ -178,11 +178,60 @@ document.addEventListener("firebase-ready", () => {
     alert("✅ 已儲存醫巡單");
   }
 
-  function exportExcel() {
-    let data;
-    try {
-      data = collectData();
-    } catch {
+  
+// 取代原本的 exportExcel()：使用 Excel 樣板完整保留欄寬、列高、字型與粗體
+async function exportUsingTemplate() {
+  let data;
+  try {
+    data = collectData();
+  } catch (e) {
+    alert("請先選擇日期");
+    return;
+  }
+
+  // 讀取 Excel 樣板（請確保『醫巡格式.xlsx』與此頁面在同一資料夾）
+  const response = await fetch("醫巡格式.xlsx");
+  if (!response.ok) {
+    alert("找不到『醫巡格式.xlsx』樣板，請確認檔案是否與網頁在同一資料夾。");
+    return;
+  }
+  const arrayBuffer = await response.arrayBuffer();
+
+  // 解析樣板
+  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+  const ws = workbook.Sheets[workbook.SheetNames[0]];
+
+  // ① 日期：A~C 第 2 列（寫 A2 即可）
+  ws["A2"] = { t: "s", v: toRoc(data.date) || "" };
+
+  // ② 看診人數：D~G 第 2 列（寫 D2 即可）
+  ws["D2"] = { t: "s", v: String(data.totalPatients) };
+
+  // ③ 寫入明細資料，從第 4 列開始
+  const startRow = 4;
+  data.entries.forEach((item, index) => {
+    const row = startRow + index;
+    ws[`A${row}`] = { t: "s", v: String(index + 1) };         // 排序
+    ws[`B${row}`] = { t: "s", v: item.bedNumber || "" };       // 床號
+    ws[`C${row}`] = { t: "s", v: item.name || "" };            // 姓名
+    ws[`D${row}`] = { t: "s", v: item.idNumber || "" };        // 身分證字號
+    ws[`E${row}`] = { t: "s", v: item.vitals || "" };          // 生命徵象
+    ws[`F${row}`] = { t: "s", v: item.condition || "" };       // 病情簡述
+    ws[`G${row}`] = { t: "s", v: item.doctorNote || "" };      // 醫師手記
+  });
+
+  // ④ N 筆資料 + 6 列空白後的簽章列
+  const extraBlankRows = 6;
+  const signRow = startRow + data.entries.length + extraBlankRows;
+
+  // 假設樣板已合併好 A~C 與 D~G
+  ws[`A${signRow}`] = { t: "s", v: "醫巡醫師簽章：" };
+  ws[`D${signRow}`] = { t: "s", v: "跟診護理師簽章：" };
+
+  // ⑤ 匯出
+  XLSX.writeFile(workbook, `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xlsx`);
+}
+catch {
       alert("請先選擇日期");
       return;
     }
@@ -211,7 +260,7 @@ document.addEventListener("firebase-ready", () => {
 
   addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
-  exportBtn.addEventListener("click", exportExcel);
+  exportBtn.addEventListener("click", exportUsingTemplate);
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
 
   (async () => {
