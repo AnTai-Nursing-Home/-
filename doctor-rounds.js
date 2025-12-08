@@ -208,14 +208,14 @@ function exportExcel() {
       <meta charset="UTF-8" />
       <style>
         @page { 
-          margin-top: 1.91cm; 
-          margin-bottom: 1.91cm; 
-          margin-left: 0.64cm;
-          margin-right: 0.64cm;
+          margin-top: 1.50cm; 
+          margin-bottom: 1.50cm; 
+          margin-left: 0.23cm;
+          margin-right: 0.23cm;
         }
         body {
-          mso-header-margin: 0.76cm;
-          mso-footer-margin: 0.76cm;
+          mso-header-margin: 0.35cm;
+          mso-footer-margin: 0.35cm;
         }
         table {
           border-collapse: collapse;
@@ -256,7 +256,7 @@ function exportExcel() {
           <col width="5.33" style="mso-width-source:userset;mso-width-alt:1365;" />
           <col width="6.89" style="mso-width-source:userset;mso-width-alt:1763;" />
           <col width="12" style="mso-width-source:userset;mso-width-alt:2589;" />
-          <col width="11" style="mso-width-source:userset;mso-width-alt:2816;" />
+          <col width="12" style="mso-width-source:userset;mso-width-alt:2816;" />
           <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
           <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
           <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
