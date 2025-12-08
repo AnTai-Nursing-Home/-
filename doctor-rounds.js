@@ -207,15 +207,15 @@ function exportExcel() {
     <head>
       <meta charset="UTF-8" />
       <style>
-        @page {  //頁面邊界
-          margin-top: 1.91cm; //上
-          margin-bottom: 1.91cm; //下
-          margin-left: 0.64cm;   //左
-          margin-right: 0.64cm;  //右
+        @page { 
+          margin-top: 1.91cm; 
+          margin-bottom: 1.91cm; 
+          margin-left: 0.64cm;
+          margin-right: 0.64cm;
         }
         body {
-          mso-header-margin: 0.76cm; //頁首
-          mso-footer-margin: 0.76cm; //頁尾
+          mso-header-margin: 0.76cm;
+          mso-footer-margin: 0.76cm;
         }
         table {
           border-collapse: collapse;
@@ -253,13 +253,13 @@ function exportExcel() {
     <body>
       <table>
         <colgroup>
-          <col width="5.33" style="mso-width-source:userset;mso-width-alt:1365;" />  //排序欄寬
-          <col width="6.89" style="mso-width-source:userset;mso-width-alt:1763;" />  //床號欄寬
-          <col width="12" style="mso-width-source:userset;mso-width-alt:2589;" /> //姓名欄寬
-          <col width="11" style="mso-width-source:userset;mso-width-alt:2816;" />    //身分證字號欄寬
-          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />    //生命徵象欄寬
-          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />    //病情簡述/主訴欄寬
-          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />    //醫師手記/囑語欄寬
+          <col width="5.33" style="mso-width-source:userset;mso-width-alt:1365;" />
+          <col width="6.89" style="mso-width-source:userset;mso-width-alt:1763;" />
+          <col width="12" style="mso-width-source:userset;mso-width-alt:2589;" />
+          <col width="11" style="mso-width-source:userset;mso-width-alt:2816;" />
+          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
+          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
+          <col width="19.5" style="mso-width-source:userset;mso-width-alt:4864;" />
         </colgroup>
         <tr style="height:60pt;">
           <td class="title" colspan="7">醫療巡迴門診掛號及就診狀況交班單</td>
