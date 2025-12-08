@@ -179,7 +179,7 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
-// 以 HTML 偽 Excel 匯出，並在 style 中強制指定標楷體、16號標題與全置中
+// 以 HTML 偽 Excel 匯出，並在 style 中強制指定標楷體、字體大小、欄寬、列高與頁面邊界
 function exportExcel() {
   let data;
   try {
@@ -198,7 +198,7 @@ function exportExcel() {
       <td class="body" style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
       <td class="body" style="text-align:center;vertical-align:middle;">${e.vitals}</td>
       <td class="body" style="text-align:center;vertical-align:middle;">${e.condition}</td>
-      <td style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
+      <td class="body" style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
     </tr>`).join("");
 
   const html = `
@@ -208,6 +208,16 @@ function exportExcel() {
     <head>
       <meta charset="UTF-8" />
       <style>
+        @page {
+          margin-top: 1.91cm;
+          margin-bottom: 1.91cm;
+          margin-left: 0.64cm;
+          margin-right: 0.64cm;
+        }
+        body {
+          mso-header-margin: 0.76cm;
+          mso-footer-margin: 0.76cm;
+        }
         table {
           border-collapse: collapse;
           mso-border-alt: solid #000 1px;
@@ -248,9 +258,9 @@ function exportExcel() {
           <col style="width:6.89ch;" />
           <col style="width:10.11ch;" />
           <col style="width:11ch;" />
-          <col style="width:15.89ch;" />
-          <col style="width:16.67ch;" />
-          <col style="width:15.33ch;" />
+          <col style="width:19ch;" />
+          <col style="width:19ch;" />
+          <col style="width:19ch;" />
         </colgroup>
         <tr style="height:60pt;">
           <td class="title" colspan="7">醫療巡迴門診掛號及就診狀況交班單</td>
