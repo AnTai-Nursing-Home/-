@@ -168,7 +168,7 @@ document.addEventListener("firebase-ready", () => {
     let data;
     try {
       data = collectData();
-    } catch (e) {
+    } catch {
       alert("請先選擇日期");
       return;
     }
@@ -179,8 +179,8 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
-// 使用 Excel 樣板完整匯出，保留欄寬、列高、標楷體與粗體等格式
-async function exportUsingTemplate() {
+// 依照《醫巡格式.xlsx》樣式直接在程式裡產生 Excel（不需要額外樣板檔）
+function exportExcel() {
   let data;
   try {
     data = collectData();
@@ -189,53 +189,141 @@ async function exportUsingTemplate() {
     return;
   }
 
-  // 讀取 Excel 樣板（請確保『醫巡格式.xlsx』與此頁面在同一資料夾）
-  const response = await fetch("醫巡格式.xlsx");
-  if (!response.ok) {
-    alert("找不到『醫巡格式.xlsx』樣板，請確認檔案是否與網頁在同一資料夾。");
-    return;
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+
+  // 欄位寬度（依照樣板 A~G 欄）
+  ws["!cols"] = [
+    { wch: 5.0 },    // A 排序
+    { wch: 6.0 },    // B 床號
+    { wch: 10.625 }, // C 姓名
+    { wch: 10.25 },  // D 身分證字號
+    { wch: 17.75 },  // E 生命徵象
+    { wch: 19.5 },   // F 病情簡述/主訴
+    { wch: 18.375 }  // G 醫師手記/囑語
+  ];
+
+  // 邊框樣式（全部都細框線）
+  const thinBorder = {
+    top:    { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left:   { style: "thin", color: { rgb: "000000" } },
+    right:  { style: "thin", color: { rgb: "000000" } }
+  };
+
+  // 共用：置中＋自動換行
+  const alignCenter = { horizontal: "center", vertical: "center", wrapText: true };
+
+  // 各種字型樣式（依照樣板）
+  const titleStyle = {
+    font: { name: "標楷體", sz: 16, bold: true },
+    alignment: alignCenter,
+    border: thinBorder
+  };
+
+  const infoStyle = {
+    font: { name: "標楷體", sz: 12, bold: true },
+    alignment: alignCenter,
+    border: thinBorder
+  };
+
+  const headerStyle = {
+    font: { name: "標楷體", sz: 10, bold: true },
+    alignment: alignCenter,
+    border: thinBorder
+  };
+
+  const bodyStyle = {
+    font: { name: "標楷體", sz: 10, bold: false },
+    alignment: alignCenter,
+    border: thinBorder
+  };
+
+  const signStyle = {
+    font: { name: "標楷體", sz: 11, bold: true },
+    alignment: { horizontal: "left", vertical: "center", wrapText: true },
+    border: thinBorder
+  };
+
+  function sc(v, style) {
+    const isNumber = typeof v === "number";
+    return { v: v, t: isNumber ? "n" : "s", s: style };
   }
-  const arrayBuffer = await response.arrayBuffer();
 
-  // 解析樣板
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const ws = workbook.Sheets[workbook.SheetNames[0]];
+  // ① 標題列 A1:G1（合併）
+  ws["A1"] = sc("醫療巡迴門診掛號及就診狀況交班單", titleStyle);
 
-  // ① 日期：A~C 第 2 列（樣板 A~C2 已合併，寫入 A2 即可）
-  ws["A2"] = { t: "s", v: toRoc(data.date) || "" };
+  // ② 日期 & 看診人數（A2:C2、D2:G2 合併）
+  const rocDate = toRoc(data.date) || "";
+  ws["A2"] = sc("醫巡日期：" + rocDate, infoStyle);
+  ws["D2"] = sc("看診人數：" + data.totalPatients, infoStyle);
 
-  // ② 看診人數：D~G 第 2 列（樣板 D~G2 已合併，寫入 D2 即可）
-  ws["D2"] = { t: "s", v: String(data.totalPatients) };
+  // ③ 表頭（第 3 列）
+  const headers = ["排序", "床號", "姓名", "身分證字號", "生命徵象", "病情簡述/主訴", "醫師手記/囑語"];
+  for (let c = 0; c < headers.length; c++) {
+    const colLetter = String.fromCharCode(65 + c); // 65 => "A"
+    const addr = colLetter + "3";
+    ws[addr] = sc(headers[c], headerStyle);
+  }
 
-  // ③ 寫入明細資料，從第 4 列開始
+  // ④ 寫入明細資料（第 4 列開始）
   const startRow = 4;
   data.entries.forEach((item, index) => {
     const row = startRow + index;
-    ws[`A${row}`] = { t: "s", v: String(index + 1) };         // 排序
-    ws[`B${row}`] = { t: "s", v: item.bedNumber || "" };       // 床號
-    ws[`C${row}`] = { t: "s", v: item.name || "" };            // 姓名
-    ws[`D${row}`] = { t: "s", v: item.idNumber || "" };        // 身分證字號
-    ws[`E${row}`] = { t: "s", v: item.vitals || "" };          // 生命徵象
-    ws[`F${row}`] = { t: "s", v: item.condition || "" };       // 病情簡述
-    ws[`G${row}`] = { t: "s", v: item.doctorNote || "" };      // 醫師手記
+    const rowIndex = row;
+
+    ws["A" + rowIndex] = sc(index + 1, bodyStyle);
+    ws["B" + rowIndex] = sc(item.bedNumber || "", bodyStyle);
+    ws["C" + rowIndex] = sc(item.name || "", bodyStyle);
+    ws["D" + rowIndex] = sc(item.idNumber || "", bodyStyle);
+    ws["E" + rowIndex] = sc(item.vitals || "", bodyStyle);
+    ws["F" + rowIndex] = sc(item.condition || "", bodyStyle);
+    ws["G" + rowIndex] = sc(item.doctorNote || "", bodyStyle);
   });
 
-  // ④ N 筆資料 + 6 列空白後的簽章列
+  // ⑤ N 筆資料 + 6 列空白後的簽章列
   const extraBlankRows = 6;
   const signRow = startRow + data.entries.length + extraBlankRows;
 
-  // 假設樣板已合併好 A~C 與 D~G
-  ws[`A${signRow}`] = { t: "s", v: "醫巡醫師簽章：" };
-  ws[`D${signRow}`] = { t: "s", v: "跟診護理師簽章：" };
+  // 左側：A~E（實際文字在 A 欄）
+  ws["A" + signRow] = sc("醫巡醫師簽章：", signStyle);
+  // 右側：F~G（實際文字在 F 欄；與樣板接近配置）
+  ws["F" + signRow] = sc("跟診護理師簽章：", signStyle);
 
-  // ⑤ 匯出
-  XLSX.writeFile(workbook, `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xlsx`);
+  // ⑥ 設定列高（依樣板：第 2 列 33，其餘 60）
+  const totalRows = signRow;
+  const rows = [];
+  for (let r = 1; r <= totalRows; r++) {
+    if (r === 2) {
+      rows.push({ hpt: 33 });
+    } else {
+      rows.push({ hpt: 60 });
+    }
+  }
+  ws["!rows"] = rows;
+
+  // ⑦ 合併儲存格設定（依樣板）
+  ws["!merges"] = [
+    // A1:G1 標題
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    // A2:C2 日期
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+    // D2:G2 看診人數
+    { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },
+    // 簽章列：A~E
+    { s: { r: signRow - 1, c: 0 }, e: { r: signRow - 1, c: 4 } },
+    // 簽章列：F~G
+    { s: { r: signRow - 1, c: 5 }, e: { r: signRow - 1, c: 6 } }
+  ];
+
+  // ⑧ 將工作表加入活頁簿並匯出
+  XLSX.utils.book_append_sheet(wb, ws, "醫巡交班單");
+  XLSX.writeFile(wb, "醫療巡迴門診掛號及就診狀況交班單_" + data.date + ".xlsx");
 }
-
 
 addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
-  exportBtn.addEventListener("click", exportUsingTemplate);
+  exportBtn.addEventListener("click", exportExcel);
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
 
   (async () => {
