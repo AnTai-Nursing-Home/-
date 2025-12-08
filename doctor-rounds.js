@@ -1,4 +1,3 @@
-
 // 醫療巡迴門診掛號及就診狀況交班單 - 表格內讀取中版本
 // ✅ 讀取時表格中顯示「讀取中...」
 // ✅ 匯出 Excel、儲存、自動載入功能齊全
@@ -178,14 +177,94 @@ document.addEventListener("firebase-ready", () => {
     alert("✅ 已儲存醫巡單");
   }
 
-  function exportExcel() {
-    let data;
-    try {
-      data = collectData();
-    } catch {
-      alert("請先選擇日期");
-      return;
-    }
+function exportExcel() {
+  let data;
+  try {
+    data = collectData();
+  } catch {
+    alert("請先選擇日期");
+    return;
+  }
+
+  const rocDate = toRoc(data.date);
+
+  const colgroup = `<colgroup>
+    <col style="width:6.5624%">
+    <col style="width:8.4831%">
+    <col style="width:12.4477%">
+    <col style="width:13.5435%">
+    <col style="width:19.5641%">
+    <col style="width:20.5245%">
+    <col style="width:18.8747%">
+  </colgroup>`;
+
+  const TITLE_ROW_HEIGHT  = 60;
+  const META_ROW_HEIGHT   = 33.6;
+  const HEADER_ROW_HEIGHT = 60;
+  const BODY_ROW_HEIGHT   = 60;
+
+  const esc = v => (v == null ? "" : String(v)).replace(/
+/g, "<br>");
+
+  const rowsHtml = data.entries.map((e, i) => `
+    <tr style="height:${BODY_ROW_HEIGHT}px">
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${i + 1}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.bedNumber)}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.name)}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.idNumber)}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.vitals)}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.condition)}</td>
+      <td style="text-align:center;vertical-align:middle;font-size:10px;">${esc(e.doctorNote)}</td>
+    </tr>
+  `).join("");
+
+  const css = `@page { size: A4 portrait; margin: 10mm; }
+table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:11px;width:100%;}
+th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}`;
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><style>${css}</style></head>
+<body>
+<table border="1" style="width:100%">
+${colgroup}
+<thead>
+  <tr>
+    <th colspan="7" style="text-align:center;height:${TITLE_ROW_HEIGHT}px;font-size:16px;font-weight:bold;">醫療巡迴門診掛號及就診狀況交班單</th>
+  </tr>
+  <tr style="height:${META_ROW_HEIGHT}px">
+    <th colspan="3" style="text-align:left;padding-left:6px;font-size:10px;width:50%">醫巡日期：${rocDate}</th>
+    <th colspan="4" style="text-align:right;padding-right:6px;font-size:10px;width:50%">看診人數：${data.totalPatients}</th>
+  </tr>
+  <tr style="height:${HEADER_ROW_HEIGHT}px">
+    <th style="font-size:10px">排序</th>
+    <th style="font-size:10px">床號</th>
+    <th style="font-size:10px">姓名</th>
+    <th style="font-size:10px">身分證字號</th>
+    <th style="font-size:10px">生命徵象</th>
+    <th style="font-size:10px">病情簡述/主訴</th>
+    <th style="font-size:10px">醫師手記/囑語</th>
+  </tr>
+</thead>
+<tbody>
+${rowsHtml}
+  <tr style="height:${META_ROW_HEIGHT}px">
+    <td colspan="3" style="text-align:left;font-size:10px;padding:6px;width:50%">巡診醫師簽名：</td>
+    <td colspan="4" style="text-align:left;font-size:10px;padding:6px;width:50%">跟診護理師簽名：</td>
+  </tr>
+</tbody>
+</table>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xls`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
     const rocDate = toRoc(data.date);
     const rowsHtml = data.entries.map((e, i) => `
       <tr><td style='text-align:center;vertical-align:middle;'>${i + 1}</td>
