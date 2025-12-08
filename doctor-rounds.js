@@ -178,112 +178,14 @@ document.addEventListener("firebase-ready", () => {
     alert("✅ 已儲存醫巡單");
   }
 
-function exportExcel() {
-  var data;
-  try {
-    data = collectData();
-  } catch (e) {
-    alert('請先選擇日期');
-    return;
-  }
-
-  var rocDate = toRoc(data.date);
-
-  // 欄寬百分比（以總寬 81.22 換算）
-  var colHtml = '<colgroup>' +
-    '<col style="width:6.5624%">' +   // 排序 5.33
-    '<col style="width:8.4831%">' +   // 床號 6.89
-    '<col style="width:12.4477%">' +  // 姓名 10.11
-    '<col style="width:13.5435%">' +  // 身分證字號 11
-    '<col style="width:19.5641%">' +  // 生命徵象 15.89
-    '<col style="width:20.5245%">' +  // 病情簡述/主訴 16.67
-    '<col style="width:18.8747%">' +  // 醫師手記/囑語 15.33
-  '</colgroup>';
-
-  var TITLE_ROW_HEIGHT  = 60;
-  var META_ROW_HEIGHT   = 33.6;
-  var HEADER_ROW_HEIGHT = 60;
-  var BODY_ROW_HEIGHT   = 60;
-
-  function esc(v){
-    var s = (v==null?'':String(v));
-    // 避免使用正則，改用 split/join
-    return s.split('\n').join('<br>');
-  }
-
-  var rows = [];
-  for (var i = 0; i < data.entries.length; i++) {
-    var e = data.entries[i] || {};
-    var row = ''
-      + '<tr style="height:' + BODY_ROW_HEIGHT + 'px">'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + (i + 1) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.bedNumber) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.name) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.idNumber) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.vitals) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.condition) + '</td>'
-      +   '<td style="text-align:center;vertical-align:middle;font-size:10px;">' + esc(e.doctorNote) + '</td>'
-      + '</tr>';
-    rows.push(row);
-  }
-
-  var css = '@page { size: A4 portrait; margin: 10mm; } '
-          + 'table{border-collapse:collapse;font-family:Microsoft JhengHei,Arial,sans-serif;font-size:11px;width:100%;} '
-          + 'th,td{border:1px solid #000;} thead th{background:#f3f6f9;font-weight:600;}';
-
-  var parts = [];
-  parts.push('<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">');
-  parts.push('<head><meta charset="UTF-8"><style>' + css + '</style></head>');
-  parts.push('<body>');
-  parts.push('<table border="1" style="width:100%">');
-  parts.push(colHtml);
-
-  // 標題列（欄寬 81.22、列高 60、字體 16）
-  parts.push('<thead>');
-  parts.push('<tr><th colspan="7" style="text-align:center;height:' + TITLE_ROW_HEIGHT + 'px;font-size:16px;font-weight:bold;">醫療巡迴門診掛號及就診狀況交班單</th></tr>');
-
-  // 醫巡日期 / 看診人數（同一行不同格，各 40.61 → 50%/50%，列高 33.6、字體 10）
-  parts.push('<tr style="height:' + META_ROW_HEIGHT + 'px">'
-             + '<th colspan="3" style="text-align:left;padding-left:6px;font-size:10px;width:50%">醫巡日期：' + rocDate + '</th>'
-             + '<th colspan="4" style="text-align:right;padding-right:6px;font-size:10px;width:50%">看診人數：' + data.totalPatients + '</th>'
-             + '</tr>');
-
-  // 表頭（列高 60、字體 10）
-  parts.push('<tr style="height:' + HEADER_ROW_HEIGHT + 'px">'
-             + '<th style="font-size:10px">排序</th>'
-             + '<th style="font-size:10px">床號</th>'
-             + '<th style="font-size:10px">姓名</th>'
-             + '<th style="font-size:10px">身分證字號</th>'
-             + '<th style="font-size:10px">生命徵象</th>'
-             + '<th style="font-size:10px">病情簡述/主訴</th>'
-             + '<th style="font-size:10px">醫師手記/囑語</th>'
-             + '</tr>');
-  parts.push('</thead>');
-
-  // 內容列
-  parts.push('<tbody>');
-  parts.push(rows.join(''));
-
-  // 簽名列（同一行不同格，各 40.61 → 50%/50%，列高 33.6、字體 10）
-  parts.push('<tr style="height:' + META_ROW_HEIGHT + 'px">'
-             + '<td colspan="3" style="text-align:left;font-size:10px;padding:6px;width:50%">巡診醫師簽名：</td>'
-             + '<td colspan="4" style="text-align:left;font-size:10px;padding:6px;width:50%">跟診護理師簽名：</td>'
-             + '</tr>');
-
-  parts.push('</tbody>');
-  parts.push('</table>');
-  parts.push('</body></html>');
-
-  var html = parts.join('');
-  var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-  var url = (window.URL || window.webkitURL).createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = '醫療巡迴門診掛號及就診狀況交班單_' + data.date + '.xls';
-  a.click();
-  setTimeout(function(){ (window.URL || window.webkitURL).revokeObjectURL(url); }, 0);
-}
-
+  function exportExcel() {
+    let data;
+    try {
+      data = collectData();
+    } catch {
+      alert("請先選擇日期");
+      return;
+    }
     const rocDate = toRoc(data.date);
     const rowsHtml = data.entries.map((e, i) => `
       <tr><td style='text-align:center;vertical-align:middle;'>${i + 1}</td>
