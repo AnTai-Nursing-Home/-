@@ -239,7 +239,7 @@ function exportExcel() {
 
   const signStyle = {
     font: { name: "標楷體", sz: 11, bold: true },
-    alignment: { horizontal: "left", vertical: "center", wrapText: true },
+    alignment: alignCenter,
     border: thinBorder
   };
 
