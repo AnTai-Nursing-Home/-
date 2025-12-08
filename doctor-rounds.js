@@ -168,7 +168,7 @@ document.addEventListener("firebase-ready", () => {
     let data;
     try {
       data = collectData();
-    } catch (e) {
+    } catch {
       alert("請先選擇日期");
       return;
     }
@@ -179,7 +179,7 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
-// 依照《醫巡格式》直接在程式裡產生 Excel，不需要外部樣板檔
+// 以 HTML 偽 Excel 匯出，並在 style 中強制指定標楷體、16號標題與全置中
 function exportExcel() {
   let data;
   try {
@@ -189,127 +189,83 @@ function exportExcel() {
     return;
   }
 
-  const wb = XLSX.utils.book_new();
-  const ws = {};
+  const rocDate = toRoc(data.date);
+  const rowsHtml = data.entries.map((e, i) => `
+    <tr>
+      <td style="text-align:center;vertical-align:middle;">${i + 1}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.bedNumber}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.name}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.idNumber}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.vitals}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.condition}</td>
+      <td style="text-align:center;vertical-align:middle;">${e.doctorNote}</td>
+    </tr>`).join("");
 
-  // 欄位寬度（A~G）
-  ws["!cols"] = [
-    { wch: 5.0 },    // A 排序
-    { wch: 6.0 },    // B 床號
-    { wch: 10.625 }, // C 姓名
-    { wch: 10.25 },  // D 身分證字號
-    { wch: 17.75 },  // E 生命徵象
-    { wch: 19.5 },   // F 病情簡述/主訴
-    { wch: 18.375 }  // G 醫師手記/囑語
-  ];
+  const html = `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:x="urn:schemas-microsoft-com:office:excel"
+        xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="UTF-8" />
+      <style>
+        table, td, th {
+          border: 1px solid #000;
+          border-collapse: collapse;
+          mso-border-alt: solid #000 1px;
+          font-family: "DFKai-SB", "標楷體";
+          mso-font-charset: 136;
+        }
+        td, th {
+          text-align: center;
+          vertical-align: middle;
+        }
+        .title {
+          font-size: 16pt;
+          font-weight: bold;
+        }
+        .info {
+          font-size: 12pt;
+          font-weight: bold;
+        }
+        .header {
+          font-size: 10pt;
+          font-weight: bold;
+        }
+        .body {
+          font-size: 10pt;
+        }
+      </style>
+    </head>
+    <body>
+      <table>
+        <tr>
+          <td class="title" colspan="7">醫療巡迴門診掛號及就診狀況交班單</td>
+        </tr>
+        <tr>
+          <td class="info" colspan="3">醫巡日期：${rocDate}</td>
+          <td class="info" colspan="4">看診人數：${data.totalPatients}</td>
+        </tr>
+        <tr>
+          <th class="header">排序</th>
+          <th class="header">床號</th>
+          <th class="header">姓名</th>
+          <th class="header">身分證字號</th>
+          <th class="header">生命徵象</th>
+          <th class="header">病情簡述/主訴</th>
+          <th class="header">醫師手記/囑語</th>
+        </tr>
+        ${rowsHtml}
+      </table>
+    </body>
+  </html>`;
 
-  // 邊框樣式（全部細框線）
-  const thinBorder = {
-    top:    { style: "thin", color: { rgb: "000000" } },
-    bottom: { style: "thin", color: { rgb: "000000" } },
-    left:   { style: "thin", color: { rgb: "000000" } },
-    right:  { style: "thin", color: { rgb: "000000" } }
-  };
-
-  const alignCenter = { horizontal: "center", vertical: "center", wrapText: true };
-
-  const titleStyle = {
-    font: { name: "標楷體", sz: 16, bold: true },
-    alignment: alignCenter,
-    border: thinBorder
-  };
-
-  const infoStyle = {
-    font: { name: "標楷體", sz: 12, bold: true },
-    alignment: alignCenter,
-    border: thinBorder
-  };
-
-  const headerStyle = {
-    font: { name: "標楷體", sz: 10, bold: true },
-    alignment: alignCenter,
-    border: thinBorder
-  };
-
-  const bodyStyle = {
-    font: { name: "標楷體", sz: 10, bold: false },
-    alignment: alignCenter,
-    border: thinBorder
-  };
-
-  const signStyle = {
-    font: { name: "標楷體", sz: 11, bold: true },
-    alignment: alignCenter,
-    border: thinBorder
-  };
-
-  function sc(v, style) {
-    const isNumber = typeof v === "number";
-    return { v: v, t: isNumber ? "n" : "s", s: style };
-  }
-
-  // ① 標題 A1:G1（合併）
-  ws["A1"] = sc("醫療巡迴門診掛號及就診狀況交班單", titleStyle);
-
-  // ② 日期 & 看診人數（A2:C2、D2:G2）
-  const rocDate = toRoc(data.date) || "";
-  ws["A2"] = sc("醫巡日期：" + rocDate, infoStyle);
-  ws["D2"] = sc("看診人數：" + data.totalPatients, infoStyle);
-
-  // ③ 表頭（第 3 列）
-  const headers = ["排序", "床號", "姓名", "身分證字號", "生命徵象", "病情簡述/主訴", "醫師手記/囑語"];
-  for (let c = 0; c < headers.length; c++) {
-    const colLetter = String.fromCharCode(65 + c); // 65 => A
-    const addr = colLetter + "3";
-    ws[addr] = sc(headers[c], headerStyle);
-  }
-
-  // ④ 寫入明細（第 4 列開始）
-  const startRow = 4;
-  data.entries.forEach((item, index) => {
-    const row = startRow + index;
-    ws["A" + row] = sc(index + 1, bodyStyle);
-    ws["B" + row] = sc(item.bedNumber || "", bodyStyle);
-    ws["C" + row] = sc(item.name || "", bodyStyle);
-    ws["D" + row] = sc(item.idNumber || "", bodyStyle);
-    ws["E" + row] = sc(item.vitals || "", bodyStyle);
-    ws["F" + row] = sc(item.condition || "", bodyStyle);
-    ws["G" + row] = sc(item.doctorNote || "", bodyStyle);
-  });
-
-  // ⑤ N 筆資料 + 6 列空白後的簽章列
-  const extraBlankRows = 6;
-  const signRow = startRow + data.entries.length + extraBlankRows;
-
-  ws["A" + signRow] = sc("醫巡醫師簽章：", signStyle);
-  ws["F" + signRow] = sc("跟診護理師簽章：", signStyle);
-
-  // ⑥ 列高設定：第 2 列 33，其餘 60
-  const totalRows = signRow;
-  const rows = [];
-  for (let r = 1; r <= totalRows; r++) {
-    if (r === 2) {
-      rows.push({ hpt: 33 });
-    } else {
-      rows.push({ hpt: 60 });
-    }
-  }
-  ws["!rows"] = rows;
-
-  // ⑦ 合併儲存格
-  ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },          // A1:G1 標題
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },          // A2:C2 日期
-    { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },          // D2:G2 看診人數
-    { s: { r: signRow - 1, c: 0 }, e: { r: signRow - 1, c: 4 } }, // 簽章 A~E
-    { s: { r: signRow - 1, c: 5 }, e: { r: signRow - 1, c: 6 } }  // 簽章 F~G
-  ];
-
-  // ⑧ 設定工作表範圍（一定要有，否則可能出現空白）
-  ws["!ref"] = "A1:G" + String(signRow);
-
-  XLSX.utils.book_append_sheet(wb, ws, "醫巡交班單");
-  XLSX.writeFile(wb, "醫療巡迴門診掛號及就診狀況交班單_" + data.date + ".xlsx");
+  const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `醫療巡迴門診掛號及就診狀況交班單_${data.date}.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 
