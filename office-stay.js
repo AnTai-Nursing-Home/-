@@ -1,35 +1,22 @@
 // office-stay.js - 辦公室端外宿申請管理
 
-let db;
+document.addEventListener('firebase-ready', async () => {
+    appModal = new bootstrap.Modal(document.getElementById('appModal'));
+    commentModalOffice = new bootstrap.Modal(document.getElementById('commentModalOffice'));
+    await loadEmployees();
+    await loadStatusDefsOffice();
+    initStatusForm();
+    initAppSection();
+    initCommentSection();
+    setDefaultFilterRange();
+    await loadApplicationsByFilter();
+});
 let statusMapOffice = {}; // id -> {id,name,color,order}
 let allEmployees = [];    // {id,name}
 let appModal;
 let commentModalOffice;
 let currentAppIdForCommentOffice = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!firebase.apps.length) {
-        console.error('Firebase 尚未初始化，請確認 firebase-init.js');
-        return;
-    }
-    db = firebase.firestore();
-    appModal = new bootstrap.Modal(document.getElementById('appModal'));
-    commentModalOffice = new bootstrap.Modal(document.getElementById('commentModalOffice'));
-
-    await loadEmployees();
-    await loadStatusDefsOffice();
-    await renderStatusTable();
-    await renderConflictSettings();
-
-    initStatusForm();
-    initConflictForm();
-    initAppSection();
-    initCommentSection();
-
-    // 預設載入今日為中心的區間
-    setDefaultFilterRange();
-    await loadApplicationsByFilter();
-});
 
 // ---------- 基本工具 ----------
 
@@ -689,4 +676,3 @@ function exportExcel() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
-
