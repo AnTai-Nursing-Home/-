@@ -7,12 +7,8 @@ let currentApplicantName = null;
 let commentModal;
 let currentAppIdForComment = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!firebase.apps.length) {
-        console.error('Firebase 尚未初始化，請確認 firebase-init.js');
-        return;
-    }
-    db = firebase.firestore();
+document.addEventListener('firebase-ready', async () => {
+    // Firebase 已初始化，db 可直接使用
     commentModal = new bootstrap.Modal(document.getElementById('commentModal'));
 
     const applicantSelect = document.getElementById('applicantSelect');
@@ -39,6 +35,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert(err.message || '申請失敗，請稍後再試');
         }
     });
+
+    btnRefresh.addEventListener('click', async () => {
+        await loadMyApps(stayTableBody);
+    });
+
+    document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
+
+    await loadMyApps(stayTableBody);
+});
+
 
     btnRefresh.addEventListener('click', async () => {
         await loadMyApps(stayTableBody);
