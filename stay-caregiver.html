@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>照服員外宿申請</title>
+    <title data-i18n="stay_caregiver_title">照服員外宿申請</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -15,39 +15,39 @@
             <div class="col-lg-10">
                 <div class="card shadow">
                     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0">外宿系統</h3>
+                        <h3 class="mb-0" data-i18n="stay_system_title">外宿系統</h3>
                         <a href="caregiver.html?view=dashboard" class="btn btn-sm btn-outline-light">
-                            <i class="fas fa-arrow-left me-1"></i>返回照服員選單
+                            <i class="fas fa-arrow-left me-1"></i><span data-i18n="back_to_caregiver_system">返回照服員系統</span>
                         </a>
                     </div>
                     <div class="card-body">
                         <!-- 外宿申請表單 -->
                         <div class="card mb-4">
-                            <div class="card-header bg-secondary text-white">
+                            <div class="card-header bg-secondary text-white" data-i18n="stay_form_title">
                                 新增外宿申請單
                             </div>
                             <div class="card-body">
                                 <form id="stayForm">
                                     <div class="row g-3 mb-3">
                                         <div class="col-md-4">
-                                            <label class="form-label">申請人</label>
+                                            <label class="form-label" data-i18n="stay_applicant_label">申請人</label>
                                             <select id="applicantSelect" class="form-select" required></select>
-                                            <div class="form-text">請選擇自己的姓名</div>
+                                            <div class="form-text" data-i18n="stay_applicant_hint">請選擇自己的姓名</div>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">起始日期時間</label>
+                                            <label class="form-label" data-i18n="stay_start_datetime_label">起始日期時間</label>
                                             <input type="datetime-local" id="startDateTime" class="form-control" required>
-                                            <div class="form-text text-danger small">需提前三天申請</div>
+                                            <div class="form-text text-danger small" data-i18n="stay_hint_need_3days">需提前三天申請</div>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">結束日期時間</label>
+                                            <label class="form-label" data-i18n="stay_end_datetime_label">結束日期時間</label>
                                             <input type="datetime-local" id="endDateTime" class="form-control" required>
                                         </div>
                                     </div>
 
                                     <div class="row g-3 mb-3">
                                         <div class="col-md-3">
-                                            <label class="form-label">起始日班別</label>
+                                            <label class="form-label" data-i18n="stay_start_shift_label">起始日班別</label>
                                             <select id="startShift" class="form-select" required>
                                                 <option value="D">D</option>
                                                 <option value="N">N</option>
@@ -58,7 +58,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label">結束日班別</label>
+                                            <label class="form-label" data-i18n="stay_end_shift_label">結束日班別</label>
                                             <select id="endShift" class="form-select" required>
                                                 <option value="D">D</option>
                                                 <option value="N">N</option>
@@ -69,13 +69,13 @@
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">原因</label>
+                                            <label class="form-label" data-i18n="stay_reason_label">原因</label>
                                             <input type="text" id="location" class="form-control" required>
                                         </div>
                                     </div>
 
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-paper-plane me-1"></i>送出申請
+                                        <i class="fas fa-paper-plane me-1"></i><span data-i18n="stay_submit_button">送出申請</span>
                                     </button>
                                 </form>
                             </div>
@@ -84,10 +84,10 @@
                         <!-- 外宿申請列表 -->
                         <div class="card">
                             <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                                <span>我的外宿申請紀錄</span>
+                                <span data-i18n="stay_my_records_title">我的外宿申請紀錄</span>
                                 <div>
                                     <button id="btnRefresh" class="btn btn-sm btn-light">
-                                        <i class="fas fa-rotate me-1"></i>重新整理
+                                        <i class="fas fa-rotate me-1"></i><span data-i18n="stay_refresh_button">重新整理</span>
                                     </button>
                                 </div>
                             </div>
@@ -96,12 +96,12 @@
                                     <table class="table table-bordered table-sm align-middle" id="stayTable">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>申請人</th>
-                                                <th>起訖時間</th>
-                                                <th>班別</th>
-                                                <th>原因</th>
-                                                <th>狀態</th>
-                                                <th>註解</th>
+                                                <th data-i18n="stay_table_applicant">申請人</th>
+                                                <th data-i18n="stay_table_period">起訖時間</th>
+                                                <th data-i18n="stay_table_shift">班別</th>
+                                                <th data-i18n="stay_table_reason">原因</th>
+                                                <th data-i18n="stay_table_status">狀態</th>
+                                                <th data-i18n="stay_table_comment">註解</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -122,20 +122,20 @@
       <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">案件註解</h5>
+            <h5 class="modal-title" data-i18n="stay_comment_modal_title">案件註解</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <ul class="list-group mb-3" id="commentList"></ul>
             <div>
-              <label class="form-label">新增 / 編輯註解</label>
+              <label class="form-label" data-i18n="stay_comment_edit_label">新增 / 編輯註解</label>
               <textarea id="commentInput" class="form-control" rows="3"></textarea>
               <input type="hidden" id="editingCommentId">
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-            <button type="button" class="btn btn-primary" id="btnSaveComment">儲存註解</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">關閉</button>
+            <button type="button" class="btn btn-primary" id="btnSaveComment" data-i18n="stay_save_comment_button">儲存註解</button>
           </div>
         </div>
       </div>
