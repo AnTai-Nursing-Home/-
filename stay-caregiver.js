@@ -1,7 +1,6 @@
 // stay-caregiver.js - 照服員端外宿申請
 
 // 全域變數
-let db;
 let statusMap = {};           // statusId -> { name, color }
 let currentApplicantId = null;
 let currentApplicantName = null;
