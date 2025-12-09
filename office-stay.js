@@ -1,5 +1,6 @@
 // office-stay.js - 辦公室端外宿申請管理
 
+let db;
 let statusMapOffice = {}; // id -> {id,name,color,order}
 let allEmployees = [];    // {id,name}
 let appModal;
@@ -688,3 +689,4 @@ function exportExcel() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
