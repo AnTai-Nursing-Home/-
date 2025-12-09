@@ -7,6 +7,14 @@ let currentApplicantName = null;
 let commentModal = null;
 let currentAppIdForComment = null;
 
+// 安全取得多語系文字的工具函式
+function getTextSafe(key, fallback) {
+    if (typeof getText === 'function') {
+        return getText(key);
+    }
+    return fallback !== undefined ? fallback : key;
+}
+
 // 等 firebase-init.js 初始化完成後再啟動本頁邏輯
 document.addEventListener("firebase-ready", () => {
     initStayCaregiver();
@@ -36,10 +44,10 @@ async function initStayCaregiver() {
                 await loadMyApps(stayTableBody);
                 stayForm.reset();
                 setMinDateForStart();
-                alert('外宿申請已送出');
+                alert(getTextSafe('stay_submit_success', '外宿申請已送出'));
             } catch (err) {
                 console.error(err);
-                alert(err.message || '申請失敗，請稍後再試');
+                alert(err.message || getTextSafe('stay_submit_failed', '申請失敗，請稍後再試'));
             }
         });
 
@@ -50,6 +58,10 @@ async function initStayCaregiver() {
         document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
 
         await loadMyApps(stayTableBody);
+        // 初始化完成後套用目前語系文字
+        if (typeof applyTranslations === 'function') {
+            applyTranslations();
+        }
     } catch (err) {
         console.error("initStayCaregiver 發生錯誤：", err);
     }
@@ -178,21 +190,21 @@ function getFormData() {
     const endDateTime = new Date(endVal);
 
     if (!startVal || isNaN(startDateTime.getTime())) {
-        throw new Error('請正確選擇起始日期時間');
+        throw new Error(getTextSafe('stay_error_start_datetime_required', '請正確選擇起始日期時間'));
     }
     if (!endVal || isNaN(endDateTime.getTime())) {
-        throw new Error('請正確選擇結束日期時間');
+        throw new Error(getTextSafe('stay_error_end_datetime_required', '請正確選擇結束日期時間'));
     }
     if (endDateTime <= startDateTime) {
-        throw new Error('結束時間必須晚於起始時間');
+        throw new Error(getTextSafe('stay_error_end_before_start', '結束時間必須晚於起始時間'));
     }
     if (!currentApplicantId) {
-        throw new Error('請先選擇申請人');
+        throw new Error(getTextSafe('stay_error_select_applicant', '請先選擇申請人'));
     }
 
     const location = document.getElementById('location').value.trim();
     if (!location) {
-        throw new Error('請填寫外宿地點');
+        throw new Error(getTextSafe('stay_error_location_required', '請填寫外宿地點'));
     }
 
     return {
@@ -214,14 +226,14 @@ async function validateBusinessRulesForNewApplication(data) {
     const today = new Date();
     const minStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3, 0, 0, 0);
     if (data.startDateTime < minStart) {
-        throw new Error('外宿需提前三天申請，起始日期須在三天後');
+        throw new Error(getTextSafe('stay_error_need_3days_advance', '外宿需提前三天申請，起始日期須在三天後'));
     }
 
     const days = enumerateDates(data.startDateTime, data.endDateTime);
 
     const overLimit = await checkTwoPerDayLimit(days);
     if (overLimit) {
-        throw new Error('同一天外宿人數已達兩人上限，無法再申請');
+        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達兩人上限，無法再申請'));
     }
 
     const conflictMsg = await checkConflictRules(data.applicantId, days);
@@ -276,8 +288,8 @@ async function checkConflictRules(applicantId, days) {
 
         const hasConflict = await checkOthersStayOnDays(others, days);
         if (hasConflict) {
-            const ruleName = rule.ruleName || '同組員工';
-            return `${ruleName} 已設定不可同日外宿，請與主管討論後再安排。`;
+            const ruleName = rule.ruleName || getTextSafe('stay_conflict_default_group_name', '同組員工');
+            return getTextSafe('stay_conflict_rule_msg', `${ruleName} 已設定不可同日外宿，請與主管討論後再安排。`).replace('{ruleName}', ruleName);
         }
     }
     return null;
@@ -327,10 +339,10 @@ async function saveApplication(data) {
 
 async function loadMyApps(tbody) {
     if (!currentApplicantId) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">請先選擇申請人</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_select_applicant_first', '請先選擇申請人')}</td></tr>`;
         return;
     }
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">載入中...</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
 
     const snap = await db.collection('stayApplications')
         .where('applicantId', '==', currentApplicantId)
@@ -339,7 +351,7 @@ async function loadMyApps(tbody) {
 
     tbody.innerHTML = '';
     if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">目前沒有外宿申請</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
         return;
     }
 
@@ -375,7 +387,7 @@ async function openCommentModal(appId) {
     document.getElementById('commentInput').value = '';
     document.getElementById('editingCommentId').value = '';
     const listEl = document.getElementById('commentList');
-    listEl.innerHTML = '<li class="list-group-item text-center text-muted">載入中...</li>';
+    listEl.innerHTML = `<li class="list-group-item text-center text-muted">${getTextSafe('stay_comment_loading', '載入中...')}</li>`;
 
     const snap = await db.collection('stayComments')
         .where('appId', '==', appId)
@@ -384,7 +396,7 @@ async function openCommentModal(appId) {
 
     listEl.innerHTML = '';
     if (snap.empty) {
-        listEl.innerHTML = '<li class="list-group-item text-center text-muted">目前沒有註解</li>';
+        listEl.innerHTML = `<li class="list-group-item text-center text-muted">${getTextSafe('stay_comment_none', '目前沒有註解')}</li>`;
     } else {
         snap.forEach(doc => {
             const c = doc.data();
@@ -410,7 +422,7 @@ async function openCommentModal(appId) {
                     document.getElementById('commentInput').value = c.content || '';
                 });
                 delBtn.addEventListener('click', async () => {
-                    if (!confirm('確定要刪除這則註解嗎？')) return;
+                    if (!confirm(getTextSafe('stay_confirm_delete_comment', '確定要刪除這則註解嗎？'))) return;
                     await db.collection('stayComments').doc(doc.id).delete();
                     openCommentModal(appId);
                 });
@@ -426,12 +438,12 @@ async function openCommentModal(appId) {
 async function saveCommentFromModal() {
     if (!currentAppIdForComment) return;
     if (!currentApplicantId) {
-        alert('請先選擇申請人');
+        alert(getTextSafe('stay_error_select_applicant_for_comment', '請先選擇申請人'));
         return;
     }
     const content = document.getElementById('commentInput').value.trim();
     if (!content) {
-        alert('請先輸入註解內容');
+        alert(getTextSafe('stay_error_comment_required', '請先輸入註解內容'));
         return;
     }
     const editingId = document.getElementById('editingCommentId').value;
