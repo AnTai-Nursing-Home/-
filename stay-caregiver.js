@@ -241,14 +241,17 @@ function enumerateDates(start, end) {
     return dates;
 }
 
+// Firestore 限制：同一個 query 不能對兩個不同欄位做不等式
+// 所以這裡改成：只用 startDateTime 落在當天來判斷「同日」
+// 代表規則是：「同一天起始的外宿申請不得超過兩人」
 async function checkTwoPerDayLimit(days) {
     for (const d of days) {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
 
         const snap = await db.collection('stayApplications')
+            .where('startDateTime', '>=', dayStart)
             .where('startDateTime', '<=', dayEnd)
-            .where('endDateTime', '>=', dayStart)
             .get();
 
         if (snap.size >= 2) {
@@ -293,8 +296,8 @@ async function checkOthersStayOnDays(others, days) {
         for (const group of chunks) {
             const snap = await db.collection('stayApplications')
                 .where('applicantId', 'in', group)
+                .where('startDateTime', '>=', dayStart)
                 .where('startDateTime', '<=', dayEnd)
-                .where('endDateTime', '>=', dayStart)
                 .get();
 
             if (!snap.empty) return true;
