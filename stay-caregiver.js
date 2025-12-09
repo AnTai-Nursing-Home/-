@@ -49,16 +49,6 @@ async function initStayCaregiver() {
     await loadMyApps(stayTableBody);
 }
 
-
-    btnRefresh.addEventListener('click', async () => {
-        await loadMyApps(stayTableBody);
-    });
-
-    document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
-
-    await loadMyApps(stayTableBody);
-});
-
 function setMinDateForStart() {
     const startInput = document.getElementById('startDateTime');
     const now = new Date();
