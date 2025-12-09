@@ -86,41 +86,44 @@ async function loadStatusDefs() {
 }
 
 async function loadApplicants(selectEl) {
-    // 這裡示範：從 caregivers + localCaregivers 抓資料，並記錄在 localStorage
-    const applicants = [];
+    const employees = [];
+    const collections = ['caregivers', 'localCaregivers'];
 
-    async function loadFromCollection(colName) {
+    for (const colName of collections) {
         try {
-            const snap = await db.collection(colName).get();
+            const snap = await db.collection(colName)
+                .orderBy('sortOrder', 'asc')
+                .get();
+
             snap.forEach(doc => {
                 const d = doc.data();
-                const name = d.name || d.displayName || d.fullName || doc.id;
-                applicants.push({ id: doc.id, name });
+                const name = d.name || doc.id;
+                employees.push({
+                    id: doc.id,
+                    name
+                });
             });
         } catch (e) {
-            console.warn('讀取 ' + colName + ' 失敗，可自行調整程式或改用其他集合', e);
+            console.warn('讀取集合失敗：' + colName, e);
         }
     }
 
-    await loadFromCollection('caregivers');
-    await loadFromCollection('localCaregivers');
-
-    // 排序
-    applicants.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+    // 若 sortOrder 沒填，最後再用姓名排序一次避免亂序
+    employees.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
 
     selectEl.innerHTML = '';
-    applicants.forEach(a => {
+    employees.forEach(emp => {
         const opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = a.name;
+        opt.value = emp.id;
+        opt.textContent = emp.name;
         selectEl.appendChild(opt);
     });
 
-    // 若 localStorage 有之前選過的申請人，則預設選回
     const savedId = localStorage.getItem('stayApplicantId');
-    if (savedId && applicants.some(a => a.id === savedId)) {
+    if (savedId && employees.some(e => e.id === savedId)) {
         selectEl.value = savedId;
     }
+
     updateCurrentApplicant(selectEl);
 
     selectEl.addEventListener('change', () => {
@@ -129,161 +132,6 @@ async function loadApplicants(selectEl) {
     });
 }
 
-function updateCurrentApplicant(selectEl) {
-    currentApplicantId = selectEl.value || null;
-    currentApplicantName = selectEl.selectedOptions[0]?.textContent || '';
-    if (currentApplicantId) {
-        localStorage.setItem('stayApplicantId', currentApplicantId);
-        localStorage.setItem('stayApplicantName', currentApplicantName);
-    }
-}
-
-function getFormData() {
-    const startDateTime = new Date(document.getElementById('startDateTime').value);
-    const endDateTime = new Date(document.getElementById('endDateTime').value);
-    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        throw new Error('請正確選擇起訖日期時間');
-    }
-    if (endDateTime <= startDateTime) {
-        throw new Error('結束時間必須晚於起始時間');
-    }
-    if (!currentApplicantId) {
-        throw new Error('請先選擇申請人');
-    }
-
-    const location = document.getElementById('location').value.trim();
-    if (!location) {
-        throw new Error('請填寫外宿地點');
-    }
-
-    return {
-        applicantId: currentApplicantId,
-        applicantName: currentApplicantName,
-        startDateTime,
-        endDateTime,
-        startShift: document.getElementById('startShift').value,
-        endShift: document.getElementById('endShift').value,
-        location,
-        createdByRole: 'caregiver',
-        createdByUserId: currentApplicantId
-    };
-}
-
-// ------ 規則檢查 ------
-
-async function validateBusinessRulesForNewApplication(data) {
-    const today = new Date();
-    const minStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3, 0, 0, 0);
-    if (data.startDateTime < minStart) {
-        throw new Error('外宿需提前三天申請，起始日期須在三天後');
-    }
-
-    const days = enumerateDates(data.startDateTime, data.endDateTime);
-
-    const overLimit = await checkTwoPerDayLimit(days);
-    if (overLimit) {
-        throw new Error('同一天外宿人數已達兩人上限，無法再申請');
-    }
-
-    const conflictMsg = await checkConflictRules(data.applicantId, days);
-    if (conflictMsg) {
-        throw new Error(conflictMsg);
-    }
-}
-
-function enumerateDates(start, end) {
-    const dates = [];
-    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-    while (cur <= last) {
-        dates.push(new Date(cur));
-        cur.setDate(cur.getDate() + 1);
-    }
-    return dates;
-}
-
-async function checkTwoPerDayLimit(days) {
-    for (const d of days) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-
-        const snap = await db.collection('stayApplications')
-            .where('startDateTime', '<=', dayEnd)
-            .where('endDateTime', '>=', dayStart)
-            .get();
-
-        if (snap.size >= 2) {
-            return true;
-        }
-    }
-    return false;
-}
-
-async function checkConflictRules(applicantId, days) {
-    // 找出所有包含 applicantId 的互斥規則
-    const rulesSnap = await db.collection('stayConflictRules')
-        .where('employeeIds', 'array-contains', applicantId)
-        .get();
-
-    if (rulesSnap.empty) return null;
-
-    for (const ruleDoc of rulesSnap.docs) {
-        const rule = ruleDoc.data();
-        const memberIds = Array.isArray(rule.employeeIds) ? rule.employeeIds : [];
-        const others = memberIds.filter(id => id !== applicantId);
-        if (!others.length) continue;
-
-        const hasConflict = await checkOthersStayOnDays(others, days);
-        if (hasConflict) {
-            const ruleName = rule.ruleName || '同組員工';
-            return `${ruleName} 已設定不可同日外宿，請與主管討論後再安排。`;
-        }
-    }
-    return null;
-}
-
-async function checkOthersStayOnDays(others, days) {
-    // Firestore in 限制最多 10 筆
-    const chunks = [];
-    for (let i = 0; i < others.length; i += 10) {
-        chunks.push(others.slice(i, i + 10));
-    }
-
-    for (const d of days) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-
-        for (const group of chunks) {
-            const snap = await db.collection('stayApplications')
-                .where('applicantId', 'in', group)
-                .where('startDateTime', '<=', dayEnd)
-                .where('endDateTime', '>=', dayStart)
-                .get();
-
-            if (!snap.empty) return true;
-        }
-    }
-    return false;
-}
-
-// ------ 資料存取 ------
-
-async function saveApplication(data) {
-    await db.collection('stayApplications').add({
-        applicantId: data.applicantId,
-        applicantName: data.applicantName,
-        startDateTime: firebase.firestore.Timestamp.fromDate(data.startDateTime),
-        endDateTime: firebase.firestore.Timestamp.fromDate(data.endDateTime),
-        startShift: data.startShift,
-        endShift: data.endShift,
-        location: data.location,
-        statusId: 'pending',
-        createdByRole: data.createdByRole,
-        createdByUserId: data.createdByUserId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-}
 
 async function loadMyApps(tbody) {
     if (!currentApplicantId) return;
