@@ -61,7 +61,7 @@ function enumerateDates(start, end) {
 async function loadEmployees() {
     allEmployees = [];
 
-    const collections = ['caregivers', 'localCaregivers'];
+    const collections = ['caregivers'];
 
     for (const colName of collections) {
         try {
