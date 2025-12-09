@@ -5,7 +5,10 @@ document.addEventListener('firebase-ready', async () => {
     commentModalOffice = new bootstrap.Modal(document.getElementById('commentModalOffice'));
     await loadEmployees();
     await loadStatusDefsOffice();
+    await renderStatusTable();
     initStatusForm();
+    initConflictForm();
+    await renderConflictSettings();
     initAppSection();
     initCommentSection();
     setDefaultFilterRange();
