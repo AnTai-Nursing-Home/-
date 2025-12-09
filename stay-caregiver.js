@@ -1,53 +1,61 @@
-// stay-caregiver.js - 照服員端外宿申請
+// stay-caregiver.js - 照服員端外宿申請系統
 
-// 全域變數
-let statusMap = {};           // statusId -> { name, color }
+// 全域變數（db 由 firebase-init.js 提供，不在此重新宣告）
+let statusMap = {};           // statusId -> { id, name, color }
 let currentApplicantId = null;
 let currentApplicantName = null;
-let commentModal;
+let commentModal = null;
 let currentAppIdForComment = null;
 
-document.addEventListener('firebase-ready', () => {
+// 等 firebase-init.js 初始化完成後再啟動本頁邏輯
+document.addEventListener("firebase-ready", () => {
     initStayCaregiver();
 });
 
+// 主要初始化流程（async，可使用 await）
 async function initStayCaregiver() {
-    // Firebase 已初始化，db 可直接使用
-    commentModal = new bootstrap.Modal(document.getElementById('commentModal'));
+    console.log("stay-caregiver 初始化...");
+    try {
+        commentModal = new bootstrap.Modal(document.getElementById('commentModal'));
 
-    const applicantSelect = document.getElementById('applicantSelect');
-    const stayForm = document.getElementById('stayForm');
-    const stayTableBody = document.querySelector('#stayTable tbody');
-    const btnRefresh = document.getElementById('btnRefresh');
+        const applicantSelect = document.getElementById('applicantSelect');
+        const stayForm = document.getElementById('stayForm');
+        const stayTableBody = document.querySelector('#stayTable tbody');
+        const btnRefresh = document.getElementById('btnRefresh');
 
-    await loadStatusDefs();
-    await loadApplicants(applicantSelect);
-    setMinDateForStart();
+        await loadStatusDefs();
+        await loadApplicants(applicantSelect);
+        setMinDateForStart();
 
-    stayForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-            const data = getFormData();
-            await validateBusinessRulesForNewApplication(data);
-            await saveApplication(data);
+        stayForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const data = getFormData();
+                await validateBusinessRulesForNewApplication(data);
+                await saveApplication(data);
+                await loadMyApps(stayTableBody);
+                stayForm.reset();
+                setMinDateForStart();
+                alert('外宿申請已送出');
+            } catch (err) {
+                console.error(err);
+                alert(err.message || '申請失敗，請稍後再試');
+            }
+        });
+
+        btnRefresh.addEventListener('click', async () => {
             await loadMyApps(stayTableBody);
-            stayForm.reset();
-            setMinDateForStart();
-            alert('外宿申請已送出');
-        } catch (err) {
-            console.error(err);
-            alert(err.message || '申請失敗，請稍後再試');
-        }
-    });
+        });
 
-    btnRefresh.addEventListener('click', async () => {
+        document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
+
         await loadMyApps(stayTableBody);
-    });
-
-    document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
-
-    await loadMyApps(stayTableBody);
+    } catch (err) {
+        console.error("initStayCaregiver 發生錯誤：", err);
+    }
 }
+
+// --- 日期相關工具 ---
 
 function setMinDateForStart() {
     const startInput = document.getElementById('startDateTime');
@@ -62,40 +70,51 @@ function toInputDateTime(d) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function formatDateTime(d) {
+    if (!d) return '';
+    if (d.toDate) d = d.toDate();
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// --- 狀態定義 ---
+
 async function loadStatusDefs() {
     statusMap = {};
-    const snap = await db.collection('stayStatusDefs').orderBy('order', 'asc').get().catch(() => null);
-    if (!snap || snap.empty) {
-        // 若尚未建立，先提供三個預設狀態
+    try {
+        const snap = await db.collection('stayStatusDefs').orderBy('order', 'asc').get();
+        if (snap.empty) {
+            // 若尚未建立，提供三個預設狀態
+            statusMap = {
+                pending: { id: 'pending', name: '待審核', color: '#6c757d' },
+                approved: { id: 'approved', name: '核准', color: '#198754' },
+                rejected: { id: 'rejected', name: '退回', color: '#dc3545' },
+            };
+            return;
+        }
+        snap.forEach(doc => {
+            const d = doc.data();
+            statusMap[doc.id] = {
+                id: doc.id,
+                name: d.name || doc.id,
+                color: d.color || '#6c757d'
+            };
+        });
+    } catch (e) {
+        console.warn('讀取 stayStatusDefs 失敗，改用預設狀態', e);
         statusMap = {
             pending: { id: 'pending', name: '待審核', color: '#6c757d' },
             approved: { id: 'approved', name: '核准', color: '#198754' },
             rejected: { id: 'rejected', name: '退回', color: '#dc3545' },
         };
-        return;
-    }
-    snap.forEach(doc => {
-        const d = doc.data();
-        statusMap[doc.id] = {
-            id: doc.id,
-            name: d.name || doc.id,
-            color: d.color || '#6c757d'
-        };
-    });
-}
-function updateCurrentApplicant(selectEl) {
-    currentApplicantId = selectEl.value || null;
-    currentApplicantName = selectEl.selectedOptions[0]?.textContent || '';
-    if (currentApplicantId) {
-        localStorage.setItem('stayApplicantId', currentApplicantId);
-        localStorage.setItem('stayApplicantName', currentApplicantName);
     }
 }
 
+// --- 申請人下拉（只抓 caregivers） ---
 
 async function loadApplicants(selectEl) {
     const employees = [];
-    const collections = ['caregivers'];
+    const collections = ['caregivers'];  // 依你的需求，只抓 caregivers
 
     for (const colName of collections) {
         try {
@@ -140,9 +159,174 @@ async function loadApplicants(selectEl) {
     });
 }
 
+function updateCurrentApplicant(selectEl) {
+    currentApplicantId = selectEl.value || null;
+    currentApplicantName = selectEl.selectedOptions[0]?.textContent || '';
+    if (currentApplicantId) {
+        localStorage.setItem('stayApplicantId', currentApplicantId);
+        localStorage.setItem('stayApplicantName', currentApplicantName);
+    }
+}
+
+// --- 表單讀取 ---
+
+function getFormData() {
+    const startVal = document.getElementById('startDateTime').value;
+    const endVal = document.getElementById('endDateTime').value;
+
+    const startDateTime = new Date(startVal);
+    const endDateTime = new Date(endVal);
+
+    if (!startVal || isNaN(startDateTime.getTime())) {
+        throw new Error('請正確選擇起始日期時間');
+    }
+    if (!endVal || isNaN(endDateTime.getTime())) {
+        throw new Error('請正確選擇結束日期時間');
+    }
+    if (endDateTime <= startDateTime) {
+        throw new Error('結束時間必須晚於起始時間');
+    }
+    if (!currentApplicantId) {
+        throw new Error('請先選擇申請人');
+    }
+
+    const location = document.getElementById('location').value.trim();
+    if (!location) {
+        throw new Error('請填寫外宿地點');
+    }
+
+    return {
+        applicantId: currentApplicantId,
+        applicantName: currentApplicantName,
+        startDateTime,
+        endDateTime,
+        startShift: document.getElementById('startShift').value,
+        endShift: document.getElementById('endShift').value,
+        location,
+        createdByRole: 'caregiver',
+        createdByUserId: currentApplicantId
+    };
+}
+
+// --- 規則檢查 ---
+
+async function validateBusinessRulesForNewApplication(data) {
+    const today = new Date();
+    const minStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3, 0, 0, 0);
+    if (data.startDateTime < minStart) {
+        throw new Error('外宿需提前三天申請，起始日期須在三天後');
+    }
+
+    const days = enumerateDates(data.startDateTime, data.endDateTime);
+
+    const overLimit = await checkTwoPerDayLimit(days);
+    if (overLimit) {
+        throw new Error('同一天外宿人數已達兩人上限，無法再申請');
+    }
+
+    const conflictMsg = await checkConflictRules(data.applicantId, days);
+    if (conflictMsg) {
+        throw new Error(conflictMsg);
+    }
+}
+
+function enumerateDates(start, end) {
+    const dates = [];
+    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cur <= last) {
+        dates.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+}
+
+async function checkTwoPerDayLimit(days) {
+    for (const d of days) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+
+        const snap = await db.collection('stayApplications')
+            .where('startDateTime', '<=', dayEnd)
+            .where('endDateTime', '>=', dayStart)
+            .get();
+
+        if (snap.size >= 2) {
+            return true;
+        }
+    }
+    return false;
+}
+
+async function checkConflictRules(applicantId, days) {
+    const rulesSnap = await db.collection('stayConflictRules')
+        .where('employeeIds', 'array-contains', applicantId)
+        .get();
+
+    if (rulesSnap.empty) return null;
+
+    for (const ruleDoc of rulesSnap.docs) {
+        const rule = ruleDoc.data();
+        const memberIds = Array.isArray(rule.employeeIds) ? rule.employeeIds : [];
+        const others = memberIds.filter(id => id !== applicantId);
+        if (!others.length) continue;
+
+        const hasConflict = await checkOthersStayOnDays(others, days);
+        if (hasConflict) {
+            const ruleName = rule.ruleName || '同組員工';
+            return `${ruleName} 已設定不可同日外宿，請與主管討論後再安排。`;
+        }
+    }
+    return null;
+}
+
+async function checkOthersStayOnDays(others, days) {
+    const chunks = [];
+    for (let i = 0; i < others.length; i += 10) {
+        chunks.push(others.slice(i, i + 10));
+    }
+
+    for (const d of days) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+
+        for (const group of chunks) {
+            const snap = await db.collection('stayApplications')
+                .where('applicantId', 'in', group)
+                .where('startDateTime', '<=', dayEnd)
+                .where('endDateTime', '>=', dayStart)
+                .get();
+
+            if (!snap.empty) return true;
+        }
+    }
+    return false;
+}
+
+// --- 資料存取 ---
+
+async function saveApplication(data) {
+    await db.collection('stayApplications').add({
+        applicantId: data.applicantId,
+        applicantName: data.applicantName,
+        startDateTime: firebase.firestore.Timestamp.fromDate(data.startDateTime),
+        endDateTime: firebase.firestore.Timestamp.fromDate(data.endDateTime),
+        startShift: data.startShift,
+        endShift: data.endShift,
+        location: data.location,
+        statusId: 'pending',
+        createdByRole: data.createdByRole,
+        createdByUserId: data.createdByUserId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
 
 async function loadMyApps(tbody) {
-    if (!currentApplicantId) return;
+    if (!currentApplicantId) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">請先選擇申請人</td></tr>';
+        return;
+    }
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">載入中...</td></tr>';
 
     const snap = await db.collection('stayApplications')
@@ -181,13 +365,7 @@ async function loadMyApps(tbody) {
     });
 }
 
-function formatDateTime(d) {
-    if (!d) return '';
-    const pad = (n) => n.toString().padStart(2, '0');
-    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-// ------ 註解相關 ------
+// --- 註解相關 ---
 
 async function openCommentModal(appId) {
     currentAppIdForComment = appId;
