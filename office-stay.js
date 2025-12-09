@@ -60,43 +60,52 @@ function enumerateDates(start, end) {
 
 async function loadEmployees() {
     allEmployees = [];
-    async function loadFromCollection(colName) {
+
+    const collections = ['caregivers', 'localCaregivers'];
+
+    for (const colName of collections) {
         try {
-            const snap = await db.collection(colName).get();
+            const snap = await db.collection(colName)
+                .orderBy('sortOrder', 'asc')
+                .get();
+
             snap.forEach(doc => {
                 const d = doc.data();
-                const name = d.name || d.displayName || d.fullName || doc.id;
-                allEmployees.push({ id: doc.id, name });
+                const name = d.name || doc.id;
+                allEmployees.push({
+                    id: doc.id,
+                    name
+                });
             });
         } catch (e) {
-            console.warn('讀取 ' + colName + ' 失敗，可自行調整', e);
+            console.warn('讀取集合失敗：' + colName, e);
         }
     }
-    await loadFromCollection('caregivers');
-    await loadFromCollection('localCaregivers');
 
+    // sortOrder 之後再用姓名排序一次
     allEmployees.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
 
-    // 填入 conflictEmployees multi-select
+    // 1. 互斥名單多選
     const conflictSelect = document.getElementById('conflictEmployees');
     conflictSelect.innerHTML = '';
-    allEmployees.forEach(e => {
+    allEmployees.forEach(emp => {
         const opt = document.createElement('option');
-        opt.value = e.id;
-        opt.textContent = e.name;
+        opt.value = emp.id;
+        opt.textContent = emp.name;
         conflictSelect.appendChild(opt);
     });
 
-    // 填入新增 / 編輯申請 modal 的 applicantSelectOffice
+    // 2. 新增 / 編輯申請單用的申請人下拉
     const applicantSelectOffice = document.getElementById('applicantSelectOffice');
     applicantSelectOffice.innerHTML = '';
-    allEmployees.forEach(e => {
+    allEmployees.forEach(emp => {
         const opt = document.createElement('option');
-        opt.value = e.id;
-        opt.textContent = e.name;
+        opt.value = emp.id;
+        opt.textContent = emp.name;
         applicantSelectOffice.appendChild(opt);
     });
 }
+
 
 // ---------- 狀態設定 ----------
 
