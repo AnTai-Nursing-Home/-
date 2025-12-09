@@ -7,7 +7,11 @@ let currentApplicantName = null;
 let commentModal;
 let currentAppIdForComment = null;
 
-document.addEventListener('firebase-ready', async () => {
+document.addEventListener('firebase-ready', () => {
+    initStayCaregiver();
+});
+
+async function initStayCaregiver() {
     // Firebase 已初始化，db 可直接使用
     commentModal = new bootstrap.Modal(document.getElementById('commentModal'));
 
@@ -43,7 +47,7 @@ document.addEventListener('firebase-ready', async () => {
     document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
 
     await loadMyApps(stayTableBody);
-});
+}
 
 
     btnRefresh.addEventListener('click', async () => {
