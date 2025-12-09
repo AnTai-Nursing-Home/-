@@ -83,10 +83,19 @@ async function loadStatusDefs() {
         };
     });
 }
+function updateCurrentApplicant(selectEl) {
+    currentApplicantId = selectEl.value || null;
+    currentApplicantName = selectEl.selectedOptions[0]?.textContent || '';
+    if (currentApplicantId) {
+        localStorage.setItem('stayApplicantId', currentApplicantId);
+        localStorage.setItem('stayApplicantName', currentApplicantName);
+    }
+}
+
 
 async function loadApplicants(selectEl) {
     const employees = [];
-    const collections = ['caregivers', 'localCaregivers'];
+    const collections = ['caregivers'];
 
     for (const colName of collections) {
         try {
@@ -268,4 +277,3 @@ async function saveCommentFromModal() {
     document.getElementById('editingCommentId').value = '';
     await openCommentModal(currentAppIdForComment);
 }
-
