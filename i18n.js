@@ -106,6 +106,7 @@ const translations = {
         'caregiver_leave_system': '照服員 預假/預班系統',
 
         // --- 照服員外宿申請系統 ---
+        'caregiver_stay_system_menu': "外宿申請系統",
         'stay_caregiver_title': '照服員外宿申請',
         'stay_system_title': '外宿系統',
         'stay_form_title': '新增外宿申請單',
@@ -289,6 +290,7 @@ const translations = {
         'temperature_record_menu': 'Temperature Recording','caregiver_leave_system': 'Caregiver Leave/Shift System',
 
         // --- Caregiver Stay Application System ---
+        'caregiver_stay_system_menu': "Stay Application System",
         'stay_caregiver_title': 'Caregiver Stay Application',
         'stay_system_title': 'Overnight Stay System',
         'stay_form_title': 'New Stay Application Form',
