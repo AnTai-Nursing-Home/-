@@ -35,7 +35,20 @@
                     </div>
                     <div class="card-body">
 
-                        <!-- 狀態設定 -->
+                        <!-- 分頁導覽 -->
+                        <ul class="nav nav-tabs mb-3 no-print" id="officeStayTabs">
+                            <li class="nav-item"><button class="nav-link active" data-tab="tabApps" type="button">外宿申請</button></li>
+                            <li class="nav-item"><button class="nav-link" data-tab="tabRoster" type="button">照服員名冊</button></li>
+                            <li class="nav-item"><button class="nav-link" data-tab="tabStatus" type="button">狀態設定</button></li>
+                            <li class="nav-item"><button class="nav-link" data-tab="tabConflict" type="button">互斥規則</button></li>
+                        </ul>
+
+                        <div class="tab-content" id="officeStayTabContent">
+
+
+                        
+                        <div class="tab-pane fade" id="tabStatus">
+<!-- 狀態設定 -->
                         <div class="card mb-4 no-print">
                             <div class="card-header bg-secondary text-white">
                                 案件狀態與顏色設定
@@ -76,7 +89,11 @@
                             </div>
                         </div>
 
-                        <!-- 同日不得外宿設定 -->
+                        
+                        </div>
+
+                        <div class="tab-pane fade" id="tabConflict">
+<!-- 同日不得外宿設定 -->
                         <div class="card mb-4 no-print">
                             <div class="card-header bg-secondary text-white">
                                 同日不得同時外宿員工設定
@@ -113,7 +130,11 @@
                             </div>
                         </div>
 
-                        <!-- 外宿案件管理 -->
+                        
+                        </div>
+
+                        <div class="tab-pane fade show active" id="tabApps">
+<!-- 外宿案件管理 -->
                         <div class="card">
                             <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                                 <span>外宿申請列表</span>
@@ -175,7 +196,44 @@
         </div>
     </div>
 
-    <!-- 新增 / 編輯申請 Modal -->
+    
+                        </div>
+
+                        <!-- 照服員名冊 -->
+                        <div class="tab-pane fade" id="tabRoster">
+                            <div class="card mb-4">
+                                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                                    <span>照服員名冊（外籍・未離職）</span>
+                                    <div class="no-print">
+                                        <button id="btnRefreshRoster" class="btn btn-sm btn-light">
+                                            <i class="fas fa-rotate me-1"></i>重新整理
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped align-middle" id="rosterTable">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 60px;">#</th>
+                                                    <th>姓名</th>
+                                                    <th style="width: 160px;">狀態</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr><td colspan="3" class="text-center text-muted">載入中...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="text-muted small">
+                                        狀態說明：<span class="badge bg-success">於宿舍</span>、<span class="badge bg-warning text-dark">外宿中</span>（以「核准」且日期涵蓋今日的申請單判定）
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        </div>
+<!-- 新增 / 編輯申請 Modal -->
     <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
