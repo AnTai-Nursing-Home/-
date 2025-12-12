@@ -224,18 +224,18 @@ checkTimePermissions();
           <tr>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
-            <td style="border:1px solid #000; padding:6px;"><b>病歷號</b>：${chartNumber}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('chart_number')}</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
           </tr>
           <tr>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('birthday')}</b>：${birthday}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('checkin_date')}</b>：${checkinDate}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('placement_date')}</b>：${placementDate}</td>
-            <td style="border:1px solid #000; padding:6px;"><b>開始紀錄日期</b>：${recordStartDate}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('record_start_date')}</b>：${recordStartDate}</td>
           </tr>
           <tr>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('closing_date')}</b>：${closingDate || getText('ongoing')}</td>
-            <td style="border:1px solid #000; padding:6px;"><b>結案原因</b>：${closingReason}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('closing_reason')}</b>：${closingReason}</td>
             <td style="border:1px solid #000; padding:6px;"></td>
             <td style="border:1px solid #000; padding:6px;"></td>
           </tr>
