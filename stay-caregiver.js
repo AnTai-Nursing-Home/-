@@ -203,8 +203,12 @@ function getFormData() {
     }
 
     const location = document.getElementById('location').value.trim();
+    const reason = document.getElementById('reason').value.trim();
     if (!location) {
         throw new Error(getTextSafe('stay_error_location_required', '請填寫外宿地點'));
+    }
+    if (!reason) {
+        throw new Error(getTextSafe('stay_error_reason_required', '請填寫外宿原因'));
     }
 
     return {
@@ -213,8 +217,8 @@ function getFormData() {
         startDateTime,
         endDateTime,
         startShift: document.getElementById('startShift').value,
-        endShift: document.getElementById('endShift').value,
         location,
+        reason,
         createdByRole: 'caregiver',
         createdByUserId: currentApplicantId
     };
@@ -327,8 +331,8 @@ async function saveApplication(data) {
         startDateTime: firebase.firestore.Timestamp.fromDate(data.startDateTime),
         endDateTime: firebase.firestore.Timestamp.fromDate(data.endDateTime),
         startShift: data.startShift,
-        endShift: data.endShift,
         location: data.location,
+        reason: data.reason,
         statusId: 'pending',
         createdByRole: data.createdByRole,
         createdByUserId: data.createdByUserId,
@@ -365,8 +369,8 @@ async function loadMyApps(tbody) {
         tr.innerHTML = `
             <td>${app.applicantName || ''}</td>
             <td>${formatDateTime(start)}<br>~ ${formatDateTime(end)}</td>
-            <td>${app.startShift || ''} → ${app.endShift || ''}</td>
             <td>${app.location || ''}</td>
+            <td>${app.reason || ''}</td>
             <td><span class="badge" style="background:${status.color}">${status.name}</span></td>
             <td>
                 <button class="btn btn-sm btn-outline-secondary" data-app-id="${doc.id}">
