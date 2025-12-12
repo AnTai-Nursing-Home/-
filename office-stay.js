@@ -142,7 +142,7 @@ async function renderStatusTable() {
             </td>
         `;
         const statusDelBtn = tr.querySelector('button');
-        delBtn.addEventListener('click', async () => {
+        statusDelBtn.addEventListener('click', async () => {
             if (!confirm('確定要刪除此狀態嗎？（已有資料仍會保留原狀態代碼）')) return;
             await db.collection('stayStatusDefs').doc(s.id).delete();
             await loadStatusDefsOffice();
