@@ -286,7 +286,7 @@ async function loadApplicationsByFilter() {
     const endStr = document.getElementById('filterEnd').value;
 
     const tbody = document.querySelector('#officeStayTable tbody');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">載入中...</td></tr>';
 
     let queryRef = db.collection('stayApplications');
     let titleText = '外宿申請單';
@@ -306,7 +306,7 @@ async function loadApplicationsByFilter() {
 
     tbody.innerHTML = '';
     if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">查無資料</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">查無資料</td></tr>';
     } else {
         snap.forEach(doc => {
             const app = doc.data();
@@ -324,6 +324,7 @@ async function loadApplicationsByFilter() {
             tr.innerHTML = `
                 <td>${app.applicantName || ''}</td>
                 <td>${formatDateTime(start)}<br>~ ${formatDateTime(end)}</td>
+                <td>${app.startShift || ''}</td>
                 <td>${app.location || ''}</td>
                 <td>${app.reason || ''}</td>
                 <td>
