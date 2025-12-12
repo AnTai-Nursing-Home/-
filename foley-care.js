@@ -316,7 +316,8 @@ checkTimePermissions();
             genderInput.value = residentData.gender;
             birthdayInput.value = residentData.birthday;
             checkinDateInput.value = residentData.checkinDate;
-            chartNumberInput.value = docData.chartNumber || '';
+            // 病歷號以住民資料庫的 residentNumber 為主，若無則退回照護單內既有資料
+            chartNumberInput.value = residentData.residentNumber || docData.chartNumber || '';
             recordStartDateInput.value = docData.recordStartDate || '';
             closingReasonSelect.value = docData.closingReason || '';
             placementDateInput.value = docData.placementDate;
@@ -391,11 +392,13 @@ checkTimePermissions();
 
     residentNameSelectForm.addEventListener('change', () => {
         const residentData = residentsData[residentNameSelectForm.value];
-        if(residentData){
+        if (residentData) {
             bedNumberInput.value = residentData.bedNumber;
             genderInput.value = residentData.gender;
             birthdayInput.value = residentData.birthday;
             checkinDateInput.value = residentData.checkinDate;
+            // 病歷號跟其他基本資料一樣，從住民資料庫抓取（residents.residentNumber）
+            chartNumberInput.value = residentData.residentNumber || '';
         }
     });
 
