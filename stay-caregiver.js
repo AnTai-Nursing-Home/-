@@ -15,18 +15,6 @@ function getTextSafe(key, fallback) {
     return fallback !== undefined ? fallback : key;
 }
 
-/** 防 XSS：把文字安全地放進 innerHTML */
-function escapeHtml(input) {
-    if (input === null || input === undefined) return "";
-    return String(input)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-
-
 
 // ---- i18n fallback patch (stay-caregiver specific) ----
 // 有些 key 在 i18n.js 裡若尚未補齊，applyTranslations() 可能會把中文預設文字覆蓋成 key（例如 stay_location_label）。
@@ -82,20 +70,11 @@ document.addEventListener("firebase-ready", () => {
 async function initStayCaregiver() {
     console.log("stay-caregiver 初始化...");
     try {
-        const _cmEl = document.getElementById('commentModal');
-        if (window.bootstrap && bootstrap.Modal && _cmEl) {
-            commentModal = new bootstrap.Modal(_cmEl);
-        } else {
-            commentModal = null;
-        }
+        commentModal = new bootstrap.Modal(document.getElementById('commentModal'));
 
         const applicantSelect = document.getElementById('applicantSelect');
         const stayForm = document.getElementById('stayForm');
         const stayTableBody = document.querySelector('#stayTable tbody');
-setupViewTabs();
-        setupRosterActions();
-        /*__ROSTER_EARLY_INIT__*/
-
         const btnRefresh = document.getElementById('btnRefresh');
 
         await loadStatusDefs();
@@ -109,7 +88,7 @@ setupViewTabs();
                 await validateBusinessRulesForNewApplication(data);
                 await saveApplication(data);
                 await loadMyApps(stayTableBody);
-stayForm.reset();
+                stayForm.reset();
                 setMinDateForStart();
                 alert(getTextSafe('stay_submit_success', '外宿申請已送出'));
             } catch (err) {
@@ -120,13 +99,12 @@ stayForm.reset();
 
         btnRefresh.addEventListener('click', async () => {
             await loadMyApps(stayTableBody);
-});
+        });
 
-        const _btnSaveComment = document.getElementById('btnSaveComment');
-        if (_btnSaveComment) _btnSaveComment.addEventListener('click', saveCommentFromModal);
+        document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
 
         await loadMyApps(stayTableBody);
-// 初始化完成後套用目前語系文字
+        // 初始化完成後套用目前語系文字
         if (typeof applyTranslations === 'function') {
             applyTranslations();
         }
@@ -174,8 +152,6 @@ async function loadStatusDefs() {
         }
         snap.forEach(doc => {
             const d = doc.data();
-                // 離職照服員不列入（資料保留但不顯示）
-                if (d && d.isActive === false) return;
             statusMap[doc.id] = {
                 id: doc.id,
                 name: d.name || doc.id,
@@ -545,125 +521,3 @@ async function saveCommentFromModal() {
     document.getElementById('editingCommentId').value = '';
     await openCommentModal(currentAppIdForComment);
 }
-
-
-// ------------------------------
-// 照服員名冊（外籍、未離職）
-// ------------------------------
-
-function setupViewTabs() {
-    const btnApply = document.getElementById('btnViewApply');
-    const btnRoster = document.getElementById('btnViewRoster');
-    if (!btnApply || !btnRoster) return;
-
-    btnApply.addEventListener('click', () => showView('apply'));
-    btnRoster.addEventListener('click', () => showView('roster'));
-
-    // 預設顯示申請
-    showView('apply');
-}
-
-async function showView(view) {
-    const tabApply = document.getElementById('tabApply');
-    const tabRoster = document.getElementById('tabRoster');
-    const btnApply = document.getElementById('btnViewApply');
-    const btnRoster = document.getElementById('btnViewRoster');
-
-    if (tabApply) tabApply.style.display = (view === 'apply') ? '' : 'none';
-    if (tabRoster) tabRoster.style.display = (view === 'roster') ? '' : 'none';
-
-    if (btnApply) btnApply.classList.toggle('active', view === 'apply');
-    if (btnRoster) btnRoster.classList.toggle('active', view === 'roster');
-
-    if (view === 'roster') {
-        await renderCaregiverRoster();
-    }
-}
-
-async function renderCaregiverRoster() {
-    const tbody = document.querySelector('#rosterTable tbody');
-    const msg = document.getElementById('rosterMsg');
-    if (!tbody) return;
-
-    if (msg) msg.textContent = getTextSafe('roster_loading', '載入中...');
-    tbody.innerHTML = '';
-
-    // 1) 取未離職的外籍照服員（caregivers）
-    const caregivers = [];
-    try {
-        const snap = await db.collection('caregivers').orderBy('sortOrder', 'asc').get();
-        snap.forEach(doc => {
-            const d = doc.data() || {};
-            if (d.isActive === false) return; // 離職不顯示
-            caregivers.push({ id: doc.id, name: d.name || doc.id });
-        });
-    } catch (e) {
-        console.warn('讀取 caregivers 失敗', e);
-    }
-
-    caregivers.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
-
-    // 2) 取今日外宿中的人（approved 且涵蓋今日）
-    const today = new Date();
-    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-    const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-
-    // 為了避免查太多：只查近 30 天內起始的核准外宿（仍可能跨到今天）
-    const rangeStart = new Date(dayStart);
-    rangeStart.setDate(rangeStart.getDate() - 30);
-
-    const outSet = new Set();
-    try {
-        const snap = await db.collection('stayApplications')
-            .where('statusId', '==', 'approved')
-            .where('startDateTime', '>=', rangeStart)
-            .where('startDateTime', '<=', dayEnd)
-            .orderBy('startDateTime', 'asc')
-            .get();
-
-        snap.forEach(doc => {
-            const a = doc.data() || {};
-            const s = a.startDateTime?.toDate?.() || (a.startDateTime ? new Date(a.startDateTime) : null);
-            const e = a.endDateTime?.toDate?.() || (a.endDateTime ? new Date(a.endDateTime) : null);
-            if (!s || !e) return;
-
-            // 今日涵蓋判斷：start <= dayEnd && end >= dayStart
-            if (s <= dayEnd && e >= dayStart) {
-                if (a.applicantId) outSet.add(a.applicantId);
-            }
-        });
-    } catch (e) {
-        // 沒建 index 或其他錯誤時：名冊仍顯示，但狀態先全當於宿舍
-        console.warn('讀取 stayApplications(approved) 失敗，名冊狀態改用預設', e);
-    }
-
-    // 3) Render
-    if (!caregivers.length) {
-        if (msg) msg.textContent = getTextSafe('roster_empty', '目前沒有在職外籍照服員');
-        tbody.innerHTML = `<tr><td colspan="2" class="text-center text-muted">${getTextSafe('roster_empty', '目前沒有在職外籍照服員')}</td></tr>`;
-        return;
-    }
-
-    caregivers.forEach(cg => {
-        const isOut = outSet.has(cg.id);
-        const badge = isOut
-            ? `<span class="badge bg-warning text-dark">${escapeHtml(getTextSafe('roster_status_out', '外宿中'))}</span>`
-            : `<span class="badge bg-success">${escapeHtml(getTextSafe('roster_status_in', '於宿舍'))}</span>`;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${escapeHtml(cg.name)}</td>
-            <td>${badge}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    if (msg) msg.textContent = '';
-}
-
-function setupRosterActions() {
-    const btn = document.getElementById('btnRosterRefresh');
-    if (!btn) return;
-    btn.addEventListener('click', renderCaregiverRoster);
-}
-
