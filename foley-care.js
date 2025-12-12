@@ -268,7 +268,9 @@ checkTimePermissions();
                     const checkedRadio = cell.querySelector('input:checked');
                     cellValue = checkedRadio ? checkedRadio.value : '';
                 } else {
-                    cellValue = (cell.querySelector('input').value || '').split('@')[0].trim();
+                    const rawSign = (cell.querySelector('input').value || '').trim();
+                    // 列印/匯出時簽章僅顯示「名字」，不顯示日期與時間
+                    cellValue = rawSign ? rawSign.split(' ')[0] : '';
                 }
                 rowContent += `<td style="border:1px solid black;">${cellValue}</td>`;
             });
