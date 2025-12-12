@@ -11,6 +11,7 @@ document.addEventListener('firebase-ready', async () => {
     await renderConflictSettings();
     initAppSection();
     initCommentSection();
+    initTabs();
     setDefaultFilterRange();
     await loadApplicationsByFilter();
 });
@@ -66,7 +67,9 @@ async function loadEmployees() {
                 const name = d.name || doc.id;
                 allEmployees.push({
                     id: doc.id,
-                    name
+                    name,
+                    collection: colName,
+                    isActive: (d && d.isActive === false) ? false : true
                 });
             });
         } catch (e) {
@@ -98,6 +101,139 @@ async function loadEmployees() {
     });
 }
 
+
+
+// ---------- 照服員名冊（外籍・未離職） ----------
+
+let rosterLoadedOnce = false;
+
+function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+function endOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+// 取得「今日外宿中」的 applicantId set（核准且日期涵蓋今日）
+async function getTodayOutApplicantIdSet() {
+    const today = new Date();
+    const dayStart = startOfDay(today);
+
+    let snap = null;
+    try {
+        // 主要策略：抓「核准」且 endDateTime >= 今日 00:00（再用前端補 startDateTime <= 今日 23:59）
+        snap = await db.collection('stayApplications')
+            .where('statusId', '==', 'approved')
+            .where('endDateTime', '>=', firebase.firestore.Timestamp.fromDate(dayStart))
+            .orderBy('endDateTime', 'asc')
+            .get();
+    } catch (e) {
+        console.warn('名冊狀態判定查詢失敗，改用備援抓取核准單：', e);
+        snap = await db.collection('stayApplications')
+            .where('statusId', '==', 'approved')
+            .get();
+    }
+
+    const dayEnd = endOfDay(today);
+    const outSet = new Set();
+    snap.forEach(doc => {
+        const d = doc.data();
+        if (!d) return;
+        const s = d.startDateTime?.toDate ? d.startDateTime.toDate() : null;
+        const e = d.endDateTime?.toDate ? d.endDateTime.toDate() : null;
+        if (!s || !e) return;
+        if (s <= dayEnd && e >= dayStart) {
+            if (d.applicantId) outSet.add(d.applicantId);
+        }
+    });
+
+    return outSet;
+}
+
+async function renderRoster() {
+    const tbody = document.querySelector('#rosterTable tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">載入中...</td></tr>';
+
+    // 只列 caregivers（外籍照服員），且未離職（isActive !== false）
+    // loadEmployees() 已做過 isActive 過濾；但保險起見再過濾一次
+    const activeForeign = (allEmployees || []).filter(e => e && e.collection === 'caregivers' && e.isActive !== false);
+
+    // 取得今日外宿中名單
+    const outSet = await getTodayOutApplicantIdSet();
+
+    tbody.innerHTML = '';
+    if (activeForeign.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">目前沒有在職的外籍照服員</td></tr>';
+        return;
+    }
+
+    activeForeign.forEach((emp, idx) => {
+        const isOut = outSet.has(emp.id);
+        const badge = isOut
+            ? '<span class="badge bg-warning text-dark">外宿中</span>'
+            : '<span class="badge bg-success">於宿舍</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${escapeHtml(emp.name || '(未命名)')}</td>
+            <td>${badge}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function initTabs() {
+    const tabs = document.querySelectorAll('#officeStayTabs .nav-link');
+    const panes = document.querySelectorAll('#officeStayTabContent .tab-pane');
+    if (!tabs.length || !panes.length) return;
+
+    const showTab = async (tabId) => {
+        panes.forEach(p => {
+            p.classList.remove('show', 'active');
+        });
+        tabs.forEach(t => t.classList.remove('active'));
+
+        const targetPane = document.getElementById(tabId);
+        const targetTab = document.querySelector(`#officeStayTabs .nav-link[data-tab="${tabId}"]`);
+        if (targetPane) targetPane.classList.add('show', 'active');
+        if (targetTab) targetTab.classList.add('active');
+
+        if (tabId === 'tabRoster') {
+            // 第一次切到名冊時才載入（避免一進來就多打一堆查詢）
+            if (!rosterLoadedOnce) {
+                try {
+                    if (!allEmployees || allEmployees.length === 0) {
+                        await loadEmployees();
+                    }
+                    await renderRoster();
+                    rosterLoadedOnce = true;
+                } catch (e) {
+                    console.error(e);
+                    const tbody = document.querySelector('#rosterTable tbody');
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">名冊載入失敗：${escapeHtml(e.message || String(e))}</td></tr>`;
+                }
+            }
+        }
+    };
+
+    tabs.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tabId = btn.getAttribute('data-tab');
+            await showTab(tabId);
+        });
+    });
+
+    const refreshBtn = document.getElementById('btnRefreshRoster');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            rosterLoadedOnce = false;
+            await showTab('tabRoster');
+        });
+    }
+}
 
 // ---------- 狀態設定 ----------
 
