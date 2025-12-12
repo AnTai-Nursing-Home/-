@@ -1,5 +1,17 @@
 // office-stay.js - 辦公室端外宿申請管理
 
+/** 防 XSS：把文字安全地放進 innerHTML */
+function escapeHtml(input) {
+  if (input === null || input === undefined) return "";
+  return String(input)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+
 document.addEventListener('firebase-ready', async () => {
     appModal = new bootstrap.Modal(document.getElementById('appModal'));
     commentModalOffice = new bootstrap.Modal(document.getElementById('commentModalOffice'));
