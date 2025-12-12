@@ -15,6 +15,52 @@ function getTextSafe(key, fallback) {
     return fallback !== undefined ? fallback : key;
 }
 
+
+// ---- i18n fallback patch (stay-caregiver specific) ----
+// 有些 key 在 i18n.js 裡若尚未補齊，applyTranslations() 可能會把中文預設文字覆蓋成 key（例如 stay_location_label）。
+// 這段會在 getText 回傳 key 本身時，改用本頁的中/英文備援文字。
+(function patchStayCaregiverI18nFallback(){
+    if (typeof window === 'undefined') return;
+
+    const fallback = {
+        'stay_location_label': { 'zh': '地點', 'en': 'Location' },
+        'stay_table_location': { 'zh': '地點', 'en': 'Location' },
+        // 你目前表格欄位「原因」本來就有 key，但保留備援避免同樣狀況
+        'stay_reason_label': { 'zh': '原因', 'en': 'Reason' },
+        'stay_table_reason': { 'zh': '原因', 'en': 'Reason' },
+    };
+
+    function detectLang(){
+        try {
+            if (typeof getLanguage === 'function') return (getLanguage() || '').toLowerCase();
+        } catch(e){}
+        const ls = (k) => {
+            try { return (localStorage.getItem(k) || '').toLowerCase(); } catch(e){ return ''; }
+        };
+        return ls('lang') || ls('language') || ls('i18nLang') || 'zh';
+    }
+
+    const pick = (key) => {
+        const lang = detectLang();
+        const pack = fallback[key];
+        if (!pack) return null;
+        if (lang.startsWith('en')) return pack.en;
+        return pack.zh; // 預設中文
+    };
+
+    if (typeof window.getText === 'function') {
+        const _orig = window.getText;
+        window.getText = function(key){
+            const v = _orig(key);
+            if (v === key) {
+                const fb = pick(key);
+                return fb !== null ? fb : v;
+            }
+            return v;
+        };
+    }
+})();
+
 // 等 firebase-init.js 初始化完成後再啟動本頁邏輯
 document.addEventListener("firebase-ready", () => {
     initStayCaregiver();
@@ -343,10 +389,10 @@ async function saveApplication(data) {
 
 async function loadMyApps(tbody) {
     if (!currentApplicantId) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_select_applicant_first', '請先選擇申請人')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${getTextSafe('stay_msg_select_applicant_first', '請先選擇申請人')}</td></tr>`;
         return;
     }
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
 
     const snap = await db.collection('stayApplications')
         .where('applicantId', '==', currentApplicantId)
@@ -355,7 +401,7 @@ async function loadMyApps(tbody) {
 
     tbody.innerHTML = '';
     if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
         return;
     }
 
@@ -369,6 +415,7 @@ async function loadMyApps(tbody) {
         tr.innerHTML = `
             <td>${app.applicantName || ''}</td>
             <td>${formatDateTime(start)}<br>~ ${formatDateTime(end)}</td>
+            <td>${app.startShift || ''}</td>
             <td>${app.location || ''}</td>
             <td>${app.reason || ''}</td>
             <td><span class="badge" style="background:${status.color}">${status.name}</span></td>
