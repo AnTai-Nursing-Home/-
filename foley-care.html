@@ -56,12 +56,31 @@
                                         <label for="resident-name-select-form" class="form-label" data-i18n="name"></label>
                                         <select id="resident-name-select-form" class="form-select"></select>
                                     </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">病歷號</label>
+                                        <input type="text" id="resident-chartNumber" class="form-control">
+                                    </div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="bed_number"></label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="gender"></label><input type="text" id="resident-gender" class="form-control" readonly></div>
                                     <div class="col-md-2"><label class="form-label" data-i18n="birthday"></label><input type="text" id="resident-birthday" class="form-control" readonly></div>
                                     <div class="col-md-3"><label class="form-label" data-i18n="checkin_date"></label><input type="text" id="resident-checkinDate" class="form-control" readonly></div>
                                     <div class="col-md-3"><label for="foley-placement-date" class="form-label" data-i18n="placement_date"></label><input type="date" id="foley-placement-date" class="form-control"></div>
                                     <div class="col-md-3"><label for="foley-closing-date" class="form-label" data-i18n="closing_date"></label><input type="date" id="foley-closing-date" class="form-control"></div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">開始紀錄日期</label>
+                                        <input type="date" id="foley-record-start-date" class="form-control">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">結案原因</label>
+                                        <select id="closing-reason" class="form-select">
+                                            <option value="">請選擇</option>
+                                            <option value="管路拔管">管路拔管</option>
+                                            <option value="管路更換">管路更換</option>
+                                            <option value="轉出機構">轉出機構</option>
+                                        </select>
+                                    </div>
+
                                 </div>
                             </fieldset>
                             <div class="table-responsive">
@@ -71,12 +90,12 @@
                                         <tr>
                                             <th rowspan="2" data-i18n="date"></th>
                                             <th colspan="7" data-i18n="assessment_items"></th>
-                                            <th colspan="2" data-i18n="signature"></th>
+                                            <th colspan="1" data-i18n="signature"></th>
                                         </tr>
                                         <tr>
                                             <th data-i18n="hand_hygiene"></th><th data-i18n="fixed_position"></th><th data-i18n="urine_bag_position"></th><th data-i18n="unobstructed_drainage"></th>
                                             <th data-i18n="avoid_overfill"></th><th data-i18n="urethral_cleaning"></th><th data-i18n="single_use_container"></th>
-                                            <th data-i18n="caregiver"></th><th data-i18n="nurse"></th>
+                                            <th data-i18n="caregiver"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="care-table-body"></tbody>
