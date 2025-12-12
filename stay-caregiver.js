@@ -92,6 +92,10 @@ async function initStayCaregiver() {
         const applicantSelect = document.getElementById('applicantSelect');
         const stayForm = document.getElementById('stayForm');
         const stayTableBody = document.querySelector('#stayTable tbody');
+setupViewTabs();
+        setupRosterActions();
+        /*__ROSTER_EARLY_INIT__*/
+
         const btnRefresh = document.getElementById('btnRefresh');
 
         await loadStatusDefs();
@@ -105,9 +109,7 @@ async function initStayCaregiver() {
                 await validateBusinessRulesForNewApplication(data);
                 await saveApplication(data);
                 await loadMyApps(stayTableBody);
-        setupViewTabs();
-        setupRosterActions();
-                stayForm.reset();
+stayForm.reset();
                 setMinDateForStart();
                 alert(getTextSafe('stay_submit_success', '外宿申請已送出'));
             } catch (err) {
@@ -118,17 +120,13 @@ async function initStayCaregiver() {
 
         btnRefresh.addEventListener('click', async () => {
             await loadMyApps(stayTableBody);
-        setupViewTabs();
-        setupRosterActions();
-        });
+});
 
         const _btnSaveComment = document.getElementById('btnSaveComment');
         if (_btnSaveComment) _btnSaveComment.addEventListener('click', saveCommentFromModal);
 
         await loadMyApps(stayTableBody);
-        setupViewTabs();
-        setupRosterActions();
-        // 初始化完成後套用目前語系文字
+// 初始化完成後套用目前語系文字
         if (typeof applyTranslations === 'function') {
             applyTranslations();
         }
