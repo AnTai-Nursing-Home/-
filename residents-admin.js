@@ -117,7 +117,7 @@ document.addEventListener('residents-init', ()=>{
     cache.forEach(r=>{
       const age=calcAge(r.birthday);
       html+=`<tr data-id="${r.id}">
-        <td>${r.nursingStation||''}</td><td>${r.bedNumber||''}</td><td>${r.id||''}</td><td>${r.idNumber||''}</td>
+        <td>${r.nursingStation||''}</td><td>${r.bedNumber||''}</td><td>${r.residentNumber||''}</td><td>${r.id||''}</td><td>${r.idNumber||''}</td>
         <td>${r.birthday||''}</td><td>${r.gender||''}</td><td>${age!==''?age:''}</td>
         <td>${r.emergencyContact||''}</td><td>${r.emergencyPhone||''}</td><td>${r.mobility||''}</td>
         <td>${r.checkinDate||''}</td><td>${r.leaveStatus||''}</td>
@@ -390,8 +390,8 @@ function renderStats(){
     `;
   }
   function sheetBasicHTML(){
-    const header=['護理站','床號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const rows=cache.map(r=>[r.nursingStation||'',r.bedNumber||'',r.id||'',r.idNumber||'',r.birthday||'',r.gender||'',
+    const header=['護理站','床號','住民編號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
+    const rows=cache.map(r=>[r.nursingStation||'',r.bedNumber||'',r.residentNumber||'',r.id||'',r.idNumber||'',r.birthday||'',r.gender||'',
       (function(a){return a!==''?a:'';})(calcAge(r.birthday)),r.emergencyContact||'',r.emergencyPhone||'',r.mobility||'',r.checkinDate||'',r.leaveStatus||'']);
     let html='<table><thead><tr>'+header.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
     rows.forEach(tr=>{ html+='<tr>'+tr.map(td=>`<td>${td||''}</td>`).join('')+'</tr>'; });
@@ -774,7 +774,7 @@ function exportStyledXls(){
   }
 
   async function load(){
-    if(tbody) tbody.innerHTML='<tr><td colspan="13" class="text-center">讀取中...</td></tr>';
+    if(tbody) tbody.innerHTML='<tr><td colspan="14" class="text-center">讀取中...</td></tr>';
     try{
       const snap=await db.collection(dbCol).get();
       cache=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -783,7 +783,7 @@ function exportStyledXls(){
       renderBasic(); renderFloors(tpl); renderStats(); hookEvents();
     }catch(e){
       console.error(e);
-      if(tbody) tbody.innerHTML='<tr><td colspan="13"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
+      if(tbody) tbody.innerHTML='<tr><td colspan="14"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
     }
   }
 
@@ -811,6 +811,7 @@ function exportStyledXls(){
           const payload={
             nursingStation:norm(pick(r,['護理站','站別','樓層','Floor'])),
             bedNumber:norm(pick(r,['床號','床位','Bed'])),
+            residentNumber:norm(pick(r,['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code'])),
             gender:norm(pick(r,['性別','Gender'])),
             idNumber:norm(pick(r,['身份證字號','身份証字號','ID','身分證'])),
             birthday:parseDateSmart(birthdayRaw),
