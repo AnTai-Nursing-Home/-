@@ -21,6 +21,9 @@ document.addEventListener('firebase-ready', () => {
     const checkinDateInput = document.getElementById('resident-checkinDate');
     const placementDateInput = document.getElementById('foley-placement-date');
     const closingDateInput = document.getElementById('foley-closing-date');
+    const chartNumberInput = document.getElementById('resident-chartNumber');
+    const recordStartDateInput = document.getElementById('foley-record-start-date');
+    const closingReasonSelect = document.getElementById('closing-reason');
     const tableMonthTitle = document.getElementById('table-month-title');
     const saveCareFormBtn = document.getElementById('save-care-form');
     const deleteCareFormBtn = document.getElementById('delete-care-form-btn');
@@ -122,9 +125,14 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function renderCareTable(placementDate, closingDate, careData = {}) {
-        const startDate = new Date(placementDate + 'T00:00:00');
-        // 開始日期改為置放日+1天
-        startDate.setDate(startDate.getDate() + 1);
+        // 預設從置放日+1 天開始
+        let startDate = new Date(placementDate + 'T00:00:00');
+        // 若有填寫「開始紀錄日期」，以該日期為主（例如住民回機構當天）
+        if (recordStartDateInput && recordStartDateInput.value) {
+            startDate = new Date(recordStartDateInput.value + 'T00:00:00');
+        } else {
+            startDate.setDate(startDate.getDate() + 1);
+        }
         const endDate = closingDate ? new Date(closingDate + 'T00:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0);
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
@@ -153,11 +161,9 @@ document.addEventListener('firebase-ready', () => {
             });
             
             const caregiverSign = dailyRecord.caregiverSign || '';
-            const nurseSign = dailyRecord.nurseSign || '';
             const row = `<tr data-date="${dateString}">
                 <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
-                <td><input type="text" class="form-control form-control-sm signature-field" data-signature="nurse" placeholder="${getText('signature')}" value="${nurseSign}"></td>
             </tr>`;
             careTableBody.innerHTML += row;
         }
@@ -183,11 +189,10 @@ checkTimePermissions();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour + currentMinute / 60;
 
-    // 🕒 時間範圍設定
-    const caregiverEnabled = (currentTime >= 10 && currentTime < 14.5); // 10:00~14:30
-    const nurseEnabled = (currentTime >= 14.516 && currentTime <= 16.0); // 14:31~16:00
+    // 🕒 時間範圍設定：僅控制照顧員填寫及簽名時間（10:00~14:30）
+    const caregiverEnabled = (currentTime >= 10 && currentTime < 14.5);
 
-    // 🧤 照顧員：radio + caregiver 簽名
+    // 🧤 照顧員：radio + 簽名
     document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
         el.disabled = !caregiverEnabled;
     });
@@ -195,13 +200,8 @@ checkTimePermissions();
     // 一鍵全Yes按鈕也跟著照顧員時間規則
     careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
 
-    // 🩺 護理師：簽名欄位
-    document.querySelectorAll('#form-view [data-signature="nurse"]').forEach(el => {
-        el.disabled = !nurseEnabled;
-    });
-
     // 🕓 除錯訊息（可刪除）
-    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled} | 護理師填寫:${nurseEnabled}`);
+    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled}`);
 }
     
     
@@ -214,6 +214,9 @@ checkTimePermissions();
         const checkinDate = checkinDateInput.value || residentData.checkinDate || '';
         const placementDate = placementDateInput.value || '';
         const closingDate = closingDateInput.value || '';
+        const chartNumber = chartNumberInput.value || '';
+        const recordStartDate = recordStartDateInput.value || '';
+        const closingReason = closingReasonSelect.value || '';
 
         // --- 基本資料區塊（列印用） ---
         const basicInfoTable = `
@@ -221,13 +224,19 @@ checkTimePermissions();
           <tr>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>病歷號</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
-            <td style="border:1px solid #000; padding:6px;"><b>${getText('birthday')}</b>：${birthday}</td>
           </tr>
           <tr>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('birthday')}</b>：${birthday}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('checkin_date')}</b>：${checkinDate}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('placement_date')}</b>：${placementDate}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>開始紀錄日期</b>：${recordStartDate}</td>
+          </tr>
+          <tr>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('closing_date')}</b>：${closingDate || getText('ongoing')}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>結案原因</b>：${closingReason}</td>
+            <td style="border:1px solid #000; padding:6px;"></td>
             <td style="border:1px solid #000; padding:6px;"></td>
           </tr>
         </table>`;
@@ -237,7 +246,7 @@ checkTimePermissions();
         <tr style="text-align: center; font-weight: bold; background-color: #f2f2f2;">
         <th rowspan="2" style="border: 1px solid black;">${getText('date')}</th>
         <th colspan="7" style="border: 1px solid black;">${getText('assessment_items')}</th>
-        <th colspan="2" style="border: 1px solid black;">${getText('signature')}</th></tr>
+        <th colspan="1" style="border: 1px solid black;">${getText('signature')}</th></tr>
         <tr style="text-align:center;font-weight:bold;background-color:#f2f2f2;">
         <th>${getText('hand_hygiene')}</th>
         <th>${getText('fixed_position')}</th>
@@ -246,7 +255,7 @@ checkTimePermissions();
         <th>${getText('avoid_overfill')}</th>
         <th>${getText('urethral_cleaning')}</th>
         <th>${getText('single_use_container')}</th>
-        <th>${getText('caregiver')}</th><th>${getText('nurse')}</th></tr></thead><tbody>`;
+        <th>${getText('caregiver')}</th></tr></thead><tbody>`;
 
         careTableBody.querySelectorAll('tr').forEach(row => {
             const dateAttr = row.getAttribute('data-date');
@@ -291,6 +300,9 @@ checkTimePermissions();
             genderInput.value = '';
             birthdayInput.value = '';
             checkinDateInput.value = '';
+            chartNumberInput.value = '';
+            recordStartDateInput.value = '';
+            closingReasonSelect.value = '';
             placementDateInput.value = new Date().toISOString().split('T')[0];
             closingDateInput.value = '';
             renderCareTable(placementDateInput.value, null);
@@ -302,9 +314,12 @@ checkTimePermissions();
             genderInput.value = residentData.gender;
             birthdayInput.value = residentData.birthday;
             checkinDateInput.value = residentData.checkinDate;
+            chartNumberInput.value = docData.chartNumber || '';
+            recordStartDateInput.value = docData.recordStartDate || '';
+            closingReasonSelect.value = docData.closingReason || '';
             placementDateInput.value = docData.placementDate;
             closingDateInput.value = docData.closingDate || '';
-            renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData);
+            renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData || {});
             deleteCareFormBtn.classList.remove('d-none');
         }
     }
@@ -326,16 +341,17 @@ checkTimePermissions();
                 if (checkedRadio) { record[itemKey] = checkedRadio.value; hasData = true; }
             });
             const caregiverSignInput = row.querySelector('[data-signature="caregiver"]');
-            const nurseSignInput = row.querySelector('[data-signature="nurse"]');
-            if (caregiverSignInput.value) { record.caregiverSign = caregiverSignInput.value; hasData = true; }
-            if (nurseSignInput.value) { record.nurseSign = nurseSignInput.value; hasData = true; }
+            if (caregiverSignInput && caregiverSignInput.value) { record.caregiverSign = caregiverSignInput.value; hasData = true; }
             if (hasData) { dailyData[date] = record; }
         });
         const dataToSave = {
             residentName,
             month: placementDate.substring(0, 7),
             placementDate,
+            recordStartDate: recordStartDateInput.value || '',
             closingDate: closingDateInput.value || null,
+            closingReason: closingReasonSelect.value || '',
+            chartNumber: chartNumberInput.value || '',
             dailyData
         };
         saveCareFormBtn.disabled = true;
