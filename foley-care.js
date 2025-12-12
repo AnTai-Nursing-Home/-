@@ -125,14 +125,14 @@ document.addEventListener('firebase-ready', () => {
     }
 
     function renderCareTable(placementDate, closingDate, careData = {}) {
-        // 預設從置放日+1 天開始
-        let startDate = new Date(placementDate + 'T00:00:00');
-        // 若有填寫「開始紀錄日期」，以該日期為主（例如住民回機構當天）
+        // 預設從「基準日期 +1 天」開始；基準日期為：若有開始紀錄日則為開始紀錄日，否則為置放日
+        let baseDate = new Date(placementDate + 'T00:00:00');
         if (recordStartDateInput && recordStartDateInput.value) {
-            startDate = new Date(recordStartDateInput.value + 'T00:00:00');
-        } else {
-            startDate.setDate(startDate.getDate() + 1);
+            baseDate = new Date(recordStartDateInput.value + 'T00:00:00');
         }
+        const startDate = new Date(baseDate);
+        startDate.setDate(startDate.getDate() + 1);
+
         const endDate = closingDate ? new Date(closingDate + 'T00:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0);
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
