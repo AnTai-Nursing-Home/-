@@ -149,7 +149,15 @@ async function renderStatusTable() {
             await renderStatusTable();
             await loadApplicationsByFilter();
         });
-        tbody.appendChild(tr);
+        const delBtn = tr.querySelector('[data-del-app-id]');
+            if (delBtn) {
+                delBtn.addEventListener('click', async () => {
+                    if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
+                    await db.collection('stayApplications').doc(doc.id).delete();
+                    await loadApplicationsByFilter();
+                });
+            }
+            tbody.appendChild(tr);
     });
 
     // 同時更新新增 / 編輯申請用的下拉選單
@@ -218,7 +226,15 @@ async function renderConflictSettings() {
             await db.collection('stayConflictRules').doc(doc.id).delete();
             await renderConflictSettings();
         });
-        tbody.appendChild(tr);
+        const delBtn = tr.querySelector('[data-del-app-id]');
+            if (delBtn) {
+                delBtn.addEventListener('click', async () => {
+                    if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
+                    await db.collection('stayApplications').doc(doc.id).delete();
+                    await loadApplicationsByFilter();
+                });
+            }
+            tbody.appendChild(tr);
     });
 }
 
@@ -316,8 +332,8 @@ async function loadApplicationsByFilter() {
             tr.innerHTML = `
                 <td>${app.applicantName || ''}</td>
                 <td>${formatDateTime(start)}<br>~ ${formatDateTime(end)}</td>
-                <td>${app.startShift || ''} → ${app.endShift || ''}</td>
                 <td>${app.location || ''}</td>
+                <td>${app.reason || ''}</td>
                 <td>
                     <select class="form-select form-select-sm status-select no-print" data-app-id="${doc.id}">
                         ${statusOptions}
@@ -331,6 +347,7 @@ async function loadApplicationsByFilter() {
                 </td>
                 <td class="no-print">
                     <button class="btn btn-sm btn-outline-primary me-1" data-edit-app-id="${doc.id}">編輯</button>
+                    <button class="btn btn-sm btn-outline-danger" data-del-app-id="${doc.id}">刪除</button>
                 </td>
             `;
 
@@ -351,6 +368,14 @@ async function loadApplicationsByFilter() {
             const editBtn = tr.querySelector('[data-edit-app-id]');
             editBtn.addEventListener('click', () => openAppModal(doc));
 
+            const delBtn = tr.querySelector('[data-del-app-id]');
+            if (delBtn) {
+                delBtn.addEventListener('click', async () => {
+                    if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
+                    await db.collection('stayApplications').doc(doc.id).delete();
+                    await loadApplicationsByFilter();
+                });
+            }
             tbody.appendChild(tr);
         });
     }
@@ -388,8 +413,8 @@ function openAppModal(doc) {
         document.getElementById('startDateTimeOffice').value = toInputDateTime(start);
         document.getElementById('endDateTimeOffice').value = toInputDateTime(end);
         document.getElementById('startShiftOffice').value = app.startShift || 'D';
-        document.getElementById('endShiftOffice').value = app.endShift || 'D';
         document.getElementById('locationOffice').value = app.location || '';
+        document.getElementById('reasonOffice').value = app.reason || '';
 
         // 申請人
         const applicantSelect = document.getElementById('applicantSelectOffice');
@@ -421,10 +446,9 @@ async function saveAppFromModal() {
         return;
     }
     const location = document.getElementById('locationOffice').value.trim();
-    if (!location) {
-        alert('請填寫外宿地點');
-        return;
-    }
+    const reason = document.getElementById('reasonOffice').value.trim();
+    if (!location) { alert('請填寫外宿地點'); return; }
+    if (!reason) { alert('請填寫外宿原因'); return; }
 
     const data = {
         applicantId,
@@ -432,8 +456,8 @@ async function saveAppFromModal() {
         startDateTime: start,
         endDateTime: end,
         startShift: document.getElementById('startShiftOffice').value,
-        endShift: document.getElementById('endShiftOffice').value,
         location,
+        reason,
         statusId: document.getElementById('statusSelectOffice').value || 'pending',
         createdByRole: 'office',
         createdByUserId: 'office'
@@ -449,8 +473,8 @@ async function saveAppFromModal() {
             startDateTime: firebase.firestore.Timestamp.fromDate(data.startDateTime),
             endDateTime: firebase.firestore.Timestamp.fromDate(data.endDateTime),
             startShift: data.startShift,
-            endShift: data.endShift,
             location: data.location,
+            reason: data.reason,
             statusId: data.statusId,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -461,8 +485,8 @@ async function saveAppFromModal() {
             startDateTime: firebase.firestore.Timestamp.fromDate(data.startDateTime),
             endDateTime: firebase.firestore.Timestamp.fromDate(data.endDateTime),
             startShift: data.startShift,
-            endShift: data.endShift,
             location: data.location,
+            reason: data.reason,
             statusId: data.statusId,
             createdByRole: data.createdByRole,
             createdByUserId: data.createdByUserId,
