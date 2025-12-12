@@ -1,5 +1,6 @@
 function buildTableHTML(tabId) {
     const tbodyId = `${tabId}-tbody`;
+    const extraHead = (tabId === 'inactiveEmployees') ? `<th class="sortable-header" data-sort="sourceLabel">職類</th>` : '';
     return `
       <div class="tab-pane fade${tabId==='nurses'?' show active':''}" id="${tabId}-panel" role="tabpanel">
         <div class="table-responsive mt-3">
@@ -9,6 +10,7 @@ function buildTableHTML(tabId) {
                 <th class="sortable-header" data-sort="sortOrder">排序</th>
                 <th class="sortable-header" data-sort="id">員編</th>
                 <th class="sortable-header" data-sort="name">姓名</th>
+                ${extraHead}
                 <th>性別</th>
                 <th>生日</th>
                 <th>身分證字號</th>
@@ -107,6 +109,7 @@ document.addEventListener('firebase-ready', () => {
     { id: 'foreignCaregivers', label: '外籍照服員', collection: 'caregivers' },
     { id: 'localCaregivers', label: '台籍照服員', collection: 'localCaregivers' },
     { id: 'adminStaff', label: '行政/其他', collection: 'adminStaff' },
+      { id: 'inactiveEmployees', label: '離職員工', collection: null },
   ];
 
   
@@ -143,62 +146,137 @@ document.addEventListener('firebase-ready', () => {
     });
   }
 
-  async function loadAndRender(collectionName, tbody) {
-    tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">讀取中…</td></tr>`;
+  
+  function getColspan(tabId) {
+    return (tabId === 'inactiveEmployees') ? 24 : 23;
+  }
+
+  async function loadAndRenderActive(collectionName, tbody, tabId) {
+    const colspan = getColspan(tabId);
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中…</td></tr>`;
     try {
       const snap = await db.collection(collectionName)
         .orderBy(sortConfig.key, sortConfig.order)
         .orderBy('id','asc')
         .get();
 
-      if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="23" class="text-center text-muted">尚無資料</td></tr>`;
+      // 只顯示在職：isActive === false 視為離職；undefined/true 視為在職
+      const rows = [];
+      snap.forEach(doc => {
+        const e = doc.data() || {};
+        if (e.isActive === false) return;
+        rows.push({ docId: doc.id, collection: collectionName, sourceLabel: '', ...e });
+      });
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">尚無資料</td></tr>`;
         return;
       }
 
       let html = "";
-      snap.forEach(doc => {
-        const e = doc.data();
-        html += `
-          <tr data-id="${doc.id}">
-            <td>${e.sortOrder ?? ''}</td>
-            <td>${e.id ?? ''}</td>
-            <td>${e.name ?? ''}</td>
-            <td>${e.gender ?? ''}</td>
-            <td>${e.birthday ?? ''}</td>
-            <td>${e.idCard ?? ''}</td>
-            <td>${e.hireDate ?? ''}</td>
-            <td>${e.title ?? ''}</td>
-            <td>${e.phone ?? ''}</td>
-            <td>${e.daytimePhone ?? ''}</td>
-            <td>${e.address ?? ''}</td>
-            <td>${e.emergencyName ?? ''}</td>
-            <td>${e.emergencyRelation ?? ''}</td>
-            <td>${e.emergencyPhone ?? ''}</td>
-            <td>${e.nationality ?? ''}</td>
-            <td>${e.licenseType ?? ''}</td>
-            <td>${e.licenseNumber ?? ''}</td>
-            <td>${e.licenseRenewDate ?? ''}</td>
-            <td>${e.longtermCertNumber ?? ''}</td>
-            <td>${e.longtermExpireDate ?? ''}</td>
-            <td>${e.education ?? ''}</td>
-            <td>${e.school ?? ''}</td>
-            <td>
-              <button class="btn btn-sm btn-primary btn-edit">編輯</button>
-              <button class="btn btn-sm btn-danger btn-del ms-1">刪除</button>
-            </td>
-          </tr>
-        `;
+      rows.forEach(e => {
+        html += buildRowHTML(e, { includeSource: false, actionLabel: '設為離職' });
       });
       tbody.innerHTML = html;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = `<tr><td colspan="23" class="text-center text-danger">讀取失敗</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-danger">讀取失敗</td></tr>`;
     }
   }
 
-  function loadAll() {
-    TAB_DEFS.forEach(d => loadAndRender(d.collection, tbodys[d.id]));
+  async function loadAndRenderInactive(tbody) {
+    const colspan = getColspan('inactiveEmployees');
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">讀取中…</td></tr>`;
+    try {
+      const rows = [];
+      // 合併四個集合的離職員工
+      for (const def of TAB_DEFS) {
+        if (def.id === 'inactiveEmployees') continue;
+        const snap = await db.collection(def.collection)
+          .orderBy('id','asc')
+          .get();
+
+        snap.forEach(doc => {
+          const e = doc.data() || {};
+          if (e.isActive !== false) return;
+          rows.push({ docId: doc.id, collection: def.collection, sourceLabel: def.label, ...e });
+        });
+      }
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">尚無資料</td></tr>`;
+        return;
+      }
+
+      // 依目前 sortConfig 在前端排序
+      const k = sortConfig.key;
+      const order = sortConfig.order === 'desc' ? -1 : 1;
+      rows.sort((a, b) => {
+        const av = (k === 'sourceLabel') ? (a.sourceLabel || '') : (a[k] ?? '');
+        const bv = (k === 'sourceLabel') ? (b.sourceLabel || '') : (b[k] ?? '');
+        if (av === bv) return String(a.id ?? '').localeCompare(String(b.id ?? '')) * order;
+        // 數字優先比
+        const an = Number(av), bn = Number(bv);
+        const bothNum = !Number.isNaN(an) && !Number.isNaN(bn);
+        return (bothNum ? (an - bn) : String(av).localeCompare(String(bv))) * order;
+      });
+
+      let html = "";
+      rows.forEach(e => {
+        html += buildRowHTML(e, { includeSource: true, actionLabel: '恢復在職' });
+      });
+      tbody.innerHTML = html;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-danger">讀取失敗</td></tr>`;
+    }
+  }
+
+  function buildRowHTML(e, opts) {
+    const includeSource = !!opts.includeSource;
+    const actionLabel = opts.actionLabel || '操作';
+    const sourceTd = includeSource ? `<td>${e.sourceLabel || ''}</td>` : '';
+    // 注意：tr 上帶 collection，離職分頁要用
+    return `
+          <tr data-id="${e.docId}" data-collection="${e.collection}">
+            <td>${e.sortOrder ?? ""}</td>
+            <td>${e.id ?? ""}</td>
+            <td>${e.name ?? ""}</td>
+            ${includeSource ? sourceTd : ""}
+            <td>${e.gender ?? ""}</td>
+            <td>${e.birthday ?? ""}</td>
+            <td>${e.nationalId ?? ""}</td>
+            <td>${e.hireDate ?? ""}</td>
+            <td>${e.title ?? ""}</td>
+            <td>${e.phone ?? ""}</td>
+            <td>${e.email ?? ""}</td>
+            <td>${e.address ?? ""}</td>
+            <td>${e.emergencyName ?? ""}</td>
+            <td>${e.emergencyRelation ?? ""}</td>
+            <td>${e.emergencyPhone ?? ""}</td>
+            <td>${e.nationality ?? ""}</td>
+            <td>${e.licenseType ?? ""}</td>
+            <td>${e.licenseNo ?? ""}</td>
+            <td>${e.licenseRenewDate ?? ""}</td>
+            <td>${e.ltcNo ?? ""}</td>
+            <td>${e.ltcExpiry ?? ""}</td>
+            <td>${e.education ?? ""}</td>
+            <td>${e.school ?? ""}</td>
+            <td>
+              <button class="btn btn-sm btn-primary btn-edit">編輯</button>
+              <button class="btn btn-sm btn-danger btn-del ms-1">${actionLabel}</button>
+            </td>
+          </tr>
+        `;
+  }
+function loadAll() {
+    TAB_DEFS.forEach(d => {
+      if (d.id === 'inactiveEmployees') {
+        loadAndRenderInactive(tbodys[d.id]);
+      } else {
+        loadAndRenderActive(d.collection, tbodys[d.id], d.id);
+      }
+    });
     updateHeaderSortUI();
   }
 
@@ -220,29 +298,33 @@ document.addEventListener('firebase-ready', () => {
 
   function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
+    const isInactive = !!row.closest('#inactiveEmployees-panel');
+    const off = isInactive ? 1 : 0; // 離職分頁多一欄「職類」
+
     // 依表頭順序
     sortOrderInput.value = cell(0);
     idInput.value = cell(1);
     nameInput.value = cell(2);
-    genderInput.value = cell(3);
-    birthdayInput.value = cell(4);
-    idCardInput.value = cell(5);
-    hireDateInput.value = cell(6);
-    titleInput.value = cell(7);
-    phoneInput.value = cell(8);
-    daytimePhoneInput.value = cell(9);
-    addressInput.value = cell(10);
-    emgNameInput.value = cell(11);
-    emgRelationInput.value = cell(12);
-    emgPhoneInput.value = cell(13);
-    nationalityInput.value = cell(14);
-    licenseTypeInput.value = cell(15);
-    licenseNumberInput.value = cell(16);
-    licenseRenewDateInput.value = cell(17);
-    longtermCertNumberInput.value = cell(18);
-    longtermExpireDateInput.value = cell(19);
-    educationInput.value = cell(20);
-    schoolInput.value = cell(21);
+
+    genderInput.value = cell(3 + off);
+    birthdayInput.value = cell(4 + off);
+    idCardInput.value = cell(5 + off);
+    hireDateInput.value = cell(6 + off);
+    titleInput.value = cell(7 + off);
+    phoneInput.value = cell(8 + off);
+    daytimePhoneInput.value = cell(9 + off);
+    addressInput.value = cell(10 + off);
+    emgNameInput.value = cell(11 + off);
+    emgRelationInput.value = cell(12 + off);
+    emgPhoneInput.value = cell(13 + off);
+    nationalityInput.value = cell(14 + off);
+    licenseTypeInput.value = cell(15 + off);
+    licenseNumberInput.value = cell(16 + off);
+    licenseRenewDateInput.value = cell(17 + off);
+    longtermCertNumberInput.value = cell(18 + off);
+    longtermExpireDateInput.value = cell(19 + off);
+    educationInput.value = cell(20 + off);
+    schoolInput.value = cell(21 + off);
   }
 
   async function handleSave() {
@@ -303,18 +385,27 @@ document.addEventListener('firebase-ready', () => {
       if (!row) return;
       const id = row.dataset.id;
       if (e.target.classList.contains('btn-edit')) {
-        currentEditing = { collection: def.collection, docId: id };
-        typeInput.value = def.collection;
+        const collection = def.collection || row.dataset.collection;
+        const label = def.collection ? def.label : (TAB_DEFS.find(x => x.collection === collection)?.label || '員工');
+        currentEditing = { collection, docId: id };
+        typeInput.value = collection;
         fillFormFromRow(row);
-        document.getElementById('employee-modal-title').textContent = `編輯 - ${def.label}`;
+        document.getElementById('employee-modal-title').textContent = `編輯 - ${label}`;
         idInput.disabled = false;
         employeeModal.show();
       } else if (e.target.classList.contains('btn-del')) {
-        if (confirm(`確定刪除 ${id}？`)) {
-          db.collection(def.collection).doc(id).delete().then(loadAll);
+        const collection = def.collection || row.dataset.collection;
+        if (def.id === 'inactiveEmployees') {
+          if (confirm(`確定恢復在職：${id}？`)) {
+            db.collection(collection).doc(id).set({ isActive: true }, { merge: true }).then(loadAll);
+          }
+        } else {
+          if (confirm(`確定設為離職：${id}？`)) {
+            db.collection(collection).doc(id).set({ isActive: false }, { merge: true }).then(loadAll);
+          }
         }
       }
-    });
+});
   });
 
   // 排序 header
