@@ -61,6 +61,8 @@ async function loadEmployees() {
 
             snap.forEach(doc => {
                 const d = doc.data();
+                // 離職員工不列入名單（資料保留，但不給選單抓到）
+                if (d && d.isActive === false) return;
                 const name = d.name || doc.id;
                 allEmployees.push({
                     id: doc.id,
