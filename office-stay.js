@@ -199,7 +199,7 @@ async function renderRoster() {
 
 function initTabs() {
     const tabs = document.querySelectorAll('#officeStayTabs .nav-link');
-    const panes = document.querySelectorAll('#officeStayTabContent .tab-pane');
+    const panes = document.querySelectorAll('#tabApps, #tabRoster, #tabStatus, #tabConflict');
     if (!tabs.length || !panes.length) return;
 
     const showTab = async (tabId) => {
