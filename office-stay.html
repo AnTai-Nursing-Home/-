@@ -155,7 +155,7 @@
                                             <tr>
                                                 <th>申請人</th>
                                                 <th>起訖時間</th>
-                                                <th>班別</th>
+                                                <th>地點</th>
                                                 <th>原因</th>
                                                 <th>狀態</th>
                                                 <th>註解</th>
@@ -212,19 +212,12 @@
                   </select>
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label">結束日班別</label>
-                  <select id="endShiftOffice" class="form-select" required>
-                    <option value="D">D</option>
-                    <option value="N">N</option>
-                    <option value="H">H</option>
-                    <option value="8-17">8-17</option>
-                    <option value="14-17">14-17</option>
-                    <option value="OF">OF</option>
-                  </select>
+                  <label class="form-label">地點</label>
+                  <input type="text" id="locationOffice" class="form-control" required>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">原因</label>
-                  <input type="text" id="locationOffice" class="form-control" required>
+                  <input type="text" id="reasonOffice" class="form-control" required>
                 </div>
               </div>
               <div class="row g-3 mb-3">
