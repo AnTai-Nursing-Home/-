@@ -141,23 +141,15 @@ async function renderStatusTable() {
                 <button class="btn btn-sm btn-outline-danger">刪除</button>
             </td>
         `;
-        const delBtn = tr.querySelector('button');
-        delBtn.addEventListener('click', async () => {
+        const statusDelBtn = tr.querySelector('button');
+        statusDelBtn.addEventListener('click', async () => {
             if (!confirm('確定要刪除此狀態嗎？（已有資料仍會保留原狀態代碼）')) return;
             await db.collection('stayStatusDefs').doc(s.id).delete();
             await loadStatusDefsOffice();
             await renderStatusTable();
             await loadApplicationsByFilter();
         });
-        const delBtn = tr.querySelector('[data-del-app-id]');
-            if (delBtn) {
-                delBtn.addEventListener('click', async () => {
-                    if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
-                    await db.collection('stayApplications').doc(doc.id).delete();
-                    await loadApplicationsByFilter();
-                });
-            }
-            tbody.appendChild(tr);
+tbody.appendChild(tr);
     });
 
     // 同時更新新增 / 編輯申請用的下拉選單
@@ -228,7 +220,7 @@ async function renderConflictSettings() {
         });
         const delBtn = tr.querySelector('[data-del-app-id]');
             if (delBtn) {
-                delBtn.addEventListener('click', async () => {
+                statusDelBtn.addEventListener('click', async () => {
                     if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
                     await db.collection('stayApplications').doc(doc.id).delete();
                     await loadApplicationsByFilter();
@@ -370,7 +362,7 @@ async function loadApplicationsByFilter() {
 
             const delBtn = tr.querySelector('[data-del-app-id]');
             if (delBtn) {
-                delBtn.addEventListener('click', async () => {
+                statusDelBtn.addEventListener('click', async () => {
                     if (!confirm('確定要刪除這筆外宿申請單嗎？此動作無法復原。')) return;
                     await db.collection('stayApplications').doc(doc.id).delete();
                     await loadApplicationsByFilter();
@@ -628,7 +620,7 @@ async function openCommentModalOffice(appId) {
                 document.getElementById('editingCommentIdOffice').value = doc.id;
                 document.getElementById('commentInputOffice').value = c.content || '';
             });
-            delBtn.addEventListener('click', async () => {
+            statusDelBtn.addEventListener('click', async () => {
                 if (!confirm('確定要刪除這則註解嗎？')) return;
                 await db.collection('stayComments').doc(doc.id).delete();
                 openCommentModalOffice(appId);
