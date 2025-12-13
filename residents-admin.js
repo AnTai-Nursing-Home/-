@@ -762,7 +762,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     function addRecallSheet(sheetName, rows){
       const ws = wb.addWorksheet(sheetName, {views:[{state:'frozen', ySplit:2}]});
       ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0,
-                       margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+                       horizontalCentered:true,
+                       margins:{left:0.1,right:0.1,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
       ws.columns = [
         {header:'序號', key:'no', width:6},
         {header:'職稱', key:'title', width:12},
@@ -789,6 +790,25 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       // Data rows
       const list = Array.isArray(rows) ? rows : [];
       list.forEach((r, idx)=>{
+        // Section separator row (for combining groups)
+        if (r && r.__section) {
+          const rr = ws.addRow([r.__section, '', '', '', '', '', '', '']);
+          ws.mergeCells(`A${rr.number}:H${rr.number}`);
+          rr.getCell(1).font = {name:'Microsoft JhengHei', size:12, bold:true};
+          rr.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+          rr.height = 20;
+          rr.getCell(1).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'}};
+          // border for merged row
+          for (let c = 1; c <= 8; c++) {
+            rr.getCell(c).border = {
+              top: {style:'thin'},
+              left: {style:'thin'},
+              bottom: {style:'thin'},
+              right: {style:'thin'}
+            };
+          }
+          return;
+        }
         const row = ws.addRow([
           r['序'] || (idx+1),
           r['職稱'] || '',
@@ -810,8 +830,10 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
 
     addRecallSheet('召回名冊-護理師', roster['護理師'] || []);
     addRecallSheet('召回名冊-外籍照服員', roster['外籍照服員'] || []);
-    addRecallSheet('召回名冊-台籍照服員', roster['台籍照服員'] || []);
-    addRecallSheet('召回名冊-其他', roster['其他'] || []);
+    const tai = roster['台籍照服員'] || [];
+    const other = roster['其他'] || [];
+    const taiOther = [...tai, {__section:'其他'}, ...other];
+    addRecallSheet('召回名冊-台籍+其他', taiOther);
   })();
 ;
 
