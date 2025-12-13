@@ -750,9 +750,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
                      margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
-})()
+})();
   // ===== 緊急召回名單（依名冊固定內容，不抓資料庫）=====
-  (function addRecallRosterSheets(){
+;  (function addRecallRosterSheets(){
     const roster = (typeof __RECALL_ROSTER !== 'undefined') ? __RECALL_ROSTER : {};
     function cleanOrder(v){
       if(!v) return '';
