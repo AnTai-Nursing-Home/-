@@ -765,14 +765,14 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
                        horizontalCentered:true,
                        margins:{left:0.1,right:0.1,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
       ws.columns = [
-        {header:'序號', key:'no', width:6},
-        {header:'職稱', key:'title', width:12},
-        {header:'姓名', key:'name', width:12},
-        {header:'居住地', key:'addr', width:22},
-        {header:'召回時間', key:'time', width:14},
-        {header:'召回順序', key:'order', width:10},
-        {header:'手機', key:'mobile', width:16},
-        {header:'電話', key:'phone', width:16}
+        {header:'序號', key:'no', width:13.25},
+        {header:'職稱', key:'title', width:13.25},
+        {header:'姓名', key:'name', width:13.25},
+        {header:'居住地', key:'addr', width:21.38},
+        {header:'召回時間', key:'time', width:21.38},
+        {header:'召回順序', key:'order', width:21.38},
+        {header:'手機', key:'mobile', width:21.38},
+        {header:'電話', key:'phone', width:21.38}
       ];
 
       // Title
@@ -825,6 +825,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       });
 
       // Set borders for all used cells (styleRow handles each cell already)
+            // 統一列高
+      ws.eachRow({ includeEmpty: false }, (r)=>{ r.height = 26; });
+
       ws.autoFilter = { from: 'A2', to: 'H2' };
     }
 
