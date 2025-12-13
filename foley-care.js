@@ -95,16 +95,30 @@ document.addEventListener('firebase-ready', () => {
                 careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
                 return;
             }
+            // 先收集文件，改由前端依「床號」排序，確保顯示順序穩定且符合使用習慣
+            const docs = [];
+            snapshot.forEach(doc => {
+                docs.push({ id: doc.id, data: doc.data() });
+            });
+
+            // 解析床號（例如 "302-2" -> 302），若無法解析則排到最後
+            const bedNum = (residentName) => {
+                const b = residentsData[residentName]?.bedNumber || '';
+                const firstPart = String(b).split('-')[0];
+                const n = parseInt(firstPart, 10);
+                return Number.isFinite(n) ? n : 999999;
+            };
+
+            docs.sort((a, b) => bedNum(a.data.residentName) - bedNum(b.data.residentName));
 
             let listHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            docs.forEach(({ id, data }) => {
                 const status = data.closingDate
                     ? `<span class="badge bg-secondary">${getText('status_closed')}</span>`
                     : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
 
                 listHTML += `
-                    <a href="#" class="list-group-item list-group-item-action" data-id="${doc.id}">
+                    <a href="#" class="list-group-item list-group-item-action" data-id="${id}">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                             <small>${status}</small>
@@ -112,6 +126,7 @@ document.addEventListener('firebase-ready', () => {
                         <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
                     </a>`;
             });
+
             careFormList.innerHTML = listHTML;
 
         } catch (error) {
