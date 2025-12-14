@@ -841,6 +841,123 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
 ;
 
 
+
+  // ===== 照服員名冊（外籍・未離職）===== 
+  await (async function addCaregiverRosterSheet(){
+    try{
+      const ws = wb.addWorksheet('照服員名冊(外籍)', {views:[{state:'frozen', ySplit:2}]});
+
+      // columns
+      ws.columns = [
+        {header:'#', key:'no', width:6},
+        {header:'姓名', key:'name', width:28},
+        {header:'狀態', key:'status', width:14}
+      ];
+
+      // Title
+      ws.mergeCells('A1:C1');
+      const titleCell = ws.getCell('A1');
+      titleCell.value = '照服員名冊（外籍・未離職）';
+      titleCell.font = { name:'Microsoft JhengHei', bold:true, size:14, color:{argb:'FFFFFFFF'} };
+      titleCell.alignment = { horizontal:'left', vertical:'middle' };
+      titleCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF4CAF50'} };
+      ws.getRow(1).height = 26;
+
+      // Header row
+      const headerRow = ws.getRow(2);
+      headerRow.values = ['#','姓名','狀態'];
+      styleRow(headerRow, {isHeader:true, center:true, height:20, wrap:false});
+
+      // ===== 取得員工（caregivers）=====
+      let employees = [];
+      try{
+        const snap = await db.collection('caregivers').orderBy('sortOrder','asc').get();
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          if (d.isActive === false) return;
+          employees.push({ id: doc.id, name: d.name || doc.id });
+        });
+      }catch(e){
+        console.warn('讀取 caregivers 失敗，改用不排序讀取', e);
+        const snap = await db.collection('caregivers').get();
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          if (d.isActive === false) return;
+          employees.push({ id: doc.id, name: d.name || doc.id });
+        });
+      }
+      employees.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'zh-Hant'));
+
+      // ===== 取得今日外宿名單（核准且涵蓋今日）=====
+      function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0); }
+      function endOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999); }
+      const today = new Date();
+      const dayStart = startOfDay(today);
+      const dayEnd = endOfDay(today);
+
+      const outSet = new Set();
+      try{
+        let snap = null;
+        try{
+          if (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.Timestamp) {
+            snap = await db.collection('stayApplications')
+              .where('statusId','==','approved')
+              .where('endDateTime','>=', firebase.firestore.Timestamp.fromDate(dayStart))
+              .orderBy('endDateTime','asc')
+              .get();
+          } else {
+            // no Timestamp: fallback
+            snap = await db.collection('stayApplications')
+              .where('statusId','==','approved')
+              .get();
+          }
+        }catch(e){
+          console.warn('名冊狀態判定查詢失敗，改用備援抓取核准單：', e);
+          snap = await db.collection('stayApplications')
+            .where('statusId','==','approved')
+            .get();
+        }
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          const s = d.startDateTime?.toDate ? d.startDateTime.toDate() : null;
+          const e = d.endDateTime?.toDate ? d.endDateTime.toDate() : null;
+          if (!s || !e) return;
+          if (s <= dayEnd && e >= dayStart) {
+            if (d.applicantId) outSet.add(d.applicantId);
+          }
+        });
+      }catch(e){
+        console.warn('抓取 stayApplications 失敗（照服員名冊狀態可能不準）', e);
+      }
+
+      // rows
+      if (!employees.length){
+        const r = ws.addRow([1,'目前沒有在職的外籍照服員','']);
+        styleRow(r, {alt:false, center:false, height:18});
+      } else {
+        employees.forEach((emp, i)=>{
+          const isOut = outSet.has(emp.id);
+          const statusText = isOut ? '外宿中' : '於宿舍';
+          const row = ws.addRow([i+1, emp.name || '', statusText]);
+          styleRow(row, {alt:(i%2===1), center:true, height:18});
+
+          // status cell badge-like fill
+          const sc = row.getCell(3);
+          sc.font = { name:'Microsoft JhengHei', bold:true, size:11, color:{argb:'FFFFFFFF'} };
+          sc.alignment = { vertical:'middle', horizontal:'center' };
+          sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: isOut ? 'FFF59E0B' : 'FF16A34A'} };
+        });
+      }
+
+      ws.autoFilter = { from: 'A2', to: 'C2' };
+      ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0,
+                       horizontalCentered:true,
+                       margins:{left:0.2,right:0.2,top:0.25,bottom:0.25,header:0.1,footer:0.1} };
+    }catch(e){
+      console.warn('匯出時建立「照服員名冊」分頁失敗：', e);
+    }
+  })();
+
   // ===== 下載 =====
   const blob = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
