@@ -59,19 +59,19 @@
                   <div class="row g-3">
                     <div class="col-md-4">
                       <label class="form-label fw-bold" data-i18n="breakfast">早餐</label>
-                      <textarea id="breakfast" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                      <textarea id="breakfast" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
                     </div>
                     <div class="col-md-4">
                       <label class="form-label fw-bold" data-i18n="lunch">午餐</label>
-                      <textarea id="lunch" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                      <textarea id="lunch" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
                     </div>
                     <div class="col-md-4">
                       <label class="form-label fw-bold" data-i18n="dinner">晚餐</label>
-                      <textarea id="dinner" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                      <textarea id="dinner" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
                     </div>
                     <div class="col-12">
                       <label class="form-label" data-i18n="notes">備註</label>
-                      <textarea id="notes" class="form-control" rows="3" placeholder="（例如：特殊飲食、臨時異動、對帳說明等）"></textarea>
+                      <textarea id="notes" class="form-control" rows="3" data-i18n-placeholder="meal_placeholder_notes" placeholder=""></textarea>
                     </div>
 
                     <div class="col-12">
@@ -119,11 +119,11 @@
           </div>
           <div class="mb-3">
             <label class="form-label" data-i18n="signer_name">簽名（姓名）</label>
-            <input type="text" id="signerName" class="form-control" placeholder="請輸入姓名" />
+            <input type="text" id="signerName" class="form-control" data-i18n-placeholder="meal_signer_placeholder_name" placeholder="" />
           </div>
           <div class="mb-0">
             <label class="form-label" data-i18n="signature_note_optional">簽名備註（選填）</label>
-            <input type="text" id="signerNote" class="form-control" placeholder="例如：早班 / 代班 / 代訂" />
+            <input type="text" id="signerNote" class="form-control" data-i18n-placeholder="meal_signer_placeholder_note" placeholder="" />
           </div>
           <div class="form-text mt-2" data-i18n="signature_auto_time">
             系統會自動記錄簽名時間。
