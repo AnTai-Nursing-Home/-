@@ -115,6 +115,8 @@ const translations = {
 'delivery_date_en': 'Delivery date',
 'meal_date': '用餐日期',
 'meal_date_en': 'Meal date',
+        'meal_date_auto_note': '* Meal date will be set to the day after the delivery date automatically.',
+        'meal_date_auto_note': '※ 用餐日期會自動帶入送單日期的下一天',
 'customer_type': '顧客別',
 'meal_type': '用餐別',
 'number_of_people': '用餐人數',
@@ -185,6 +187,8 @@ const translations = {
 'meal_msg_save_failed': '儲存失敗，請稍後再試',
 'meal_msg_enter_signer': '請輸入簽名（姓名）',
 'meal_msg_date_changed': '日期已變更，請按「載入」或直接填寫後儲存',
+        'meal_msg_auto_loaded': 'Auto-loaded the corresponding meal-date record.',
+        'meal_msg_auto_loaded': '已自動載入對應用餐日期資料',
 
         // --- 照服員外宿申請系統 ---
         'caregiver_stay_system_menu': "外宿申請系統",
