@@ -849,9 +849,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
 
       // columns
       ws.columns = [
-        {header:'#', key:'no', width:6},
-        {header:'姓名', key:'name', width:28},
-        {header:'狀態', key:'status', width:14}
+        {header:'#', key:'no', width:50},
+        {header:'姓名', key:'name', width:50},
+        {header:'狀態', key:'status', width:50}
       ];
 
       // Title
@@ -866,7 +866,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       // Header row
       const headerRow = ws.getRow(2);
       headerRow.values = ['#','姓名','狀態'];
-      styleRow(headerRow, {isHeader:true, center:true, height:20, wrap:false});
+      styleRow(headerRow, {isHeader:true, center:true, height:26, wrap:false});
 
       // ===== 取得員工（caregivers）=====
       let employees = [];
@@ -933,13 +933,13 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       // rows
       if (!employees.length){
         const r = ws.addRow([1,'目前沒有在職的外籍照服員','']);
-        styleRow(r, {alt:false, center:false, height:18});
+        styleRow(r, {alt:false, center:false, height:26});
       } else {
         employees.forEach((emp, i)=>{
           const isOut = outSet.has(emp.id);
           const statusText = isOut ? '外宿中' : '於宿舍';
           const row = ws.addRow([i+1, emp.name || '', statusText]);
-          styleRow(row, {alt:(i%2===1), center:true, height:18});
+          styleRow(row, {alt:(i%2===1), center:true, height:26});
 
           // status cell badge-like fill
           const sc = row.getCell(3);
@@ -948,6 +948,11 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           sc.fill = { type:'pattern', pattern:'solid', fgColor:{argb: isOut ? 'FFF59E0B' : 'FF16A34A'} };
         });
       }
+      // 統一列高 26、欄寬 50
+      try{
+        ws.columns.forEach(c=>{ c.width = 50; });
+        ws.eachRow({ includeEmpty: true }, (row)=>{ row.height = 26; });
+      }catch(_e){}
 
       ws.autoFilter = { from: 'A2', to: 'C2' };
       ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0,
