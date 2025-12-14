@@ -1,11 +1,10 @@
 // meal-caregiver.js
-// 點餐系統（照服員端）- 表單版（像每日餐點登記表）
-// - 送單日期(Delivery date) + 用餐日期(Meal date)
-// - 葷/素 × (搗打餐 / 糊餐+蔬菜 / 燉碎+飯 / 一般餐) -> 自動小計/總計
+// 點餐系統（照服員端）- 表單版（每日餐點登記表）
+// 規則：用餐日期 = 送單日期 + 1 天
+// - 只需要選送單日期，系統自動帶出用餐日期（不可手動調整）
+// - 送單日期一改就會自動載入該「用餐日期」的點餐數量（不需要再按載入）
 // - 儲存時必須簽名，記錄「誰負責定餐」(早班A)
 // - Firestore: collection = mealOrders, docId = YYYY-MM-DD（用餐日期）
-//
-// 依賴：i18n.js（getText / applyTranslations）+ firebase-init.js（觸發 firebase-ready, 建立 db）
 
 (function () {
   "use strict";
@@ -62,7 +61,6 @@
   }
 
   function setHeaderInfo(mealISO) {
-    // 民國年
     const y = Number(mealISO?.slice(0, 4));
     if (!Number.isFinite(y)) {
       $("rocYearLabel").textContent = "";
@@ -71,12 +69,11 @@
     }
     $("rocYearLabel").textContent = `${y - 1911}年(Y)`;
 
-    // 星期
     const d = new Date(mealISO + "T00:00:00");
     const weekday = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
     $("weekdayText").textContent = weekday;
 
-    // 農曆 / 節氣：若你之後要精準計算，可接外部函式；目前先留空（可手動）
+    // 農曆/節氣：目前先留空（如要精準可再接計算）
     if (!$("lunarText").textContent) $("lunarText").textContent = "";
     if (!$("solarTermText").textContent) $("solarTermText").textContent = "";
   }
@@ -107,56 +104,6 @@
     setNum("grandTotal", meat + veg);
   }
 
-  function getFormData() {
-    return {
-      mealDate: $("mealDate").value,
-      deliveryDate: $("deliveryDate").value,
-
-      meat: {
-        blenderized: numVal("meat_blenderized"),
-        congeeVeg: numVal("meat_congeeVeg"),
-        cookedRiceMinced: numVal("meat_cookedRiceMinced"),
-        general: numVal("meat_general"),
-        subtotal: numVal("meat_subtotal"),
-      },
-      vegetarian: {
-        blenderized: numVal("veg_blenderized"),
-        congeeVeg: numVal("veg_congeeVeg"),
-        cookedRiceMinced: numVal("veg_cookedRiceMinced"),
-        general: numVal("veg_general"),
-        subtotal: numVal("veg_subtotal"),
-      },
-      grandTotal: numVal("grandTotal"),
-
-      // 可選：農曆/節氣（目前頁面只顯示，不強制存；你若要手動也可加 input）
-      lunarText: $("lunarText").textContent || "",
-      solarTermText: $("solarTermText").textContent || "",
-      weekdayText: $("weekdayText").textContent || "",
-    };
-  }
-
-  function setFormData(data) {
-    $("mealDate").value = data?.mealDate || "";
-    $("deliveryDate").value = data?.deliveryDate || "";
-
-    setNum("meat_blenderized", data?.meat?.blenderized ?? 0);
-    setNum("meat_congeeVeg", data?.meat?.congeeVeg ?? 0);
-    setNum("meat_cookedRiceMinced", data?.meat?.cookedRiceMinced ?? 0);
-    setNum("meat_general", data?.meat?.general ?? 0);
-
-    setNum("veg_blenderized", data?.vegetarian?.blenderized ?? 0);
-    setNum("veg_congeeVeg", data?.vegetarian?.congeeVeg ?? 0);
-    setNum("veg_cookedRiceMinced", data?.vegetarian?.cookedRiceMinced ?? 0);
-    setNum("veg_general", data?.vegetarian?.general ?? 0);
-
-    recalc();
-
-    $("lunarText").textContent = data?.lunarText || "";
-    $("solarTermText").textContent = data?.solarTermText || "";
-    $("weekdayText").textContent = data?.weekdayText || "";
-    setHeaderInfo($("mealDate").value);
-  }
-
   function clearSignatureUI() {
     $("signatureDisplay").textContent = "—";
     $("signatureTimeDisplay").textContent = "";
@@ -180,16 +127,58 @@
     }
   }
 
-  function validateBeforeSave(payload) {
-    if (!payload.mealDate) return getText("meal_msg_select_date");
-    if (!payload.deliveryDate) return getText("meal_msg_select_delivery_date");
+  function setFormNumbers(data) {
+    setNum("meat_blenderized", data?.meat?.blenderized ?? 0);
+    setNum("meat_congeeVeg", data?.meat?.congeeVeg ?? 0);
+    setNum("meat_cookedRiceMinced", data?.meat?.cookedRiceMinced ?? 0);
+    setNum("meat_general", data?.meat?.general ?? 0);
 
-    // 至少要有一個數字 > 0
+    setNum("veg_blenderized", data?.vegetarian?.blenderized ?? 0);
+    setNum("veg_congeeVeg", data?.vegetarian?.congeeVeg ?? 0);
+    setNum("veg_cookedRiceMinced", data?.vegetarian?.cookedRiceMinced ?? 0);
+    setNum("veg_general", data?.vegetarian?.general ?? 0);
+
+    recalc();
+  }
+
+  function getPayload() {
+    return {
+      // 用餐日期 docId（不可手動）
+      mealDate: $("mealDate").value,
+      // 送單日期（由使用者選）
+      deliveryDate: $("deliveryDate").value,
+
+      meat: {
+        blenderized: numVal("meat_blenderized"),
+        congeeVeg: numVal("meat_congeeVeg"),
+        cookedRiceMinced: numVal("meat_cookedRiceMinced"),
+        general: numVal("meat_general"),
+        subtotal: numVal("meat_subtotal"),
+      },
+      vegetarian: {
+        blenderized: numVal("veg_blenderized"),
+        congeeVeg: numVal("veg_congeeVeg"),
+        cookedRiceMinced: numVal("veg_cookedRiceMinced"),
+        general: numVal("veg_general"),
+        subtotal: numVal("veg_subtotal"),
+      },
+      grandTotal: numVal("grandTotal"),
+
+      lunarText: $("lunarText").textContent || "",
+      solarTermText: $("solarTermText").textContent || "",
+      weekdayText: $("weekdayText").textContent || "",
+    };
+  }
+
+  function validateBeforeSave(payload) {
+    if (!payload.deliveryDate) return getText("meal_msg_select_delivery_date");
+    // mealDate 由 deliveryDate 自動算出
+    if (!payload.mealDate) return getText("meal_msg_select_date");
     if ((payload.grandTotal ?? 0) <= 0) return getText("meal_msg_need_any_people");
     return null;
   }
 
-  async function loadForMealDate(mealISO) {
+  async function loadForMealDate(mealISO, deliveryISO) {
     const _db = safeDb();
     if (!_db) {
       alert(getText("meal_msg_firebase_not_ready"));
@@ -204,18 +193,21 @@
       const docRef = _db.collection("mealOrders").doc(mealISO);
       const snap = await docRef.get();
 
+      // 先把日期與表頭更新（不管有沒有資料）
+      $("mealDate").value = mealISO;
+      $("deliveryDate").value = deliveryISO;
+      setHeaderInfo(mealISO);
+
       if (!snap.exists) {
-        // 新增模式：預設送單日期=前一天（你圖上是 送單=12/13, 用餐=12/14）
-        $("mealDate").value = mealISO;
-        $("deliveryDate").value = addDaysISO(mealISO, -1);
-        setHeaderInfo(mealISO);
-        recalc();
+        // 沒資料就清空數字
+        setFormNumbers({});
         showStatus(getText("meal_msg_no_data"), "secondary");
         return;
       }
 
       const data = snap.data() || {};
-      setFormData(data);
+      // 以資料庫為準填數字
+      setFormNumbers(data);
 
       if (data.signedBy) {
         const signedAt = data.signedAt?.toDate ? data.signedAt.toDate() : (data.signedAt ? new Date(data.signedAt) : null);
@@ -242,7 +234,7 @@
       showStatus(getText("meal_msg_saving"), "secondary");
 
       const now = new Date();
-      const docId = payload.mealDate; // 用餐日期作為 docId
+      const docId = payload.mealDate;
       const docRef = _db.collection("mealOrders").doc(docId);
 
       const dataToSave = {
@@ -301,11 +293,22 @@
     modal.show();
   }
 
+  async function syncByDeliveryDate() {
+    const deliveryISO = $("deliveryDate").value;
+    if (!deliveryISO) {
+      clearStatus();
+      clearSignatureUI();
+      return;
+    }
+    const mealISO = addDaysISO(deliveryISO, 1);
+    // mealDate 不可手動：在這裡統一計算並自動載入
+    await loadForMealDate(mealISO, deliveryISO);
+  }
+
   function wireUI() {
-    // 預設：用餐=明天，送單=今天（常見：今天填明天餐）
-    const today = todayISO();
-    $("deliveryDate").value = today;
-    $("mealDate").value = addDaysISO(today, 1);
+    // 預設：送單=今天，用餐=明天（自動算）
+    $("deliveryDate").value = todayISO();
+    $("mealDate").value = addDaysISO($("deliveryDate").value, 1);
     setHeaderInfo($("mealDate").value);
 
     // 任何數字改變都重算
@@ -314,22 +317,16 @@
       el.addEventListener("change", recalc);
     });
 
-    $("mealDate").addEventListener("change", () => {
-      setHeaderInfo($("mealDate").value);
-      clearStatus();
-      clearSignatureUI();
-      showStatus(getText("meal_msg_date_changed"), "secondary");
+    // 送單日期改變 => 用餐日期自動 +1 且自動載入
+    $("deliveryDate").addEventListener("change", () => {
+      syncByDeliveryDate();
+      showStatus(getText("meal_msg_auto_loaded"), "secondary");
     });
 
-    $("loadBtn").addEventListener("click", async () => {
-      const d = $("mealDate").value;
-      if (!d) return alert(getText("meal_msg_select_date"));
-      await loadForMealDate(d);
-    });
-
+    // 儲存
     $("saveBtn").addEventListener("click", async () => {
       recalc();
-      const payload = getFormData();
+      const payload = getPayload();
       const msg = validateBeforeSave(payload);
       if (msg) return alert(msg);
 
@@ -338,9 +335,9 @@
       });
     });
 
+    // 初次進入就自動載入（不用按載入）
+    syncByDeliveryDate();
     recalc();
-    // 初次進入就自動載入預設用餐日
-    loadForMealDate($("mealDate").value);
   }
 
   document.addEventListener("firebase-ready", () => {
