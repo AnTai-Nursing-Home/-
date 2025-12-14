@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title data-i18n="meal_order_system_title">點餐系統</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+
+  <!-- Firebase SDK (和你其他頁面一致；若你已全站共用可保留/調整) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <div class="container my-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-11">
+        <div class="card shadow">
+          <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fas fa-utensils fa-lg"></i>
+              <h4 class="m-0" data-i18n="meal_order_system_title">點餐系統</h4>
+            </div>
+            <a href="caregiver.html" class="btn btn-sm btn-outline-light">
+              <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_menu">回照服員選單</span>
+            </a>
+          </div>
+
+          <div class="card-body">
+            <div class="alert alert-info small mb-4" role="alert">
+              <i class="fas fa-circle-info me-2"></i>
+              <span data-i18n="meal_order_hint">
+                每日點餐完成後按「儲存」，系統會要求簽名，以記錄負責點餐人員。
+              </span>
+            </div>
+
+            <div class="row g-3 align-items-end mb-3">
+              <div class="col-md-4">
+                <label class="form-label" data-i18n="date">日期</label>
+                <input type="date" id="mealDate" class="form-control"/>
+              </div>
+              <div class="col-md-8 d-flex gap-2 justify-content-md-end">
+                <button id="loadBtn" class="btn btn-outline-secondary">
+                  <i class="fas fa-rotate me-2"></i><span data-i18n="load">載入</span>
+                </button>
+                <button id="saveBtn" class="btn btn-primary">
+                  <i class="fas fa-floppy-disk me-2"></i><span data-i18n="save_and_sign">儲存並簽名</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12">
+                <div class="p-3 border rounded bg-light">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold" data-i18n="breakfast">早餐</label>
+                      <textarea id="breakfast" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold" data-i18n="lunch">午餐</label>
+                      <textarea id="lunch" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold" data-i18n="dinner">晚餐</label>
+                      <textarea id="dinner" class="form-control" rows="4" placeholder="（可輸入餐點內容、數量、備註）"></textarea>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label" data-i18n="notes">備註</label>
+                      <textarea id="notes" class="form-control" rows="3" placeholder="（例如：特殊飲食、臨時異動、對帳說明等）"></textarea>
+                    </div>
+
+                    <div class="col-12">
+                      <div class="d-flex flex-wrap gap-2 small text-muted">
+                        <span class="badge text-bg-secondary" id="statusBadge" style="display:none;"></span>
+                        <span id="lastSignedInfo"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4"/>
+
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="small text-muted">
+                <i class="fas fa-database me-2"></i><span data-i18n="data_saved_to_cloud">資料會儲存到雲端 Firestore</span>
+              </div>
+              <a href="index.html" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-home me-2"></i><span data-i18n="back_to_home">返回首頁</span>
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 簽名 Modal -->
+  <div class="modal fade" id="signModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" data-i18n="signature_required">需要簽名</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning small mb-3">
+            <i class="fas fa-pen-nib me-2"></i>
+            <span data-i18n="signature_explain">
+              為了追蹤「誰負責定餐」，儲存時需要填寫簽名（姓名）。
+            </span>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" data-i18n="signer_name">簽名（姓名）</label>
+            <input type="text" id="signerName" class="form-control" placeholder="請輸入姓名" />
+          </div>
+          <div class="mb-0">
+            <label class="form-label" data-i18n="signature_note_optional">簽名備註（選填）</label>
+            <input type="text" id="signerNote" class="form-control" placeholder="例如：早班 / 代班 / 代訂" />
+          </div>
+          <div class="form-text mt-2" data-i18n="signature_auto_time">
+            系統會自動記錄簽名時間。
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <span data-i18n="cancel">取消</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="confirmSignBtn">
+            <i class="fas fa-check me-2"></i><span data-i18n="confirm_and_save">確認並儲存</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
+    © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
+  </footer>
+
+  <script src="i18n.js"></script>
+  <script src="main.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="meal-caregiver.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
