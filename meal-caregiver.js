@@ -65,21 +65,21 @@
   }
 
   function validateBeforeSave(payload) {
-    if (!payload.date) return "請先選擇日期";
+    if (!payload.date) return getText("meal_msg_select_date");
     // 允許有空餐別（例如特殊狀況），但至少要有一個欄位有內容才讓存
     const hasAny =
       (payload.breakfast && payload.breakfast.length > 0) ||
       (payload.lunch && payload.lunch.length > 0) ||
       (payload.dinner && payload.dinner.length > 0) ||
       (payload.notes && payload.notes.length > 0);
-    if (!hasAny) return "請至少輸入一項餐點內容或備註";
+    if (!hasAny) return getText("meal_msg_need_any_content");
     return null;
   }
 
   async function loadForDate(dateISO) {
     const _db = safeDb();
     if (!_db) {
-      alert("Firebase 尚未初始化，請確認 firebase-init.js");
+      alert(getText("meal_msg_firebase_not_ready"));
       return;
     }
 
@@ -87,13 +87,13 @@
     setLastSignedInfo("");
 
     try {
-      showStatus("載入中…", "secondary");
+      showStatus(getText("meal_msg_loading"), "secondary");
       const docRef = _db.collection("mealOrders").doc(dateISO);
       const snap = await docRef.get();
 
       if (!snap.exists) {
         setFormData({});
-        showStatus("此日期尚無資料", "secondary");
+        showStatus(getText("meal_msg_no_data"), "secondary");
         return;
       }
 
@@ -107,26 +107,26 @@
         setLastSignedInfo(
           `<i class="fas fa-pen-fancy me-2"></i>最後簽名：<b>${escapeHtml(String(data.signedBy))}</b>${note} <span class="text-muted">(${escapeHtml(t)})</span>`
         );
-        showStatus("已載入（含簽名紀錄）", "success");
+        showStatus(getText("meal_msg_loaded_with_sign"), "success");
       } else {
-        showStatus("已載入", "success");
+        showStatus(getText("meal_msg_loaded"), "success");
       }
     } catch (err) {
       console.error(err);
-      alert("載入失敗，請稍後再試");
-      showStatus("載入失敗", "danger");
+      alert(getText("meal_msg_load_failed"));
+      showStatus(getText("meal_msg_load_failed"), "danger");
     }
   }
 
   async function saveWithSignature(payload, signerName, signerNote) {
     const _db = safeDb();
     if (!_db) {
-      alert("Firebase 尚未初始化，請確認 firebase-init.js");
+      alert(getText("meal_msg_firebase_not_ready"));
       return;
     }
 
     try {
-      showStatus("儲存中…", "secondary");
+      showStatus(getText("meal_msg_saving"), "secondary");
 
       const now = new Date();
       const docId = payload.date;
@@ -148,15 +148,15 @@
 
       await docRef.set(dataToSave, { merge: true });
 
-      showStatus("已儲存", "success");
+      showStatus(getText("meal_msg_saved"), "success");
       const note = signerNote ? `（${escapeHtml(String(signerNote))}）` : "";
       setLastSignedInfo(
         `<i class="fas fa-pen-fancy me-2"></i>最後簽名：<b>${escapeHtml(String(signerName))}</b>${note} <span class="text-muted">(${escapeHtml(now.toLocaleString())})</span>`
       );
     } catch (err) {
       console.error(err);
-      alert("儲存失敗，請稍後再試");
-      showStatus("儲存失敗", "danger");
+      alert(getText("meal_msg_save_failed"));
+      showStatus(getText("meal_msg_save_failed"), "danger");
     }
   }
 
@@ -184,7 +184,7 @@
       const note = $("signerNote").value.trim();
 
       if (!name) {
-        alert("請輸入簽名（姓名）");
+        alert(getText("meal_msg_enter_signer"));
         return;
       }
 
@@ -209,7 +209,7 @@
 
     $("loadBtn").addEventListener("click", async () => {
       const d = $("mealDate").value;
-      if (!d) return alert("請先選擇日期");
+      if (!d) return alert(getText("meal_msg_select_date"));
       await loadForDate(toISODate(d));
     });
 
@@ -227,7 +227,7 @@
     $("mealDate").addEventListener("change", () => {
       clearStatus();
       setLastSignedInfo("");
-      showStatus("日期已變更，請按「載入」或直接填寫後儲存", "secondary");
+      showStatus(getText("meal_msg_date_changed"), "secondary");
     });
   }
 
