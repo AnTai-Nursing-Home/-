@@ -35,10 +35,7 @@
               </a>
 
               <div class="d-flex gap-2">
-                <button id="loadBtn" class="btn btn-outline-secondary">
-                  <i class="fas fa-rotate me-2"></i><span data-i18n="load">載入</span>
-                </button>
-                <button id="saveBtn" class="btn btn-primary">
+<button id="saveBtn" class="btn btn-primary">
                   <i class="fas fa-floppy-disk me-2"></i><span data-i18n="save_and_sign">儲存並簽名</span>
                 </button>
               </div>
@@ -131,7 +128,8 @@
                         <input type="date" id="deliveryDate" class="form-control form-control-sm text-center"/>
                       </td>
                       <td class="text-center align-middle" rowspan="2">
-                        <input type="date" id="mealDate" class="form-control form-control-sm text-center"/>
+                        <input type="date" id="mealDate" class="form-control form-control-sm text-center" disabled />
+                        <div class="form-text small mt-1" data-i18n="meal_date_auto_note">※ 用餐日期會自動帶入送單日期的下一天</div>
                       </td>
                       <td class="text-center align-middle" rowspan="2">
                         <div class="small fw-bold" data-i18n="resident">住民</div>
