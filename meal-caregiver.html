@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="style.css"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
-  <!-- Firebase SDK (和你其他頁面一致；若你已全站共用可保留/調整) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
@@ -20,7 +20,7 @@
     <div class="row justify-content-center">
       <div class="col-lg-11">
         <div class="card shadow">
-          <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
+          <div class="card-header bg-dark text-white d-flex align-items-center">
             <div class="d-flex align-items-center gap-3">
               <i class="fas fa-utensils fa-lg"></i>
               <h4 class="m-0" data-i18n="meal_order_system_title">點餐系統</h4>
@@ -28,26 +28,13 @@
           </div>
 
           <div class="card-body">
-            
-            <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
               <a href="caregiver.html?view=dashboard" class="btn btn-back-menu">
                 <i class="fas fa-arrow-left me-2"></i>
                 <span data-i18n="back_to_caregiver_system">返回照服員系統</span>
               </a>
-            </div>
-<div class="alert alert-info small mb-4" role="alert">
-              <i class="fas fa-circle-info me-2"></i>
-              <span data-i18n="meal_order_hint">
-                每日點餐完成後按「儲存」，系統會要求簽名，以記錄負責點餐人員。
-              </span>
-            </div>
 
-            <div class="row g-3 align-items-end mb-3">
-              <div class="col-md-4">
-                <label class="form-label" data-i18n="date">日期</label>
-                <input type="date" id="mealDate" class="form-control"/>
-              </div>
-              <div class="col-md-8 d-flex gap-2 justify-content-md-end">
+              <div class="d-flex gap-2">
                 <button id="loadBtn" class="btn btn-outline-secondary">
                   <i class="fas fa-rotate me-2"></i><span data-i18n="load">載入</span>
                 </button>
@@ -57,47 +44,181 @@
               </div>
             </div>
 
-            <div class="row g-3">
-              <div class="col-12">
-                <div class="p-3 border rounded bg-light">
-                  <div class="row g-3">
-                    <div class="col-md-4">
-                      <label class="form-label fw-bold" data-i18n="breakfast">早餐</label>
-                      <textarea id="breakfast" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label fw-bold" data-i18n="lunch">午餐</label>
-                      <textarea id="lunch" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label fw-bold" data-i18n="dinner">晚餐</label>
-                      <textarea id="dinner" class="form-control" rows="4" data-i18n-placeholder="meal_placeholder_mealitem" placeholder=""></textarea>
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label" data-i18n="notes">備註</label>
-                      <textarea id="notes" class="form-control" rows="3" data-i18n-placeholder="meal_placeholder_notes" placeholder=""></textarea>
-                    </div>
+            <div class="alert alert-info small mb-3 d-print-none" role="alert">
+              <i class="fas fa-circle-info me-2"></i>
+              <span data-i18n="meal_order_hint">
+                每日點餐完成後按「儲存」，系統會要求簽名，以記錄負責點餐人員。
+              </span>
+            </div>
 
-                    <div class="col-12">
-                      <div class="d-flex flex-wrap gap-2 small text-muted">
-                        <span class="badge text-bg-secondary" id="statusBadge" style="display:none;"></span>
-                        <span id="lastSignedInfo"></span>
-                      </div>
-                    </div>
+            <div class="meal-sheet border rounded">
+              <div class="meal-sheet-header border-bottom p-2">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div class="fw-bold">
+                    <span id="rocYearLabel"></span><span data-i18n="meal_sheet_title">每日餐點登記表</span>
+                    <span class="text-muted ms-2" data-i18n="meal_sheet_title_en">Daily meal record</span>
                   </div>
+                  <div class="d-flex flex-wrap align-items-center gap-3 small">
+                    <div><span data-i18n="lunar">農曆</span>：<span id="lunarText" class="fw-bold"></span></div>
+                    <div><span data-i18n="weekday">星期</span>：<span id="weekdayText" class="fw-bold"></span></div>
+                    <div><span data-i18n="solar_term">節氣</span>：<span id="solarTermText" class="fw-bold"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-bordered m-0 meal-table">
+                  <thead>
+                    <tr>
+                      <th class="text-center align-middle w-120">
+                        <div data-i18n="delivery_date">送單日期</div>
+                        <div class="small text-muted" data-i18n="delivery_date_en">Delivery date</div>
+                      </th>
+                      <th class="text-center align-middle w-120">
+                        <div data-i18n="meal_date">用餐日期</div>
+                        <div class="small text-muted" data-i18n="meal_date_en">Meal date</div>
+                      </th>
+                      <th class="text-center align-middle w-90">
+                        <div data-i18n="customer_type">顧客別</div>
+                      </th>
+                      <th class="text-center align-middle w-120">
+                        <div data-i18n="meal_type">用餐別</div>
+                      </th>
+                      <th class="text-center align-middle" colspan="4">
+                        <div data-i18n="number_of_people">用餐人數</div>
+                        <div class="small text-muted" data-i18n="number_of_people_en">Number of people</div>
+                      </th>
+                      <th class="text-center align-middle w-90">
+                        <div data-i18n="subtotal">小計</div>
+                        <div class="small text-muted" data-i18n="subtotal_en">Subtotal</div>
+                      </th>
+                      <th class="text-center align-middle w-110" rowspan="2">
+                        <div data-i18n="total">總計</div>
+                        <div class="small text-muted" data-i18n="total_en">Total</div>
+                      </th>
+                      <th class="text-center align-middle w-220" rowspan="2">
+                        <div data-i18n="staff_signature">員工簽名(A)</div>
+                        <div class="small text-muted" data-i18n="staff_signature_en">staff signature</div>
+                        <div class="mt-2 small fw-bold" data-i18n="day_shift_a">早班(A)</div>
+                        <div class="small text-muted" data-i18n="day_shift_en">Day shift(A)</div>
+                      </th>
+                    </tr>
+                    <tr>
+                      <th colspan="4" class="bg-white"></th>
+                      <th class="text-center align-middle w-90">
+                        <div data-i18n="blenderized">搗打餐</div>
+                        <div class="small text-muted" data-i18n="blenderized_en">blenderized</div>
+                      </th>
+                      <th class="text-center align-middle w-90">
+                        <div data-i18n="congee_veg">糊餐+蔬菜</div>
+                        <div class="small text-muted" data-i18n="congee_veg_en">Congee &amp; vegetables</div>
+                      </th>
+                      <th class="text-center align-middle w-120">
+                        <div data-i18n="cooked_rice_minced">燉碎+飯</div>
+                        <div class="small text-muted" data-i18n="cooked_rice_minced_en">cooked rice &amp; minced</div>
+                      </th>
+                      <th class="text-center align-middle w-90">
+                        <div data-i18n="general">一般餐</div>
+                        <div class="small text-muted" data-i18n="general_en">General</div>
+                      </th>
+                      <th class="bg-white"></th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <tr>
+                      <td class="text-center align-middle" rowspan="2">
+                        <input type="date" id="deliveryDate" class="form-control form-control-sm text-center"/>
+                      </td>
+                      <td class="text-center align-middle" rowspan="2">
+                        <input type="date" id="mealDate" class="form-control form-control-sm text-center"/>
+                      </td>
+                      <td class="text-center align-middle" rowspan="2">
+                        <div class="small fw-bold" data-i18n="resident">住民</div>
+                        <div class="small text-muted" data-i18n="patient_en">patient</div>
+                      </td>
+                      <td class="text-center align-middle">
+                        <div class="fw-bold" data-i18n="meat">葷食</div>
+                        <div class="small text-muted" data-i18n="meat_en">MEAT FOOD</div>
+                      </td>
+
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="meat_blenderized" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="meat_congeeVeg" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="meat_cookedRiceMinced" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="meat_general" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+
+                      <td class="text-center align-middle bg-subtotal">
+                        <input type="number" id="meat_subtotal" class="form-control form-control-sm text-center" readonly/>
+                      </td>
+                      <td class="text-center align-middle" rowspan="2">
+                        <input type="number" id="grandTotal" class="form-control form-control-sm text-center" readonly/>
+                      </td>
+                      <td class="align-middle" rowspan="2">
+                        <div class="px-2">
+                          <div class="fw-bold" id="signatureDisplay">—</div>
+                          <div class="small text-muted" id="signatureTimeDisplay"></div>
+                          <div class="small text-muted" id="signatureNoteDisplay"></div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="text-center align-middle">
+                        <div class="fw-bold" data-i18n="vegetarian">素食</div>
+                        <div class="small text-muted" data-i18n="vegetarian_en">VEGETAR</div>
+                      </td>
+
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="veg_blenderized" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="veg_congeeVeg" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="veg_cookedRiceMinced" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+                      <td class="text-center align-middle bg-meal">
+                        <input type="number" min="0" step="1" id="veg_general" class="form-control form-control-sm text-center meal-num"/>
+                      </td>
+
+                      <td class="text-center align-middle bg-subtotal">
+                        <input type="number" id="veg_subtotal" class="form-control form-control-sm text-center" readonly/>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="border-top p-2 small">
+                <div class="fw-bold mb-1" data-i18n="meal_sheet_note_zh">
+                  請白班A組同仁填寫完成，10:00拍照後傳送餐點單給廚師，確認明日餐點數量
+                </div>
+                <div class="text-muted" data-i18n="meal_sheet_note_en">
+                  Day shift team A fills in and takes a picture and sends the meal order to the chef before 16:40 to confirm the number of meals for tomorrow
                 </div>
               </div>
             </div>
 
-            <hr class="my-4"/>
+            <div class="d-flex flex-wrap gap-2 small text-muted mt-3">
+              <span class="badge text-bg-secondary" id="statusBadge" style="display:none;"></span>
+              <span id="lastSignedInfo"></span>
+            </div>
 
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center justify-content-between mt-3 d-print-none">
               <div class="small text-muted">
                 <i class="fas fa-database me-2"></i><span data-i18n="data_saved_to_cloud">資料會儲存到雲端 Firestore</span>
               </div>
-              <a href="index.html" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-home me-2"></i><span data-i18n="back_to_home">返回首頁</span>
-              </a>
+              <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="fas fa-print me-2"></i><span data-i18n="print">列印</span>
+              </button>
             </div>
 
           </div>
@@ -149,6 +270,32 @@
     <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
     © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
   </footer>
+
+  <style>
+    .meal-sheet { background: #fff; }
+    .meal-table th, .meal-table td { vertical-align: middle; }
+    .w-120 { width: 120px; min-width: 120px; }
+    .w-110 { width: 110px; min-width: 110px; }
+    .w-90  { width: 90px;  min-width: 90px;  }
+    .w-220 { width: 220px; min-width: 220px; }
+
+    /* 防止窄螢幕把總計那欄壓成一條 */
+    .meal-table { min-width: 1050px; table-layout: fixed; }
+    .meal-table th, .meal-table td { white-space: nowrap; }
+    .meal-table input.form-control { min-width: 70px; }
+
+    .bg-meal { background: #dff4f7; }
+    .bg-subtotal { background: #d6ebff; }
+
+    @media print {
+      .container { margin: 0 !important; }
+      .card { border: 0 !important; box-shadow: none !important; }
+      .card-header { display: none !important; }
+      .meal-sheet { border: 1px solid #000 !important; }
+      .meal-table th, .meal-table td { border-color: #000 !important; }
+      input.form-control { border: 0 !important; padding: 0 !important; }
+    }
+  </style>
 
   <script src="i18n.js"></script>
   <script src="main.js"></script>
