@@ -280,9 +280,8 @@
     .w-220 { width: 220px; min-width: 220px; }
 
     /* 防止窄螢幕把總計那欄壓成一條 */
-    .meal-table { min-width: 1050px; table-layout: fixed; }
-    .meal-table th, .meal-table td { white-space: nowrap; }
-    .meal-table input.form-control { min-width: 70px; }
+    .meal-table { min-width: 1350px; table-layout: auto; }
+        .meal-table input.form-control { min-width: 70px; }
 
     .bg-meal { background: #dff4f7; }
     .bg-subtotal { background: #d6ebff; }
@@ -295,6 +294,17 @@
       .meal-table th, .meal-table td { border-color: #000 !important; }
       input.form-control { border: 0 !important; padding: 0 !important; }
     }
+
+    /* 讓表頭可換行，避免餐別欄位文字擠在一起 */
+    .meal-table thead th { white-space: normal; word-break: break-word; line-height: 1.15; }
+    .meal-table thead .small { display:block; }
+    .meal-table thead th div { margin: 0; }
+    .meal-table tbody td { white-space: nowrap; }
+
+    /* 四個餐別欄位稍微加寬，避免文字重疊 */
+    .meal-table thead tr:nth-child(2) th.w-90 { width: 110px !important; min-width: 110px !important; }
+    .meal-table thead tr:nth-child(2) th.w-120 { width: 140px !important; min-width: 140px !important; }
+
   </style>
 
   <script src="i18n.js"></script>
