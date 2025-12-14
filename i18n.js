@@ -105,6 +105,44 @@ const translations = {
         'temperature_record_menu': '體溫登錄',
         'caregiver_leave_system': '照服員 預假/預班系統',
 
+        // --- 點餐系統 ---
+'meal_order_system_menu': '點餐系統',
+'meal_order_system_title': '點餐系統',
+'back_to_caregiver_menu': '回照服員選單',
+'meal_order_hint': '每日點餐完成後按「儲存」，系統會要求簽名，以記錄負責點餐人員。',
+'load': '載入',
+'save_and_sign': '儲存並簽名',
+'breakfast': '早餐',
+'lunch': '午餐',
+'dinner': '晚餐',
+'notes': '備註',
+'data_saved_to_cloud': '資料會儲存到雲端 Firestore',
+'signature_required': '需要簽名',
+'signature_explain': '為了追蹤「誰負責定餐」，儲存時需要填寫簽名（姓名）。',
+'signer_name': '簽名（姓名）',
+'signature_note_optional': '簽名備註（選填）',
+'signature_auto_time': '系統會自動記錄簽名時間。',
+'confirm_and_save': '確認並儲存',
+'meal_placeholder_mealitem': '（可輸入餐點內容、數量、備註）',
+'meal_placeholder_notes': '（例如：特殊飲食、臨時異動、對帳說明等）',
+'meal_signer_placeholder_name': '請輸入姓名',
+'meal_signer_placeholder_note': '例如：早班 / 代班 / 代訂',
+
+// 動態訊息（點餐）
+'meal_msg_select_date': '請先選擇日期',
+'meal_msg_need_any_content': '請至少輸入一項餐點內容或備註',
+'meal_msg_firebase_not_ready': 'Firebase 尚未初始化，請確認 firebase-init.js',
+'meal_msg_loading': '載入中…',
+'meal_msg_no_data': '此日期尚無資料',
+'meal_msg_loaded': '已載入',
+'meal_msg_loaded_with_sign': '已載入（含簽名紀錄）',
+'meal_msg_load_failed': '載入失敗，請稍後再試',
+'meal_msg_saving': '儲存中…',
+'meal_msg_saved': '已儲存',
+'meal_msg_save_failed': '儲存失敗，請稍後再試',
+'meal_msg_enter_signer': '請輸入簽名（姓名）',
+'meal_msg_date_changed': '日期已變更，請按「載入」或直接填寫後儲存',
+
         // --- 照服員外宿申請系統 ---
         'caregiver_stay_system_menu': "外宿申請系統",
         'stay_caregiver_title': '照服員外宿申請',
@@ -403,6 +441,45 @@ const translations = {
         'export_excel': 'Export Excel', 'print_report': 'Print Report', 'no_report_generated': 'Please select a month and upload the corresponding Excel schedule file.',
         'temp_report_title': 'Employee Temperature Log', 'clockin_report_title': 'Employee Clock-in/out Log',
         'clock_in': 'Clock In', 'clock_out': 'Clock Out',
+
+        // --- 點餐系統 ---
+'meal_order_system_menu': 'Meal Ordering',
+'meal_order_system_title': 'Meal Ordering System',
+'back_to_caregiver_menu': 'Back to Caregiver Menu',
+'meal_order_hint': 'After finishing the daily meal order, click “Save” and sign to record who is responsible for ordering.',
+'load': 'Load',
+'save_and_sign': 'Save & Sign',
+'breakfast': 'Breakfast',
+'lunch': 'Lunch',
+'dinner': 'Dinner',
+'notes': 'Notes',
+'data_saved_to_cloud': 'Data will be saved to Cloud Firestore',
+'signature_required': 'Signature Required',
+'signature_explain': 'To track who placed the meal order, a signature (name) is required when saving.',
+'signer_name': 'Signature (Name)',
+'signature_note_optional': 'Signature Note (Optional)',
+'signature_auto_time': 'The system will automatically record the signing time.',
+'confirm_and_save': 'Confirm & Save',
+'meal_placeholder_mealitem': '(Enter meal items, quantities, and notes)',
+'meal_placeholder_notes': '(e.g., special diet, last-minute changes, reconciliation notes)',
+'meal_signer_placeholder_name': 'Enter your name',
+'meal_signer_placeholder_note': 'e.g., Day shift / Covering / Ordering for others',
+
+// Dynamic messages (Meal)
+'meal_msg_select_date': 'Please select a date first.',
+'meal_msg_need_any_content': 'Please enter at least one meal item or note.',
+'meal_msg_firebase_not_ready': 'Firebase is not initialized. Please check firebase-init.js.',
+'meal_msg_loading': 'Loading…',
+'meal_msg_no_data': 'No data for this date yet.',
+'meal_msg_loaded': 'Loaded',
+'meal_msg_loaded_with_sign': 'Loaded (with signature record)',
+'meal_msg_load_failed': 'Failed to load. Please try again later.',
+'meal_msg_saving': 'Saving…',
+'meal_msg_saved': 'Saved',
+'meal_msg_save_failed': 'Failed to save. Please try again later.',
+'meal_msg_enter_signer': 'Please enter the signer name.',
+'meal_msg_date_changed': 'Date changed. Click “Load” or fill in and save directly.',
+
     }
 };
 
@@ -431,10 +508,13 @@ function applyTranslations() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         const text = getText(key);
-        if (el.placeholder !== undefined && el.tagName === 'INPUT') {
-            el.placeholder = text;
-        } else {
-            el.textContent = text;
-        }
+        el.textContent = text;
+    });
+
+    // Placeholder support (input/textarea) via data-i18n-placeholder
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const text = getText(key);
+        if ('placeholder' in el) el.placeholder = text;
     });
 }
