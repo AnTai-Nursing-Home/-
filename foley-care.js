@@ -205,7 +205,7 @@ checkTimePermissions();
     const currentTime = currentHour + currentMinute / 60;
 
     // 🕒 時間範圍設定：僅控制照顧員填寫及簽名時間（10:00~14:30）
-    const caregiverEnabled = (currentTime >= 10 && currentTime < 17);
+    const caregiverEnabled = (currentTime >= 10 && currentTime < 16);
 
     // 🧤 照顧員：radio + 簽名
     document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
