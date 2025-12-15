@@ -39,7 +39,7 @@ const COLS = [
 let currentSheet = '正常餐';
 let state = structuredClone(initialData);
 
-let db = null;
+// db 由 firebase-init.js 提供（全域變數）
 let saveTimer = null;
 let lastSavedAt = 0;
 
@@ -190,7 +190,7 @@ function setSaveStatus(text) {
 }
 
 function scheduleSave(reason='儲存') {
-  if (!db) {
+  if (!window.db) {
     setSaveStatus('（尚未連上 Firebase，不會儲存）');
     return;
   }
@@ -205,12 +205,12 @@ function getDateKey() {
 }
 
 async function loadFromFirestore(dateKey) {
-  if (!db) return false;
+  if (!window.db) return false;
   if (!dateKey) return false;
 
   try {
     setSaveStatus('讀取 Firebase…');
-    const docRef = db.collection(FS_COLLECTION).doc(dateKey);
+    const docRef = window.db.collection(FS_COLLECTION).doc(dateKey);
     const snap = await docRef.get();
     if (snap.exists) {
       const data = snap.data() || {};
@@ -235,13 +235,13 @@ async function loadFromFirestore(dateKey) {
 }
 
 async function saveToFirestore() {
-  if (!db) return;
+  if (!window.db) return;
   const dateKey = getDateKey();
   if (!dateKey) return;
 
   try {
     setSaveStatus('儲存中…');
-    const docRef = db.collection(FS_COLLECTION).doc(dateKey);
+    const docRef = window.db.collection(FS_COLLECTION).doc(dateKey);
 
     await docRef.set({
       sheets: state,
@@ -468,15 +468,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 等 Firebase 初始化完成（你專案是 firebase-init.js 會觸發 firebase-ready）
   document.addEventListener('firebase-ready', async () => {
-    try {
-      db = firebase.firestore();
-      setSaveStatus('Firebase 已就緒');
-    } catch (e) {
-      console.error('firebase not ready', e);
+    if (!window.db) {
       setSaveStatus('Firebase 尚未初始化（不會儲存）');
       return;
     }
-
+    setSaveStatus('Firebase 已就緒');
     await onDateChanged(); // 第一次載入：依日期讀取
   });
 
