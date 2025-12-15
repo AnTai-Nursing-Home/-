@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>餐食系統｜營養師</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <style>
+    body { background:#f5f5f5; font-family:"Noto Sans TC", sans-serif; }
+    .topbar {
+      background: linear-gradient(135deg, #2f2f2f, #3c3c3c);
+      color:#fff; padding: 18px 0;
+    }
+    .topbar h1 { font-size: 1.25rem; margin:0; font-weight: 800; }
+    .subtle { color:#6c757d; }
+    .sticky-actions {
+      position: sticky; top: 0; z-index: 20;
+      background: #f5f5f5;
+      padding: 14px 0 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .sheet-wrap {
+      background:#fff; border-radius: 16px; padding: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+    .table-wrap { overflow:auto; border-radius: 12px; border: 1px solid rgba(0,0,0,.08); }
+    table.meal { border-collapse: collapse; width: 100%; min-width: 1200px; }
+    table.meal th, table.meal td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
+    table.meal th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
+    table.meal td { background:#fff; }
+    td.readonly { background: #fafafa; }
+    td.center { text-align:center; }
+    td.small { font-size: .9rem; }
+    input.cell, textarea.cell, select.cell {
+      width:100%; border: 0; outline:none; background: transparent;
+      font-size: .95rem;
+    }
+    textarea.cell { resize: vertical; min-height: 32px; }
+    .pill {
+      display:inline-flex; align-items:center; gap:8px;
+      background:#f8f9fa; border:1px solid rgba(0,0,0,.08);
+      padding: 8px 10px; border-radius: 999px;
+    }
+    .hint { font-size: .85rem; color:#666; }
+    .nav-tabs .nav-link { font-weight:700; }
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff; }
+      .sheet-wrap { box-shadow:none; border-radius:0; }
+      .table-wrap { overflow: visible; border: none; }
+      table.meal { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <h1><i class="fas fa-utensils me-2"></i>餐食系統（營養師）</h1>
+    </div>
+  </div>
+
+  <div class="container my-4">
+
+    <div class="sticky-actions no-print">
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="pill">
+            <i class="fas fa-calendar-day"></i>
+            <span>餐單日期</span>
+            <input id="mealDate" type="date" class="form-control form-control-sm" style="width: 160px;">
+          </span>
+          <span class="hint">提示：日期會寫進 Excel 標題（A1）</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button id="btnExport" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
+          <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印目前分頁</button>
+          <a href="nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-wrap">
+      <ul class="nav nav-tabs no-print" id="mealTabs">
+        <li class="nav-item"><button class="nav-link active" data-sheet="正常餐" type="button">正常餐</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="剁碎餐" type="button">剁碎餐</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="攪打餐" type="button">攪打餐</button></li>
+      </ul>
+
+      <div class="pt-3">
+        <div class="table-wrap" id="tableWrap"></div>
+        <div class="mt-2 subtle">※ 目前先做「餐食系統」；「管灌飲食系統」下一步再做。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ExcelJS：用模板保留版面（合併儲存格/欄寬/列高/框線等） -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+  <script src="nutritionist-meals.js"></script>
+</body>
+</html>
