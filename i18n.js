@@ -14,6 +14,7 @@ const translations = {
         'confirm_submission': '確認送出',
         'return_to_modify': '返回修改',
         'admin_settings': '管理員設定',
+        'enter_affairs_password': '請輸入事務系統密碼',
         'please_enter_password': '請輸入密碼',
         'login': '登入',
         'password_error': '密碼錯誤，請重試！',
@@ -40,7 +41,7 @@ const translations = {
         'query_cancel_booking': '查詢/取消預約',
         'hospital_booking': '安泰醫院門診掛號',
         'hospital_query': '安泰醫院掛號查詢',
-        'visit_rules': '探視規範',
+        'affairs.systeam': '事務系統',
         'contact_us': '聯絡我們',
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
@@ -347,7 +348,7 @@ const translations = {
         'booking_cancelled_success': 'Booking has been cancelled successfully!', 'delete_failed': 'Delete failed, please try again later.',
         'please_enter_phone': 'Please enter phone number!', 'start_query': 'Start Query', 'read_failed': 'Read failed',
         'status_ongoing': 'Ongoing', 'status_closed': 'Closed', 'not_set': 'Not set', 'read_list_failed': 'Failed to load list.',
-        'save_failed': 'Save failed, please try again later.',
+        'save_failed': 'Save failed, please try again later.','enter_affairs_password': 'enter_affairs_password','please_enter_password': 'please_enter_password',
 
         // --- Main Menu ---
         'main_title_full': 'Antai Medical Corporation Antai Nursing Home', 'main_menu_title': 'Service Menu',
