@@ -41,7 +41,7 @@ const translations = {
         'query_cancel_booking': '查詢/取消預約',
         'hospital_booking': '安泰醫院門診掛號',
         'hospital_query': '安泰醫院掛號查詢',
-        'affairs.systeam': '事務系統',
+        'affairs_systeam': '事務系統',
         'contact_us': '聯絡我們',
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
