@@ -348,7 +348,7 @@ const translations = {
         'booking_cancelled_success': 'Booking has been cancelled successfully!', 'delete_failed': 'Delete failed, please try again later.',
         'please_enter_phone': 'Please enter phone number!', 'start_query': 'Start Query', 'read_failed': 'Read failed',
         'status_ongoing': 'Ongoing', 'status_closed': 'Closed', 'not_set': 'Not set', 'read_list_failed': 'Failed to load list.',
-        'save_failed': 'Save failed, please try again later.','enter_affairs_password': 'enter_affairs_password','please_enter_password': 'please_enter_password',
+        'save_failed': 'Save failed, please try again later.','enter_affairs_password': 'enter_affairs_password','please_enter_password': 'please_enter_password','affairs_system': 'affairs_system',
 
         // --- Main Menu ---
         'main_title_full': 'Antai Medical Corporation Antai Nursing Home', 'main_menu_title': 'Service Menu',
