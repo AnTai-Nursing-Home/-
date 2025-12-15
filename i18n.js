@@ -46,6 +46,10 @@ const translations = {
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
         'office_login': '辦公室登入',
+
+        // --- 營養師系統 ---
+        'nutritionist_system': '營養師系統',    
+
         
         // --- 預約系統 ---
         'booking_system_title': '預約探視系統',
@@ -356,6 +360,9 @@ const translations = {
         'booking_visit': 'Visit Booking', 'query_cancel_booking': 'Query/Cancel Booking', 'hospital_booking': 'Hospital Appointment',
         'hospital_query': 'Appointment Query', 'visit_rules': 'Visitation Rules', 'contact_us': 'Contact Us',
         'nurse_login': 'Nurse Login', 'caregiver_login': 'Caregiver Login', 'office_login': 'Office Login',
+
+        // ---nutritionist_system ---
+        'nutritionist_system': 'dietitian system',
 
         // --- Booking System ---
         'booking_system_title': 'Visit Booking System', 'admin_mode_notice': 'Admin Mode: You can now book slots for today after 12:00 PM.',
