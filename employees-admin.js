@@ -424,7 +424,8 @@ function fillFormFromRow(row) {
           }
         }
       }
-}
+    });
+  });
   function toISODateForInput(v){
     if (!v) return "";
     // 2025/12/09 -> 2025-12-09
@@ -438,8 +439,6 @@ function fillFormFromRow(row) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
     return "";
   }
-);
-  });
 
   // 排序 header
   document.querySelectorAll('.sortable-header').forEach(h => {
