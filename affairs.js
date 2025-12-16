@@ -1,17 +1,41 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // --- 元件宣告 ---
   const passwordSection = document.getElementById('password-section');
   const dashboardSection = document.getElementById('dashboard-section');
   const passwordInput = document.getElementById('passwordInput');
   const loginButton = document.getElementById('loginButton');
   const errorMessage = document.getElementById('errorMessage');
 
-  // ✅ 事務系統登入 API（Vercel Serverless）
-  // 如果你想沿用護理師的 /api/login，把下面改成 '/api/login' 也可以。
   const LOGIN_API = '/api/verify-affairs';
 
+  // ✅ 記住已登入（避免返回時又看到輸入密碼）
+  const AUTH_KEY = 'affairs_authed';
+  const AUTH_TTL_MS = 12 * 60 * 60 * 1000; // 12 小時
+
+  function setAuthed() {
+    try { sessionStorage.setItem(AUTH_KEY, String(Date.now())); } catch (_) {}
+  }
+  function isAuthed() {
+    try {
+      const ts = Number(sessionStorage.getItem(AUTH_KEY) || 0);
+      return ts && (Date.now() - ts) < AUTH_TTL_MS;
+    } catch (_) { return false; }
+  }
+
+  function showDashboard() {
+    passwordSection?.classList.add('d-none');
+    dashboardSection?.classList.remove('d-none');
+    errorMessage?.classList.add('d-none');
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('view') === 'dashboard') {
+    showDashboard();
+    setAuthed();
+  } else if (isAuthed()) {
+    showDashboard();
+  }
+
   async function handleLogin() {
-    // ✅ 未勾選不得登入
     const privacyCheck = document.getElementById('privacyCheck');
     if (!privacyCheck || !privacyCheck.checked) {
       alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
@@ -24,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    if (loginButton) loginButton.disabled = true;
+    loginButton && (loginButton.disabled = true);
 
     try {
       const response = await fetch(LOGIN_API, {
@@ -33,15 +57,13 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify({ password })
       });
 
-      // 有些後端會回傳空 body，這裡做容錯
       let result = {};
       try { result = await response.json(); } catch (_) {}
 
       const ok = response.ok && (result.success === true || Object.keys(result).length === 0);
       if (ok) {
-        passwordSection?.classList.add('d-none');
-        dashboardSection?.classList.remove('d-none');
-        errorMessage?.classList.add('d-none');
+        setAuthed();
+        showDashboard();
       } else {
         errorMessage?.classList.remove('d-none');
       }
@@ -49,24 +71,12 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error('登入時發生錯誤:', err);
       alert('登入時發生網路錯誤，請稍後再試。');
     } finally {
-      if (loginButton) loginButton.disabled = false;
+      loginButton && (loginButton.disabled = false);
     }
   }
 
-  if (loginButton) loginButton.addEventListener('click', handleLogin);
-  if (passwordInput) {
-    passwordInput.addEventListener('keyup', (event) => {
-      if (event.key === 'Enter') handleLogin();
-    });
-  }
-
-  // --- 需要 Firebase 的功能（如果你之後要用） ---
-  document.addEventListener('firebase-ready', () => {
-    // 允許用 ?view=dashboard 直接進儀表板（如需停用，刪掉這段即可）
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('view') === 'dashboard') {
-      passwordSection?.classList.add('d-none');
-      dashboardSection?.classList.remove('d-none');
-    }
+  loginButton?.addEventListener('click', handleLogin);
+  passwordInput?.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') handleLogin();
   });
 });
