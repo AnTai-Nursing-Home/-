@@ -1,11 +1,18 @@
 document.addEventListener("firebase-ready", async () => {
   const db = firebase.firestore();
+
+  // Collections
+  const nurseCol = db.collection("nurses"); // ✅ 人員資料庫改成從 nurses 抓
   const leaveCol = db.collection("nurse_leave_requests");
   const swapCol = db.collection("nurse_shift_requests");
   const statusCol = db.collection("request_status_list");
 
+  // DOM
   const leaveBody = document.getElementById("leaveTableBody");
   const swapBody = document.getElementById("swapTableBody");
+
+  const leaveApplicantSelect = document.getElementById("leaveApplicant") || document.querySelector("#leaveForm select[name='applicant']");
+  const swapApplicantSelect = document.getElementById("swapApplicant");
 
   let statusList = [];
 
@@ -22,10 +29,56 @@ document.addEventListener("firebase-ready", async () => {
       : `<span class="badge bg-secondary">${statusName || ""}</span>`;
   }
 
+  // ===== 護理師名冊（從 nurses 抓）=====
+  function clearSelect(sel) {
+    if (!sel) return;
+    sel.innerHTML = `<option value="">請選擇護理師</option>`;
+  }
+
+  async function loadNurses() {
+    clearSelect(leaveApplicantSelect);
+    clearSelect(swapApplicantSelect);
+
+    // 優先只抓在職；若資料庫沒有 status 欄位或無索引，則回退抓全部
+    let snap;
+    try {
+      snap = await nurseCol.where("status", "==", "在職").orderBy("name").get();
+    } catch (err) {
+      snap = await nurseCol.orderBy("name").get().catch(() => nurseCol.get());
+    }
+
+    if (snap.empty) return;
+
+    snap.forEach(doc => {
+      const n = doc.data() || {};
+      const name = n.name || n.fullName || n.displayName || "";
+      if (!name) return;
+
+      [leaveApplicantSelect, swapApplicantSelect].forEach(sel => {
+        if (!sel) return;
+        const opt = document.createElement("option");
+        opt.value = doc.id;      // nurseId
+        opt.textContent = name;  // 顯示姓名
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  async function getNurseNameById(nurseId) {
+    if (!nurseId) return "";
+    try {
+      const snap = await nurseCol.doc(nurseId).get();
+      const n = snap.data() || {};
+      return n.name || n.fullName || n.displayName || "";
+    } catch {
+      return "";
+    }
+  }
+
   // ===== 載入請假申請 =====
   function hoursText(d) {
     const v = Number(d?.durationValue ?? 0);
-    if (v > 0) return v + " 小時"; // 舊資料顯示空白
+    if (v > 0) return v + " 小時";
     return "";
   }
 
@@ -40,7 +93,7 @@ document.addEventListener("firebase-ready", async () => {
 
     leaveBody.innerHTML = "";
     snap.forEach(doc => {
-      const d = doc.data();
+      const d = doc.data() || {};
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -70,7 +123,7 @@ document.addEventListener("firebase-ready", async () => {
 
     swapBody.innerHTML = "";
     snap.forEach(doc => {
-      const d = doc.data();
+      const d = doc.data() || {};
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.applyDate || ""}</td>
@@ -92,16 +145,23 @@ document.addEventListener("firebase-ready", async () => {
     e.preventDefault();
     const form = e.target;
 
-    const applicantName = form.applicant?.value?.trim() || "未命名護理師";
+    const nurseId = form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
+
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇申請人（護理師）");
+      return;
+    }
 
     const data = {
-      applicant: applicantName,
+      nurseId,
+      applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       leaveType: form.leaveType.value,
       leaveDate: form.leaveDate.value,
       shift: form.shift.value,
       reason: form.reason.value,
-      durationValue: Number(form.durationValue.value), // ✅ 新增
+      durationValue: Number(form.durationValue.value),
       durationUnit: "hour",
       status: "待審核",
       note: "",
@@ -109,7 +169,7 @@ document.addEventListener("firebase-ready", async () => {
     };
 
     await leaveCol.add(data);
-    alert(`✅ 已送出請假申請！（申請人：${applicantName}）`);
+    alert(`✅ 已送出請假申請！（申請人：${nurseName}）`);
     form.reset();
   });
 
@@ -118,10 +178,17 @@ document.addEventListener("firebase-ready", async () => {
     e.preventDefault();
     const form = e.target;
 
-    const applicantName = form.applicant?.value?.trim() || "未命名護理師";
+    const nurseId = form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
+
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇申請人（護理師）");
+      return;
+    }
 
     const data = {
-      applicant: applicantName,
+      nurseId,
+      applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       swapDate: form.swapDate.value,
       originalShift: form.originalShift.value,
@@ -133,12 +200,13 @@ document.addEventListener("firebase-ready", async () => {
     };
 
     await swapCol.add(data);
-    alert(`✅ 已送出調班申請！（申請人：${applicantName}）`);
+    alert(`✅ 已送出調班申請！（申請人：${nurseName}）`);
     form.reset();
   });
 
   // ===== 初始化 =====
   await loadStatuses();
+  await loadNurses();
   await loadLeaveRequests();
   await loadSwapRequests();
 
