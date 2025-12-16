@@ -724,28 +724,41 @@
               detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
               return;
             }
+            const selectedKey = `${ps}~${pe}`;
 
-            const psDate = new Date(ps + "T00:00:00");
-            const peDate = new Date(pe + "T23:59:59");
+            // 依「扣除區間」歸屬來顯示明細：若該筆有 periodStart/periodEnd，優先用它；
+            // 沒有才回退用請假日期推算區間（舊資料兼容）
             const rows = [];
+
+            function keyForRecord(emp, d) {
+              const ps0 = d.periodStart ? ymd(toDate(d.periodStart)) : "";
+              const pe0 = d.periodEnd ? ymd(toDate(d.periodEnd)) : "";
+              if (ps0 && pe0) return `${ps0}~${pe0}`;
+
+              const dt0 = toDate(d.date || d.leaveDate);
+              if (!dt0) return "";
+              const p0 = findPeriodForDate(emp.hireDate, dt0);
+              return p0 ? periodKey(p0) : "";
+            }
 
             snap.forEach(doc => {
               const d = doc.data() || {};
               const dt = toDate(d.date || d.leaveDate);
-              if (!dt) return;
-              if (dt < psDate || dt > peDate) return;
+              const key = keyForRecord(emp, d);
+
+              // ✅ 核心修正：用「所選扣除區間」決定放哪個區間
+              if (key !== selectedKey) return;
 
               const hours = recordHours(d);
               const srcTxt = d.source === "快速補登" ? "快速補登" : "特休單（唯讀）";
               const reason = d.reason || "";
-              const leaveDate = ymd(dt);
-              rows.push(`<tr>
-                <td>${leaveDate}</td>
-                <td>${hoursToText(hours)}</td>
-                <td>${reason}</td>
-                <td>${srcTxt}</td>
-              </tr>`);
+              const leaveDate = dt ? ymd(dt) : "";
+
+              rows.push({ leaveDate, hours, reason, srcTxt });
             });
+
+            // 依日期排序（顯示用）
+            rows.sort((a, b) => (a.leaveDate || "").localeCompare(b.leaveDate || ""));
 
             if (rows.length === 0) {
               detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
@@ -758,7 +771,14 @@
                   <thead class="table-light">
                     <tr><th>請假日期</th><th>時數</th><th>原因</th><th>來源</th></tr>
                   </thead>
-                  <tbody>${rows.join("")}</tbody>
+                  <tbody>${rows.map(r => `
+                      <tr>
+                        <td>${r.leaveDate}</td>
+                        <td>${hoursToText(r.hours)}</td>
+                        <td>${r.reason}</td>
+                        <td>${r.srcTxt}</td>
+                      </tr>
+                    `).join("")}</tbody>
                 </table>
               </div>`;
           } catch (e) {
