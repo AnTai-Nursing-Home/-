@@ -152,6 +152,9 @@ document.addEventListener('firebase-ready', () => {
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
         careTableBody.innerHTML = '';
+        // 今日日期（本地時區）字串，用於高亮顯示
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const year = d.getFullYear();
@@ -176,7 +179,8 @@ document.addEventListener('firebase-ready', () => {
             });
             
             const caregiverSign = dailyRecord.caregiverSign || '';
-            const row = `<tr data-date="${dateString}">
+            const isToday = (dateString === todayStr);
+            const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
                 <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
             </tr>`;
