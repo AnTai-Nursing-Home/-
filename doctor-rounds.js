@@ -179,7 +179,196 @@ document.addEventListener("firebase-ready", () => {
   }
 
   
+
 function exportExcel() {
+  let data;
+  try {
+    data = collectData();
+  } catch (e) {
+    alert("請先選擇日期");
+    return;
+  }
+
+  // Prefer ExcelJS styled export (same logic family as residents system)
+  if (typeof ExcelJS === 'undefined') {
+    // fallback to legacy HTML-based export
+    console.warn('[doctor-rounds] ExcelJS missing, fallback to legacy HTML export');
+    exportExcelLegacy();
+    return;
+  }
+
+  if (window.__exportingDoctorRoundsXlsx) return;
+  window.__exportingDoctorRoundsXlsx = true;
+
+  (async () => {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'NH System';
+    wb.created = new Date();
+
+    const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
+    const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
+    const fontCell   = { name:'Microsoft JhengHei', size:11 };
+
+    const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
+    const borderThin = {
+      top:{style:'thin',color:{argb:'FF000000'}},
+      left:{style:'thin',color:{argb:'FF000000'}},
+      bottom:{style:'thin',color:{argb:'FF000000'}},
+      right:{style:'thin',color:{argb:'FF000000'}}
+    };
+
+    const rocDate = toRoc(data.date);
+    const titleText = '醫療巡迴門診掛號及就診狀況交班單';
+
+    function styleRow(row, {isHeader=false, height=22, wrap=false} = {}) {
+      row.eachCell((c) => {
+        c.font = isHeader ? fontHeader : fontCell;
+        c.border = borderThin;
+        c.alignment = { vertical:'middle', horizontal:'center', wrapText: wrap };
+        if (isHeader) c.fill = fillHeader;
+      });
+      row.height = height;
+    }
+
+    function setAllBorders(ws, fromRow, toRow, fromCol, toCol) {
+      for (let r = fromRow; r <= toRow; r++) {
+        for (let c = fromCol; c <= toCol; c++) {
+          const cell = ws.getCell(r, c);
+          cell.border = borderThin;
+        }
+      }
+    }
+
+    // ===== Sheet 1: 交班單 =====
+    const ws = wb.addWorksheet('醫巡交班單', {views:[{state:'frozen', ySplit:3}]});
+    ws.pageSetup = {
+      paperSize: 9, // A4
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left:0.25, right:0.25, top:0.75, bottom:0.75, header:0.3, footer:0.3 }
+    };
+
+    ws.columns = [
+      { key:'idx', width: 6 },
+      { key:'bed', width: 10 },
+      { key:'name', width: 12 },
+      { key:'id', width: 14 },
+      { key:'vitals', width: 18 },
+      { key:'cond', width: 28 },
+      { key:'note', width: 28 }
+    ];
+
+    // Title row
+    ws.mergeCells(1,1,1,7);
+    const titleCell = ws.getCell(1,1);
+    titleCell.value = titleText;
+    titleCell.font = fontTitle;
+    titleCell.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 28;
+
+    // Info row
+    ws.mergeCells(2,1,2,3);
+    ws.getCell(2,1).value = `醫巡日期：${rocDate || ''}`;
+    ws.mergeCells(2,4,2,5);
+    ws.getCell(2,4).value = `看診人數：${data.totalPatients ?? (data.entries||[]).length}`;
+    ws.mergeCells(2,6,2,7);
+    ws.getCell(2,6).value = `簽名日期：${rocDate || ''}`;
+    ws.getRow(2).height = 20;
+    for (let c=1;c<=7;c++){
+      const cell = ws.getCell(2,c);
+      cell.font = fontHeader;
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+    }
+
+    // Header row
+    const header = ws.addRow(['排序','床號','姓名','身分證字號','生命徵象','病情簡述','醫師手記']);
+    styleRow(header, {isHeader:true, height:24});
+
+    // Data rows
+    const entries = (data.entries || []).slice();
+    // Keep the same sorting rule as UI: by bed number numeric
+    entries.sort((a,b)=> String(a.bedNumber||'').localeCompare(String(b.bedNumber||''),'zh-Hant'));
+    for (let i=0;i<entries.length;i++){
+      const e = entries[i] || {};
+      const row = ws.addRow([
+        i+1,
+        e.bedNumber || '',
+        e.name || '',
+        e.idNumber || '',
+        e.vitals || '',
+        e.condition || '',
+        e.doctorNote || ''
+      ]);
+      styleRow(row, {height:60, wrap:true});
+    }
+
+    // If no entries, still show a couple empty lines for printing
+    if (entries.length === 0) {
+      for (let i=0;i<6;i++){
+        const row = ws.addRow([i+1,'','','','','','']);
+        styleRow(row, {height:60, wrap:true});
+      }
+    }
+
+    // Apply borders to title/info rows (ExcelJS doesn't auto for merged ranges)
+    setAllBorders(ws, 1, 2, 1, 7);
+
+    // ===== Sheet 2: 摘要 =====
+    const ws2 = wb.addWorksheet('摘要');
+    ws2.columns = [{width:22},{width:18},{width:22},{width:18}];
+
+    ws2.mergeCells(1,1,1,4);
+    const t2 = ws2.getCell(1,1);
+    t2.value = `醫巡摘要（${rocDate || ''}）`;
+    t2.font = fontTitle;
+    t2.alignment = { vertical:'middle', horizontal:'center' };
+    ws2.getRow(1).height = 26;
+
+    const total = entries.length;
+    const vitalsFilled = entries.filter(e=>String(e.vitals||'').trim()!=='').length;
+    const condFilled   = entries.filter(e=>String(e.condition||'').trim()!=='').length;
+    const noteFilled   = entries.filter(e=>String(e.doctorNote||'').trim()!=='').length;
+
+    const r2h = ws2.addRow(['項目','數量','項目','數量']);
+    styleRow(r2h, {isHeader:true, height:22});
+
+    const r3 = ws2.addRow(['看診人數', total, '生命徵象已填', vitalsFilled]);
+    const r4 = ws2.addRow(['病情簡述已填', condFilled, '醫師手記已填', noteFilled]);
+    styleRow(r3, {height:20});
+    styleRow(r4, {height:20});
+
+    ws2.addRow([]);
+    ws2.mergeCells(6,1,6,4);
+    const hint = ws2.getCell(6,1);
+    hint.value = '提示：若要追資料，可用「生命徵象/病情簡述/醫師手記」未填的床號做回頭補寫。';
+    hint.font = { name:'Microsoft JhengHei', size:10, italic:true, color:{argb:'FF555555'} };
+    hint.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+    ws2.getRow(6).height = 30;
+
+    // Download
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const fileName = `醫巡交班單_${data.date || 'export'}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  })().catch(err=>{
+    console.error(err);
+    alert('匯出失敗：' + (err && err.message ? err.message : err));
+  }).finally(()=>{
+    window.__exportingDoctorRoundsXlsx = false;
+  });
+}
+
+
+function exportExcelLegacy() {
   let data;
   try {
     data = collectData();
@@ -297,7 +486,9 @@ function exportExcel() {
 addRowBtn.addEventListener("click", () => { createRow(); sortTableByBed(); ensureMinRows(); refreshMeta(); });
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
-  dateInput.addEventListener("change", async () => { await loadSheet(true); });
+  
+
+dateInput.addEventListener("change", async () => { await loadSheet(true); });
 
   (async () => {
     await loadResidents();
