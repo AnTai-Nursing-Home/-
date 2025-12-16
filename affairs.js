@@ -7,12 +7,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const LOGIN_API = '/api/verify-affairs';
 
-  // ✅ 記住已登入（避免返回時又看到輸入密碼）
+  // ✅ 只在「同一個分頁（tab）」內記住登入
+  // - 你關掉分頁、或離開事務系統（點返回首頁）就會需要再登入
   const AUTH_KEY = 'affairs_authed';
-  const AUTH_TTL_MS = 12 * 60 * 60 * 1000; // 12 小時
+  const AUTH_TTL_MS = 12 * 60 * 60 * 1000; // 12 小時（仍在同一分頁內才有效）
 
   function setAuthed() {
     try { sessionStorage.setItem(AUTH_KEY, String(Date.now())); } catch (_) {}
+  }
+  function clearAuthed() {
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (_) {}
   }
   function isAuthed() {
     try {
@@ -26,9 +30,18 @@ document.addEventListener('DOMContentLoaded', function () {
     dashboardSection?.classList.remove('d-none');
     errorMessage?.classList.add('d-none');
   }
+  function showLogin() {
+    dashboardSection?.classList.add('d-none');
+    passwordSection?.classList.remove('d-none');
+  }
 
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('view') === 'dashboard') {
+
+  // ✅ 支援 logout：清掉登入狀態
+  if (urlParams.get('logout') === '1') {
+    clearAuthed();
+    showLogin();
+  } else if (urlParams.get('view') === 'dashboard') {
     showDashboard();
     setAuthed();
   } else if (isAuthed()) {
