@@ -296,7 +296,26 @@ function loadAll() {
     employeeModal.show();
   }
 
-  function fillFormFromRow(row) {
+  
+  function toISODateForInput(v){
+    if(!v) return "";
+    let s = String(v).trim();
+    if(!s) return "";
+    // accept yyyy-mm-dd directly
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // normalize separators
+    s = s.replace(/\./g,'/').replace(/-/g,'/').replace(/\s+/g,'');
+    const m = s.match(/^(\d{1,4})\/(\d{1,2})\/(\d{1,2})$/);
+    if(!m) return "";
+    let y = parseInt(m[1],10);
+    const mm = String(parseInt(m[2],10)).padStart(2,'0');
+    const dd = String(parseInt(m[3],10)).padStart(2,'0');
+    // ROC year (1~3 digits) => AD
+    if(y < 1911) y = y + 1911;
+    return `${y}-${mm}-${dd}`;
+  }
+
+function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
     const isInactive = !!row.closest('#inactiveEmployees-panel');
     const off = isInactive ? 1 : 0; // 離職分頁多一欄「職類」
@@ -307,9 +326,9 @@ function loadAll() {
     nameInput.value = cell(2);
 
     genderInput.value = cell(3 + off);
-    birthdayInput.value = cell(4 + off);
+    birthdayInput.value = toISODateForInput(cell(4 + off));
     idCardInput.value = cell(5 + off);
-    hireDateInput.value = cell(6 + off);
+    hireDateInput.value = toISODateForInput(cell(6 + off));
     titleInput.value = cell(7 + off);
     phoneInput.value = cell(8 + off);
     daytimePhoneInput.value = cell(9 + off);
@@ -320,9 +339,9 @@ function loadAll() {
     nationalityInput.value = cell(14 + off);
     licenseTypeInput.value = cell(15 + off);
     licenseNumberInput.value = cell(16 + off);
-    licenseRenewDateInput.value = cell(17 + off);
+    licenseRenewDateInput.value = toISODateForInput(cell(17 + off));
     longtermCertNumberInput.value = cell(18 + off);
-    longtermExpireDateInput.value = cell(19 + off);
+    longtermExpireDateInput.value = toISODateForInput(cell(19 + off));
     educationInput.value = cell(20 + off);
     schoolInput.value = cell(21 + off);
   }
@@ -605,27 +624,27 @@ function loadAll() {
       const COLS_BASE = [
         { header: '排序', key: 'sortOrder', width: 6 },
         { header: '員編', key: 'id', width: 10 },
-        { header: '姓名', key: 'name', width: 12 },
+        { header: '姓名', key: 'name', width: 14 },
         // 離職分頁才有「職類」
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
-        { header: '身分證字號', key: 'idCard', width: 14 },
+        { header: '身分證字號', key: 'idCard', width: 16 },
         { header: '到職日', key: 'hireDate', width: 12 },
         { header: '職稱', key: 'title', width: 12 },
-        { header: '手機', key: 'phone', width: 14 },
-        { header: '日間電話', key: 'daytimePhone', width: 14 },
-        { header: '地址', key: 'address', width: 22 },
-        { header: '緊急聯絡人', key: 'emergencyName', width: 12 },
-        { header: '關係', key: 'emergencyRelation', width: 8 },
-        { header: '緊急電話', key: 'emergencyPhone', width: 14 },
+        { header: '手機', key: 'phone', width: 16 },
+        { header: '日間電話', key: 'daytimePhone', width: 16 },
+        { header: '地址', key: 'address', width: 32 },
+        { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
+        { header: '關係', key: 'emergencyRelation', width: 10 },
+        { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 14 },
-        { header: '發證字號', key: 'licenseNumber', width: 16 },
+        { header: '證照種類', key: 'licenseType', width: 16 },
+        { header: '發證字號', key: 'licenseNumber', width: 20 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 16 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 12 },
-        { header: '學歷', key: 'education', width: 10 },
-        { header: '畢業學校', key: 'school', width: 18 },
+        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
+        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
+        { header: '學歷', key: 'education', width: 12 },
+        { header: '畢業學校', key: 'school', width: 26 },
       ];
 
       const getVal = (obj, keys) => {
