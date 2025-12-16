@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管灌飲食系統｜營養師</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <style>
+    body { background:#f5f5f5; font-family:"Noto Sans TC", sans-serif; }
+    .topbar { background: linear-gradient(135deg, #2f2f2f, #3c3c3c); color:#fff; padding: 18px 0; }
+    .topbar h1 { font-size: 1.25rem; margin:0; font-weight: 800; }
+    .sticky-actions {
+      position: sticky; top: 0; z-index: 20;
+      background: #f5f5f5;
+      padding: 14px 0 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .sheet-wrap { background:#fff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .table-wrap { overflow:auto; border-radius: 12px; border: 1px solid rgba(0,0,0,.08); }
+    table.grid { border-collapse: collapse; width: 100%; min-width: 900px; }
+    table.grid th, table.grid td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
+    table.grid th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
+    td.center { text-align:center; }
+    td.readonly { background: #fafafa; }
+    input.cell, textarea.cell {
+      width:100%; border: 0; outline:none; background: transparent;
+      font-size: .95rem;
+    }
+    textarea.cell { resize: vertical; min-height: 32px; }
+    .hint { font-size: .85rem; color:#666; }
+    .nav-tabs .nav-link { font-weight:700; }
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff; }
+      .sheet-wrap { box-shadow:none; border-radius:0; }
+      .table-wrap { overflow: visible; border: none; }
+      table.grid { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <h1><i class="fas fa-syringe me-2"></i>管灌飲食系統（營養師）</h1>
+    </div>
+  </div>
+
+  <div class="container my-4">
+    <div class="sticky-actions no-print">
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="badge bg-secondary">Firebase 自動儲存</span>
+          <span class="pill hint" id="saveStatus">尚未儲存</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button id="btnExport" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
+          <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印目前分頁</button>
+          <a href="nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
+        </div>
+      </div>
+      <div class="mt-2 hint">提示：此頁以「Excel 模板」版面為準，匯出會保留原本欄寬/列高/合併格/框線。</div>
+    </div>
+
+    <div class="sheet-wrap">
+      <ul class="nav nav-tabs no-print" id="tubeTabs">
+        <li class="nav-item"><button class="nav-link active" data-sheet="單獨泡製" type="button">單獨泡製</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="奶粉2.5匙" type="button">奶粉2.5匙</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="奶粉匙數" type="button">奶粉匙數</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="加餐-牛奶名單" type="button">加餐-牛奶名單</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="第六餐加餐名單" type="button">第六餐加餐名單</button></li>
+      </ul>
+
+      <div class="pt-3">
+        <div class="table-wrap" id="tableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Firebase（沿用你專案現有 firebase-init.js 及 firebase-ready 事件） -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="firebase-init.js"></script>
+
+  <!-- ExcelJS：用模板保留版面 -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+  <script src="nutritionist-tube.js"></script>
+</body>
+</html>
