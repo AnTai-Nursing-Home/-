@@ -232,43 +232,56 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
+  
+  // 取值容錯：支援舊欄位/新欄位混用（避免表格顯示一堆空白）
+  function pick(e, keys, fallback="") {
+    for (const k of keys) {
+      const v = e?.[k];
+      if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return fallback;
+  }
+
+
   function buildRowHTML(e, opts) {
     const includeSource = !!opts.includeSource;
     const actionLabel = opts.actionLabel || '操作';
-    const sourceTd = includeSource ? `<td>${e.sourceLabel || ''}</td>` : '';
-    // 注意：tr 上帶 collection，離職分頁要用
+    const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
+
     return `
-          <tr data-id="${e.docId}" data-collection="${e.collection}">
-            <td>${e.sortOrder ?? ""}</td>
-            <td>${e.id ?? ""}</td>
-            <td>${e.name ?? ""}</td>
-            ${includeSource ? sourceTd : ""}
-            <td>${e.gender ?? ""}</td>
-            <td>${e.birthday ?? ""}</td>
-            <td>${e.nationalId ?? ""}</td>
-            <td>${e.hireDate ?? ""}</td>
-            <td>${e.title ?? ""}</td>
-            <td>${e.phone ?? ""}</td>
-            <td>${e.email ?? ""}</td>
-            <td>${e.address ?? ""}</td>
-            <td>${e.emergencyName ?? ""}</td>
-            <td>${e.emergencyRelation ?? ""}</td>
-            <td>${e.emergencyPhone ?? ""}</td>
-            <td>${e.nationality ?? ""}</td>
-            <td>${e.licenseType ?? ""}</td>
-            <td>${e.licenseNo ?? ""}</td>
-            <td>${e.licenseRenewDate ?? ""}</td>
-            <td>${e.ltcNo ?? ""}</td>
-            <td>${e.ltcExpiry ?? ""}</td>
-            <td>${e.education ?? ""}</td>
-            <td>${e.school ?? ""}</td>
-            <td>
-              <button class="btn btn-sm btn-primary btn-edit">編輯</button>
-              <button class="btn btn-sm btn-danger btn-del ms-1">${actionLabel}</button>
-            </td>
-          </tr>
-        `;
+      <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
+        <td>${pick(e, ['sortOrder'])}</td>
+        <td>${pick(e, ['id','docId'])}</td>
+        <td>${pick(e, ['name'])}</td>
+        ${includeSource ? sourceTd : ""}
+        <td>${pick(e, ['gender'])}</td>
+        <td>${pick(e, ['birthday'])}</td>
+        <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
+        <td>${pick(e, ['hireDate'])}</td>
+        <td>${pick(e, ['title'])}</td>
+        <td>${pick(e, ['phone'])}</td>
+        <td>${pick(e, ['daytimePhone','email'])}</td>
+        <td>${pick(e, ['address'])}</td>
+        <td>${pick(e, ['emergencyName','emgName'])}</td>
+        <td>${pick(e, ['emergencyRelation','emgRelation'])}</td>
+        <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
+        <td>${pick(e, ['nationality'])}</td>
+        <td>${pick(e, ['licenseType'])}</td>
+        <td>${pick(e, ['licenseNumber','licenseNo'])}</td>
+        <td>${pick(e, ['licenseRenewDate'])}</td>
+        <td>${pick(e, ['longtermCertNumber','ltcNo'])}</td>
+        <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
+        <td>${pick(e, ['education'])}</td>
+        <td>${pick(e, ['school'])}</td>
+        <td>
+          <button class="btn btn-sm btn-primary btn-edit">編輯</button>
+          <button class="btn btn-sm btn-danger btn-del ms-1">${actionLabel}</button>
+        </td>
+      </tr>
+    `;
   }
+
+
 function loadAll() {
     TAB_DEFS.forEach(d => {
       if (d.id === 'inactiveEmployees') {
@@ -341,7 +354,9 @@ function fillFormFromRow(row) {
     licenseNumberInput.value = cell(16 + off);
     licenseRenewDateInput.value = toISODateForInput(cell(17 + off));
     longtermCertNumberInput.value = cell(18 + off);
-    longtermExpireDateInput.value = toISODateForInput(cell(19 + off));
+        // 長照證效期常是「起-迄」區間字串，不能用 <input type=date> 的 ISO 轉換
+    longtermExpireDateInput.value = cell(19 + off);
+
     educationInput.value = cell(20 + off);
     schoolInput.value = cell(21 + off);
   }
@@ -354,21 +369,22 @@ function fillFormFromRow(row) {
       name: nameInput.value.trim(),
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
-      nationalId: idCardInput.value.trim().toUpperCase(),
+      idCard: idCardInput.value.trim().toUpperCase(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
       title: titleInput.value.trim(),
       phone: phoneInput.value.trim(),
-      email: daytimePhoneInput.value.trim(),
+      daytimePhone: daytimePhoneInput.value.trim(),
       address: addressInput.value.trim(),
       emergencyName: emgNameInput.value.trim(),
       emergencyRelation: emgRelationInput.value.trim(),
       emergencyPhone: emgPhoneInput.value.trim(),
       nationality: nationalityInput.value.trim(),
       licenseType: licenseTypeInput.value.trim(),
-      licenseNo: licenseNumberInput.value.trim(),
+      licenseNumber: licenseNumberInput.value.trim(),
       licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
-      ltcNo: longtermCertNumberInput.value.trim(),
-      ltcExpiry: formatDateInput(longtermExpireDateInput.value.trim()),
+      longtermCertNumber: longtermCertNumberInput.value.trim(),
+      // 長照證效期保留原樣（可能是區間字串，例如 109/10/23-115/10/22）
+      longtermExpireDate: longtermExpireDateInput.value.trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
     };
@@ -424,21 +440,8 @@ function fillFormFromRow(row) {
           }
         }
       }
-    });
+});
   });
-  function toISODateForInput(v){
-    if (!v) return "";
-    // 2025/12/09 -> 2025-12-09
-    if (/^\d{4}\/\d{2}\/\d{2}$/.test(v)) return v.replaceAll("/","-");
-    // ROC: 115/06/19 -> 2026-06-19 (115+1911)
-    if (/^\d{2,3}\/\d{2}\/\d{2}$/.test(v)) {
-      const [y,m,d]=v.split("/");
-      const yy = String(parseInt(y,10)+1911);
-      return `${yy}-${m}-${d}`;
-    }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-    return "";
-  }
 
   // 排序 header
   document.querySelectorAll('.sortable-header').forEach(h => {
@@ -463,18 +466,18 @@ function fillFormFromRow(row) {
 
   function normalizeDateMaybe(v) {
     if (v === undefined || v === null || v === "") return "";
-    // XLSX may return Excel serial (number) or Date (when cellDates:true)
-    if (typeof v === "number") return excelSerialToDateString(v);
-    if (v instanceof Date) {
+    if (v instanceof Date && !isNaN(v.getTime())) {
       const y = v.getFullYear();
       const m = String(v.getMonth() + 1).padStart(2, "0");
       const d = String(v.getDate()).padStart(2, "0");
       return `${y}/${m}/${d}`;
     }
+    if (typeof v === "number") return excelSerialToDateString(v);
     if (typeof v === "string") return formatDateInput(v);
     return "";
   }
 
+  
   async function handleExcelImport(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -489,86 +492,115 @@ function fillFormFromRow(row) {
     reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target.result);
+
+        // ✅ 重要：cellDates:true 讓日期更穩；raw:true 保留原值；defval:"" 保留空欄
         const wb = XLSX.read(data, { type: "array", cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const list = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
+
         if (list.length === 0) {
           importStatus.className = "alert alert-danger";
           importStatus.textContent = "表內沒有資料";
           return;
         }
 
-        // 映射：Excel 欄名 -> 欄位
+        // ✅ 欄名同義字：Excel 表頭常常不一致，這裡全部吃
         const map = {
           "排序": "sortOrder",
           "員編": "id",
-          "員工編號": "id",
+          "姓名": "name",
+          "性別": "gender",
+          "生日": "birthday",
+          "出生年月日": "birthday",
+          "身分證": "idCard",
+          "身分證字號": "idCard",
+          "身份證字號": "idCard",
+          "身份証字號": "idCard",
           "到職日": "hireDate",
           "到職日期": "hireDate",
           "職稱": "title",
-          "姓名": "name",
-          "身分證": "nationalId",
-          "身分證字號": "nationalId",
-          "身份證字號": "nationalId",
-          "身份証字號": "nationalId",
-          "性別": "gender",
-          "出生年月日": "birthday",
-          "生日": "birthday",
-          "出生日期": "birthday",
-          "證照種類": "licenseType",
-          "證書字號": "licenseNo",
-          "發證字號": "licenseNo",
-          "證書換證日期": "licenseRenewDate",
-          "換證日期": "licenseRenewDate",
-          "長照人員服務證明期限": "ltcExpiry",
-          "長照證效期": "ltcExpiry",
-          "長照證有效期限": "ltcExpiry",
-          "長照人員證照文件證號": "ltcNo",
-          "長照證號": "ltcNo",
-          "長照人員證照文件證號": "ltcNo",
           "手機": "phone",
-          "日間電話": "email",
-          "緊急連絡人姓名": "emergencyName",
-          "緊急連絡人關係": "emergencyRelation",
-          "緊急連絡人電話": "emergencyPhone",
+          "日間電話": "daytimePhone",
           "地址": "address",
+          "緊急聯絡人": "emergencyName",
+          "緊急連絡人": "emergencyName",
+          "緊急連絡人姓名": "emergencyName",
+          "關係": "emergencyRelation",
+          "緊急聯絡人關係": "emergencyRelation",
+          "緊急連絡人關係": "emergencyRelation",
+          "緊急電話": "emergencyPhone",
+          "緊急聯絡人電話": "emergencyPhone",
+          "緊急連絡人電話": "emergencyPhone",
           "國籍": "nationality",
+          "證照種類": "licenseType",
+          "發證字號": "licenseNumber",
+          "證書字號": "licenseNumber",
+          "換證日期": "licenseRenewDate",
+          "證書換證日期": "licenseRenewDate",
+          "長照證號": "longtermCertNumber",
+          "長照證號(長照證號碼)": "longtermCertNumber",
+          "長照人員證照文件證號": "longtermCertNumber",
+          "長照證效期": "longtermExpireDate",      // 可能是區間字串，保留原樣
+          "長照證有效期限": "longtermExpireDate",
+          "長照人員服務證明期限": "longtermExpireDate",
           "學歷": "education",
           "畢業學校": "school",
         };
 
-        const requires = ["員編","姓名"];
-        for (const c of requires) {
-          if (!list[0].hasOwnProperty(c)) {
-            importStatus.className = "alert alert-danger";
-            importStatus.textContent = `缺少必要欄位：${c}`;
-            return;
-          }
+        // 必填欄檢查（只要表頭中有任一同義欄名即可）
+        const headers = Object.keys(list[0] || {});
+        const hasAny = (names) => names.some(n => headers.includes(n));
+        if (!hasAny(["員編"])) {
+          importStatus.className = "alert alert-danger";
+          importStatus.textContent = "缺少必要欄位：員編";
+          return;
+        }
+        if (!hasAny(["姓名"])) {
+          importStatus.className = "alert alert-danger";
+          importStatus.textContent = "缺少必要欄位：姓名";
+          return;
         }
 
         const batch = db.batch();
+
         list.forEach(row => {
-          const id = String(row["員編"] || "").trim();
+          const id = String(row["員編"] || row["員編 "] || "").trim();
           if (!id) return;
+
           const ref = db.collection(col).doc(id);
           const payload = {};
-          Object.entries(map).forEach(([cn, key]) => {
+
+          // 把 row 裡的每一欄，若表頭在 map 裡就寫入 payload
+          Object.keys(row).forEach((cn) => {
+            const key = map[cn];
+            if (!key) return;
+
             let v = row[cn];
-            if (["出生年月日","生日","出生日期","到職日","到職日期","換證日期","證書換證日期","長照證效期","長照證有效期限","長照人員服務證明期限"].includes(cn)) v = normalizeDateMaybe(v);
-            if (cn === "排序") v = parseInt(v) || 999;
+
+            // 日期欄：支援 Excel serial / Date / 字串（yyyy/mm/dd、民國、yyyy-mm-dd）
+            if (["birthday", "hireDate", "licenseRenewDate"].includes(key)) {
+              v = normalizeDateMaybe(v);
+            }
+
+            if (key === "sortOrder") v = parseInt(v, 10) || 999;
             if (typeof v === "string") v = v.trim();
+
             payload[key] = v ?? "";
           });
-          // 必填修正
+
+          // 補齊必填
           payload.id = id;
           if (!payload.sortOrder) payload.sortOrder = 999;
+
           batch.set(ref, payload, { merge: true });
         });
 
         await batch.commit();
+
         importStatus.className = "alert alert-success";
         importStatus.textContent = "匯入完成，將重新整理…";
-        setTimeout(() => window.location.reload(), 1500);
+        setTimeout(() => window.location.reload(), 1200);
+
       } catch (err) {
         console.error(err);
         importStatus.className = "alert alert-danger";
@@ -577,10 +609,12 @@ function fillFormFromRow(row) {
         excelFileInput.value = "";
       }
     };
+
     reader.readAsArrayBuffer(file);
   }
 
-  async function generateReportHTML() {
+
+async function generateReportHTML() {
     const tab = activeTabDef();
     const col = tab.collection;
 
