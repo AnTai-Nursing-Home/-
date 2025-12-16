@@ -226,9 +226,17 @@ function exportExcel() {
     paperSize: 9, // A4
     orientation: 'portrait',
     scale: 85,
-    fitToPage: false
+    fitToPage: false,
+    margins: {
+      left: 0.251969,
+      right: 0.251969,
+      top: 0.751969,
+      bottom: 0.751969,
+      header: 0.299213,
+      footer: 0.299213
+    }
   };
-  ws.pageMargins = { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
+  ws.pageMargins = { left: 0.251969, right: 0.251969, top: 0.751969, bottom: 0.751969, header: 0.299213, footer: 0.299213 };
 
   // Column widths A-G
   ws.columns = [
@@ -236,9 +244,9 @@ function exportExcel() {
     { key: 'B', width: 8.0 },           // 床號
     { key: 'C', width: 14.7109375 },    // 姓名
     { key: 'D', width: 14.0 },          // 身分證字號
-    { key: 'E', width: 28.0 },          // 生命徵象
-    { key: 'F', width: 13.0 },          // 病情簡述
-    { key: 'G', width: 13.0 }           // 醫師手記
+    { key: 'E', width: 27.29 },          // 生命徵象
+    { key: 'F', width: 27.29 },          // 病情簡述
+    { key: 'G', width: 27.29 }           // 醫師手記
   ];
 
   // Row heights 1-19 all 60
