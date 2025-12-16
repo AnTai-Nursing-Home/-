@@ -588,7 +588,230 @@ function loadAll() {
     `;
   }
 
-  // 綁定
+  
+  // ========= Excel 匯出（整合所有名冊到同一個 .xlsx，分頁區分） =========
+  async function exportAllToExcelXlsx() {
+    if (window.__exportingEmployeesXlsx) return;
+    window.__exportingEmployeesXlsx = true;
+
+    try {
+      if (typeof ExcelJS === 'undefined') {
+        alert('ExcelJS 尚未載入，無法匯出 .xlsx（含樣式）。');
+        return;
+      }
+
+      // ---- 欄位定義：與表頭一致 ----
+      // 注意：歷史資料可能有不同欄位名稱，這裡做多 key fallback
+      const COLS_BASE = [
+        { header: '排序', key: 'sortOrder', width: 6 },
+        { header: '員編', key: 'id', width: 10 },
+        { header: '姓名', key: 'name', width: 12 },
+        // 離職分頁才有「職類」
+        { header: '性別', key: 'gender', width: 6 },
+        { header: '生日', key: 'birthday', width: 12 },
+        { header: '身分證字號', key: 'idCard', width: 14 },
+        { header: '到職日', key: 'hireDate', width: 12 },
+        { header: '職稱', key: 'title', width: 12 },
+        { header: '手機', key: 'phone', width: 14 },
+        { header: '日間電話', key: 'daytimePhone', width: 14 },
+        { header: '地址', key: 'address', width: 22 },
+        { header: '緊急聯絡人', key: 'emergencyName', width: 12 },
+        { header: '關係', key: 'emergencyRelation', width: 8 },
+        { header: '緊急電話', key: 'emergencyPhone', width: 14 },
+        { header: '國籍', key: 'nationality', width: 10 },
+        { header: '證照種類', key: 'licenseType', width: 14 },
+        { header: '發證字號', key: 'licenseNumber', width: 16 },
+        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
+        { header: '長照證號', key: 'longtermCertNumber', width: 16 },
+        { header: '長照證效期', key: 'longtermExpireDate', width: 12 },
+        { header: '學歷', key: 'education', width: 10 },
+        { header: '畢業學校', key: 'school', width: 18 },
+      ];
+
+      const getVal = (obj, keys) => {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+        }
+        return '';
+      };
+
+      // ---- 讀取資料 ----
+      async function fetchActiveFromCollection(collectionName) {
+        const snap = await db.collection(collectionName).orderBy('sortOrder').orderBy('id').get();
+        const rows = [];
+        snap.forEach(doc => {
+          const e = doc.data() || {};
+          if (e.isActive === false) return;
+          rows.push({ docId: doc.id, ...e });
+        });
+        return rows;
+      }
+
+      async function fetchInactiveMerged() {
+        const rows = [];
+        for (const def of TAB_DEFS) {
+          if (def.id === 'inactiveEmployees') continue;
+          const snap = await db.collection(def.collection).orderBy('id').get();
+          snap.forEach(doc => {
+            const e = doc.data() || {};
+            if (e.isActive !== false) return;
+            rows.push({ docId: doc.id, sourceLabel: def.label, ...e });
+          });
+        }
+        // 預設用員編排序
+        rows.sort((a,b)=>String(a.id||a.docId||'').localeCompare(String(b.id||b.docId||''), 'zh-Hant'));
+        return rows;
+      }
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Antai';
+      wb.created = new Date();
+
+      // ---- 共用樣式 ----
+      const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
+      const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
+      const fontCell   = { name:'Microsoft JhengHei', size:11 };
+      const fillHeader = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFF1F3F5' } };
+      const borderThin = {
+        top:{style:'thin',color:{argb:'FF000000'}},
+        left:{style:'thin',color:{argb:'FF000000'}},
+        bottom:{style:'thin',color:{argb:'FF000000'}},
+        right:{style:'thin',color:{argb:'FF000000'}}
+      };
+
+      function applyRowStyle(row, { header=false } = {}) {
+        row.height = header ? 22 : 26;
+        row.eachCell(c => {
+          c.font = header ? fontHeader : fontCell;
+          c.border = borderThin;
+          c.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+          if (header) c.fill = fillHeader;
+        });
+      }
+
+      function setPrint(ws) {
+        ws.pageSetup = {
+          paperSize: 9, // A4
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: { left:0.4, right:0.4, top:0.75, bottom:0.75, header:0.3, footer:0.3 } // inch
+        };
+      }
+
+      function addSheet(sheetName, title, cols, dataRows, { includeSource=false } = {}) {
+        const ws = wb.addWorksheet(sheetName, { views:[{ state:'frozen', ySplit:2 }] });
+
+        const finalCols = includeSource
+          ? [
+              { header:'職類', key:'sourceLabel', width: 10 },
+              ...cols
+            ]
+          : cols;
+
+        ws.columns = finalCols.map(c => ({ header: c.header, key: c.key, width: c.width }));
+
+        // Title row
+        const lastCol = finalCols.length;
+        ws.mergeCells(1,1,1,lastCol);
+        ws.getRow(1).height = 28;
+        const tcell = ws.getCell(1,1);
+        tcell.value = title;
+        tcell.font = fontTitle;
+        tcell.alignment = { vertical:'middle', horizontal:'center' };
+
+        // Header row
+        const headerRow = ws.getRow(2);
+        headerRow.values = finalCols.map(c => c.header);
+        applyRowStyle(headerRow, { header:true });
+
+        // Data rows
+        dataRows.forEach((e) => {
+          const rowObj = {
+            sortOrder: getVal(e, ['sortOrder']),
+            id: getVal(e, ['id','docId']),
+            name: getVal(e, ['name']),
+            gender: getVal(e, ['gender']),
+            birthday: getVal(e, ['birthday']),
+            idCard: getVal(e, ['idCard','nationalId','idNumber']),
+            hireDate: getVal(e, ['hireDate']),
+            title: getVal(e, ['title']),
+            phone: getVal(e, ['phone']),
+            daytimePhone: getVal(e, ['daytimePhone','email']), // 舊資料誤用 email
+            address: getVal(e, ['address']),
+            emergencyName: getVal(e, ['emergencyName','emgName','emergencyContact']),
+            emergencyRelation: getVal(e, ['emergencyRelation','emgRelation']),
+            emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
+            nationality: getVal(e, ['nationality']),
+            licenseType: getVal(e, ['licenseType']),
+            licenseNumber: getVal(e, ['licenseNumber','licenseNo']),
+            licenseRenewDate: getVal(e, ['licenseRenewDate']),
+            longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
+            longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
+            education: getVal(e, ['education']),
+            school: getVal(e, ['school']),
+            sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined
+          };
+
+          const values = finalCols.map(c => rowObj[c.key] ?? '');
+          const r = ws.addRow(values);
+          applyRowStyle(r, { header:false });
+        });
+
+        // Auto filter
+        ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: finalCols.length } };
+
+        setPrint(ws);
+        return ws;
+      }
+
+      // ---- 建立各名冊 Sheet ----
+      // 1) 護理師
+      const nurses = await fetchActiveFromCollection('nurses');
+      addSheet('護理師', '護理師名冊', COLS_BASE, nurses);
+
+      // 2) 外籍照服員 caregivers
+      const foreign = await fetchActiveFromCollection('caregivers');
+      addSheet('外籍照服員', '外籍照服員名冊', COLS_BASE, foreign);
+
+      // 3) 台籍照服員 localCaregivers
+      const local = await fetchActiveFromCollection('localCaregivers');
+      addSheet('台籍照服員', '台籍照服員名冊', COLS_BASE, local);
+
+      // 4) 行政/其他 adminStaff
+      const admin = await fetchActiveFromCollection('adminStaff');
+      addSheet('行政其他', '行政/其他名冊', COLS_BASE, admin);
+
+      // 5) 離職員工（合併）
+      const inactive = await fetchInactiveMerged();
+      addSheet('離職員工', '離職員工名冊（合併）', COLS_BASE, inactive, { includeSource:true });
+
+      // ---- 下載 ----
+      const y = new Date().getFullYear();
+      const m = String(new Date().getMonth()+1).padStart(2,'0');
+      const d = String(new Date().getDate()).padStart(2,'0');
+      const filename = `人員名冊整合_${y}${m}${d}.xlsx`;
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error(err);
+      alert('匯出失敗，請看 console');
+    } finally {
+      window.__exportingEmployeesXlsx = false;
+    }
+  }
+
+// 綁定
   addEmployeeBtn.onclick = openForCreate;
   saveEmployeeBtn.onclick = handleSave;
   importExcelBtn.onclick = () => excelFileInput.click();
@@ -604,12 +827,7 @@ function loadAll() {
   };
 
   exportExcelBtn.onclick = async () => {
-    const content = await generateReportHTML();
-    const blob = new Blob(['\ufeff', content], { type: "application/vnd.ms-excel" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = "人員名冊.xls"; a.click();
-    URL.revokeObjectURL(url);
+    await exportAllToExcelXlsx();
   };
 
   printBtn.onclick = async () => {
