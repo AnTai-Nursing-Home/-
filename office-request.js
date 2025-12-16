@@ -465,6 +465,128 @@ window.COL_SWAP  = "nurse_shift_requests";
   }
 
   // ========= Export & Print =========
+  // ========= Export (Styled .xlsx via ExcelJS; fallback to XLSX table export) =========
+  function _cmToIn(cm){ return cm / 2.54; }
+
+  function _ensureExcelJs(){
+    if (typeof ExcelJS === "undefined" || typeof saveAs === "undefined") return false;
+    return true;
+  }
+
+  function _collectTableData(tableId){
+    const table = document.getElementById(tableId);
+    if (!table) return { headers: [], rows: [] };
+
+    // headers
+    const ths = [...table.querySelectorAll("thead th")].filter(th => !th.classList.contains("no-print"));
+    const headers = ths.map(th => (th.textContent || "").trim());
+
+    // rows
+    const rows = [...table.querySelectorAll("tbody tr")].map(tr => {
+      const tds = [...tr.children].filter(td => !td.classList.contains("no-print"));
+      return tds.map(td => {
+        // If contains select/input/textarea, extract value
+        const sel = td.querySelector("select");
+        if (sel) return (sel.value || sel.options?.[sel.selectedIndex]?.text || "").trim();
+        const inp = td.querySelector("input");
+        if (inp) return (inp.value || "").trim();
+        const ta = td.querySelector("textarea");
+        if (ta) return (ta.value || "").trim();
+        return (td.textContent || "").trim();
+      });
+    }).filter(r => r.length && !r.join("").includes("沒有符合的資料") && !r.join("").includes("載入中"));
+
+    return { headers, rows };
+  }
+
+  async function exportStyledXlsx({ tableId, filename, sheetName, title }) {
+    // Prefer ExcelJS styled export; fallback to legacy XLSX table export
+    if (!_ensureExcelJs()) {
+      exportTableToExcel(tableId, filename.replace(/\.xlsx$/i, "") + ".xlsx");
+      return;
+    }
+
+    const { headers, rows } = _collectTableData(tableId);
+    if (!headers.length) {
+      alert("找不到可匯出的表格資料");
+      return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Micronurse Office";
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet(sheetName || "Sheet1", {
+      properties: { defaultRowHeight: 20 },
+      pageSetup: {
+        paperSize: 9, // A4
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+          top: _cmToIn(1.5),
+          bottom: _cmToIn(1.5),
+          left: _cmToIn(1.5),
+          right: _cmToIn(1.5),
+          header: _cmToIn(0.8),
+          footer: _cmToIn(0.8)
+        }
+      },
+      views: [{ state: "frozen", ySplit: 2 }] // freeze title + header
+    });
+
+    // Title row
+    const titleText = title || filename.replace(/\.xlsx$/i, "");
+    ws.mergeCells(1, 1, 1, headers.length);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = titleText;
+    titleCell.font = { name: "Microsoft JhengHei", size: 16, bold: true };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(1).height = 28;
+
+    // Header row
+    ws.addRow(headers);
+    const headerRow = ws.getRow(2);
+    headerRow.height = 22;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: "Microsoft JhengHei", size: 12, bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE9ECEF" } };
+      cell.border = {
+        top: { style: "thin" }, left: { style: "thin" },
+        bottom: { style: "thin" }, right: { style: "thin" }
+      };
+    });
+
+    // Data rows
+    rows.forEach(r => ws.addRow(r));
+    for (let i = 3; i <= ws.rowCount; i++) {
+      const row = ws.getRow(i);
+      row.height = 36; // allow wrap
+      row.eachCell((cell) => {
+        cell.font = { name: "Microsoft JhengHei", size: 11 };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = {
+          top: { style: "thin" }, left: { style: "thin" },
+          bottom: { style: "thin" }, right: { style: "thin" }
+        };
+      });
+    }
+
+    // Column widths (make it roomy; tweak based on header text)
+    const widthMap = {
+      "申請日期": 14, "申請人": 14, "假別": 12, "請假日期": 14, "班別": 12,
+      "請假時數(小時)": 16, "理由": 30, "狀態": 14, "主管簽名": 14, "註解": 30,
+      "調班日期": 14, "原班別": 14, "欲換班別": 14
+    };
+    ws.columns = headers.map(h => ({ width: widthMap[h] || 18 }));
+
+    // Save
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
+  }
+
   function exportTableToExcel(tableId, filename) {
     // ✅ 防呆：避免 XLSX 沒載入導致 XLSX is not defined
     if (typeof XLSX === "undefined") {
@@ -486,10 +608,9 @@ window.COL_SWAP  = "nurse_shift_requests";
     XLSX.writeFile(wb, filename);
   }
   function bindExportPrint() {
-    $("#exportLeaveExcel")?.addEventListener("click", () => exportTableToExcel("leaveTable", "請假紀錄.xlsx"));
-    $("#exportSwapExcel") ?.addEventListener("click", () => exportTableToExcel("swapTable",  "調班紀錄.xlsx"));
-
-    $("#printLeaveTable")?.addEventListener("click", () => {
+    $("#exportLeaveExcel")?.addEventListener("click", () => exportStyledXlsx({ tableId: "leaveTable", filename: "請假紀錄.xlsx", sheetName: "請假紀錄", title: "請假紀錄表" }));
+    $("#exportSwapExcel") ?.addEventListener("click", () => exportStyledXlsx({ tableId: "swapTable",  filename: "調班紀錄.xlsx", sheetName: "調班紀錄", title: "調班紀錄表" }));
+$("#printLeaveTable")?.addEventListener("click", () => {
       const clone = document.getElementById("leaveTable").cloneNode(true);
       clone.querySelectorAll(".no-print").forEach(e => e.remove());
       clone.querySelectorAll("select, input, textarea").forEach(el => {
