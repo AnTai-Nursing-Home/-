@@ -466,12 +466,20 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   // ========= Export & Print =========
   function exportTableToExcel(tableId, filename) {
+    // ✅ 防呆：避免 XLSX 沒載入導致 XLSX is not defined
+    if (typeof XLSX === "undefined") {
+      alert("⚠️ 匯出功能需要載入 Excel 函式庫（XLSX）。\n請確認 office-request.html 已加入 xlsx.full.min.js，或重新整理再試一次。");
+      console.error("XLSX is not defined. Please include https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js before office-request.js");
+      return;
+    }
+
     const table = document.getElementById(tableId).cloneNode(true);
     table.querySelectorAll(".no-print").forEach(e => e.remove());
     table.querySelectorAll("select, input, textarea").forEach(el => {
       const text = el.value || el.options?.[el.selectedIndex]?.text || "";
       el.replaceWith(document.createTextNode(text));
     });
+
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.table_to_sheet(table);
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
