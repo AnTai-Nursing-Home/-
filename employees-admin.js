@@ -450,7 +450,14 @@ function fillFormFromRow(row) {
 
   function normalizeDateMaybe(v) {
     if (v === undefined || v === null || v === "") return "";
+    // XLSX may return Excel serial (number) or Date (when cellDates:true)
     if (typeof v === "number") return excelSerialToDateString(v);
+    if (v instanceof Date) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, "0");
+      const d = String(v.getDate()).padStart(2, "0");
+      return `${y}/${m}/${d}`;
+    }
     if (typeof v === "string") return formatDateInput(v);
     return "";
   }
@@ -469,9 +476,9 @@ function fillFormFromRow(row) {
     reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target.result);
-        const wb = XLSX.read(data, { type: "array" });
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const list = XLSX.utils.sheet_to_json(sheet);
+        const list = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
         if (list.length === 0) {
           importStatus.className = "alert alert-danger";
           importStatus.textContent = "表內沒有資料";
@@ -482,16 +489,29 @@ function fillFormFromRow(row) {
         const map = {
           "排序": "sortOrder",
           "員編": "id",
+          "員工編號": "id",
           "到職日": "hireDate",
+          "到職日期": "hireDate",
           "職稱": "title",
           "姓名": "name",
           "身分證": "idCard",
+          "身分證字號": "idCard",
+          "身份證字號": "idCard",
+          "身份証字號": "idCard",
           "性別": "gender",
           "出生年月日": "birthday",
+          "生日": "birthday",
+          "出生日期": "birthday",
           "證照種類": "licenseType",
           "證書字號": "licenseNumber",
+          "發證字號": "licenseNumber",
           "證書換證日期": "licenseRenewDate",
+          "換證日期": "licenseRenewDate",
           "長照人員服務證明期限": "longtermExpireDate",
+          "長照證效期": "longtermExpireDate",
+          "長照證有效期限": "longtermExpireDate",
+          "長照人員證照文件證號": "longtermCertNumber",
+          "長照證號": "longtermCertNumber",
           "長照人員證照文件證號": "longtermCertNumber",
           "手機": "phone",
           "日間電話": "daytimePhone",
@@ -521,7 +541,7 @@ function fillFormFromRow(row) {
           const payload = {};
           Object.entries(map).forEach(([cn, key]) => {
             let v = row[cn];
-            if (["出生年月日","到職日","換證日期","長照證效期"].includes(cn)) v = normalizeDateMaybe(v);
+            if (["出生年月日","生日","出生日期","到職日","到職日期","換證日期","證書換證日期","長照證效期","長照證有效期限","長照人員服務證明期限"].includes(cn)) v = normalizeDateMaybe(v);
             if (cn === "排序") v = parseInt(v) || 999;
             if (typeof v === "string") v = v.trim();
             payload[key] = v ?? "";
