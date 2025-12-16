@@ -354,21 +354,21 @@ function fillFormFromRow(row) {
       name: nameInput.value.trim(),
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
-      idCard: idCardInput.value.trim().toUpperCase(),
+      nationalId: idCardInput.value.trim().toUpperCase(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
       title: titleInput.value.trim(),
       phone: phoneInput.value.trim(),
-      daytimePhone: daytimePhoneInput.value.trim(),
+      email: daytimePhoneInput.value.trim(),
       address: addressInput.value.trim(),
       emergencyName: emgNameInput.value.trim(),
       emergencyRelation: emgRelationInput.value.trim(),
       emergencyPhone: emgPhoneInput.value.trim(),
       nationality: nationalityInput.value.trim(),
       licenseType: licenseTypeInput.value.trim(),
-      licenseNumber: licenseNumberInput.value.trim(),
+      licenseNo: licenseNumberInput.value.trim(),
       licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
-      longtermCertNumber: longtermCertNumberInput.value.trim(),
-      longtermExpireDate: formatDateInput(longtermExpireDateInput.value.trim()),
+      ltcNo: longtermCertNumberInput.value.trim(),
+      ltcExpiry: formatDateInput(longtermExpireDateInput.value.trim()),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
     };
@@ -424,7 +424,21 @@ function fillFormFromRow(row) {
           }
         }
       }
-});
+}
+  function toISODateForInput(v){
+    if (!v) return "";
+    // 2025/12/09 -> 2025-12-09
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(v)) return v.replaceAll("/","-");
+    // ROC: 115/06/19 -> 2026-06-19 (115+1911)
+    if (/^\d{2,3}\/\d{2}\/\d{2}$/.test(v)) {
+      const [y,m,d]=v.split("/");
+      const yy = String(parseInt(y,10)+1911);
+      return `${yy}-${m}-${d}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    return "";
+  }
+);
   });
 
   // 排序 header
@@ -494,27 +508,27 @@ function fillFormFromRow(row) {
           "到職日期": "hireDate",
           "職稱": "title",
           "姓名": "name",
-          "身分證": "idCard",
-          "身分證字號": "idCard",
-          "身份證字號": "idCard",
-          "身份証字號": "idCard",
+          "身分證": "nationalId",
+          "身分證字號": "nationalId",
+          "身份證字號": "nationalId",
+          "身份証字號": "nationalId",
           "性別": "gender",
           "出生年月日": "birthday",
           "生日": "birthday",
           "出生日期": "birthday",
           "證照種類": "licenseType",
-          "證書字號": "licenseNumber",
-          "發證字號": "licenseNumber",
+          "證書字號": "licenseNo",
+          "發證字號": "licenseNo",
           "證書換證日期": "licenseRenewDate",
           "換證日期": "licenseRenewDate",
-          "長照人員服務證明期限": "longtermExpireDate",
-          "長照證效期": "longtermExpireDate",
-          "長照證有效期限": "longtermExpireDate",
-          "長照人員證照文件證號": "longtermCertNumber",
-          "長照證號": "longtermCertNumber",
-          "長照人員證照文件證號": "longtermCertNumber",
+          "長照人員服務證明期限": "ltcExpiry",
+          "長照證效期": "ltcExpiry",
+          "長照證有效期限": "ltcExpiry",
+          "長照人員證照文件證號": "ltcNo",
+          "長照證號": "ltcNo",
+          "長照人員證照文件證號": "ltcNo",
           "手機": "phone",
-          "日間電話": "daytimePhone",
+          "日間電話": "email",
           "緊急連絡人姓名": "emergencyName",
           "緊急連絡人關係": "emergencyRelation",
           "緊急連絡人電話": "emergencyPhone",
