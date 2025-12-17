@@ -9,9 +9,8 @@ function getDb(){
     // firebase-init.js 用 `let db`，在瀏覽器屬於全域 binding，但不一定掛在 window 上
     if (typeof db !== 'undefined' && db) return db;
   } catch (e) {}
-  return null;
+  return getDb() || null;
 }
-
 const initialSheets = {"單獨泡製": [["安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10", "", "", "", "", "", "", "", "", ""], ["", "編號\nNumbreing", "姓名\nname", "加水量\nwater\n(ml)", "奶粉(匙)\nmilk powder\n(spoon)", "餐間水(2次)\nWater supply \n between meals (ml)", "備註", "總熱量\n(大卡)", "蛋白質\n(克)", "備註"], [1, "103-1", "賴坤財\nLai Kuntsai", 250, 2.5, "X", "水腫限水", 1635, 67, ""], [2, "101-2", "洪輝童\nHong HuiTong", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [3, "105-1", "戴喜垣\nTai Hsiyuan", "", "", 200, "", 1506, 53, "自備奶(管灌安素*6餐)"], [4, "105-2", "洪坤玉\nHUNG \nKUN-YU", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [5, "106-2", "阮麗華  Ruan Lihua", 150, 2.5, "X", "水腫限水", 1635, 67, ""], [6, "206-1", "吳邱芳梅 Wu Qiufangmei", 200, 2, 200, "", 1308, 53.4, "太胖，減重"], [7, "211-1", "李秀花  \nLi Xiuhua", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [8, "212-2", "葉正良\nYeh Chengliang", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [9, "217-3", "紀余日仔\nRi zi", 200, 2, 200, "", 1046, 43, "只要2匙*4餐(醫囑)"], [10, "218-2", "王玉蘭\nYu lan", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [11, "220-3", "王文賢\nWang Wunsian", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [12, "221-2", "陳寶財\nBao Cai", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [13, "221-3", "楊受滿\nYang Shouman", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], [13, "總計\ntotal", "", "=SUM(D5:D14)", "=SUM(E5:E14)", "=SUM(F5:F14)", "", "", "", ""], ["", "＊灌食時間(feeding time):06:00、10:00、14:30、18:00、22:00", "", "", "", "", "", "", "", ""], ["", "＊灌食配方:護力養plus經典(1匙30克，130.8卡，蛋白質5.34克)", "", "", "", "", "", "", "", ""], ["", "＊泡法:1.先加入所需的水量--->  2.再加入需要的奶粉匙數\n(method: 1. First add the required amount of water ---> 2. Then add the required number of spoons of milk powder)", "", "", "", "", "", "", "", ""], ["", "＊冬天不加鹽，夏天每日1克", "", "", "", "", "", "", "", ""]], "奶粉2.5匙": [["安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10", "", "", "", "", "", "", "", ""], ["", "編號\nNumbreing", "姓名\nname", "加水量\nwater\n(ml)", "奶粉(匙)\nmilk powder\n(spoon)", "餐間水(2次)\nWater supply \n between meals (ml)", "備註", "總\n熱\n量\n(大卡)", "蛋\n白\n質\n(克)"], [1, "101-1", "楊仲富    Zhongfu ", 250, 2.5, 200, "", 1635, 67], [2, "107-2", "蔡調榮\nCai Diaorong", 250, 2.5, 200, "", 1635, 67], [3, "108-1", "呂曾芳妹\nLyu-Zeng Fangmei\n", 250, 2.5, 200, "", 1635, 67], [4, "108-2", "林麗真\nLin Lizhen", 250, 2.5, 200, "", 1635, 67], [5, "112-1", "洪周金好\nJin Hao", 250, 2.5, 200, "", 1635, 67], [6, "202-1", "余劉春花  YU LIU CHUN HUA", 250, 2.5, 200, "", 1635, 67], [7, "202-2", "賴淑芬\nLai Shufen", 250, 2.5, "", "由口喝牛奶", 1635, 67], [8, "203-1", "王蘇罔腰\n Su's waist", 250, 2.5, 200, "", 1635, 67], [9, "203-2", "許陳金鉛  Xu Chenjin lead", 250, 2.5, 200, "", 1635, 67], [10, "205-2", "潘麗珍\nPan Lijhen", 250, 2.5, 200, "", 1635, 67], [11, "207-2", "戴榮興\nDai Rongsing", 250, 2.5, 200, "", 1635, 67], [12, "209-2", "李閠源\nLI YUAN", 250, 2.5, 200, "", 1635, 67], [13, "215-1", "鄞進發    \nYin Jinfa ", 250, 2.5, 200, "", 1635, 67], [14, "216-1", "王萬福\nWang Wanfu", 250, 2.5, 200, "", 1635, 67], [15, "216-2", "陳佳駿\nChen Chiachun", 250, 2.5, 200, "", 1635, 67], [16, "217-1", "郭蜜琴\nMiqin", 250, 2.5, "", "由口喝全奶", 1635, 67], [17, "217-5", "王慧雅\nWang Hueiya", 250, 2.5, 200, "", 1635, 67], [18, "218-1", "蔡郭米  Guomi", 250, 2.5, 200, "", 1635, 67], [19, "218-5", "鄭張貴英\nGuiying", 250, 2.5, 200, "", 1635, 67], [20, "219-1", "許謝運珍YUN-CHEN", 250, 2.5, 200, "", 1635, 67], [21, "219-3", "王秀珠 \nWang Xiuzhu", 250, 2.5, 200, "", 1635, 67], [22, "220-1", "曾光亮\nTseng Kuangliang", 250, 2.5, 200, "", 1635, 67], [23, "308-2", "曾清火  Qinghuo", 250, 2.5, "", "由口喝牛奶", 1635, 67], [23, "總計\ntotal", "", "=SUM(D3:D25)", "=SUM(E3:E25)", "=SUM(F3:F25)", "", "", ""], ["", "＊灌食時間(feeding time):06:00、10:00、14:30、18:00、22:00", "", "", "", "", "", "", ""], ["", "＊灌食配方:護力養plus經典(1匙30克，130.8卡，蛋白質5.34克)", "", "", "", "", "", "", ""], ["", "＊泡法:1.先加入所需的水量--->  2.再加入需要的奶粉匙數\n(method: 1. First add the required amount of water ---> 2. Then add the required number of spoons of milk powder)", "", "", "", "", "", "", ""], ["", "＊冬天不加鹽，夏天每日1克", "", "", "", "", "", "", ""]], "奶粉匙數": [["奶粉/匙/30克", "喝牛奶人數", "去住院人數", "每餐匙數小計", "一餐量(g)", "一日量(g)", "一月量(g)", "一匙奶粉   30克", "一箱奶粉3021克", "一箱奶粉    3包", "每次叫貨量35箱"], [2.5, "='奶粉2.5匙'!A26", "", "=B2*A2", "=D2*H2", "=D2*H2*5", "=D2*5*30*H2", 30, 3021, 3, 35], [3, 3, "", "=B3*A3", "=D3*H2", "=D3*H2*5", "=D3*5*30*H2", "", "", "", 105], [3.5, 5, "", "=B4*A4", "=D4*H2", "=D4*H2*5", "=D4*5*30*H2", "", "", "", ""], ["合計", "=SUM(B2:B4)", "", "=SUM(D2:D4)", "=SUM(E2:E4)", "=SUM(F2:F4)", "=SUM(G2:G4)", "", "", "", ""], [2.5, "", 6, "=C6*A6", "=D6*H2", "=E6*5", "=F6*30", "", "", "", ""], ["", "", "", "換算包數", "=(E5-E6)/3021", "=(F5-F6)/3021", "=(G5-G6)/3021", "", "", "", ""], ["", "", "", "", "", "", "", "", "", "", ""], ["奶粉/匙/57克", "喝牛奶人數", "", "每餐匙數小計", "一餐量(g)", "一日量(g)", "一月量(g)", "一匙奶粉   30克", "一箱奶粉3021克", "一箱奶粉    3包", "每次叫貨量35箱"], [2.5, 36, "", "=B10*A10", "=D10*H10", "=D10*H10*5", "=D10*5*30*H10", 30, 3021, 3, 35], ["", "", "", "換算包數", "=E10/3021", "=F10/3021", "=G10/3021", "", "", "", ""]], "加餐-牛奶名單": [["安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10-加餐", "", "", "", "", "", "", "", "", "", "", ""], ["", "飲食型態 Diet pattern", "供應\n餐別", "主食Meal\n(碗 bowl)", "", "", "蔬菜類\nvegetables\n(碗 bowl)", "豆魚蛋肉類\nChicken, Meat, egg, fish\nsoybean", "總\n熱\n量\n(大卡)", "蛋\n白\n質\n(克)", "額\n外\n補\n充", "特\n殊\n指\n示"], ["姓名\nName", "食物型態", "", "", "", "", "", "", "", "", "", ""], ["", "", "", "飯\nRice", "粥\nCongee", "麵\nnoodle", "", "", "", "", "", ""], ["古金山\nGU JIN SHAN", "一般\nnormal", "洗腎餐\ndialysis", 1, 2, 2, 1, 3, 1800, 90, "護力養罐裝\n(22點)", ""], ["黃亮達\nLiangda", "剁碎\nChopped", "一般\nnormal", 1, 2, 2, 1, 2.5, 1700, 80, "22點\n(護力養2.5匙)", ""], ["杜典崑\nDudian kun", "剁碎+乾飯\nChopped", "一般\nnormal", 1, 2, 2, 1, 2, 1600, 70, "22點\n(護力養2.5匙)", ""], ["林烈雲\nLieyun", "剁碎\nChopped", "一般\nnormal", 1, 2, 2, 1, 2, 1600, 70, "22點\n(護力養2.5匙)", ""], ["潘郁豐 \nPan Yufeng", "剁碎\nChopped", "一般\nnormal", 1, 2, 2, 1, 2.5, 1700, 80, "22點\n(護力養2.5匙)", ""], ["林安允\nAnyun", "剁碎\nChopped", "糖尿病\ndiabetes", 1, 2, 2, 1, 2, 1600, 70, "22點\n(護力養2.5匙)", ""], ["劉藍麗珠 Li Jue", "一般+稀飯\nnormal+\ncongee", "高蛋白\nHigt  protein", 1, 2, 2, 1, 2, 1600, 70, "22點\n(護力養2.5匙)", ""], ["許榮成  Rongceng", "剁碎\nChopped", "一般\nnormal", 1, 2, 2, 1, 2.5, 1700, 80, "22點\n(護力養2.5匙)", ""], ["邱桂英\nGuiying", "攪打\nGrind", "一般\nnormal", 1, 2, 2, 1, 2, 1600, 70, "22點\n(護力養2.5匙)", ""]], "第六餐加餐名單": [["安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10", "", "", "", "", "", "", ""], ["姓名\nname", "加水量\nwater\n(ml)", "奶粉(匙)\nmilk powder\n(spoon)", "餐間水(2次)\nWater supply \n between meals (ml)", "備註", "總熱量\n(大卡)", "蛋白質\n(克)", "備註"], ["洪坤玉\nHUNG \nKUN-YU", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["洪輝童\nHong HuiTong", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["王文賢\nWang Wunsian", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["李秀花  \nLi Xiuhua", 250, 3, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["王玉蘭\nYu lan", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["陳寶財\nBao Cai", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["楊受滿\nYang Shouman", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"], ["葉正良\nYeh Chengliang", 250, 2.5, 200, "", 1962, 80, "中心奶2.5匙*6餐"]]};
 const sheetMeta = {"單獨泡製": {"max_row": 20, "max_col": 10, "merges": [{"r1": 1, "c1": 1, "r2": 1, "c2": 10}, {"r1": 19, "c1": 2, "r2": 19, "c2": 10}, {"r1": 20, "c1": 2, "r2": 20, "c2": 10}, {"r1": 17, "c1": 1, "r2": 20, "c2": 1}, {"r1": 17, "c1": 2, "r2": 17, "c2": 10}, {"r1": 18, "c1": 2, "r2": 18, "c2": 10}], "title": "安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10"}, "奶粉2.5匙": {"max_row": 30, "max_col": 9, "merges": [{"r1": 27, "c1": 1, "r2": 30, "c2": 1}, {"r1": 30, "c1": 2, "r2": 30, "c2": 9}, {"r1": 29, "c1": 2, "r2": 29, "c2": 9}, {"r1": 1, "c1": 1, "r2": 1, "c2": 9}, {"r1": 28, "c1": 2, "r2": 28, "c2": 9}, {"r1": 27, "c1": 2, "r2": 27, "c2": 9}], "title": "安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10"}, "奶粉匙數": {"max_row": 11, "max_col": 11, "merges": [], "title": "奶粉/匙/30克"}, "加餐-牛奶名單": {"max_row": 13, "max_col": 12, "merges": [{"r1": 2, "c1": 9, "r2": 4, "c2": 9}, {"r1": 2, "c1": 4, "r2": 3, "c2": 6}, {"r1": 2, "c1": 3, "r2": 4, "c2": 3}, {"r1": 1, "c1": 1, "r2": 1, "c2": 12}, {"r1": 2, "c1": 7, "r2": 4, "c2": 7}, {"r1": 3, "c1": 1, "r2": 4, "c2": 1}, {"r1": 2, "c1": 10, "r2": 4, "c2": 10}, {"r1": 2, "c1": 8, "r2": 4, "c2": 8}, {"r1": 2, "c1": 11, "r2": 4, "c2": 11}, {"r1": 2, "c1": 12, "r2": 4, "c2": 12}, {"r1": 3, "c1": 2, "r2": 4, "c2": 2}], "title": "安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10-加餐"}, "第六餐加餐名單": {"max_row": 10, "max_col": 8, "merges": [{"r1": 1, "c1": 1, "r2": 1, "c2": 8}], "title": "安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10"}};
 
@@ -298,64 +297,93 @@ async function saveToFirestore() {
 }
 
 async function exportExcel() {
-  if (window.__tubeExportingXlsx) return;
-  if (typeof ExcelJS === 'undefined') {
-    alert('ExcelJS 尚未載入，無法匯出 .xlsx（含樣式）。');
+  if (typeof ExcelJS === "undefined") {
+    alert("ExcelJS 尚未載入，無法匯出 .xlsx（請確認已在 HTML 加入 exceljs + file-saver）。");
     return;
   }
-  window.__tubeExportingXlsx = true;
 
-  const btn = document.getElementById('btnExport');
-  const oldText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '匯出中...';
-  }
+  const dateIso = getDateKey ? getDateKey() : "";
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Antai System";
+  wb.created = new Date();
 
-  try {
-      const wb = new ExcelJS.Workbook();
-      const res = await fetch(TEMPLATE_XLSX, { cache: 'no-store' });
-      if (!res.ok) {
-        alert('找不到 tube-template.xlsx（請放在同層）');
-        return;
+  const marginCm = { top: 1.91, bottom: 1.91, left: 0.64, right: 0.64, header: 0.76, footer: 0.76 };
+  const cmToIn = (cm) => cm / 2.54;
+
+  const dataBySheet = (stateGrid || {});
+  const sheetList = (SHEETS || Object.keys(dataBySheet));
+
+  // 自動欄寬：看每欄最長字串（寬鬆一些）
+  const calcColWidths = (grid) => {
+    const cols = Math.max(...grid.map(r => r.length), 1);
+    const w = Array(cols).fill(12);
+    for (let c=0;c<cols;c++){
+      let maxLen = 0;
+      for (const row of grid){
+        const v = row[c];
+        const s = (v==null) ? "" : String(v);
+        maxLen = Math.max(maxLen, s.length);
       }
-      const buf = await res.arrayBuffer();
-      await wb.xlsx.load(buf);
+      w[c] = Math.max(10, Math.min(55, Math.round(maxLen * 1.2)));
+    }
+    return w;
+  };
 
-      for (const sheetName of SHEETS) {
-        const ws = wb.getWorksheet(sheetName);
-        if (!ws) continue;
-
-        const grid = stateGrid[sheetName] || [];
-        const mr = sheetMeta[sheetName]?.max_row || grid.length;
-        const mc = sheetMeta[sheetName]?.max_col || (grid[0]?.length || 0);
-
-        for (let r=1; r<=mr; r++) {
-          for (let c=1; c<=mc; c++) {
-            const v = (grid[r-1] && grid[r-1][c-1] != null) ? grid[r-1][c-1] : '';
-            ws.getCell(r,c).value = (v === '' ? null : v);
-          }
+  for (const sheetName of sheetList) {
+    const grid = (dataBySheet[sheetName] || []).map(r => Array.isArray(r) ? r : []);
+    const ws = wb.addWorksheet(sheetName, {
+      views: [{ state: "frozen", ySplit: 3 }],
+      pageSetup: {
+        orientation: "landscape",
+        paperSize: 9, // A4
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+          left: cmToIn(marginCm.left),
+          right: cmToIn(marginCm.right),
+          top: cmToIn(marginCm.top),
+          bottom: cmToIn(marginCm.bottom),
+          header: cmToIn(marginCm.header),
+          footer: cmToIn(marginCm.footer),
         }
       }
+    });
 
-      const out = await wb.xlsx.writeBuffer();
-      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = '管灌_營養師.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
-  } catch (e) {
-    console.error(e);
-    alert('匯出失敗：' + (e && e.message ? e.message : String(e)));
-  } finally {
-    window.__tubeExportingXlsx = false;
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = oldText;
+    const colWidths = calcColWidths(grid);
+    ws.columns = colWidths.map(w => ({ width: w }));
+
+    // 寫入 grid
+    for (let r=0;r<grid.length;r++){
+      const row = ws.getRow(r+1);
+      row.values = [null, ...grid[r]];
+      row.height = (r===0) ? 32 : 26;
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.font = { name: "標楷體", size: (r===0?16:(r<=2?12:11)), bold: (r<=2) };
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        // 表頭淡底色：第3列（常是欄名列）
+        if (r === 2) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6F9" } };
+        // 框線
+        cell.border = {
+          top: { style: "thin", color: { argb: "FF000000" } },
+          left: { style: "thin", color: { argb: "FF000000" } },
+          bottom: { style: "thin", color: { argb: "FF000000" } },
+          right: { style: "thin", color: { argb: "FF000000" } }
+        };
+      });
     }
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const filename = `${(dateIso || "管灌")}_管灌總表.xlsx`;
+  if (typeof saveAs !== "undefined") saveAs(blob, filename);
+  else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   }
 }
 
