@@ -196,12 +196,10 @@ function renderTable() {
     for (const col of tableModel.cols) {
       const v = rowObj[col.c] ?? '';
       if (readonlySheet) {
-        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/
-/g,'<br>')}</td>`);
+        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/\n/g,'<br>')}</td>`);
       } else {
         const s = String(v ?? '');
-        if (s.includes('
-') || s.length > 18) {
+        if (s.includes('\\n') || s.length > 18) {
           html.push(`<td><textarea class="cell" data-erow="${excelRow}" data-ecol="${col.c}">${escapeHtml(s)}</textarea></td>`);
         } else {
           html.push(`<td><input class="cell" data-erow="${excelRow}" data-ecol="${col.c}" value="${escapeHtml(s)}"></td>`);
