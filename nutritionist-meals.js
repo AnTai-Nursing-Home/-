@@ -385,7 +385,7 @@ async function exportExcel() {
   const marginCm = { top: 1.91, bottom: 1.91, left: 0.64, right: 0.64, header: 0.76, footer: 0.76 };
   const cmToIn = (cm) => cm / 2.54;
 
-  const titleText = buildTitle ? buildTitle(dateIso) : (initialTitle || "餐單總表");
+  const titleText = (typeof buildTitle === 'function') ? buildTitle(dateIso) : ((typeof buildTitleWithDate === 'function') ? buildTitleWithDate(dateIso) : (initialTitle || '餐單總表'));
 
   // 欄位：用現成 COLS 定義
   const exportCols = (COLS || []).filter(c => c && c.key && c.label);
