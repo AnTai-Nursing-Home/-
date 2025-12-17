@@ -1,11 +1,3 @@
-// nutritionist-tube.js
-// 目標：
-// 1) 以「Excel 原檔模板」為版面基準（tube-template.xlsx）
-// 2) 網頁可直接編輯儲存至 Firestore（自動儲存）
-// 3) 匯出 Excel 會把你修改過的儲存格寫回模板，再下載（版面一致）
-//
-// 存放：collection 'nutrition_tube' / doc 'tube' （固定一份，不分日期）
-
 const TEMPLATE_XLSX = 'tube-template.xlsx';
 const FS_COLLECTION = 'nutrition_tube';
 const FS_DOC = 'tube';
@@ -16,143 +8,151 @@ const sheetMeta = {"單獨泡製": {"max_row": 20, "max_col": 10, "merges": [{"r
 const SHEETS = ['單獨泡製','奶粉2.5匙','奶粉匙數','加餐-牛奶名單','第六餐加餐名單'];
 
 let currentSheet = '單獨泡製';
-let state = structuredClone(initialSheets);
-
+let stateGrid = structuredClone(initialSheets);
 let saveTimer = null;
 
-function $(sel) { return document.querySelector(sel); }
-function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+function $(sel){ return document.querySelector(sel); }
 
+function setFbStatus(ok, text) {
+  const dot = $('#fbDot');
+  const t = $('#fbText');
+  if (dot) {
+    dot.classList.toggle('ok', !!ok);
+    dot.classList.toggle('bad', ok===false);
+  }
+  if (t) t.textContent = text || '';
+}
 function setSaveStatus(text) {
   const el = $('#saveStatus');
   if (el) el.textContent = text;
 }
-
 function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'",'&#39;');
+  return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 }
 
-function getMergeMaps(sheetName) {
-  const meta = sheetMeta[sheetName];
-  const merges = (meta?.merges) || [];
-  const skip = new Set();
-  const topLeft = new Map(); // "r,c" -> {rowspan,colspan}
-  for (const m of merges) {
-    const r1=m.r1, c1=m.c1, r2=m.r2, c2=m.c2;
-    topLeft.set(`${r1},${c1}`, { rowspan: (r2-r1+1), colspan: (c2-c1+1) });
-    for (let r=r1; r<=r2; r++) {
-      for (let c=c1; c<=c2; c++) {
-        if (r===r1 && c===c1) continue;
-        skip.add(`${r},${c}`);
-      }
+function gridGet(sheet, r, c) {
+  const g = stateGrid[sheet] || [];
+  return (g[r-1] && g[r-1][c-1] != null) ? g[r-1][c-1] : '';
+}
+function gridSet(sheet, r, c, v) {
+  if (!stateGrid[sheet]) stateGrid[sheet] = [];
+  if (!stateGrid[sheet][r-1]) stateGrid[sheet][r-1] = [];
+  stateGrid[sheet][r-1][c-1] = v;
+}
+
+function guessTable(sheet) {
+  const meta = sheetMeta[sheet] || {};
+  const mr = meta.max_row || (stateGrid[sheet]?.length || 0);
+  const mc = meta.max_col || (stateGrid[sheet]?.[0]?.length || 0);
+
+  let headerRow = 1, best = 0;
+  for (let r=1; r<=Math.min(10, mr); r++) {
+    let count = 0;
+    for (let c=1; c<=mc; c++) {
+      const v = gridGet(sheet, r, c);
+      if (typeof v === 'string' && v.trim() !== '') count++;
     }
+    if (count > best && count >= 3) { best = count; headerRow = r; }
   }
-  return { skip, topLeft };
+
+  const startRow = headerRow + 1;
+
+  const cols = [];
+  for (let c=1; c<=mc; c++) {
+    const name = String(gridGet(sheet, headerRow, c) || '').trim();
+    if (name) cols.push({ c, name });
+  }
+  if (cols.length === 0) {
+    const fallback = Math.min(mc || 10, 12);
+    for (let c=1; c<=fallback; c++) cols.push({ c, name: String.fromCharCode(64+c) });
+  }
+
+  const rows = [];
+  const rowMap = [];
+  for (let r=startRow; r<=mr; r++) {
+    const first = String(gridGet(sheet, r, cols[0].c) || '').trim();
+    const second = cols[1] ? String(gridGet(sheet, r, cols[1].c) || '').trim() : '';
+    if (!first && !second) {
+      const nextFirst = String(gridGet(sheet, r+1, cols[0].c) || '').trim();
+      const nextSecond = cols[1] ? String(gridGet(sheet, r+1, cols[1].c) || '').trim() : '';
+      if (!nextFirst && !nextSecond) break;
+    }
+    const obj = {};
+    for (const col of cols) obj[col.c] = gridGet(sheet, r, col.c);
+    rows.push(obj);
+    rowMap.push(r);
+  }
+  return { cols, rows, rowMap };
 }
 
-function isProbablyReadonly(sheetName, r, c, value) {
-  // 基本保護：標題列（第 1 列）與「奶粉匙數」整張表（多為參考表）預設唯讀
-  if (r === 1) return true;
-  if (sheetName === '奶粉匙數') return true;
-  // 常見的左側標籤欄：第一欄有文字、且右邊多為輸入區 → 先保護第一欄
-  if (c === 1 && String(value||'').trim() !== '') return true;
-  return false;
+function renderSheetSelect() {
+  const sel = $('#sheetSelect');
+  sel.innerHTML = SHEETS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  sel.value = currentSheet;
 }
 
-function renderTabs() {
-  $all('#tubeTabs .nav-link').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sheet === currentSheet);
-  });
+function buildFilter(tableModel) {
+  const q = ($('#searchInput')?.value || '').trim().toLowerCase();
+  if (!q) return null;
+  return (rowObj) => tableModel.cols.some(col => String(rowObj[col.c] ?? '').toLowerCase().includes(q));
 }
+
+function isReadonlySheet(sheet) { return sheet === '奶粉匙數'; }
 
 function renderTable() {
-  const wrap = $('#tableWrap');
-  const grid = state[currentSheet] || [[]];
-  const mr = sheetMeta[currentSheet]?.max_row || grid.length;
-  const mc = sheetMeta[currentSheet]?.max_col || (grid[0]?.length || 0);
-
-  const { skip, topLeft } = getMergeMaps(currentSheet);
+  const tableModel = guessTable(currentSheet);
+  const filterFn = buildFilter(tableModel);
+  const rows = filterFn ? tableModel.rows.filter(filterFn) : tableModel.rows;
+  const readonlySheet = isReadonlySheet(currentSheet);
 
   const html = [];
-  html.push('<table class="grid">');
+  html.push('<table class="sys"><thead><tr>');
+  for (const col of tableModel.cols) html.push(`<th>${escapeHtml(col.name)}</th>`);
+  html.push('</tr></thead><tbody>');
 
-  // 做一行欄標（A,B,C...）
-  html.push('<thead><tr>');
-  html.push('<th style="min-width:70px">列\欄</th>');
-  for (let c=1; c<=mc; c++) {
-    html.push(`<th style="min-width:110px">${String.fromCharCode(64+c)}</th>`);
-  }
-  html.push('</tr></thead>');
-
-  html.push('<tbody>');
-  for (let r=1; r<=mr; r++) {
+  rows.forEach((rowObj) => {
+    const excelRow = tableModel.rowMap[tableModel.rows.indexOf(rowObj)];
     html.push('<tr>');
-    html.push(`<th class="center" style="background:#f2f2f2">${r}</th>`);
-    for (let c=1; c<=mc; c++) {
-      if (skip.has(`${r},${c}`)) continue;
-
-      const span = topLeft.get(`${r},${c}`);
-      const v = (grid[r-1] && grid[r-1][c-1] != null) ? grid[r-1][c-1] : '';
-
-      const readonly = isProbablyReadonly(currentSheet, r, c, v);
-      const cls = [readonly ? 'readonly' : '', ''].filter(Boolean).join(' ');
-      const attrs = [];
-      if (span) {
-        attrs.push(`rowspan="${span.rowspan}"`);
-        attrs.push(`colspan="${span.colspan}"`);
+    for (const col of tableModel.cols) {
+      const v = rowObj[col.c] ?? '';
+      if (readonlySheet) {
+        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/\n/g,'<br>')}</td>`);
+      } else {
+        const s = String(v ?? '');
+        if (s.includes('\n') || s.length > 18) {
+          html.push(`<td><textarea class="cell" data-erow="${excelRow}" data-ecol="${col.c}">${escapeHtml(s)}</textarea></td>`);
+        } else {
+          html.push(`<td><input class="cell" data-erow="${excelRow}" data-ecol="${col.c}" value="${escapeHtml(s)}"></td>`);
+        }
       }
-      attrs.push(`data-r="${r}" data-c="${c}"`);
-      html.push(`<td class="${cls}" ${attrs.join(' ')}>${renderCellInput(currentSheet, r, c, v, readonly)}</td>`);
     }
     html.push('</tr>');
-  }
+  });
   html.push('</tbody></table>');
 
-  wrap.innerHTML = html.join('');
-}
-
-function renderCellInput(sheetName, r, c, v, readonly) {
-  const safe = escapeHtml(String(v ?? ''));
-  if (readonly) return safe.replace(/\n/g, '<br>');
-
-  // 長字用 textarea（內容含換行或字數較多）
-  const s = String(v ?? '');
-  if (s.includes('\n') || s.length > 16) {
-    return `<textarea class="cell" data-r="${r}" data-c="${c}">${safe}</textarea>`;
-  }
-  return `<input class="cell" data-r="${r}" data-c="${c}" value="${safe}">`;
-}
-
-function bindEvents() {
   const wrap = $('#tableWrap');
-  wrap.addEventListener('input', (e) => {
+  wrap.innerHTML = html.join('');
+
+  wrap.oninput = (e) => {
     const t = e.target;
     if (!t.classList.contains('cell')) return;
-    const r = Number(t.dataset.r);
-    const c = Number(t.dataset.c);
-    if (!r || !c) return;
-
-    if (!state[currentSheet]) state[currentSheet] = [];
-    if (!state[currentSheet][r-1]) state[currentSheet][r-1] = [];
-    state[currentSheet][r-1][c-1] = t.value;
-
+    const erow = Number(t.dataset.erow);
+    const ecol = Number(t.dataset.ecol);
+    if (!erow || !ecol) return;
+    gridSet(currentSheet, erow, ecol, t.value);
     scheduleSave('修改');
-  }, { passive: true });
+  };
 }
 
 function scheduleSave(reason='儲存') {
   if (!window.db) {
-    setSaveStatus('（尚未連上 Firebase，不會儲存）');
+    setSaveStatus('Firebase 尚未初始化（不會儲存）');
+    setFbStatus(false, '尚未初始化');
     return;
   }
   setSaveStatus(`已變更：${reason}（準備儲存…）`);
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveToFirestore(), 700);
+  saveTimer = setTimeout(saveToFirestore, 700);
 }
 
 async function loadFromFirestore() {
@@ -164,11 +164,8 @@ async function loadFromFirestore() {
     if (snap.exists) {
       const data = snap.data() || {};
       if (data.sheets) {
-        state = structuredClone(data.sheets);
-        // 補齊缺的 sheet
-        for (const s of SHEETS) {
-          if (!Array.isArray(state[s])) state[s] = structuredClone(initialSheets[s] || [[]]);
-        }
+        stateGrid = structuredClone(data.sheets);
+        for (const s of SHEETS) if (!Array.isArray(stateGrid[s])) stateGrid[s] = structuredClone(initialSheets[s] || [[]]);
         setSaveStatus('已載入 Firebase 資料');
         return true;
       }
@@ -176,24 +173,23 @@ async function loadFromFirestore() {
     setSaveStatus('Firebase 無資料（使用模板預設）');
     return false;
   } catch (err) {
-    console.error('loadFromFirestore error', err);
+    console.error(err);
     setSaveStatus('讀取 Firebase 失敗（使用模板預設）');
     return false;
   }
 }
 
 async function saveToFirestore() {
-  if (!window.db) return;
   try {
     setSaveStatus('儲存中…');
     const ref = window.db.collection(FS_COLLECTION).doc(FS_DOC);
     await ref.set({
-      sheets: state,
+      sheets: stateGrid,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
     setSaveStatus(`已儲存（${new Date().toLocaleTimeString()}）`);
   } catch (err) {
-    console.error('saveToFirestore error', err);
+    console.error(err);
     setSaveStatus('儲存失敗（請檢查 Firestore 權限/網路）');
   }
 }
@@ -202,7 +198,7 @@ async function exportExcel() {
   const wb = new ExcelJS.Workbook();
   const res = await fetch(TEMPLATE_XLSX, { cache: 'no-store' });
   if (!res.ok) {
-    alert('找不到 tube-template.xlsx，請確認已放到同一個資料夾（與 nutritionist-tube.html 同層）');
+    alert('找不到 tube-template.xlsx（請放在同層）');
     return;
   }
   const buf = await res.arrayBuffer();
@@ -212,14 +208,13 @@ async function exportExcel() {
     const ws = wb.getWorksheet(sheetName);
     if (!ws) continue;
 
-    const grid = state[sheetName] || [];
+    const grid = stateGrid[sheetName] || [];
     const mr = sheetMeta[sheetName]?.max_row || grid.length;
     const mc = sheetMeta[sheetName]?.max_col || (grid[0]?.length || 0);
 
     for (let r=1; r<=mr; r++) {
       for (let c=1; c<=mc; c++) {
         const v = (grid[r-1] && grid[r-1][c-1] != null) ? grid[r-1][c-1] : '';
-        // 保留模板格式，只改值
         ws.getCell(r,c).value = (v === '' ? null : v);
       }
     }
@@ -229,42 +224,46 @@ async function exportExcel() {
   const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `管灌_營養師.xlsx`;
+  a.download = '管灌_營養師.xlsx';
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
 }
 
-function printCurrent() {
-  window.print();
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-  renderTabs();
+  renderSheetSelect();
   renderTable();
-  bindEvents();
 
-  // tabs
-  $('#tubeTabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-sheet]');
-    if (!btn) return;
-    currentSheet = btn.dataset.sheet;
-    renderTabs();
+  $('#sheetSelect').addEventListener('change', (e) => {
+    currentSheet = e.target.value;
+    $('#searchInput').value = '';
     renderTable();
   });
+  $('#searchInput').addEventListener('input', renderTable);
 
+  $('#btnPrint').addEventListener('click', () => window.print());
   $('#btnExport').addEventListener('click', exportExcel);
-  $('#btnPrint').addEventListener('click', printCurrent);
 
-  // Firebase ready
   document.addEventListener('firebase-ready', async () => {
-    if (!window.db) {
+    if (window.db) {
+      setFbStatus(true, '已就緒');
+      await loadFromFirestore();
+      renderTable();
+    } else {
+      setFbStatus(false, '尚未初始化');
       setSaveStatus('Firebase 尚未初始化（不會儲存）');
-      return;
     }
-    setSaveStatus('Firebase 已就緒');
-    await loadFromFirestore();
-    renderTable();
   });
+
+  setTimeout(async () => {
+    if (window.db) {
+      setFbStatus(true, '已就緒');
+      await loadFromFirestore();
+      renderTable();
+    } else {
+      setFbStatus(false, '尚未初始化');
+      setSaveStatus('Firebase 尚未初始化（不會儲存）');
+    }
+  }, 2000);
 });
