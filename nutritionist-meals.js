@@ -389,11 +389,29 @@ async function exportExcel() {
 
   // 欄位：用現成 COLS 定義
   const exportCols = (COLS || []).filter(c => c && c.key && c.label);
-  const excelColumns = exportCols.map(c => ({
-    header: c.label,
-    key: c.key,
-    width: Math.max(12, Math.min(55, Math.round(((c.width || 140) / 6)))) // 讓欄寬更寬鬆
-  }));
+  const WIDTH_OVERRIDE = {
+    bed: 10,
+    name: 22,
+    side: 6,
+    plate: 6,
+    bowl: 6,
+    diet_type: 16,
+    meal_supply: 16,
+    rice: 8,
+    congee: 8,
+    noodle: 8,
+    veg: 10,
+    protein: 12,
+    kcal: 13,
+    protein_g: 13,
+    extra: 20,
+    special: 22
+  };
+
+  const excelColumns = exportCols.map(c => {
+    const w = WIDTH_OVERRIDE[c.key] ?? Math.max(8, Math.min(40, Math.round(((c.width || 120) / 7))));
+    return { header: c.label, key: c.key, width: w };
+  });
 
   const fmtIsoToRoc = (iso) => {
     if (!iso) return "";
