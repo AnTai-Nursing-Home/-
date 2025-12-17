@@ -39,20 +39,6 @@ function escapeHtml(s) {
   return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 }
 
-
-/** 取得日期字串（YYYY-MM-DD）
- *  - 若頁面上有 <input type="date"> 或 #dateInput，優先取其值
- *  - 否則回傳今天日期（本機時間）
- */
-function getDateKey() {
-  const el = document.querySelector("#dateInput, input[type='date'], input[name='date']");
-  if (el && el.value) return String(el.value).trim();
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-
 function gridGet(sheet, r, c) {
   const g = stateGrid[sheet] || [];
   return (g[r-1] && g[r-1][c-1] != null) ? g[r-1][c-1] : '';
@@ -133,6 +119,19 @@ function buildFilter(tableModel) {
 
 function isReadonlySheet(sheet) { return sheet === '奶粉匙數'; }
 
+function isNoteRow(rowObj, tableModel) {
+  // 移除模板中「＊灌食時間/作法/備註」等說明列，避免畫面後段一大塊空白格
+  const firstCol = tableModel?.cols?.[0]?.c;
+  if (!firstCol) return false;
+  const v = String(rowObj[firstCol] ?? '').trim();
+  if (!v) return false;
+  // 常見註解列開頭符號
+  if (/^[＊*※]/.test(v)) return true;
+  // 其他常見說明列關鍵字（保守）
+  if (/(灌食時間|灌食配方|泡法|注意事項|冬天不加鹽|summer|feeding)/i.test(v)) return true;
+  return false;
+}
+
 
 let selectedRowKeys = new Set(); // key = `${sheet}|${excelRow}`
 
@@ -211,7 +210,9 @@ function deleteExcelRows(sheet, excelRows){
 function renderTable() {
   const tableModel = guessTable(currentSheet);
   const filterFn = buildFilter(tableModel);
-  const rows = filterFn ? tableModel.rows.filter(filterFn) : tableModel.rows;
+  let rows = filterFn ? tableModel.rows.filter(filterFn) : tableModel.rows;
+  // 隱藏模板內的說明/註解列（使用者表示不需要）
+  rows = rows.filter(r => !isNoteRow(r, tableModel));
   const readonlySheet = isReadonlySheet(currentSheet);
 
   const html = [];
@@ -327,7 +328,7 @@ async function exportExcel() {
     return;
   }
 
-  const dateIso = (typeof getDateKey === "function") ? getDateKey() : "";
+  const dateIso = getDateKey ? getDateKey() : "";
   const wb = new ExcelJS.Workbook();
   wb.creator = "Antai System";
   wb.created = new Date();
