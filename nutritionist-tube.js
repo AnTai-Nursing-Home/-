@@ -99,6 +99,81 @@ function buildFilter(tableModel) {
 
 function isReadonlySheet(sheet) { return sheet === '奶粉匙數'; }
 
+
+let selectedRowKeys = new Set(); // key = `${sheet}|${excelRow}`
+
+function makeRowKey(sheet, excelRow){ return `${sheet}|${excelRow}`; }
+
+function getSelectedExcelRows(sheet){
+  const rows = [];
+  for (const k of selectedRowKeys){
+    const [s, r] = k.split('|');
+    if (s === sheet) rows.push(Number(r));
+  }
+  return rows.sort((a,b)=>a-b);
+}
+
+function clearSelectionForSheet(sheet){
+  for (const k of Array.from(selectedRowKeys)){
+    if (k.startsWith(sheet+'|')) selectedRowKeys.delete(k);
+  }
+}
+
+function findColByNames(tableModel, names){
+  const lowers = names.map(n=>n.toLowerCase());
+  for (const col of tableModel.cols){
+    const n = String(col.name||'').toLowerCase();
+    if (lowers.includes(n)) return col;
+  }
+  // contains match
+  for (const col of tableModel.cols){
+    const n = String(col.name||'').toLowerCase();
+    if (lowers.some(x=>n.includes(x))) return col;
+  }
+  return null;
+}
+
+function firstEmptyDataRow(sheet){
+  // Find next row after last non-empty among meta.max_row, but keep within meta.max_row+200 safety
+  const meta = sheetMeta[sheet] || {};
+  const mr = meta.max_row || (stateGrid[sheet]?.length || 0);
+  const mc = meta.max_col || (stateGrid[sheet]?.[0]?.length || 0);
+  // search from bottom up for last non-empty in first few cols
+  let last = 0;
+  for (let r=1; r<=mr; r++){
+    let has = false;
+    for (let c=1; c<=Math.min(mc, 6); c++){
+      const v = String(gridGet(sheet, r, c) || '').trim();
+      if (v){ has=true; break; }
+    }
+    if (has) last = r;
+  }
+  return last + 1;
+}
+
+function ensureGridSize(sheet, rows, cols){
+  if (!stateGrid[sheet]) stateGrid[sheet] = [];
+  while (stateGrid[sheet].length < rows) stateGrid[sheet].push([]);
+  for (let r=0; r<rows; r++){
+    while (stateGrid[sheet][r].length < cols) stateGrid[sheet][r].push('');
+  }
+}
+
+function deleteExcelRows(sheet, excelRows){
+  if (excelRows.length === 0) return;
+  const meta = sheetMeta[sheet] || {};
+  const mc = meta.max_col || (stateGrid[sheet]?.[0]?.length || 0) || 20;
+  // Delete by shifting up: for each row in ascending order, remove that row and shift others up
+  // Safer: set selected rows to blank (keep template layout) instead of removing physical rows.
+  for (const r of excelRows){
+    ensureGridSize(sheet, r, mc);
+    for (let c=1; c<=mc; c++){
+      gridSet(sheet, r, c, '');
+    }
+  }
+}
+
+
 function renderTable() {
   const tableModel = guessTable(currentSheet);
   const filterFn = buildFilter(tableModel);
@@ -107,19 +182,26 @@ function renderTable() {
 
   const html = [];
   html.push('<table class="sys"><thead><tr>');
+  // selection column
+  html.push('<th style="width:44px" title="勾選要刪除/調動的住民"><i class="fas fa-check"></i></th>');
   for (const col of tableModel.cols) html.push(`<th>${escapeHtml(col.name)}</th>`);
   html.push('</tr></thead><tbody>');
 
   rows.forEach((rowObj) => {
     const excelRow = tableModel.rowMap[tableModel.rows.indexOf(rowObj)];
+    const rowKey = makeRowKey(currentSheet, excelRow);
+    const checked = selectedRowKeys.has(rowKey) ? 'checked' : '';
     html.push('<tr>');
+    html.push(`<td class="text-center"><input class="form-check-input rowcheck" type="checkbox" data-erow="${excelRow}" ${checked}></td>`);
     for (const col of tableModel.cols) {
       const v = rowObj[col.c] ?? '';
       if (readonlySheet) {
-        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/\n/g,'<br>')}</td>`);
+        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/
+/g,'<br>')}</td>`);
       } else {
         const s = String(v ?? '');
-        if (s.includes('\n') || s.length > 18) {
+        if (s.includes('
+') || s.length > 18) {
           html.push(`<td><textarea class="cell" data-erow="${excelRow}" data-ecol="${col.c}">${escapeHtml(s)}</textarea></td>`);
         } else {
           html.push(`<td><input class="cell" data-erow="${excelRow}" data-ecol="${col.c}" value="${escapeHtml(s)}"></td>`);
@@ -133,6 +215,18 @@ function renderTable() {
   const wrap = $('#tableWrap');
   wrap.innerHTML = html.join('');
 
+  // checkbox selection
+  wrap.querySelectorAll('.rowcheck').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const r = Number(e.target.dataset.erow);
+      if (!r) return;
+      const key = makeRowKey(currentSheet, r);
+      if (e.target.checked) selectedRowKeys.add(key);
+      else selectedRowKeys.delete(key);
+    });
+  });
+
+  // cell editing
   wrap.oninput = (e) => {
     const t = e.target;
     if (!t.classList.contains('cell')) return;
@@ -143,6 +237,7 @@ function renderTable() {
     scheduleSave('修改');
   };
 }
+
 
 function scheduleSave(reason='儲存') {
   if (!window.db) {
@@ -244,6 +339,137 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#btnPrint').addEventListener('click', () => window.print());
   $('#btnExport').addEventListener('click', exportExcel);
+
+  // 新增 / 刪除 / 調動
+  const addModalEl = document.getElementById('addResidentModal');
+  const moveModalEl = document.getElementById('moveResidentModal');
+  const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
+  const moveModal = moveModalEl ? new bootstrap.Modal(moveModalEl) : null;
+
+  // 填入分頁選單
+  const addSheetSel = document.getElementById('addSheet');
+  const moveSheetSel = document.getElementById('moveToSheet');
+  if (addSheetSel) addSheetSel.innerHTML = SHEETS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if (moveSheetSel) moveSheetSel.innerHTML = SHEETS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+  document.getElementById('btnAddRow')?.addEventListener('click', () => {
+    if (addSheetSel) addSheetSel.value = currentSheet;
+    document.getElementById('addNumber').value = '';
+    document.getElementById('addName').value = '';
+    document.getElementById('addNote').value = '';
+    addModal?.show();
+  });
+
+  document.getElementById('btnConfirmAdd')?.addEventListener('click', () => {
+    const targetSheet = (addSheetSel?.value || currentSheet);
+    const number = (document.getElementById('addNumber').value || '').trim();
+    const name = (document.getElementById('addName').value || '').trim();
+    const note = (document.getElementById('addNote').value || '').trim();
+    if (!number && !name){
+      alert('請至少填「編號」或「姓名」其中一個');
+      return;
+    }
+
+    // 用目標分頁的欄位標題找對應欄
+    const tm = guessTable(targetSheet);
+    const colNumber = findColByNames(tm, ['編號','number','numbering','residentnumber','住民編號']) || tm.cols[0];
+    const colName = findColByNames(tm, ['姓名','name']) || tm.cols[1] || tm.cols[0];
+    const colNote = findColByNames(tm, ['備註','註記','note','remarks']);
+
+    const meta = sheetMeta[targetSheet] || {};
+    const mc = meta.max_col || (stateGrid[targetSheet]?.[0]?.length || 0) || 20;
+
+    const newRow = firstEmptyDataRow(targetSheet);
+    ensureGridSize(targetSheet, newRow, mc);
+
+    if (colNumber) gridSet(targetSheet, newRow, colNumber.c, number);
+    if (colName) gridSet(targetSheet, newRow, colName.c, name);
+    if (colNote && note) gridSet(targetSheet, newRow, colNote.c, note);
+
+    addModal?.hide();
+    scheduleSave('新增住民');
+    // 若目前就在該分頁則即時刷新
+    if (targetSheet === currentSheet) renderTable();
+    else alert('已新增到「' + targetSheet + '」。如果要查看，請切換分頁。');
+  });
+
+  function selectedCount(){
+    return getSelectedExcelRows(currentSheet).length;
+  }
+
+  document.getElementById('btnDeleteRows')?.addEventListener('click', () => {
+    const rows = getSelectedExcelRows(currentSheet);
+    if (rows.length === 0){
+      alert('請先勾選要刪除的住民');
+      return;
+    }
+    if (!confirm('確定要刪除選取的 ' + rows.length + ' 筆住民？（會清空該列資料）')) return;
+    deleteExcelRows(currentSheet, rows);
+    clearSelectionForSheet(currentSheet);
+    renderTable();
+    scheduleSave('刪除住民');
+  });
+
+  document.getElementById('btnMoveRows')?.addEventListener('click', () => {
+    const rows = getSelectedExcelRows(currentSheet);
+    if (rows.length === 0){
+      alert('請先勾選要調動的住民');
+      return;
+    }
+    document.getElementById('moveCount').textContent = String(rows.length);
+    if (moveSheetSel) moveSheetSel.value = currentSheet;
+    moveModal?.show();
+  });
+
+  document.getElementById('btnConfirmMove')?.addEventListener('click', () => {
+    const toSheet = moveSheetSel?.value || currentSheet;
+    if (toSheet === currentSheet){
+      alert('請選擇不同的目標分頁');
+      return;
+    }
+    const rows = getSelectedExcelRows(currentSheet);
+    if (rows.length === 0) return;
+
+    const fromTM = guessTable(currentSheet);
+    const toTM = guessTable(toSheet);
+
+    // header name -> col index
+    const fromMap = new Map(fromTM.cols.map(c => [String(c.name||'').toLowerCase(), c.c]));
+    const toMap = new Map(toTM.cols.map(c => [String(c.name||'').toLowerCase(), c.c]));
+
+    const toMeta = sheetMeta[toSheet] || {};
+    const toMc = toMeta.max_col || (stateGrid[toSheet]?.[0]?.length || 0) || 20;
+
+    for (const r of rows){
+      // 讀出一列（依 fromTM 的 col）
+      const rowData = {};
+      for (const col of fromTM.cols){
+        rowData[String(col.name||'').toLowerCase()] = gridGet(currentSheet, r, col.c);
+      }
+
+      // 新增到 toSheet
+      const newRow = firstEmptyDataRow(toSheet);
+      ensureGridSize(toSheet, newRow, toMc);
+
+      // 同名欄位搬過去
+      for (const [h, v] of Object.entries(rowData)){
+        const tc = toMap.get(h);
+        if (tc) gridSet(toSheet, newRow, tc, v);
+      }
+
+      // 清空原列
+      const fromMeta = sheetMeta[currentSheet] || {};
+      const fromMc = fromMeta.max_col || (stateGrid[currentSheet]?.[0]?.length || 0) || 20;
+      ensureGridSize(currentSheet, r, fromMc);
+      for (let c=1; c<=fromMc; c++) gridSet(currentSheet, r, c, '');
+    }
+
+    clearSelectionForSheet(currentSheet);
+    moveModal?.hide();
+    renderTable();
+    scheduleSave('調動住民');
+    alert('已調動完成（' + rows.length + ' 筆 → ' + toSheet + '）');
+  });
 
   document.addEventListener('firebase-ready', async () => {
     if (window.db) {
