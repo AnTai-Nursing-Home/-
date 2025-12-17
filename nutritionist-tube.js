@@ -39,6 +39,20 @@ function escapeHtml(s) {
   return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 }
 
+
+/** 取得日期字串（YYYY-MM-DD）
+ *  - 若頁面上有 <input type="date"> 或 #dateInput，優先取其值
+ *  - 否則回傳今天日期（本機時間）
+ */
+function getDateKey() {
+  const el = document.querySelector("#dateInput, input[type='date'], input[name='date']");
+  if (el && el.value) return String(el.value).trim();
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+
 function gridGet(sheet, r, c) {
   const g = stateGrid[sheet] || [];
   return (g[r-1] && g[r-1][c-1] != null) ? g[r-1][c-1] : '';
@@ -313,7 +327,7 @@ async function exportExcel() {
     return;
   }
 
-  const dateIso = getDateKey ? getDateKey() : "";
+  const dateIso = (typeof getDateKey === "function") ? getDateKey() : "";
   const wb = new ExcelJS.Workbook();
   wb.creator = "Antai System";
   wb.created = new Date();
