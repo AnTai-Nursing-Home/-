@@ -15,9 +15,8 @@ function getDb(){
     // firebase-init.js 用 `let db`，在瀏覽器屬於全域 binding，但不一定掛在 window 上
     if (typeof db !== 'undefined' && db) return db;
   } catch (e) {}
-  return null;
+  return getDb() || null;
 }
-
 // 你提供的 Excel 讀出來的初始資料（當作「模板預設」）
 const initialTitle = "安泰醫療社團法人附設安泰-護理之家餐單總表Meal List 114.12.10";
 const initialData = {"正常餐": [{"bed": "102-1", "name": "古金山\nGU JIN SHAN", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "洗腎餐\ndialysis", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 3, "kcal": 1800, "protein_g": 90, "extra": "護力養罐裝\n(22點)", "special": ""}, {"bed": "102-2", "name": "張元耀  Yuanyao", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "106-1", "name": "蘇隆豐\nSu Lungfeng", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "107-1", "name": "潘樹杉   shu shan", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "110-2", "name": "鄭錦足   CHIN-TSU", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": ""}, {"bed": "111-2", "name": "謝美\nXIE MEI", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 0.8, "congee": 1.5, "noodle": 1.5, "veg": 1, "protein": 2.5, "kcal": 1500, "protein_g": 73, "extra": "", "special": ""}, {"bed": "112-2", "name": "陳秀美大\nHsiu-Mei", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "自備奶", "special": ""}, {"bed": "115-1", "name": "陳秀美\nHsiu-Mei", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 3, "kcal": 1800, "protein_g": 90, "extra": "", "special": ""}, {"bed": "115-2", "name": "呂蕭秀琴\nXiù qín", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": "初一\n十五素"}, {"bed": "116-1", "name": "林麗香\nLin Lihsiang", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": ""}, {"bed": "116-2", "name": "孔伍櫻桃\nyīngtáo", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": ""}, {"bed": "211-2", "name": "王葉招枝\nWang Ye Zhaozhi", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "減重飲食", "rice": 0.8, "congee": 1.5, "noodle": 1.5, "veg": 1, "protein": 2.5, "kcal": 1500, "protein_g": 73, "extra": "", "special": ""}, {"bed": "212-2", "name": "蘇嘉弘\nSu Chiahung", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": ""}, {"bed": "213-2", "name": "邱文標\nQIU WENBIAO", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "減重飲食", "rice": 0.8, "congee": 1.5, "noodle": 1.5, "veg": 1, "protein": 2.5, "kcal": 1500, "protein_g": 73, "extra": "", "special": ""}, {"bed": "221-1", "name": "王進武  Jinwu", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": "少糖\n(less sugar)"}, {"bed": "302-1", "name": "林文立\nWen Li", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "洗腎餐\ndialysis", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 3, "kcal": 1800, "protein_g": 90, "extra": "", "special": ""}, {"bed": "302-3", "name": "潘景宏  jinghong", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "303-1", "name": "許居鎰\nHsu Chuyi", "side": "█", "plate": "█", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "自備奶", "special": ""}, {"bed": "303-2", "name": "許坤忠\nHsu Kunchung", "side": "█", "plate": "", "bowl": "", "diet_type": "一般\nnormal", "meal_supply": "洗腎餐\ndialysis", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "自備奶", "special": "不供湯\nno soup"}, {"bed": "303-3", "name": "黃國清 Guoqing", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "洗腎餐\ndialysis", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 3, "kcal": 1800, "protein_g": 90, "extra": "", "special": "不供湯\nno soup"}, {"bed": "303-5", "name": "郭良吉\nGuo LiangJi", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": "不供湯\nno soup"}, {"bed": "306-2", "name": "許湘玲\nHsu Hsiangling", "side": "█", "plate": "", "bowl": "█", "diet_type": "剁碎\nChopped", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "自備奶", "special": ""}, {"bed": "308-1", "name": "朱全明\nChu Chuanming", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "一般\nnormal", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "312-3", "name": "宋進興\nJinxing", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "糖尿病\ndiabetes", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": "少糖\n(less sugar)"}, {"bed": "312-6", "name": "林泰安\nTaian", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般+稀飯\nnormal", "meal_supply": "減重飲食", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "", "special": ""}, {"bed": "315-1", "name": "劉藍麗珠 Li Jue", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般+稀飯\nnormal+\ncongee", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2, "kcal": 1600, "protein_g": 70, "extra": "22點\n(護力養2.5匙)", "special": ""}, {"bed": "315-2", "name": "李職如\nLI\nJHIH-RU", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "高蛋白\nHigt  protein", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}, {"bed": "318-1", "name": "吳政達\nZheng Da", "side": "█", "plate": "", "bowl": "█", "diet_type": "一般\nnormal", "meal_supply": "糖尿病\ndiabetes", "rice": 1, "congee": 2, "noodle": 2, "veg": 1, "protein": 2.5, "kcal": 1700, "protein_g": 80, "extra": "", "special": ""}], "剁碎餐": [{"bed": "103-2", "name": "阮茂松\nJUAN\nMAO SUNG", "side": "█", "plate": "█", "bowl": "剁碎+乾飯\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "自備奶\n(不定時補充)", "extra": "", "special": ""}, {"bed": "109-1", "name": "黃桂女\nGuinu", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "減重飲食", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2, "protein": 1400, "kcal": 60, "protein_g": "", "extra": "", "special": ""}, {"bed": "110-1", "name": "林瑞滿\nRuiman", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "", "extra": "", "special": ""}, {"bed": "111-1", "name": "吳葉聰霞\nWu Yeh-tsunghsia", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "", "extra": "", "special": ""}, {"bed": "201-1", "name": "李美麗\nLi Meili", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "", "extra": "", "special": ""}, {"bed": "205-1", "name": "郭秀惠\nKuo Hsiuhui", "side": "█", "plate": "█", "bowl": "剁碎+乾飯\nChopped", "diet_type": "一般\nnormal", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "", "extra": "", "special": ""}, {"bed": "208-2", "name": "黃萬吉\nHUANG\nWAN JI", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "", "extra": "", "special": ""}, {"bed": "208-3", "name": "黃亮達\nLiangda", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}, {"bed": "208-5", "name": "曾和成   Hecheng", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "安素\n(不定時)", "extra": "", "special": ""}, {"bed": "213-1", "name": "洪清富\nHung Chingfu", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "", "extra": "", "special": ""}, {"bed": "217-2", "name": "高葉銀成\nKao Yeh-yincheng", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "", "extra": "", "special": ""}, {"bed": "218-3", "name": "葉曾順妹 Shunmei", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2, "protein": 1400, "kcal": 60, "protein_g": "", "extra": "", "special": ""}, {"bed": "219-5", "name": "張秋淑\nQiushu", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "", "extra": "", "special": ""}, {"bed": "219-6", "name": "潘張清雲\nQingyun", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "自備奶", "extra": "少糖\n(less sugar)", "special": ""}, {"bed": "220-2", "name": "杜典崑\nDudian kun", "side": "█", "plate": "█", "bowl": "剁碎+乾飯\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}, {"bed": "301-1", "name": "林安允\nAnyun", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "糖尿病\ndiabetes", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}, {"bed": "301-2", "name": "林烈雲\nLieyun", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}, {"bed": "302-2", "name": "林楊智\nYangzhi", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "自備奶", "extra": "", "special": ""}, {"bed": "302-5", "name": "林昌輝\nLIN\nCHANG-HUEI", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "洗腎餐\ndialysis", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "桂格透析\n(不定時)", "extra": "瀝乾菜湯", "special": ""}, {"bed": "309-2", "name": "莊學霖\nChuang Hsuehlin", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "自備奶", "extra": "", "special": ""}, {"bed": "311-1", "name": "張梅心\nJhang Meisin", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "自備奶\n(不定時補充)", "extra": "", "special": ""}, {"bed": "311-2", "name": "許陳菊季\nHsuchen Chuchi", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "", "extra": "", "special": ""}, {"bed": "311-3", "name": "林黃金枝  Lin huang jin zhi", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "", "extra": "", "special": ""}, {"bed": "311-5", "name": "陳林金枝\nChen Lin Jinzhi", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "高蛋白\nHigt  protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 1, "veg": 2.5, "protein": 1500, "kcal": 73, "protein_g": "", "extra": "", "special": ""}, {"bed": "312-2", "name": "潘郁豐 \nPan Yufeng", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}, {"bed": "312-5", "name": "賴盈賢  Yingxian", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "", "extra": "", "special": ""}, {"bed": "318-2", "name": "許榮成  Rongceng", "side": "█", "plate": "█", "bowl": "剁碎\nChopped", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}], "攪打餐": [{"bed": "109-2", "name": "黃蕭琴  Xiaoqin", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "自備奶", "extra": "", "special": ""}, {"bed": "206-2", "name": "莊雪娥  XUE E ", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "高蛋白餐\nHight protein", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 0.5, "veg": 2.5, "protein": 1500, "kcal": 74, "protein_g": "", "extra": "", "special": ""}, {"bed": "208-1", "name": "穆顯侗  Xiandong", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "低蛋白餐\nLow\nprotein", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 1.5, "protein": 1600, "kcal": 58, "protein_g": "自備奶\n(桂格未洗腎配方)", "extra": "", "special": ""}, {"bed": "219-2", "name": "潘陳採綢  Pan Chen Caisi", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "高蛋白\nnormal", "meal_supply": 0.8, "rice": 1.5, "congee": 1.5, "noodle": 0.5, "veg": 2.5, "protein": 1500, "kcal": 74, "protein_g": "", "extra": "", "special": ""}, {"bed": "301-5", "name": "張元平  YUAN PING", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2.5, "protein": 1700, "kcal": 80, "protein_g": "自備奶", "extra": "", "special": ""}, {"bed": "312-1", "name": "邱桂英\nGuiying", "side": "█", "plate": "█", "bowl": "攪打\nGrind", "diet_type": "一般\nnormal", "meal_supply": 1, "rice": 2, "congee": 2, "noodle": 1, "veg": 2, "protein": 1600, "kcal": 70, "protein_g": "22點\n(護力養2.5匙)", "extra": "", "special": ""}]};
@@ -371,89 +370,128 @@ function removeResident() {
 }
 
 async function exportExcel() {
-  if (window.__mealsExportingXlsx) return;
-  if (typeof ExcelJS === 'undefined') {
-    alert('ExcelJS 尚未載入，無法匯出 .xlsx（含樣式）。');
+  if (typeof ExcelJS === "undefined") {
+    alert("ExcelJS 尚未載入，無法匯出 .xlsx（請確認已在 HTML 加入 exceljs + file-saver）。");
     return;
   }
-  window.__mealsExportingXlsx = true;
+  const dateIso = getDateKey();
+  if (!dateIso) { alert("請先選擇餐單日期"); return; }
 
-  const btn = document.getElementById('btnExport');
-  const oldText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '匯出中...';
-  }
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Antai System";
+  wb.created = new Date();
 
-  try {
-      const dateIso = getDateKey();
-      const newTitle = buildTitleWithDate(dateIso);
+  // 版面（以「寬鬆不擠」為目標）
+  const marginCm = { top: 1.91, bottom: 1.91, left: 0.64, right: 0.64, header: 0.76, footer: 0.76 };
+  const cmToIn = (cm) => cm / 2.54;
 
-      const wb = new ExcelJS.Workbook();
-      const res = await fetch(TEMPLATE_XLSX, { cache: 'no-store' });
-      if (!res.ok) {
-        alert('找不到 meal-template.xlsx，請確認已放到同一個資料夾（與 nutritionist-meals.html 同層）');
-        return;
-      }
-      const buf = await res.arrayBuffer();
-      await wb.xlsx.load(buf);
+  const titleText = buildTitle ? buildTitle(dateIso) : (initialTitle || "餐單總表");
 
-      for (const sheetName of SHEETS) {
-        const ws = wb.getWorksheet(sheetName);
-        if (!ws) continue;
+  // 欄位：用現成 COLS 定義
+  const exportCols = (COLS || []).filter(c => c && c.key && c.label);
+  const excelColumns = exportCols.map(c => ({
+    header: c.label,
+    key: c.key,
+    width: Math.max(12, Math.min(55, Math.round(((c.width || 140) / 6)))) // 讓欄寬更寬鬆
+  }));
 
-        ws.getCell(1,1).value = newTitle;
+  const fmtIsoToRoc = (iso) => {
+    if (!iso) return "";
+    const [y,m,d] = String(iso).split("-").map(Number);
+    if (!y || !m || !d) return String(iso);
+    return `${y-1911}/${String(m).padStart(2,"0")}/${String(d).padStart(2,"0")}`;
+  };
 
-        const rows = state[sheetName] || [];
-        for (let i=0; i<rows.length; i++) {
-          const r = 5 + i;
-          const row = rows[i];
-          const values = [
-            row.bed, row.name, row.side, row.plate, row.bowl,
-            row.diet_type, row.meal_supply,
-            normNum(row.rice), normNum(row.congee), normNum(row.noodle),
-            normNum(row.veg), normNum(row.protein),
-            normNum(row.kcal), normNum(row.protein_g),
-            row.extra, row.special
-          ];
-          for (let c=1; c<=16; c++) {
-            ws.getCell(r,c).value = (values[c-1] === '' ? null : values[c-1]);
-          }
-        }
-        // 清掉模板後面可能殘留的舊資料（C~P）
-        const maxRow = 5 + rows.length;
-        for (let r = maxRow; r <= ws.rowCount; r++) {
-          const bed = ws.getCell(r,1).value;
-          const name = ws.getCell(r,2).value;
-          if (bed == null && name == null) continue;
-          if (r > 5 + rows.length - 1) {
-            for (let c=3; c<=16; c++) ws.getCell(r,c).value = null;
-          }
+  for (const sheetName of (SHEETS || [])) {
+    const ws = wb.addWorksheet(sheetName, {
+      views: [{ state: "frozen", ySplit: 3 }],
+      pageSetup: {
+        orientation: "landscape",
+        paperSize: 9, // A4
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+          left: cmToIn(marginCm.left),
+          right: cmToIn(marginCm.right),
+          top: cmToIn(marginCm.top),
+          bottom: cmToIn(marginCm.bottom),
+          header: cmToIn(marginCm.header),
+          footer: cmToIn(marginCm.footer),
         }
       }
+    });
 
-      const out = await wb.xlsx.writeBuffer();
-      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const a = document.createElement('a');
-      const filename = `餐食_營養師_${dateIso || '未填日期'}.xlsx`;
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
-  } catch (e) {
-    console.error(e);
-    alert('匯出失敗：' + (e && e.message ? e.message : String(e)));
-  } finally {
-    window.__mealsExportingXlsx = false;
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = oldText;
+    // 標題列（合併）
+    ws.columns = excelColumns;
+    const lastCol = ws.columnCount || excelColumns.length || 1;
+
+    ws.mergeCells(1, 1, 1, lastCol);
+    ws.getRow(1).height = 32;
+    ws.getCell(1, 1).value = titleText;
+    ws.getCell(1, 1).font = { name: "標楷體", size: 16, bold: true };
+    ws.getCell(1, 1).alignment = { vertical: "middle", horizontal: "center" };
+
+    // 資訊列
+    ws.mergeCells(2, 1, 2, lastCol);
+    ws.getRow(2).height = 22;
+    ws.getCell(2, 1).value = `餐單日期：${fmtIsoToRoc(dateIso)}    分頁：${sheetName}`;
+    ws.getCell(2, 1).font = { name: "標楷體", size: 12, bold: true };
+    ws.getCell(2, 1).alignment = { vertical: "middle", horizontal: "left" };
+
+    // 表頭
+    const headerRow = ws.getRow(3);
+    headerRow.height = 26;
+    headerRow.values = [null, ...exportCols.map(c => c.label)];
+    headerRow.font = { name: "標楷體", size: 12, bold: true };
+    headerRow.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6F9" } };
+    });
+
+    // 內容
+    const rows = (state && state[sheetName]) ? state[sheetName] : [];
+    for (const r of rows) {
+      const obj = {};
+      for (const c of exportCols) obj[c.key] = (r && r[c.key] != null) ? r[c.key] : "";
+      ws.addRow(obj);
+    }
+
+    // 內容樣式
+    for (let r = 4; r <= ws.rowCount; r++) {
+      ws.getRow(r).height = 26;
+      ws.getRow(r).eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: "標楷體", size: 11 };
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      });
+    }
+
+    // 全表框線
+    const applyBorder = (cell) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FF000000" } },
+        left: { style: "thin", color: { argb: "FF000000" } },
+        bottom: { style: "thin", color: { argb: "FF000000" } },
+        right: { style: "thin", color: { argb: "FF000000" } }
+      };
+    };
+    for (let r = 1; r <= ws.rowCount; r++) {
+      for (let c = 1; c <= lastCol; c++) applyBorder(ws.getCell(r, c));
     }
   }
-}
 
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const filename = `${dateIso}_餐單總表.xlsx`;
+  if (typeof saveAs !== "undefined") saveAs(blob, filename);
+  else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  }
+}
 
 function printCurrent() {
   window.print();
