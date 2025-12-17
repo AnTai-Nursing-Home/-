@@ -52,7 +52,18 @@
       .table-wrap { overflow: visible; border: none; }
       table.meal { min-width: 0; }
     }
-  </style>
+  
+    /* 固定標題列（表頭） */
+    .table-wrap { overflow: auto; }
+    table.sys thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #f2f4f7;
+      border-bottom: 1px solid rgba(0,0,0,.15);
+    }
+
+</style>
 </head>
 <body>
   <div class="topbar">
@@ -71,7 +82,7 @@
             <span>餐單日期</span>
             <input id="mealDate" type="date" class="form-control form-control-sm" style="width: 160px;">
           </span>
-          <span class="hint">提示：請注意，「供應餐別」和「食物型態」可自行輸入。</span>
+          <span class="hint">提示：日期會寫進 Excel 標題（A1）</span>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
@@ -92,7 +103,7 @@
 
       <div class="pt-3">
         <div class="table-wrap" id="tableWrap"></div>
-        <div class="mt-2 subtle">※ 提示：請注意，「供應餐別」和「食物型態」可自行輸入。</div>
+        <div class="mt-2 subtle">※ 目前先做「餐食系統」；「管灌飲食系統」下一步再做。</div>
       </div>
     </div>
   </div>
@@ -196,5 +207,27 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <script src="nutritionist-meals.js"></script>
+
+<script>
+  // 若表格沒有 thead，將第一列自動提升為表頭，並套用 sticky
+  document.addEventListener('DOMContentLoaded', () => {
+    const tbl = document.querySelector('table.sys');
+    if (!tbl) return;
+    if (tbl.tHead) return;
+    const firstRow = tbl.querySelector('tr');
+    if (!firstRow) return;
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    Array.from(firstRow.children).forEach(td => {
+      const th = document.createElement('th');
+      th.innerHTML = td.innerHTML;
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    tbl.insertBefore(thead, tbl.firstChild);
+    firstRow.remove();
+  });
+</script>
+
 </body>
 </html>
