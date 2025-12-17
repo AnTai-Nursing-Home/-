@@ -53,16 +53,49 @@
       table.meal { min-width: 0; }
     }
   
-    /* 固定標題列（表頭） */
-    .table-wrap { overflow: auto; }
+    /* ====== UI 改版：縮短畫面 + 凍結標題列（參考員工系統） ====== */
+    .page-wrap {
+      min-height: 0;
+      height: calc(100vh - 170px); /* topbar + toolbar 預留 */
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card.main-card {
+      flex: 1;
+      min-height: 0;
+    }
+    .card.main-card .card-body {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .table-wrap {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+      max-height: none;
+      overflow: auto;
+      position: relative;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.1);
+      background: #fff;
+    }
+    table.sys {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
     table.sys thead th {
       position: sticky;
       top: 0;
-      z-index: 5;
+      z-index: 10;
       background: #f2f4f7;
-      border-bottom: 1px solid rgba(0,0,0,.15);
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
     }
-
+    
 </style>
 </head>
 <body>
@@ -104,7 +137,7 @@
       <div class="pt-3">
         <div class="table-wrap" id="tableWrap"></div>
         <div class="mt-2 subtle">※ 目前先做「餐食系統」；「管灌飲食系統」下一步再做。</div>
-      </div>
+      </div></div>
     </div>
   </div>
 
@@ -189,7 +222,7 @@
           <div class="me-auto small text-muted" id="saveStatus">尚未儲存</div>
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
-      </div>
+      </div></div>
     </div>
   </div>
 
@@ -209,8 +242,8 @@
   <script src="nutritionist-meals.js"></script>
 
 <script>
-  // 若表格沒有 thead，將第一列自動提升為表頭，並套用 sticky
-  document.addEventListener('DOMContentLoaded', () => {
+  // 若表格沒有 thead，將第一列自動提升為表頭，才能凍結標題列
+  function ensureTheadForSysTable(){
     const tbl = document.querySelector('table.sys');
     if (!tbl) return;
     if (tbl.tHead) return;
@@ -226,7 +259,8 @@
     thead.appendChild(tr);
     tbl.insertBefore(thead, tbl.firstChild);
     firstRow.remove();
-  });
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(ensureTheadForSysTable, 50));
 </script>
 
 </body>
