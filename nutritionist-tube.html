@@ -126,6 +126,51 @@
     table.sys th, table.sys td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
     table.sys th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
 
+
+
+    /* ====== 視覺優化：更像「系統」的表格與分頁（畫面用；列印不影響） ====== */
+    @media screen {
+      .sheet-wrap { padding: 16px; border-radius: 18px; }
+      .nav-tabs { border-bottom: 1px solid rgba(0,0,0,.10); }
+      .nav-tabs .nav-link {
+        border: 0;
+        color: #1f2937;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 14px;
+        margin-right: 6px;
+      }
+      .nav-tabs .nav-link.active {
+        background: #ffffff;
+        box-shadow: 0 -1px 0 rgba(0,0,0,.08), 0 -6px 18px rgba(0,0,0,.06);
+        color: #0b5ed7;
+      }
+
+      .table-wrap { background:#fff; }
+      table.sys { font-size: .95rem; }
+      table.sys th, table.sys td { border-color: rgba(0,0,0,.16); }
+      table.sys thead th {
+        background: #f8fafc;
+        color: #111827;
+        letter-spacing: .2px;
+      }
+      table.sys tbody tr:nth-child(even) { background: #fbfbfd; }
+      table.sys tbody tr:hover { background: #eef6ff; }
+      table.sys td { white-space: nowrap; }
+      table.sys td textarea.cell { white-space: pre-wrap; }
+
+      /* 讓 checkbox 欄更像系統 */
+      table.sys td input[type="checkbox"] { width: 18px; height: 18px; }
+
+      /*（可選）凍結最左欄，滑很寬的表格時更好用 */
+      table.sys thead th:first-child,
+      table.sys tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 16;
+        background: inherit;
+      }
+      table.sys thead th:first-child { background: #f8fafc; }
+    }
 </style>
 </head>
 <body>
