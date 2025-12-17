@@ -449,136 +449,46 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btnExport')?.addEventListener('click', exportExcel);
 
 
-  // 新增 / 刪除 / 調動
-  const addModalEl = document.getElementById('addResidentModal');
-  const moveModalEl = document.getElementById('moveResidentModal');
-  const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
-  const moveModal = moveModalEl ? new bootstrap.Modal(moveModalEl) : null;
+  // 新增 / 刪除（依勾選列）
+  const btnAddRow = document.getElementById('btnAddRow');
+  const btnDeleteSelected = document.getElementById('btnDeleteSelected');
 
-  // 填入分頁選單
-  const addSheetSel = document.getElementById('addSheet');
-  const moveSheetSel = document.getElementById('moveToSheet');
-  if (addSheetSel) addSheetSel.innerHTML = SHEETS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  if (moveSheetSel) moveSheetSel.innerHTML = SHEETS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  function addBlankRow() {
+    const meta = sheetMeta[currentSheet] || {};
+    const mc = meta.max_col || (stateGrid[currentSheet]?.[0]?.length || 0) || 20;
+    const r = firstEmptyDataRow(currentSheet);
+    ensureGridSize(currentSheet, r, mc);
+    // 預設先把整列清空（避免模板殘值）
+    for (let c = 1; c <= mc; c++) gridSet(currentSheet, r, c, '');
+    renderTable();
+    scheduleSave('新增列');
 
-  document.getElementById('btnAddRow')?.addEventListener('click', () => {
-    if (addSheetSel) addSheetSel.value = currentSheet;
-    document.getElementById('addNumber').value = '';
-    document.getElementById('addName').value = '';
-    document.getElementById('addNote').value = '';
-    addModal?.show();
-  });
-
-  document.getElementById('btnConfirmAdd')?.addEventListener('click', () => {
-    const targetSheet = (addSheetSel?.value || currentSheet);
-    const number = (document.getElementById('addNumber').value || '').trim();
-    const name = (document.getElementById('addName').value || '').trim();
-    const note = (document.getElementById('addNote').value || '').trim();
-    if (!number && !name){
-      alert('請至少填「編號」或「姓名」其中一個');
-      return;
+    // 導向並 focus 新列第一個可編輯欄位
+    const wrap = document.getElementById('tableWrap');
+    const firstCell = wrap?.querySelector(`.cell[data-erow="${r}"][data-ecol="1"]`) ||
+                      wrap?.querySelector(`.cell[data-erow="${r}"]`);
+    if (firstCell) {
+      firstCell.scrollIntoView({ block: 'center' });
+      setTimeout(() => firstCell.focus(), 50);
     }
-
-    // 用目標分頁的欄位標題找對應欄
-    const tm = guessTable(targetSheet);
-    const colNumber = findColByNames(tm, ['編號','number','numbering','residentnumber','住民編號']) || tm.cols[0];
-    const colName = findColByNames(tm, ['姓名','name']) || tm.cols[1] || tm.cols[0];
-    const colNote = findColByNames(tm, ['備註','註記','note','remarks']);
-
-    const meta = sheetMeta[targetSheet] || {};
-    const mc = meta.max_col || (stateGrid[targetSheet]?.[0]?.length || 0) || 20;
-
-    const newRow = firstEmptyDataRow(targetSheet);
-    ensureGridSize(targetSheet, newRow, mc);
-
-    if (colNumber) gridSet(targetSheet, newRow, colNumber.c, number);
-    if (colName) gridSet(targetSheet, newRow, colName.c, name);
-    if (colNote && note) gridSet(targetSheet, newRow, colNote.c, note);
-
-    addModal?.hide();
-    scheduleSave('新增住民');
-    // 若目前就在該分頁則即時刷新
-    if (targetSheet === currentSheet) renderTable();
-    else alert('已新增到「' + targetSheet + '」。如果要查看，請切換分頁。');
-  });
-
-  function selectedCount(){
-    return getSelectedExcelRows(currentSheet).length;
   }
 
-  document.getElementById('btnDeleteRows')?.addEventListener('click', () => {
+  function deleteSelectedRows() {
     const rows = getSelectedExcelRows(currentSheet);
-    if (rows.length === 0){
-      alert('請先勾選要刪除的住民');
+    if (!rows.length) {
+      alert('請先勾選要刪除的列');
       return;
     }
-    if (!confirm('確定要刪除選取的 ' + rows.length + ' 筆住民？（會清空該列資料）')) return;
+    if (!confirm(`確定要刪除（清空）已勾選的 ${rows.length} 筆資料？`)) return;
     deleteExcelRows(currentSheet, rows);
     clearSelectionForSheet(currentSheet);
     renderTable();
-    scheduleSave('刪除住民');
-  });
+    scheduleSave('刪除勾選');
+  }
 
-  document.getElementById('btnMoveRows')?.addEventListener('click', () => {
-    const rows = getSelectedExcelRows(currentSheet);
-    if (rows.length === 0){
-      alert('請先勾選要調動的住民');
-      return;
-    }
-    document.getElementById('moveCount').textContent = String(rows.length);
-    if (moveSheetSel) moveSheetSel.value = currentSheet;
-    moveModal?.show();
-  });
+  btnAddRow?.addEventListener('click', addBlankRow);
+  btnDeleteSelected?.addEventListener('click', deleteSelectedRows);
 
-  document.getElementById('btnConfirmMove')?.addEventListener('click', () => {
-    const toSheet = moveSheetSel?.value || currentSheet;
-    if (toSheet === currentSheet){
-      alert('請選擇不同的目標分頁');
-      return;
-    }
-    const rows = getSelectedExcelRows(currentSheet);
-    if (rows.length === 0) return;
-
-    const fromTM = guessTable(currentSheet);
-    const toTM = guessTable(toSheet);
-
-    // header name -> col index
-    const fromMap = new Map(fromTM.cols.map(c => [String(c.name||'').toLowerCase(), c.c]));
-    const toMap = new Map(toTM.cols.map(c => [String(c.name||'').toLowerCase(), c.c]));
-
-    const toMeta = sheetMeta[toSheet] || {};
-    const toMc = toMeta.max_col || (stateGrid[toSheet]?.[0]?.length || 0) || 20;
-
-    for (const r of rows){
-      // 讀出一列（依 fromTM 的 col）
-      const rowData = {};
-      for (const col of fromTM.cols){
-        rowData[String(col.name||'').toLowerCase()] = gridGet(currentSheet, r, col.c);
-      }
-
-      // 新增到 toSheet
-      const newRow = firstEmptyDataRow(toSheet);
-      ensureGridSize(toSheet, newRow, toMc);
-
-      // 同名欄位搬過去
-      for (const [h, v] of Object.entries(rowData)){
-        const tc = toMap.get(h);
-        if (tc) gridSet(toSheet, newRow, tc, v);
-      }
-
-      // 清空原列
-      const fromMeta = sheetMeta[currentSheet] || {};
-      const fromMc = fromMeta.max_col || (stateGrid[currentSheet]?.[0]?.length || 0) || 20;
-      ensureGridSize(currentSheet, r, fromMc);
-      for (let c=1; c<=fromMc; c++) gridSet(currentSheet, r, c, '');
-    }
-
-    clearSelectionForSheet(currentSheet);
-    moveModal?.hide();
-    renderTable();
-    scheduleSave('調動住民');
-    alert('已調動完成（' + rows.length + ' 筆 → ' + toSheet + '）');
-  });
 
   document.addEventListener('firebase-ready', async () => {
     if (getDb()) {
