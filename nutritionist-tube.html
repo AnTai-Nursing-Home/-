@@ -8,172 +8,170 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <style>
-    body { background:#f5f5f5; font-family:"Noto Sans TC", sans-serif; }
-    .topbar { background: linear-gradient(135deg, #2f2f2f, #3c3c3c); color:#fff; padding: 18px 0; }
-    .topbar h1 { font-size: 1.25rem; margin:0; font-weight: 800; }
-    .sticky-actions {
-      position: sticky; top: 0; z-index: 20;
-      background: #f5f5f5;
-      padding: 14px 0 10px;
-      border-bottom: 1px solid rgba(0,0,0,.06);
-    }
-    .sheet-wrap { background:#fff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-    .table-wrap { overflow:auto; border-radius: 12px; border: 1px solid rgba(0,0,0,.08); }
-    table.grid { border-collapse: collapse; width: 100%; min-width: 900px; }
-    table.grid th, table.grid td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
-    table.grid th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
-    td.center { text-align:center; }
-    td.readonly { background: #fafafa; }
-    input.cell, textarea.cell {
-      width:100%; border: 0; outline:none; background: transparent;
-      font-size: .95rem;
-    }
-    textarea.cell { resize: vertical; min-height: 32px; }
-    .hint { font-size: .85rem; color:#666; }
-    .nav-tabs .nav-link { font-weight:700; }
-    @media print {
-      .no-print { display:none !important; }
-      body { background:#fff; }
-      .sheet-wrap { box-shadow:none; border-radius:0; }
-      .table-wrap { overflow: visible; border: none; }
-      table.grid { min-width: 0; }
-    }
-  
-    /* ====== UI 改版：縮短畫面 + 凍結標題列（參考員工系統） ====== */
-    .page-wrap {
-      min-height: 0;
-      height: calc(100vh - 170px); /* topbar + toolbar 預留 */
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .card.main-card {
-      flex: 1;
-      min-height: 0;
-    }
-    .card.main-card .card-body {
-      height: 100%;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .table-wrap {
-      flex: 1;
-      min-height: 0;
-      height: auto;
-      max-height: none;
-      overflow: auto;
-      position: relative;
-      border-radius: 14px;
-      border: 1px solid rgba(0,0,0,.1);
-      background: #fff;
-    }
-    table.sys {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-    }
-    table.sys thead th {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: #f2f4f7;
-      box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
-    }
-    
+  :root{
+    --bg:#f6f7fb;
+    --card:#ffffff;
+    --text:#111827;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --line2:#d1d5db;
+    --header:#f9fafb;
+    --brand:#2563eb;
+    --brand2:#1d4ed8;
+    --shadow: 0 10px 25px rgba(0,0,0,.06);
+    --radius: 16px;
+  }
+  body{ background:var(--bg); color:var(--text); font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; }
+  .topbar{
+    background: linear-gradient(135deg, #111827, #1f2937);
+    color:#fff;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .topbar h1{ font-size: 1.15rem; margin:0; font-weight:800; letter-spacing:.2px; }
+  .page-wrap{ height: calc(100vh - 140px); display:flex; flex-direction:column; gap:12px; }
+  .main-card{ border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; background:var(--card); }
+  .toolbar{
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, #fff, #fbfbfd);
+    border-bottom:1px solid var(--line);
+  }
+  .toolbar .left{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .toolbar .right{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end; }
+  .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--muted); font-weight:700; font-size:.85rem; }
+  .pill.ok{ border-color: rgba(34,197,94,.25); color:#166534; background: rgba(34,197,94,.08); }
+  .pill.bad{ border-color: rgba(239,68,68,.25); color:#991b1b; background: rgba(239,68,68,.08); }
+  .searchbox{ position:relative; min-width: 240px; }
+  .searchbox input{
+    padding-left: 34px;
+    border-radius: 12px;
+    border:1px solid var(--line);
+    height: 38px;
+    background:#fff;
+  }
+  .searchbox i{ position:absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .btn-sys{
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background:#fff;
+    font-weight:800;
+    height:38px;
+    padding: 0 12px;
+  }
+  .btn-sys.primary{
+    background: linear-gradient(180deg, var(--brand), var(--brand2));
+    border-color: rgba(37,99,235,.6);
+    color:#fff;
+  }
+  .btn-sys:active{ transform: translateY(1px); }
 
-    /* ====== 2025-12：縮短畫面（像員工系統）+ 凍結表格標題列 ====== */
-    html, body { height: 100%; }
-    @media screen {
-      body { overflow: hidden; }
-      .container.my-4 {
-        height: calc(100vh - 86px); /* topbar 高度 + 外距 buffer */
-        display: flex;
-        flex-direction: column;
-      }
-      .sticky-actions { flex: 0 0 auto; }
-      .sheet-wrap {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-      }
-      .sheet-wrap > .pt-3 {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-      }
-      .table-wrap {
-        flex: 1;
-        min-height: 0;
-        overflow: auto;
-      }
-    }
-    /* 表格標題列凍結（垂直捲動時仍看得到欄位） */
-    .table-wrap table.sys thead th {
-      position: sticky;
-      top: 0;
-      z-index: 15;
-      background: #f2f2f2;
-      box-shadow: inset 0 -1px 0 rgba(0,0,0,.2);
-    }
+  /* Tabs */
+  #tubeTabs{
+    display:flex;
+    gap:6px;
+    padding: 10px 12px;
+    margin:0;
+    background: var(--header);
+    border-bottom:1px solid var(--line);
+    overflow:auto;
+    white-space:nowrap;
+  }
+  #tubeTabs .nav-link{
+    border:1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-weight:900;
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+  #tubeTabs .nav-link.active{
+    background: rgba(37,99,235,.10);
+    border-color: rgba(37,99,235,.25);
+    color: var(--brand2);
+  }
 
+  /* Table */
+  .table-wrap{
+    flex:1;
+    min-height:0;
+    overflow:auto;
+    background:#fff;
+  }
+  table.sys{
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    min-width: 980px;
+    font-size: 0.95rem;
+  }
+  table.sys thead th{
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--header);
+    border-bottom: 1px solid var(--line2);
+    color:#111827;
+    font-weight: 900;
+    text-align: center;
+    padding: 10px 10px;
+    white-space: nowrap;
+  }
+  table.sys td{
+    border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+    vertical-align: middle;
+    background:#fff;
+  }
+  table.sys tbody tr:nth-child(even) td{ background:#fcfcff; }
+  table.sys tbody tr:hover td{ background: rgba(37,99,235,.06); }
 
-    /* tube.js 產生 table.sys：補齊與原 table.grid 相同的格線/欄位樣式 */
-    table.sys { border-collapse: collapse; width: 100%; min-width: 900px; }
-    table.sys th, table.sys td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
-    table.sys th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
+  /* Freeze first column (checkbox) + second column (編號) */
+  table.sys th:first-child, table.sys td:first-child{
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: inherit;
+    border-right: 1px solid var(--line);
+    width: 46px;
+  }
+  table.sys th:nth-child(2), table.sys td:nth-child(2){
+    position: sticky;
+    left: 46px;
+    z-index: 5;
+    background: inherit;
+    border-right: 1px solid var(--line);
+    min-width: 110px;
+    font-weight: 900;
+  }
 
-
-
-    /* ====== 視覺優化：更像「系統」的表格與分頁（畫面用；列印不影響） ====== */
-    @media screen {
-      .sheet-wrap { padding: 16px; border-radius: 18px; }
-      .nav-tabs { border-bottom: 1px solid rgba(0,0,0,.10); }
-      .nav-tabs .nav-link {
-        border: 0;
-        color: #1f2937;
-        border-radius: 12px 12px 0 0;
-        padding: 10px 14px;
-        margin-right: 6px;
-      }
-      .nav-tabs .nav-link.active {
-        background: #ffffff;
-        box-shadow: 0 -1px 0 rgba(0,0,0,.08), 0 -6px 18px rgba(0,0,0,.06);
-        color: #0b5ed7;
-      }
-
-      .table-wrap { background:#fff; }
-      table.sys { font-size: .95rem; }
-      table.sys th, table.sys td { border-color: rgba(0,0,0,.16); }
-      table.sys thead th {
-        background: #f8fafc;
-        color: #111827;
-        letter-spacing: .2px;
-      }
-      table.sys tbody tr:nth-child(even) { background: #fbfbfd; }
-      table.sys tbody tr:hover { background: #eef6ff; }
-      table.sys td { white-space: nowrap; }
-      table.sys td textarea.cell { white-space: pre-wrap; }
-
-      /* 讓 checkbox 欄更像系統 */
-      table.sys td input[type="checkbox"] { width: 18px; height: 18px; }
-
-      /*（可選）凍結最左欄，滑很寬的表格時更好用 */
-      table.sys thead th:first-child,
-      table.sys tbody td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 16;
-        background: inherit;
-      }
-      table.sys thead th:first-child { background: #f8fafc; }
-    }
+  /* Inputs */
+  input.cell, textarea.cell{
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 10px;
+    padding: 6px 8px;
+    outline: none;
+  }
+  input.cell:focus, textarea.cell:focus{
+    border-color: rgba(37,99,235,.35);
+    background: rgba(37,99,235,.06);
+    box-shadow: 0 0 0 4px rgba(37,99,235,.10);
+  }
+  td.readonly{ color: var(--text); }
+  .no-print{ }
+  @media print{
+    .no-print{ display:none !important; }
+    body{ background:#fff; }
+    .main-card{ box-shadow:none; border:0; }
+    #tubeTabs{ display:none; }
+    table.sys{ min-width: 0; }
+  }
 </style>
 </head>
 <body>
+
   <div class="topbar">
     <div class="container">
       <h1><i class="fas fa-syringe me-2"></i>管灌飲食系統（營養師）</h1>
@@ -181,34 +179,34 @@
   </div>
 
   <div class="container my-4">
-    <div class="sticky-actions no-print">
-      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-          <span class="badge bg-secondary">Firebase 自動儲存</span>
-          <span class="pill hint" id="saveStatus">尚未儲存</span>
+    <div class="page-wrap">
+      <div class="main-card">
+        <div class="toolbar no-print">
+          <div class="left">
+            <span class="pill"><i class="fa-solid fa-cloud-arrow-up"></i> Firebase 自動儲存</span>
+            <span class="pill" id="saveStatus">尚未儲存</span>
+            <div class="searchbox">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="searchInput" class="form-control" placeholder="搜尋：姓名、編號、備註…" />
+            </div>
+          </div>
+          <div class="right">
+            <button id="btnExport" class="btn-sys primary"><i class="fa-solid fa-file-excel me-2"></i>匯出 Excel</button>
+            <button id="btnPrint" class="btn-sys"><i class="fa-solid fa-print me-2"></i>列印</button>
+            <a href="nutritionist.html" class="btn-sys text-decoration-none d-inline-flex align-items-center"><i class="fa-solid fa-arrow-left me-2"></i>返回</a>
+          </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2">
-          <button id="btnExport" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
-          <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印目前分頁</button>
-          <a href="nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
-        </div>
-      </div>
-      <div class="mt-2 hint">提示：此頁以「Excel 模板」版面為準，匯出會保留原本欄寬/列高/合併格/框線。</div>
-    </div>
+        <ul class="nav no-print" id="tubeTabs">
+          <li class="nav-item"><button class="nav-link active" data-sheet="單獨泡製" type="button">單獨泡製</button></li>
+          <li class="nav-item"><button class="nav-link" data-sheet="奶粉2.5匙" type="button">奶粉2.5匙</button></li>
+          <li class="nav-item"><button class="nav-link" data-sheet="奶粉匙數" type="button">奶粉匙數</button></li>
+          <li class="nav-item"><button class="nav-link" data-sheet="加餐-牛奶名單" type="button">加餐-牛奶名單</button></li>
+          <li class="nav-item"><button class="nav-link" data-sheet="第六餐加餐名單" type="button">第六餐加餐名單</button></li>
+        </ul>
 
-    <div class="sheet-wrap">
-      <ul class="nav nav-tabs no-print" id="tubeTabs">
-        <li class="nav-item"><button class="nav-link active" data-sheet="單獨泡製" type="button">單獨泡製</button></li>
-        <li class="nav-item"><button class="nav-link" data-sheet="奶粉2.5匙" type="button">奶粉2.5匙</button></li>
-        <li class="nav-item"><button class="nav-link" data-sheet="奶粉匙數" type="button">奶粉匙數</button></li>
-        <li class="nav-item"><button class="nav-link" data-sheet="加餐-牛奶名單" type="button">加餐-牛奶名單</button></li>
-        <li class="nav-item"><button class="nav-link" data-sheet="第六餐加餐名單" type="button">第六餐加餐名單</button></li>
-      </ul>
-
-      <div class="pt-3">
         <div class="table-wrap" id="tableWrap"></div>
-      </div></div>
+      </div>
     </div>
   </div>
 
@@ -224,28 +222,6 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <script src="nutritionist-tube.js"></script>
-
-<script>
-  // 若表格沒有 thead，將第一列自動提升為表頭，才能凍結標題列
-  function ensureTheadForSysTable(){
-    const tbl = document.querySelector('table.sys');
-    if (!tbl) return;
-    if (tbl.tHead) return;
-    const firstRow = tbl.querySelector('tr');
-    if (!firstRow) return;
-    const thead = document.createElement('thead');
-    const tr = document.createElement('tr');
-    Array.from(firstRow.children).forEach(td => {
-      const th = document.createElement('th');
-      th.innerHTML = td.innerHTML;
-      tr.appendChild(th);
-    });
-    thead.appendChild(tr);
-    tbl.insertBefore(thead, tbl.firstChild);
-    firstRow.remove();
-  }
-  document.addEventListener('DOMContentLoaded', () => setTimeout(ensureTheadForSysTable, 50));
-</script>
 
 </body>
 </html>
