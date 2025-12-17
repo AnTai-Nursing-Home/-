@@ -11,31 +11,78 @@
     body { background:#f5f5f5; font-family:"Noto Sans TC", sans-serif; }
     .topbar { background: linear-gradient(135deg, #2f2f2f, #3c3c3c); color:#fff; padding: 18px 0; }
     .topbar h1 { font-size: 1.25rem; margin:0; font-weight: 800; }
-    .card { border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); border: 1px solid rgba(0,0,0,.06); }
-    .toolbar { position: sticky; top: 0; z-index: 20; background: #f5f5f5; padding: 12px 0 10px; border-bottom: 1px solid rgba(0,0,0,.06); }
-    .status-pill{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid rgba(0,0,0,.1); border-radius:999px; padding:6px 10px; font-size:.9rem; }
-    .dot{ width:10px; height:10px; border-radius:50%; background:#999; }
-    .dot.ok{ background:#198754; } .dot.bad{ background:#dc3545; }
-    .table-wrap { overflow:auto; border-radius: 14px; border:1px solid rgba(0,0,0,.1); }
-    table.sys { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 980px; background:#fff; }
-    table.sys thead th{ position: sticky; top: 0; z-index: 5; background: #f2f4f7; border-bottom: 1px solid rgba(0,0,0,.15); font-weight: 800; white-space: nowrap; padding: 10px 10px; }
-    table.sys td{ border-bottom: 1px solid rgba(0,0,0,.07); padding: 8px 10px; vertical-align: middle; }
-    table.sys tr:last-child td{ border-bottom:0; }
-    td.readonly{ background:#fafafa; color:#444; }
-    input.cell, textarea.cell{ width:100%; border:1px solid rgba(0,0,0,.12); border-radius:10px; padding:6px 8px; outline:none; background:#fff; font-size:.95rem; }
-    input.cell:focus, textarea.cell:focus{ border-color: rgba(13,110,253,.6); box-shadow: 0 0 0 .2rem rgba(13,110,253,.12); }
-    textarea.cell{ resize: vertical; min-height: 34px; }
+    .sticky-actions {
+      position: sticky; top: 0; z-index: 20;
+      background: #f5f5f5;
+      padding: 14px 0 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .sheet-wrap { background:#fff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .table-wrap { overflow:auto; border-radius: 12px; border: 1px solid rgba(0,0,0,.08); }
+    table.grid { border-collapse: collapse; width: 100%; min-width: 900px; }
+    table.grid th, table.grid td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
+    table.grid th { background:#f2f2f2; font-weight: 800; text-align:center; white-space: nowrap; }
+    td.center { text-align:center; }
+    td.readonly { background: #fafafa; }
+    input.cell, textarea.cell {
+      width:100%; border: 0; outline:none; background: transparent;
+      font-size: .95rem;
+    }
+    textarea.cell { resize: vertical; min-height: 32px; }
     .hint { font-size: .85rem; color:#666; }
+    .nav-tabs .nav-link { font-weight:700; }
     @media print {
       .no-print { display:none !important; }
       body { background:#fff; }
-      .card { box-shadow:none; border:0; }
-      .table-wrap { overflow: visible; border:0; }
-      table.sys { min-width: 0; }
-      table.sys thead th { position: static; }
-      input.cell, textarea.cell { border:0; padding:0; }
+      .sheet-wrap { box-shadow:none; border-radius:0; }
+      .table-wrap { overflow: visible; border: none; }
+      table.grid { min-width: 0; }
     }
-  </style>
+  
+    /* ====== UI 改版：縮短畫面 + 凍結標題列（參考員工系統） ====== */
+    .page-wrap {
+      min-height: 0;
+      height: calc(100vh - 170px); /* topbar + toolbar 預留 */
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card.main-card {
+      flex: 1;
+      min-height: 0;
+    }
+    .card.main-card .card-body {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .table-wrap {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+      max-height: none;
+      overflow: auto;
+      position: relative;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.1);
+      background: #fff;
+    }
+    table.sys {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    table.sys thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #f2f4f7;
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
+    }
+    
+</style>
 </head>
 <body>
   <div class="topbar">
@@ -45,126 +92,71 @@
   </div>
 
   <div class="container my-4">
-    <div class="toolbar no-print">
+    <div class="sticky-actions no-print">
       <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
         <div class="d-flex flex-wrap gap-2 align-items-center">
-          <div class="status-pill">
-            <span class="dot" id="fbDot"></span>
-            <span class="fw-bold">Firebase</span>
-            <span class="text-muted" id="fbText">初始化中…</span>
-          </div>
-          <div class="status-pill">
-            <i class="fas fa-save text-muted"></i>
-            <span id="saveStatus" class="text-muted">尚未儲存</span>
-          </div>
+          <span class="badge bg-secondary">Firebase 自動儲存</span>
+          <span class="pill hint" id="saveStatus">尚未儲存</span>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
           <button id="btnExport" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
-          <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印</button>
-          <button id="btnAddRow" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-2"></i>新增住民</button>
-          <button id="btnMoveRows" class="btn btn-outline-primary btn-sm"><i class="fas fa-right-left me-2"></i>調動</button>
-          <button id="btnDeleteRows" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-2"></i>刪除</button>
-          <a href="./nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
+          <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印目前分頁</button>
+          <a href="nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
         </div>
       </div>
-
-      <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-        <div class="d-flex align-items-center gap-2">
-          <label class="fw-bold">分頁</label>
-          <select id="sheetSelect" class="form-select form-select-sm" style="width: 220px;"></select>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-          <label class="fw-bold">搜尋</label>
-          <input id="searchInput" class="form-control form-control-sm" style="width: 260px;" placeholder="輸入編號/姓名/關鍵字…">
-        </div>
-
-        <div class="ms-auto hint">
-          提示：此頁以「Excel 模板」版面為準，匯出會保留原本欄寬/列高/合併格/框線。
-        </div>
-      </div>
+      <div class="mt-2 hint">提示：此頁以「Excel 模板」版面為準，匯出會保留原本欄寬/列高/合併格/框線。</div>
     </div>
 
-    <div class="card p-3">
-      <div class="table-wrap" id="tableWrap"></div>
+    <div class="sheet-wrap">
+      <ul class="nav nav-tabs no-print" id="tubeTabs">
+        <li class="nav-item"><button class="nav-link active" data-sheet="單獨泡製" type="button">單獨泡製</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="奶粉2.5匙" type="button">奶粉2.5匙</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="奶粉匙數" type="button">奶粉匙數</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="加餐-牛奶名單" type="button">加餐-牛奶名單</button></li>
+        <li class="nav-item"><button class="nav-link" data-sheet="第六餐加餐名單" type="button">第六餐加餐名單</button></li>
+      </ul>
+
+      <div class="pt-3">
+        <div class="table-wrap" id="tableWrap"></div>
+      </div></div>
     </div>
   </div>
 
+  <!-- Bootstrap -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Firebase（沿用你專案現有 firebase-init.js 及 firebase-ready 事件） -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="firebase-init.js"></script>
+
+  <!-- ExcelJS：用模板保留版面 -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <script src="nutritionist-tube.js"></script>
 
-  <!-- 新增住民 Modal -->
-  <div class="modal fade" id="addResidentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content" style="border-radius:16px;">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>新增住民（新增到目前分頁）</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-info py-2 mb-3">
-            你只需要填「編號 / 姓名」，其他欄位可先留空，之後再補。
-          </div>
-
-          <div class="row g-3">
-            <div class="col-md-4">
-              <label class="form-label fw-bold">編號</label>
-              <input id="addNumber" class="form-control" placeholder="例：103-1">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label fw-bold">姓名</label>
-              <input id="addName" class="form-control" placeholder="例：王小明">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label fw-bold">目標分頁</label>
-              <select id="addSheet" class="form-select"></select>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-bold">備註（可選）</label>
-              <input id="addNote" class="form-control" placeholder="可留空">
-            </div>
-          </div>
-
-          <div class="hint mt-3">
-            新增後會立即寫入 Firebase（若已初始化）。
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-primary" id="btnConfirmAdd">新增</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 調動 Modal -->
-  <div class="modal fade" id="moveResidentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content" style="border-radius:16px;">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-right-left me-2"></i>調動住民</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-2">已選取：<span class="fw-bold" id="moveCount">0</span> 筆</div>
-          <label class="form-label fw-bold">調動到分頁</label>
-          <select id="moveToSheet" class="form-select"></select>
-          <div class="hint mt-2">會把選取的住民從目前分頁移到目標分頁，並自動寫入 Firebase。</div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-primary" id="btnConfirmMove">確認調動</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<script>
+  // 若表格沒有 thead，將第一列自動提升為表頭，才能凍結標題列
+  function ensureTheadForSysTable(){
+    const tbl = document.querySelector('table.sys');
+    if (!tbl) return;
+    if (tbl.tHead) return;
+    const firstRow = tbl.querySelector('tr');
+    if (!firstRow) return;
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    Array.from(firstRow.children).forEach(td => {
+      const th = document.createElement('th');
+      th.innerHTML = td.innerHTML;
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    tbl.insertBefore(thead, tbl.firstChild);
+    firstRow.remove();
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(ensureTheadForSysTable, 50));
+</script>
 
 </body>
 </html>
