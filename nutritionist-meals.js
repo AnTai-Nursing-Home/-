@@ -408,9 +408,11 @@ async function exportExcel() {
     special: 22
   };
 
+  // 注意：ExcelJS 的 ws.columns 若包含 header，會自動把 header 寫到第 1 列。
+  // 但我們第 1 列要做「合併標題列」，因此這裡只設定 key/width，不設定 header。
   const excelColumns = exportCols.map(c => {
     const w = WIDTH_OVERRIDE[c.key] ?? Math.max(8, Math.min(40, Math.round(((c.width || 120) / 7))));
-    return { header: c.label, key: c.key, width: w };
+    return { key: c.key, width: w };
   });
 
   const fmtIsoToRoc = (iso) => {
@@ -440,9 +442,9 @@ async function exportExcel() {
       }
     });
 
-    // 標題列（合併）
+    // 欄寬（固定欄數 = 16，避免標題列合併到「不存在但 Excel 自己長出來的欄」）
     ws.columns = excelColumns;
-    const lastCol = ws.columnCount || excelColumns.length || 1;
+    const lastCol = excelColumns.length || 1;
 
     ws.mergeCells(1, 1, 1, lastCol);
     ws.getRow(1).height = 32;
