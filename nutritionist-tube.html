@@ -62,6 +62,9 @@
         <div class="d-flex flex-wrap gap-2">
           <button id="btnExport" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
           <button id="btnPrint" class="btn btn-outline-dark btn-sm"><i class="fas fa-print me-2"></i>列印</button>
+          <button id="btnAddRow" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-2"></i>新增住民</button>
+          <button id="btnMoveRows" class="btn btn-outline-primary btn-sm"><i class="fas fa-right-left me-2"></i>調動</button>
+          <button id="btnDeleteRows" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-2"></i>刪除</button>
           <a href="./nutritionist.html" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>返回營養師系統</a>
         </div>
       </div>
@@ -94,6 +97,74 @@
   <script src="firebase-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
-  <script src="nutritionist-tube.js"></script>
+  <script src="nutritionist-tube_v2.js"></script>
+
+  <!-- 新增住民 Modal -->
+  <div class="modal fade" id="addResidentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px;">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>新增住民（新增到目前分頁）</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info py-2 mb-3">
+            你只需要填「編號 / 姓名」，其他欄位可先留空，之後再補。
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">編號</label>
+              <input id="addNumber" class="form-control" placeholder="例：103-1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">姓名</label>
+              <input id="addName" class="form-control" placeholder="例：王小明">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">目標分頁</label>
+              <select id="addSheet" class="form-select"></select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-bold">備註（可選）</label>
+              <input id="addNote" class="form-control" placeholder="可留空">
+            </div>
+          </div>
+
+          <div class="hint mt-3">
+            新增後會立即寫入 Firebase（若已初始化）。
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="btnConfirmAdd">新增</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 調動 Modal -->
+  <div class="modal fade" id="moveResidentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px;">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-right-left me-2"></i>調動住民</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">已選取：<span class="fw-bold" id="moveCount">0</span> 筆</div>
+          <label class="form-label fw-bold">調動到分頁</label>
+          <select id="moveToSheet" class="form-select"></select>
+          <div class="hint mt-2">會把選取的住民從目前分頁移到目標分頁，並自動寫入 Firebase。</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="btnConfirmMove">確認調動</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
