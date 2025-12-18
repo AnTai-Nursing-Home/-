@@ -415,22 +415,27 @@ async function exportExcel() {
   const sheetList = (SHEETS || Object.keys(dataBySheet));
 
   // 自動欄寬：看每欄最長字串（寬鬆一些）
-  const calcColWidths = (grid) => {
-    const cols = Math.max(...grid.map(r => r.length), 1);
+  const calcColWidths = (grid, maxCols) => {
+    const cols = Math.max(maxCols || 1, 1);
     const w = Array(cols).fill(12);
-    for (let c=0;c<cols;c++){
+    for (let c = 0; c < cols; c++) {
       let maxLen = 0;
-      for (const row of grid){
-        const v = row[c];
-        const s = (v==null) ? "" : String(v);
-        maxLen = Math.max(maxLen, s.length);
+      for (const row of grid) {
+        const v = row?.[c];
+        const s = (v == null) ? "" : String(v);
+        const s2 = s.startsWith("=") ? s.slice(1) : s; // 公式不計 '='
+        maxLen = Math.max(maxLen, s2.length);
       }
-      w[c] = Math.max(10, Math.min(55, Math.round(maxLen * 1.2)));
+      // 中文會比較寬，稍微放大
+      w[c] = Math.max(10, Math.min(55, Math.round(maxLen * 1.25)));
     }
     return w;
   };
 
   for (const sheetName of sheetList) {
+    const meta = sheetMeta?.[sheetName] || {};
+    const maxCols = meta.max_col || 20;
+
     const grid = (dataBySheet[sheetName] || []).map(r => Array.isArray(r) ? r : []);
     const ws = wb.addWorksheet(sheetName, {
       views: [{ state: "frozen", ySplit: 3 }],
@@ -451,19 +456,43 @@ async function exportExcel() {
       }
     });
 
-    const colWidths = calcColWidths(grid);
+    // 欄寬
+    const colWidths = calcColWidths(grid, maxCols);
     ws.columns = colWidths.map(w => ({ width: w }));
 
-    // 寫入 grid
-    for (let r=0;r<grid.length;r++){
-      const row = ws.getRow(r+1);
-      row.values = [null, ...grid[r]];
-      row.height = (r===0) ? 32 : 26;
-      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        cell.font = { name: "標楷體", size: (r===0?16:(r<=2?12:11)), bold: (r<=2) };
+    // 寫入 grid（注意：ExcelJS 的 row.values 不要塞 [null,...]，會整個右移一欄）
+    const rowCount = Math.max(grid.length, meta.max_row || 0);
+    for (let r = 0; r < rowCount; r++) {
+      const excelRow = r + 1;
+      const row = ws.getRow(excelRow);
+      const arr = grid[r] || [];
+
+      // 行高（第 1 行標題稍高，其它統一 26）
+      row.height = (excelRow === 1) ? 32 : 26;
+
+      for (let c = 0; c < maxCols; c++) {
+        const excelCol = c + 1;
+        const cell = ws.getCell(excelRow, excelCol);
+        let v = arr[c];
+
+        // 公式：用 ExcelJS 的 formula 形式，才會真的被 Excel 當公式
+        if (typeof v === 'string' && v.startsWith('=')) {
+          cell.value = { formula: v.slice(1) };
+        } else {
+          cell.value = (v === undefined) ? '' : v;
+        }
+
+        // 字體/對齊
+        const isTitle = (excelRow === 1);
+        const isHeader = (excelRow <= 3); // 通常第 2~3 行是欄名/表頭
+        cell.font = { name: "標楷體", size: (isTitle ? 16 : (isHeader ? 12 : 11)), bold: isHeader };
         cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-        // 表頭淡底色：第3列（常是欄名列）
-        if (r === 2) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6F9" } };
+
+        // 表頭底色（第 3 行常是欄名列）
+        if (excelRow === 3) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6F9" } };
+        }
+
         // 框線
         cell.border = {
           top: { style: "thin", color: { argb: "FF000000" } },
@@ -471,7 +500,18 @@ async function exportExcel() {
           bottom: { style: "thin", color: { argb: "FF000000" } },
           right: { style: "thin", color: { argb: "FF000000" } }
         };
-      });
+      }
+    }
+
+    // 套用合併儲存格（對齊你提供的 sheetMeta.merges）
+    const merges = Array.isArray(meta.merges) ? meta.merges : [];
+    for (const m of merges) {
+      try {
+        // r1/c1/r2/c2 皆為 1-based
+        ws.mergeCells(m.r1, m.c1, m.r2, m.c2);
+      } catch (e) {
+        console.warn('mergeCells failed:', sheetName, m, e);
+      }
     }
   }
 
