@@ -80,11 +80,19 @@ function decodeSheetsFromFirestore(sheetsData){
 function $(sel){ return document.querySelector(sel); }
 
 function setFbStatus(ok, text) {
-  const dot = $('#fbDot');
-  const t = $('#fbText');
+  // UI: <span id="fbStatus">Firebase：未連線</span>
+  // 舊版可能有 #fbDot/#fbText；新版只用 #fbStatus
+  const el = document.getElementById('fbStatus');
+  if (el) {
+    el.textContent = ok ? 'Firebase：已連線' : 'Firebase：未連線';
+  }
+
+  // Backward-compat (if present)
+  const dot = document.getElementById('fbDot');
+  const t = document.getElementById('fbText');
   if (dot) {
     dot.classList.toggle('ok', !!ok);
-    dot.classList.toggle('bad', ok===false);
+    dot.classList.toggle('bad', ok === false);
   }
   if (t) t.textContent = text || '';
 }
@@ -332,7 +340,7 @@ function renderTable() {
 function scheduleSave(reason='儲存') {
   if (!getDb()) {
     setSaveStatus('Firebase 尚未初始化（不會儲存）');
-    setFbStatus(false, '尚未初始化');
+    setFbStatus(false, '未連線');
     return;
   }
   setSaveStatus(`已變更：${reason}（準備儲存…）`);
@@ -549,22 +557,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('firebase-ready', async () => {
     if (getDb()) {
-      setFbStatus(true, '已就緒');
+      setFbStatus(true, '已連線');
       await loadFromFirestore();
       renderTable();
     } else {
-      setFbStatus(false, '尚未初始化');
+      setFbStatus(false, '未連線');
       setSaveStatus('Firebase 尚未初始化（不會儲存）');
     }
   });
 
   setTimeout(async () => {
     if (getDb()) {
-      setFbStatus(true, '已就緒');
+      setFbStatus(true, '已連線');
       await loadFromFirestore();
       renderTable();
     } else {
-      setFbStatus(false, '尚未初始化');
+      setFbStatus(false, '未連線');
       setSaveStatus('Firebase 尚未初始化（不會儲存）');
     }
   }, 2000);
