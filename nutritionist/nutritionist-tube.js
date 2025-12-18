@@ -89,6 +89,19 @@ function decodeSheetsFromFirestore(sheetsData){
 
 function $(sel){ return document.querySelector(sel); }
 
+
+
+// 顯示「讀取中…」狀態（參考員工系統的做法）
+function showLoading(msg = '讀取中…') {
+  const wrap = document.getElementById('tableWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="p-4 text-center text-muted">
+      <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+      <span>${msg}</span>
+    </div>
+  `;
+}
 function setFbStatus(ok, text) {
   // UI: <span id="fbStatus">Firebase：未連線</span>
   // 舊版可能有 #fbDot/#fbText；新版只用 #fbStatus
@@ -359,6 +372,7 @@ function scheduleSave(reason='儲存') {
 }
 
 async function loadFromFirestore() {
+  showLoading('讀取中…');
   if (!getDb()) return false;
   try {
     setSaveStatus('讀取 Firebase…');
