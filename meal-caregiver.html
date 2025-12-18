@@ -71,7 +71,7 @@
                         <div data-i18n="delivery_date">送單日期</div>
                         <div class="small text-muted" data-i18n="delivery_date_en">Delivery date</div>
                       </th>
-                      <th class="text-center align-middle w-120">
+                      <th class="text-center align-middle w-mealdate">
                         <div data-i18n="meal_date">用餐日期</div>
                         <div class="small text-muted" data-i18n="meal_date_en">Meal date</div>
                       </th>
@@ -125,7 +125,7 @@
                         <input type="date" id="deliveryDate" class="form-control form-control-sm text-center"/>
                       </td>
                       <td class="text-center align-middle" rowspan="2">
-                        <input type="date" id="mealDate" class="form-control form-control-sm text-center" disabled />
+                        <input type="date" id="mealDate" class="form-control form-control-sm text-center mealdate-input" disabled />
                         <div class="form-text small mt-1" data-i18n="meal_date_auto_note">※ 用餐日期會自動帶入送單日期的下一天</div>
                       </td>
                                             <td class="text-center align-middle">
@@ -269,6 +269,10 @@
     .w-110 { width: 110px; min-width: 110px; }
     .w-90  { width: 90px;  min-width: 90px;  }
     .w-220 { width: 220px; min-width: 220px; }
+
+    /* 用餐日期欄位縮窄（避免太寬） */
+    .w-mealdate { width: 105px; min-width: 105px; }
+    .mealdate-input { width: 105px; min-width: 105px; margin: 0 auto; }
 
     /* 防止窄螢幕把總計那欄壓成一條 */
     .meal-table { min-width: 1350px; table-layout: auto; }
