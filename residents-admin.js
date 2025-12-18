@@ -649,6 +649,167 @@ function exportStyledXls(){
   addFloorSheet('1樓床位配置', 1);
   addFloorSheet('2樓床位配置', 2);
   addFloorSheet('3樓床位配置', 3);
+  // ===== 生命徵象紀錄表（新增兩張）=====
+  function bedSortKey(bed){
+    const m = String(bed||'').toUpperCase().match(/^(\d{3})[-_]?([A-Z0-9]+)?$/);
+    if(!m) return 1e9;
+    const room = parseInt(m[1],10);
+    const subRaw = m[2]||'';
+    const subNum = parseInt(String(subRaw).replace(/\D/g,''),10);
+    const sub = isFinite(subNum) ? subNum : 0;
+    return room*100 + sub;
+  }
+  function sortByBed(arr){
+    return (arr||[]).slice().sort((a,b)=>bedSortKey(a.bedNumber)-bedSortKey(b.bedNumber));
+  }
+  function addVitalSheet_1F3F(){
+    const ws = wb.addWorksheet('生命徵象(1+3)', {views:[{state:'frozen', ySplit:3}]});
+    ws.columns = [
+      {width:5},{width:8},{width:14},{width:7},{width:10},{width:10},{width:10},{width:10},
+      {width:1},
+      {width:5},{width:8},{width:14},{width:7},{width:10},{width:10},{width:10},{width:10}
+    ];
+
+    // title
+    ws.mergeCells(1,1,1,17);
+    const t = ws.getCell(1,1);
+    t.value = '安泰護理之家住民生命跡象紀錄表';
+    t.font = { name:'DFKai-SB', bold:true, size:18 };
+    t.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 24.6;
+
+    // floor labels + date
+    ws.getCell('A2').value = '1F護理站';
+    ws.getCell('J2').value = '3F護理站';
+    ws.getCell('N2').value = '日期';
+    ws.getCell('O2').value = new Date();
+    ws.getCell('O2').numFmt = 'yyyy/mm/dd';
+    ['A2','J2','N2','O2'].forEach(addr=>{
+      const c = ws.getCell(addr);
+      c.font = { name:'DFKai-SB', size:12, bold:true };
+      c.alignment = { vertical:'middle', horizontal:'left' };
+    });
+
+    const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
+    const row3 = [];
+    headers.forEach(h=>row3.push(h));
+    row3.push('');
+    headers.forEach(h=>row3.push(h));
+    const hRow = ws.addRow(row3);
+    hRow.height = 18;
+
+    const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
+    const borderAll = {top:thin,left:thin,right:thin,bottom:thin};
+
+    function applyGridStyle(r){
+      r.eachCell({includeEmpty:true}, (cell, colNumber)=>{
+        if(colNumber===9){ // spacer
+          cell.border = {};
+          cell.fill = null;
+          cell.value = cell.value || '';
+          return;
+        }
+        cell.font = { name:'DFKai-SB', size:(r.number===3?12:12) };
+        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false };
+        cell.border = borderAll;
+      });
+    }
+    applyGridStyle(hRow);
+
+    const f1 = sortByBed((cache||[]).filter(r=> /^1\d\d/.test(String(r.bedNumber||'')) ));
+    const f3 = sortByBed((cache||[]).filter(r=> /^3\d\d/.test(String(r.bedNumber||'')) ));
+    const n = Math.max(f1.length, f3.length, 1);
+    for(let i=0;i<n;i++){
+      const L = f1[i];
+      const R = f3[i];
+      const row = ws.addRow([
+        L ? (i+1) : '', L ? (String(L.bedNumber||'').replace('_','-').toUpperCase()) : '', L ? (L.id||'') : '', '', '', '', '', '',
+        '',
+        R ? (i+1) : '', R ? (String(R.bedNumber||'').replace('_','-').toUpperCase()) : '', R ? (R.id||'') : '', '', '', '', '', ''
+      ]);
+      row.height = 26.25;
+      applyGridStyle(row);
+    }
+
+    // also style row2 borders (keep simple: no border)
+    ws.getRow(2).height = 18;
+
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+  }
+
+  function addVitalSheet_2F(){
+    const ws = wb.addWorksheet('生命徵象(2F)', {views:[{state:'frozen', ySplit:3}]});
+    ws.columns = [
+      {width:5},{width:8},{width:14},{width:7},{width:10},{width:10},{width:10},{width:10},
+      {width:1},
+      {width:5},{width:8},{width:14},{width:7},{width:10},{width:10},{width:10},{width:10}
+    ];
+
+    ws.mergeCells(1,1,1,17);
+    const t = ws.getCell(1,1);
+    t.value = '安泰護理之家住民生命跡象紀錄表';
+    t.font = { name:'DFKai-SB', bold:true, size:18 };
+    t.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 24.6;
+
+    ws.getCell('A2').value = '2F護理站';
+    ws.getCell('N2').value = '日期';
+    ws.getCell('O2').value = new Date();
+    ws.getCell('O2').numFmt = 'yyyy/mm/dd';
+    ['A2','N2','O2'].forEach(addr=>{
+      const c = ws.getCell(addr);
+      c.font = { name:'DFKai-SB', size:12, bold:true };
+      c.alignment = { vertical:'middle', horizontal:'left' };
+    });
+
+    const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
+    const row3 = [];
+    headers.forEach(h=>row3.push(h));
+    row3.push('');
+    headers.forEach(h=>row3.push(h)); // 右半保留（空白）
+    const hRow = ws.addRow(row3);
+    hRow.height = 18;
+
+    const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
+    const borderAll = {top:thin,left:thin,right:thin,bottom:thin};
+
+    function applyGridStyle(r){
+      r.eachCell({includeEmpty:true}, (cell, colNumber)=>{
+        if(colNumber===9){
+          cell.border = {};
+          cell.fill = null;
+          cell.value = cell.value || '';
+          return;
+        }
+        cell.font = { name:'DFKai-SB', size:12 };
+        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false };
+        cell.border = borderAll;
+      });
+    }
+    applyGridStyle(hRow);
+
+    const f2 = sortByBed((cache||[]).filter(r=> /^2\d\d/.test(String(r.bedNumber||'')) ));
+    const n = Math.max(f2.length, 1);
+    for(let i=0;i<n;i++){
+      const L = f2[i];
+      const row = ws.addRow([
+        L ? (i+1) : '', L ? (String(L.bedNumber||'').replace('_','-').toUpperCase()) : '', L ? (L.id||'') : '', '', '', '', '', '',
+        '',
+        '', '', '', '', '', '', '', ''
+      ]);
+      row.height = 26.25;
+      applyGridStyle(row);
+    }
+    ws.getRow(2).height = 18;
+
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+  }
+
+  addVitalSheet_1F3F();
+  addVitalSheet_2F();
+
 
   // ===== 各樓層人數統計 =====
   
