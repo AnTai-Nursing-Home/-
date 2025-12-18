@@ -72,7 +72,7 @@ async function loadEmployees() {
                 .orderBy('sortOrder', 'asc')
                 .get();
 
-            docs.forEach(doc => {
+            snap.forEach(doc => {
                 const d = doc.data();
                 // 離職員工不列入名單（資料保留，但不給選單抓到）
                 if (d && d.isActive === false) return;
@@ -761,7 +761,7 @@ async function checkOthersStayOnDaysOffice(others, days, appIdSelf) {
                 .get();
 
             let hasOther = false;
-            docs.forEach(doc => {
+            snap.forEach(doc => {
                 if (appIdSelf && doc.id === appIdSelf) return;
                 hasOther = true;
             });
