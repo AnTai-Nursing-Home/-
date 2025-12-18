@@ -20,6 +20,63 @@ let currentSheet = '單獨泡製';
 let stateGrid = structuredClone(initialSheets);
 let saveTimer = null;
 
+
+/**
+ * Firestore 不支援「巢狀陣列」（Array 裡面再放 Array）。
+ * 我們的 stateGrid 是 2D array（rows x cols），因此儲存前需轉成 Map 結構；
+ * 讀取後再還原回 2D array，讓原本 UI 邏輯不必大改。
+ */
+function encodeSheetsForFirestore(grid){
+  const out = {};
+  const sheets = grid || {};
+  for (const sheetName of Object.keys(sheets)) {
+    const rows = Array.isArray(sheets[sheetName]) ? sheets[sheetName] : [];
+    const rowMap = {};
+    for (let r = 0; r < rows.length; r++) {
+      const cols = Array.isArray(rows[r]) ? rows[r] : [];
+      const colMap = {};
+      for (let c = 0; c < cols.length; c++) {
+        const v = cols[c];
+        if (v !== undefined) colMap[String(c)] = v;
+      }
+      // 只在該列有內容時才存（可略省空資料）
+      rowMap[String(r)] = colMap;
+    }
+    out[sheetName] = rowMap;
+  }
+  return out;
+}
+
+function decodeSheetsFromFirestore(sheetsData){
+  // 舊版若已經是 2D array，直接回傳
+  const out = {};
+  const data = sheetsData || {};
+  for (const sheetName of Object.keys(data)) {
+    const sheetVal = data[sheetName];
+    if (Array.isArray(sheetVal)) {
+      out[sheetName] = structuredClone(sheetVal);
+      continue;
+    }
+    // Map 形式：{ "0": {"0": "A", "1": "B"}, "1": {...} }
+    if (sheetVal && typeof sheetVal === "object") {
+      const rowKeys = Object.keys(sheetVal).sort((a,b)=>Number(a)-Number(b));
+      const rows = [];
+      for (const rk of rowKeys) {
+        const rowObj = sheetVal[rk] || {};
+        const colKeys = Object.keys(rowObj).sort((a,b)=>Number(a)-Number(b));
+        const cols = [];
+        for (const ck of colKeys) cols[Number(ck)] = rowObj[ck];
+        rows[Number(rk)] = cols;
+      }
+      out[sheetName] = rows;
+      continue;
+    }
+    out[sheetName] = structuredClone(initialSheets[sheetName] || [[]]);
+  }
+  return out;
+}
+
+
 function $(sel){ return document.querySelector(sel); }
 
 function setFbStatus(ok, text) {
@@ -292,7 +349,7 @@ async function loadFromFirestore() {
     if (snap.exists) {
       const data = snap.data() || {};
       if (data.sheets) {
-        stateGrid = structuredClone(data.sheets);
+        stateGrid = decodeSheetsFromFirestore(data.sheets);
         for (const s of SHEETS) if (!Array.isArray(stateGrid[s])) stateGrid[s] = structuredClone(initialSheets[s] || [[]]);
         setSaveStatus('已載入 Firebase 資料');
         return true;
@@ -312,7 +369,7 @@ async function saveToFirestore() {
     setSaveStatus('儲存中…');
     const ref = getDb().collection(FS_COLLECTION).doc(FS_DOC);
     await ref.set({
-      sheets: stateGrid,
+      sheets: encodeSheetsForFirestore(stateGrid),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
     setSaveStatus(`已儲存（${new Date().toLocaleTimeString()}）`);
