@@ -178,8 +178,11 @@ function renderTable() {
         return;
       }
 
-      const inputType = (col.type === 'number') ? 'number' : 'text';
-      const stepAttr = (col.type === 'number') ? ' step="1" ' : '';
+      const isNumCol = (col.type === 'number');
+      const sv = String(v ?? '');
+      const numOk = (!isNumCol) || sv.trim()==='' || /^-?\d+(?:\.\d+)?$/.test(sv.trim());
+      const inputType = (isNumCol && numOk) ? 'number' : 'text';
+      const stepAttr = (isNumCol && numOk) ? ' step="1" ' : '';
       html.push(`<td class="${tdClass}">
         <input class="cell" type="${inputType}" ${stepAttr} data-idx="${idx}" data-key="${col.key}" value="${escapeAttr(String(v))}">
       </td>`);
@@ -209,7 +212,14 @@ function bindTableEvents() {
       return;
     }
 
-    row[key] = t.value;
+    // number 欄位：允許空白；非數字就先保留文字（避免 input[type=number] 解析錯誤）
+    const col = COLS.find(c => c.key === key);
+    if (col?.type === 'number') {
+      const vv = String(t.value ?? '').trim();
+      row[key] = (vv === '' || !/^-?\d+(?:\.\d+)?$/.test(vv)) ? vv : Number(vv);
+    } else {
+      row[key] = t.value;
+    }
     scheduleSave('表格修改');
   }, { passive: true });
 }
