@@ -72,7 +72,7 @@ async function loadEmployees() {
                 .orderBy('sortOrder', 'asc')
                 .get();
 
-            snap.forEach(doc => {
+            docs.forEach(doc => {
                 const d = doc.data();
                 // 離職員工不列入名單（資料保留，但不給選單抓到）
                 if (d && d.isActive === false) return;
@@ -436,7 +436,7 @@ async function loadApplicationsByFilter() {
     const endStr = document.getElementById('filterEnd').value;
 
     const tbody = document.querySelector('#officeStayTable tbody');
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">載入中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>';
 
     let queryRef = db.collection('stayApplications');
     let titleText = '外宿申請單';
@@ -454,11 +454,51 @@ async function loadApplicationsByFilter() {
 
     const snap = await queryRef.orderBy('startDateTime', 'asc').get();
 
+    // 依送件時間排序（最早先送在上面）。注意：Firestore 有不等式篩選時不能直接 orderBy(createdAt)
+    const docs = snap.empty ? [] : snap.docs.slice();
+    const toMs = (tsOrDate) => {
+        if (!tsOrDate) return 0;
+        const d = tsOrDate.toDate ? tsOrDate.toDate() : (tsOrDate instanceof Date ? tsOrDate : new Date(tsOrDate));
+        const t = d.getTime();
+        return isNaN(t) ? 0 : t;
+    };
+    docs.sort((a, b) => {
+        const A = a.data() || {};
+        const B = b.data() || {};
+
+        const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+        const sa = toDate(A.startDateTime);
+        const sb = toDate(B.startDateTime);
+
+        const now = Date.now();
+        const ta = sa ? sa.getTime() : 0;
+        const tb = sb ? sb.getTime() : 0;
+
+        const aIsUpcoming = ta >= now;
+        const bIsUpcoming = tb >= now;
+
+        // 先把「即將到來」的排在上面
+        if (aIsUpcoming !== bIsUpcoming) return aIsUpcoming ? -1 : 1;
+
+        if (aIsUpcoming && bIsUpcoming) {
+            // 兩個都是未來：越接近現在（越早）越上面
+            if (ta !== tb) return ta - tb;
+        } else {
+            // 兩個都是過去：越接近現在（越晚）越上面
+            if (ta !== tb) return tb - ta;
+        }
+
+        // 同日期：用送件時間（createdAt/updatedAt）較早者在上
+        const ca = toMs(A.createdAt) || toMs(A.updatedAt) || toMs(A.startDateTime);
+        const cb = toMs(B.createdAt) || toMs(B.updatedAt) || toMs(B.startDateTime);
+        return ca - cb;
+    });
+
     tbody.innerHTML = '';
     if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">查無資料</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">查無資料</td></tr>';
     } else {
-        snap.forEach(doc => {
+        docs.forEach(doc => {
             const app = doc.data();
             const tr = document.createElement('tr');
 
@@ -473,6 +513,7 @@ async function loadApplicationsByFilter() {
 
             tr.innerHTML = `
                 <td>${app.applicantName || ''}</td>
+                <td>${formatDateTime(app.createdAt?.toDate?.() || (app.createdAt ? new Date(app.createdAt) : null)) || '—'}</td>
                 <td>${formatDateTime(start)}<br>~ ${formatDateTime(end)}</td>
                 <td>${app.startShift || ''}</td>
                 <td>${app.location || ''}</td>
@@ -673,7 +714,7 @@ async function checkTwoPerDayLimitOffice(days, appIdSelf) {
 
         const snap = await q.get();
         let count = 0;
-        snap.forEach(doc => {
+        docs.forEach(doc => {
             if (appIdSelf && doc.id === appIdSelf) return; // 排除自己（編輯中）
             count++;
         });
@@ -720,7 +761,7 @@ async function checkOthersStayOnDaysOffice(others, days, appIdSelf) {
                 .get();
 
             let hasOther = false;
-            snap.forEach(doc => {
+            docs.forEach(doc => {
                 if (appIdSelf && doc.id === appIdSelf) return;
                 hasOther = true;
             });
@@ -752,7 +793,7 @@ async function openCommentModalOffice(appId) {
     if (snap.empty) {
         listEl.innerHTML = '<li class="list-group-item text-center text-muted">目前沒有註解</li>';
     } else {
-        snap.forEach(doc => {
+        docs.forEach(doc => {
             const c = doc.data();
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-start';
