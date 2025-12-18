@@ -1,7 +1,8 @@
 // stay-caregiver.js - 照服員端外宿申請系統
 
 // 全域變數（db 由 firebase-init.js 提供，不在此重新宣告）
-let statusMap = {};           // statusId -> { id, name, color }
+let statusMap = {};
+let defaultStatusId = 'pending';  // 由辦公室端設定的預設狀態（stayStatusDefs.isDefault=true）           // statusId -> { id, name, color }
 let currentApplicantId = null;
 let currentApplicantName = null;
 let commentModal = null;
@@ -143,6 +144,7 @@ async function loadStatusDefs() {
         const snap = await db.collection('stayStatusDefs').orderBy('order', 'asc').get();
         if (snap.empty) {
             // 若尚未建立，提供三個預設狀態
+            defaultStatusId = 'pending';
             statusMap = {
                 pending: { id: 'pending', name: '待審核', color: '#6c757d' },
                 approved: { id: 'approved', name: '核准', color: '#198754' },
@@ -150,6 +152,7 @@ async function loadStatusDefs() {
             };
             return;
         }
+        defaultStatusId = 'pending';
         snap.forEach(doc => {
             const d = doc.data();
             statusMap[doc.id] = {
@@ -157,9 +160,18 @@ async function loadStatusDefs() {
                 name: d.name || doc.id,
                 color: d.color || '#6c757d'
             };
+            // 辦公室端可在 stayStatusDefs 設定 isDefault=true 作為預設狀態
+            if (d && (d.isDefault === true || d.default === true || d.is_default === true)) {
+                defaultStatusId = doc.id;
+            }
         });
+        // 若沒有任何 isDefault，保底用 pending 或第一個狀態
+        if (!statusMap[defaultStatusId]) {
+            defaultStatusId = statusMap['pending'] ? 'pending' : (Object.keys(statusMap)[0] || 'pending');
+        }
     } catch (e) {
         console.warn('讀取 stayStatusDefs 失敗，改用預設狀態', e);
+        defaultStatusId = 'pending';
         statusMap = {
             pending: { id: 'pending', name: '待審核', color: '#6c757d' },
             approved: { id: 'approved', name: '核准', color: '#198754' },
@@ -398,7 +410,7 @@ async function saveApplication(data) {
         startShift: data.startShift,
         location: data.location,
         reason: data.reason,
-        statusId: 'pending',
+        statusId: (defaultStatusId || 'pending'),
         createdByRole: data.createdByRole,
         createdByUserId: data.createdByUserId,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
