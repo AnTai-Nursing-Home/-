@@ -3,6 +3,16 @@ const FS_COLLECTION = 'nutrition_tube';
 const FS_DOC = 'tube';
 
 
+// 用於匯出檔名日期（YYYY-MM-DD）。若頁面沒有日期選擇器，就用今天。
+function getDateKey(){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+
 
 function getDb(){
   try {
@@ -393,7 +403,7 @@ async function exportExcel() {
     return;
   }
 
-  const dateIso = getDateKey ? getDateKey() : "";
+  const dateIso = (typeof getDateKey === 'function') ? getDateKey() : '';
   const wb = new ExcelJS.Workbook();
   wb.creator = "Antai System";
   wb.created = new Date();
