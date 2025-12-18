@@ -283,7 +283,7 @@ async function validateBusinessRulesForNewApplication(data) {
 
     const overLimit = await checkTwoPerDayLimit(days);
     if (overLimit) {
-        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達兩人上限，無法再申請'));
+        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達一人上限，無法再申請'));
     }
 
     const conflictMsg = await checkConflictRules(data.applicantId, days);
@@ -307,18 +307,37 @@ function enumerateDates(start, end) {
 // 所以這裡改成：只用 startDateTime 落在當天來判斷「同日」
 // 代表規則是：「同一天起始的外宿申請不得超過兩人」
 async function checkTwoPerDayLimit(days) {
+    // 規則：同一天（以日曆日計）外宿人數上限 = 1 人
+    // Firestore 查詢限制：同一 query 不能同時對 startDateTime 與 endDateTime 做不等式
+    // 作法：用「startDateTime 在 (dayStart-30d) ~ dayEnd」先抓候選，再用程式判斷區間是否與當天重疊
+    const MAX_LOOKBACK_DAYS = 30;
+
     for (const d of days) {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
 
+        const lookbackStart = new Date(dayStart);
+        lookbackStart.setDate(lookbackStart.getDate() - MAX_LOOKBACK_DAYS);
+
         const snap = await db.collection('stayApplications')
-            .where('startDateTime', '>=', dayStart)
+            .where('startDateTime', '>=', lookbackStart)
             .where('startDateTime', '<=', dayEnd)
             .get();
 
-        if (snap.size >= 2) {
-            return true;
-        }
+        let count = 0;
+        snap.forEach(doc => {
+            const app = doc.data() || {};
+            // 不計入被退回/取消者（只要不是 rejected 就算佔用）
+            if (app.statusId === 'rejected' || app.statusId === 'canceled' || app.statusId === 'cancelled') return;
+
+            const s = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
+            const e = app.endDateTime?.toDate?.() || new Date(app.endDateTime);
+
+            // 重疊判斷：區間 [s,e] 與 [dayStart,dayEnd] 有交集就算當天外宿
+            if (s <= dayEnd && e >= dayStart) count += 1;
+        });
+
+        if (count >= 1) return true;
     }
     return false;
 }
