@@ -523,12 +523,6 @@ function exportStyledXls(){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
     return `${y}${sep}${m}${sep}${da}`;
   }
-  function formatRocDateStr(d){
-    const y=d.getFullYear()-1911;
-    const m=String(d.getMonth()+1).padStart(2,'0');
-    const da=String(d.getDate()).padStart(2,'0');
-    return `${y}/${m}/${da}`;
-  }
   function getTpl(){
     try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
     catch{ return {'1':[],'2':[],'3':[]}; }
@@ -668,10 +662,10 @@ function exportStyledXls(){
   function sortByBed(arr){
     return (arr||[]).slice().sort((a,b)=>bedSortKey(a.bedNumber)-bedSortKey(b.bedNumber));
   }
-    function addVitalSheet_1F3F(){
+  function addVitalSheet_1F3F(){
     const ws = wb.addWorksheet('生命徵象(1+3)', {views:[{state:'frozen', ySplit:3}]});
-    const exportDate = new Date();
-    // 版面：直式、盡量滿版（左右兩欄各最多 27 筆；不足自動增加第二頁/更多頁，並重複標題與日期）
+
+    // 版面：直式、盡量滿版（左右兩欄各最多 27 筆）
     ws.columns = [
       // 左半
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
@@ -681,154 +675,180 @@ function exportStyledXls(){
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
     ];
 
+    // 民國日期字串（避免日期欄寬太窄顯示 ####）
+    function rocDateStr(d){
+      const y = d.getFullYear() - 1911;
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      return `${y}/${m}/${dd}`;
+    }
+    const exportDate = new Date();
+    const exportRoc = rocDateStr(exportDate);
+
     const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
+
     const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
     const medium = {style:'medium', color:{argb:'FF000000'}};
 
-    function writeTitleRow(rowNo){
-      ws.mergeCells(rowNo, 1, rowNo, 17);
-      const t = ws.getCell(rowNo, 1);
+    function cellBorderFor(col, rowNum, headerRowNum, lastDataRowNum){
+      // 左表：1..8；中線：9；右表：10..17
+      const inLeft = (col>=1 && col<=8);
+      const inRight = (col>=10 && col<=17);
+      const isHeader = (rowNum===headerRowNum);
+
+      // spacer 做中線：左右加粗
+      if(col===9){
+        return { left: medium, right: medium, top: thin, bottom: thin };
+      }
+
+      // 外框加粗（左右各自一個表格）
+      const isTop = isHeader;
+      const isBottom = (rowNum===lastDataRowNum);
+
+      if(inLeft){
+        return {
+          top: isTop ? medium : thin,
+          bottom: isBottom ? medium : thin,
+          left: (col===1) ? medium : thin,
+          right: (col===8) ? medium : thin
+        };
+      }
+      if(inRight){
+        return {
+          top: isTop ? medium : thin,
+          bottom: isBottom ? medium : thin,
+          left: (col===10) ? medium : thin,
+          right: (col===17) ? medium : thin
+        };
+      }
+      return {top:thin,left:thin,right:thin,bottom:thin};
+    }
+
+    function applyGridStyle(row, headerRowNum, lastDataRowNum){
+      row.eachCell({includeEmpty:true}, (cell, colNumber)=>{
+        if(colNumber===9){
+          cell.value = cell.value || '';
+          cell.fill = null;
+          cell.alignment = { vertical:'middle', horizontal:'center' };
+          cell.border = cellBorderFor(colNumber, row.number, headerRowNum, lastDataRowNum);
+          return;
+        }
+        cell.font = { name:'DFKai-SB', size:12, bold:(row.number===headerRowNum) };
+        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false, shrinkToFit:true };
+        cell.border = cellBorderFor(colNumber, row.number, headerRowNum, lastDataRowNum);
+        if(row.number===headerRowNum){
+          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'}};
+        }
+      });
+    }
+
+    function buildHeaderRow(){
+      const rowCells = [];
+      headers.forEach(h=>rowCells.push(h));
+      rowCells.push('');
+      headers.forEach(h=>rowCells.push(h));
+      return rowCells;
+    }
+
+    function setRowHeightExceptTitle(rn, h){
+      if(rn===1) return; // 大標題列不改
+      ws.getRow(rn).height = h;
+    }
+
+    // 資料（不截斷，改為多頁）
+    const f1All = sortByBed((cache||[]).filter(r=> /^1\d\d/.test(String(r.bedNumber||'')) ));
+    const f3All = sortByBed((cache||[]).filter(r=> /^3\d\d/.test(String(r.bedNumber||'')) ));
+
+    const PAGE_SIZE = 27;
+    const pages = Math.max(Math.ceil(f1All.length / PAGE_SIZE), Math.ceil(f3All.length / PAGE_SIZE), 1);
+
+    // 每頁區塊高度：title + labels + header + 27 data = 30
+    const BLOCK_ROWS = 1 + 1 + 1 + PAGE_SIZE;
+
+    for(let p=0; p<pages; p++){
+      const startRow = 1 + p*BLOCK_ROWS;
+
+      // ---- Title ----
+      ws.mergeCells(startRow,1,startRow,17);
+      const t = ws.getCell(startRow,1);
       t.value = '安泰護理之家住民生命跡象紀錄表';
       t.font = { name:'DFKai-SB', bold:true, size:18 };
       t.alignment = { vertical:'middle', horizontal:'center' };
-      ws.getRow(rowNo).height = 24.6;
-    }
+      ws.getRow(startRow).height = 24.6;
 
-    function writeLabelRow(rowNo){
-      ws.mergeCells(rowNo, 1, rowNo, 8);
-      ws.mergeCells(rowNo,10, rowNo,15);
-      ws.getCell(rowNo,1).value = '1F護理站';
-      ws.getCell(rowNo,10).value = '3F護理站';
-      ws.getCell(rowNo,16).value = '日期';
-      ws.getCell(rowNo,17).value = new Date();
-      ws.getCell(rowNo,17).numFmt = 'yyyy/mm/dd';
-      ['A'+rowNo,'J'+rowNo,'P'+rowNo,'Q'+rowNo].forEach(addr=>{
-        const c = ws.getCell(addr);
+      // ---- Labels + Date (merge P:Q to avoid ####) ----
+      ws.mergeCells(startRow+1,1,startRow+1,8);   // A..H
+      ws.mergeCells(startRow+1,10,startRow+1,15); // J..O
+      ws.mergeCells(startRow+1,16,startRow+1,17); // P..Q
+
+      ws.getCell(startRow+1,1).value = '1F護理站';
+      ws.getCell(startRow+1,10).value = '3F護理站';
+      ws.getCell(startRow+1,16).value = `日期  ${exportRoc}`;
+
+      [ws.getCell(startRow+1,1), ws.getCell(startRow+1,10), ws.getCell(startRow+1,16)].forEach((c,idx)=>{
         c.font = { name:'DFKai-SB', size:12, bold:true };
-        const h = (addr[0]==='P') ? 'right' : ((addr[0]==='A' || addr[0]==='J') ? 'center' : 'left');
-        c.alignment = { vertical:'middle', horizontal:h };
+        c.alignment = { vertical:'middle', horizontal: idx===2 ? 'right' : 'center' };
       });
-      ws.getRow(rowNo).height = 18;
-    }
 
-    function writeHeaderRow(rowNo, topRow, bottomRow){
-      const row3 = [];
-      headers.forEach(h=>row3.push(h));
-      row3.push('');
-      headers.forEach(h=>row3.push(h));
-      const hRow = ws.insertRow(rowNo, row3);
+      // ---- Header row ----
+      const headerRowNum = startRow+2;
+      const hRow = ws.getRow(headerRowNum);
+      hRow.values = buildHeaderRow();
+      // row.values 會把 index 0 留空，因此補齊
+      if(!hRow.getCell(1).value) {
+        // 如果 values 沒成功，改用 addRow 的方式
+        //（保險用）
+      }
       hRow.height = 30;
+      // 套樣式（header）
+      const lastDataRowNum = startRow+2+PAGE_SIZE;
+      applyGridStyle(hRow, headerRowNum, lastDataRowNum);
 
-      function cellBorderFor(col, rNo){
-        // 左表：1..8；中線：9；右表：10..17
-        const inLeft = (col>=1 && col<=8);
-        const inRight = (col>=10 && col<=17);
+      // ---- Data rows (fixed 27) ----
+      const f1 = f1All.slice(p*PAGE_SIZE, p*PAGE_SIZE + PAGE_SIZE);
+      const f3 = f3All.slice(p*PAGE_SIZE, p*PAGE_SIZE + PAGE_SIZE);
 
-        if(col===9){
-          return { left: medium, right: medium, top: thin, bottom: thin };
-        }
-        const isTop = (rNo===topRow);
-        const isBottom = (rNo===bottomRow);
-
-        if(inLeft){
-          return {
-            top: isTop ? medium : thin,
-            bottom: isBottom ? medium : thin,
-            left: (col===1) ? medium : thin,
-            right: (col===8) ? medium : thin
-          };
-        }
-        if(inRight){
-          return {
-            top: isTop ? medium : thin,
-            bottom: isBottom ? medium : thin,
-            left: (col===10) ? medium : thin,
-            right: (col===17) ? medium : thin
-          };
-        }
-        return {top:thin,left:thin,right:thin,bottom:thin};
+      for(let i=0;i<PAGE_SIZE;i++){
+        const L = f1[i];
+        const R = f3[i];
+        const rowNum = startRow+3+i;
+        const row = ws.getRow(rowNum);
+        row.values = [
+          (i+1),
+          L ? (String(L.bedNumber||'').replace('_','-').toUpperCase()) : '',
+          L ? (L.id||'') : '',
+          '', '', '', '', '',
+          '',
+          (i+1),
+          R ? (String(R.bedNumber||'').replace('_','-').toUpperCase()) : '',
+          R ? (R.id||'') : '',
+          '', '', '', '', ''
+        ];
+        row.height = 30;
+        applyGridStyle(row, headerRowNum, lastDataRowNum);
       }
 
-      hRow.eachCell({includeEmpty:true}, (cell, colNumber)=>{
-        if(colNumber===9){
-          cell.value = '';
-          cell.fill = null;
-          cell.alignment = { vertical:'middle', horizontal:'center' };
-          cell.border = cellBorderFor(colNumber, rowNo);
-          return;
-        }
-        cell.font = { name:'DFKai-SB', size:12, bold:true };
-        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false, shrinkToFit:true };
-        cell.border = cellBorderFor(colNumber, rowNo);
-        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'}};
-      });
+      // 其餘列高（labels 那列）
+      setRowHeightExceptTitle(startRow+1, 30);
 
-      return { cellBorderFor };
-    }
-
-    function writeDataRow(rowNo, topRow, bottomRow, cellBorderFor, idxLeft, recLeft, idxRight, recRight){
-      const LBed = recLeft ? (String(recLeft.bedNumber||'').replace('_','-').toUpperCase()) : '';
-      const RBed = recRight ? (String(recRight.bedNumber||'').replace('_','-').toUpperCase()) : '';
-      const row = ws.insertRow(rowNo, [
-        idxLeft, LBed, recLeft ? (recLeft.id||'') : '', '', '', '', '', '',
-        '',
-        idxRight, RBed, recRight ? (recRight.id||'') : '', '', '', '', '', ''
-      ]);
-      row.height = 30;
-
-      row.eachCell({includeEmpty:true}, (cell, colNumber)=>{
-        if(colNumber===9){
-          cell.value = '';
-          cell.fill = null;
-          cell.alignment = { vertical:'middle', horizontal:'center' };
-          cell.border = cellBorderFor(colNumber, rowNo);
-          return;
-        }
-        cell.font = { name:'DFKai-SB', size:12, bold:false };
-        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false, shrinkToFit:true };
-        cell.border = cellBorderFor(colNumber, rowNo);
-      });
-      return row;
-    }
-
-    const PAGE_SIZE = 27;
-    const f1All = sortByBed((cache||[]).filter(r=> /^1\d\d/.test(String(r.bedNumber||'')) ));
-    const f3All = sortByBed((cache||[]).filter(r=> /^3\d\d/.test(String(r.bedNumber||'')) ));
-    const pages = Math.max(Math.ceil(f1All.length / PAGE_SIZE), Math.ceil(f3All.length / PAGE_SIZE), 1);
-
-    let rowCursor = 1;
-    for(let p=0; p<pages; p++){
-      if(p>0){
-        // 頁與頁之間：加分頁線（列印會自動換頁）
-        try{ if(typeof ws.addPageBreak==='function'){ ws.addPageBreak(rowCursor-1); } }catch(e){}
-        try{ ws.getRow(rowCursor-1).pageBreak = true; }catch(e){}
+      // 讓下一頁真的斷頁：在下一個 startRow 前插入「手動分頁」
+      if(p < pages-1){
+        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行
+        try{
+          if(ws.addPageBreak) ws.addPageBreak(breakAt);
+        }catch(e){}
+        try{
+          // exceljs 的 rowBreaks 實作
+          if(ws.rowBreaks && ws.rowBreaks.add) ws.rowBreaks.add(breakAt);
+        }catch(e){}
       }
-
-      const titleRow = rowCursor++;
-      const labelRow = rowCursor++;
-      const headerRow = rowCursor++;
-
-      writeTitleRow(titleRow);
-      writeLabelRow(labelRow);
-
-      const topRow = headerRow;
-      const bottomRow = headerRow + PAGE_SIZE;
-      const { cellBorderFor } = writeHeaderRow(headerRow, topRow, bottomRow);
-
-      const f1Page = f1All.slice(p*PAGE_SIZE, p*PAGE_SIZE + PAGE_SIZE);
-      const f3Page = f3All.slice(p*PAGE_SIZE, p*PAGE_SIZE + PAGE_SIZE);
-
-      for(let i=0; i<PAGE_SIZE; i++){
-        const L = f1Page[i];
-        const R = f3Page[i];
-        const idxLeft = (p*PAGE_SIZE + i + 1);
-        const idxRight = (p*PAGE_SIZE + i + 1);
-        writeDataRow(rowCursor++, topRow, bottomRow, cellBorderFor, idxLeft, L, idxRight, R);
-      }
-
-      // 頁尾留一點點空白，避免貼太緊
-      ws.insertRow(rowCursor++, Array(17).fill('')).height = 30;
     }
+
+    // 列印設定：不要壓縮成一頁
+    ws.sheetProperties = ws.sheetProperties || {};
+    ws.sheetProperties.pageSetUpPr = ws.sheetProperties.pageSetUpPr || {};
+    ws.sheetProperties.pageSetUpPr.fitToPage = true;
+    ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
 
     ws.pageSetup = {
       paperSize:9,
@@ -841,17 +861,23 @@ function exportStyledXls(){
     };
   }
 
-
-
   function addVitalSheet_2F(){
     const ws = wb.addWorksheet('生命徵象(2F)', {views:[{state:'frozen', ySplit:3}]});
-    const exportDate = new Date();
     // 2F 住民較多：採左右兩欄各 27（共 54）仍固定單頁
     ws.columns = [
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
       {width:0.4},
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
     ];
+
+    function rocDateStr(d){
+      const y = d.getFullYear() - 1911;
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      return `${y}/${m}/${dd}`;
+    }
+    const exportDate = new Date();
+    const exportRoc = rocDateStr(exportDate);
 
     ws.mergeCells(1,1,1,17);
     const t = ws.getCell(1,1);
@@ -860,19 +886,16 @@ function exportStyledXls(){
     t.alignment = { vertical:'middle', horizontal:'center' };
     ws.getRow(1).height = 24.6;
 
-    // 標題列（同樣盡量滿版 + 右上日期）
+    // 標題列（同樣盡量滿版 + 右上日期；改合併 P:Q 避免 ####）
     ws.mergeCells('A2:H2');
-    ws.mergeCells('J2:O2');
+    ws.mergeCells('P2:Q2');
     ws.getCell('A2').value = '2F護理站';
-    // 右半不另外寫標題（留白），避免擠壓日期
-    ws.getCell('P2').value = '日期';
-    ws.getCell('Q2').value = formatRocDateStr(exportDate);
-    ws.getCell('Q2').numFmt = '@';
-    ['A2','P2','Q2'].forEach(addr=>{
+    ws.getCell('P2').value = `日期  ${exportRoc}`;
+
+    ['A2','P2'].forEach(addr=>{
       const c = ws.getCell(addr);
       c.font = { name:'DFKai-SB', size:12, bold:true };
-      const h = (addr==='P2') ? 'right' : (addr==='A2' ? 'center' : 'left');
-      c.alignment = { vertical:'middle', horizontal: h };
+      c.alignment = { vertical:'middle', horizontal: addr==='P2' ? 'right' : 'center' };
     });
 
     const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
@@ -933,7 +956,12 @@ function exportStyledXls(){
     }
     ws.getRow(2).height = 30;
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0,
+    ws.sheetProperties = ws.sheetProperties || {};
+    ws.sheetProperties.pageSetUpPr = ws.sheetProperties.pageSetUpPr || {};
+    ws.sheetProperties.pageSetUpPr.fitToPage = true;
+    ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
+
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true,
                      margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
   }
