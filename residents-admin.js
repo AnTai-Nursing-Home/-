@@ -672,7 +672,7 @@ function exportStyledXls(){
       // 中線
       {width:0.4},
       // 右半
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
+      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:7.5}
     ];
 
     // 民國日期字串（避免日期欄寬太窄顯示 ####）
@@ -831,10 +831,11 @@ function exportStyledXls(){
       // 其餘列高（labels 那列）
       setRowHeightExceptTitle(startRow+1, 30);
 
-      // 讓下一頁真的斷頁：在下一個 startRow 前插入「手動分頁」
+      // 讓下一頁真的斷頁：在下一個區塊開始列做「手動分頁」
       if(p < pages-1){
-        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行      }
-    }
+        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行
+        try{ ws.getRow(breakAt).addPageBreak(); }catch(e){}
+      }
 
     // 列印設定：不要壓縮成一頁
     ws.sheetProperties = ws.sheetProperties || {};
@@ -859,7 +860,7 @@ function exportStyledXls(){
     ws.columns = [
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
       {width:0.4},
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
+      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:7.5}
     ];
 
     function rocDateStr(d){
@@ -1275,16 +1276,17 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       console.warn('匯出時建立「照服員名冊」分頁失敗：', e);
     }
   // ===== 下載 =====
-  const blob = await wb.xlsx.writeBuffer();
+  const buf = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([blob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.href = URL.createObjectURL(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);
-  window.__exportingXls = false;
-  })();
 
-  })().catch(err=>{ console.error(err); alert('匯出失敗：'+(err&&err.message?err.message:err)); }).finally(()=>{
+  })().catch(err=>{
+    console.error(err);
+    alert('匯出失敗：'+(err&&err.message?err.message:err));
+  }).finally(()=>{
     window.__exportingXls = false;
     try{ var b=document.getElementById('btnExportXls'); if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } } }catch(e){}
   });
@@ -1451,3 +1453,5 @@ function updateStatsHeaderCounts(present, total){
     bar.classList.remove('d-none');
   }catch(e){ console.warn('updateStatsHeaderCounts failed:', e); }
 }
+
+}});
