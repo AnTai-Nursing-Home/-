@@ -833,21 +833,13 @@ function exportStyledXls(){
 
       // 讓下一頁真的斷頁：在下一個 startRow 前插入「手動分頁」
       if(p < pages-1){
-        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行
-        try{
-          if(ws.addPageBreak) ws.addPageBreak(breakAt);
-        }catch(e){}
-        try{
-          // exceljs 的 rowBreaks 實作
-          if(ws.rowBreaks && ws.rowBreaks.add) ws.rowBreaks.add(breakAt);
-        }catch(e){}
-      }
+        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行      }
     }
 
     // 列印設定：不要壓縮成一頁
     ws.sheetProperties = ws.sheetProperties || {};
     ws.sheetProperties.pageSetUpPr = ws.sheetProperties.pageSetUpPr || {};
-    ws.sheetProperties.pageSetUpPr.fitToPage = true;
+    ws.sheetProperties.pageSetUpPr.fitToPage = false;
     ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
 
     ws.pageSetup = {
@@ -958,7 +950,7 @@ function exportStyledXls(){
 
     ws.sheetProperties = ws.sheetProperties || {};
     ws.sheetProperties.pageSetUpPr = ws.sheetProperties.pageSetUpPr || {};
-    ws.sheetProperties.pageSetUpPr.fitToPage = true;
+    ws.sheetProperties.pageSetUpPr.fitToPage = false;
     ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
 
     ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
