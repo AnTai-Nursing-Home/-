@@ -668,11 +668,11 @@ function exportStyledXls(){
     // 版面：直式、盡量滿版（左右兩欄各最多 27 筆）
     ws.columns = [
       // 左半
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:7.5},
+      {width:4.0},{width:8.2},{width:12.4},{width:6.0},{width:6.0},{width:6.0},{width:8.6},{width:6.6},
       // 中線
       {width:0.4},
       // 右半
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:7.5}
+      {width:4.0},{width:8.2},{width:12.4},{width:6.0},{width:6.0},{width:6.0},{width:8.6},{width:6.6}
     ];
 
     // 民國日期字串（避免日期欄寬太窄顯示 ####）
@@ -848,8 +848,9 @@ function exportStyledXls(){
     ws.pageSetup = {
       paperSize:9,
       orientation:'portrait',
-      scale:100,
-      fitToPage:false,
+      fitToPage:true,
+      fitToWidth:1,
+      fitToHeight:0,
       horizontalCentered:true,
       margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05}
     };
