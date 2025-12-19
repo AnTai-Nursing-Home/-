@@ -811,7 +811,7 @@ function exportStyledXls(){
       ws.getRow(start2-1).height = 6;
       ws.getRow(start2-2).height = 6;
       // 分頁線
-      ws.addPageBreak(start2);
+      ws.addRowPageBreak(start2-1);
       writePage(start2, 1);
     }
 
