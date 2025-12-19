@@ -848,17 +848,12 @@ function exportStyledXls(){
     ws.pageSetup = {
       paperSize:9,
       orientation:'portrait',
-      // 關閉「縮放塞同一頁」：避免把第2頁內容壓縮到同一頁或多出空白頁
-      fitToPage:false,
-      scale:100,
+      fitToPage:true,
+      fitToWidth:1,
+      fitToHeight:0,
       horizontalCentered:true,
       margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05}
     };
-    // 限定列印範圍到實際內容，避免 Excel 產生尾端空白頁
-    try{
-      const lastUsedRow = (ws.lastRow && ws.lastRow.number) ? ws.lastRow.number : ws.rowCount;
-      ws.pageSetup.printArea = `A1:Q${lastUsedRow}`;
-    }catch(e){}
   }
 
   function addVitalSheet_2F(){
