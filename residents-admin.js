@@ -490,7 +490,7 @@ function exportStyledXls(){
   wb.created = new Date();
 
   // ===== 共用樣式 =====
-  const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
+  const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:15 };
   const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
   const fontCell   = { name:'Microsoft JhengHei', size:11 };
   const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
@@ -734,11 +734,11 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     // 備註
     ws.mergeCells(`A${totalRow.number+2}:G${totalRow.number+2}`);
     ws.getCell(`A${totalRow.number+2}`).value = '1.本機構共4層，1至3樓為住民層，4樓是宿舍；住民實到人數';
-    ws.getCell(`A${totalRow.number+2}`).font = { name:'Microsoft JhengHei', size:16 };
+    ws.getCell(`A${totalRow.number+2}`).font = { name:'Microsoft JhengHei', size:15 };
     ws.getRow(totalRow.number+2).height = 28;
     ws.mergeCells(`A${totalRow.number+3}:G${totalRow.number+3}`);
     ws.getCell(`A${totalRow.number+3}`).value = '2.起火房為___房，與其共通房，共__位住民，已全數離室避難，沒有人受困。';
-    ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:16 };
+    ws.getCell(`A${totalRow.number+3}`).font = { name:'Microsoft JhengHei', size:15 };
     ws.getRow(totalRow.number+3).height = 28;
 
     // 自動調整第 2 欄（活動能力區分）欄寬
@@ -794,10 +794,20 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   }
 
   function setupVitalsColumns(ws){
-    const widths = [4.5, 7.2, 14.5, 6.2, 6.2, 6.2, 7.6, 6.0,
-                    4.5, 7.2, 14.5, 6.2, 6.2, 6.2, 7.6, 6.0];
+    // 依照你提供的範本（第二張圖）做成「直式、滿版、左右兩欄」
+    const widths = [
+      4.2, 7.6, 12.8, 6.0, 6.0, 6.0, 7.0, 6.0,   // 左側 8 欄
+      4.2, 7.6, 12.8, 6.0, 6.0, 6.0, 7.0, 6.0    // 右側 8 欄
+    ];
     ws.columns = widths.map(w=>({width:w}));
-    ws.eachRow({includeEmpty:true}, (row)=>{ if(!row.height) row.height = 20; });
+
+    // 行高與字體（更接近範本）
+    ws.eachRow({includeEmpty:true}, (row)=>{
+      if(!row.height) row.height = 18.5;
+      row.eachCell({includeEmpty:true}, (cell)=>{
+        if(!cell.font) cell.font = { name:'Microsoft JhengHei', size:11 };
+      });
+    });
   }
 
   function drawVitalsPage(ws, startRow, leftLabel, rightLabel, leftList, rightList){
@@ -805,13 +815,13 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.mergeCells(startRow,1,startRow,13);
     const titleCell = ws.getCell(startRow,1);
     titleCell.value = '安泰護理之家住民生命跡象紀錄表';
-    titleCell.font = { name:'Microsoft JhengHei', bold:true, size:16 };
+    titleCell.font = { name:'Microsoft JhengHei', bold:true, size:15 };
     titleCell.alignment = { vertical:'middle', horizontal:'center' };
 
     const dateLabel = ws.getCell(startRow,14);
     dateLabel.value = '日期';
     dateLabel.font = { name:'Microsoft JhengHei', bold:true, size:12 };
-    dateLabel.alignment = { vertical:'middle', horizontal:'center' };
+    dateLabel.alignment = { vertical:'middle', horizontal:'center', shrinkToFit:true };
 
     ws.mergeCells(startRow,15,startRow,16);
     const dateCell = ws.getCell(startRow,15);
@@ -881,7 +891,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     setupVitalsColumns(ws);
 
     // page setup: portrait, 2 pages tall
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:2,
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight: 0,
                      horizontalCentered:true,
                      margins:{left:0.25,right:0.25,top:0.25,bottom:0.25,header:0.1,footer:0.1} };
 
