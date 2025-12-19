@@ -554,7 +554,7 @@ function exportStyledXls(){
       const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
       styleRow(row,{});
     }
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   })();
 
@@ -642,242 +642,13 @@ function exportStyledXls(){
     ;[2,7,12].forEach(ci=>{ const c=sumRow.getCell(ci); c.alignment={vertical:'middle', horizontal:'center', shrinkToFit:true}; c.numFmt='0'; });
     styleRow(sumRow, {isHeader:true, height:20});
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   }
 
   addFloorSheet('1樓床位配置', 1);
   addFloorSheet('2樓床位配置', 2);
   addFloorSheet('3樓床位配置', 3);
-  // ===== 生命徵象紀錄表（新增兩張）=====
-  function bedSortKey(bed){
-    const m = String(bed||'').toUpperCase().match(/^(\d{3})[-_]?([A-Z0-9]+)?$/);
-    if(!m) return 1e9;
-    const room = parseInt(m[1],10);
-    const subRaw = m[2]||'';
-    const subNum = parseInt(String(subRaw).replace(/\D/g,''),10);
-    const sub = isFinite(subNum) ? subNum : 0;
-    return room*100 + sub;
-  }
-  function sortByBed(arr){
-    return (arr||[]).slice().sort((a,b)=>bedSortKey(a.bedNumber)-bedSortKey(b.bedNumber));
-  }
-  function addVitalSheet_1F3F(){
-    const ws = wb.addWorksheet('生命徵象(1+3)', {views:[{state:'frozen', ySplit:3}]});
-    // 版面：直式、盡量滿版（左右兩欄各最多 27 筆）
-    ws.columns = [
-      // 左半
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
-      // 中線
-      {width:0.4},
-      // 右半
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
-    ];
-
-    // title
-    ws.mergeCells(1,1,1,17);
-    const t = ws.getCell(1,1);
-    t.value = '安泰護理之家住民生命跡象紀錄表';
-    t.font = { name:'DFKai-SB', bold:true, size:18 };
-    t.alignment = { vertical:'middle', horizontal:'center' };
-    ws.getRow(1).height = 24.6;
-
-    // floor labels + date（版面仿照你提供的圖片：左右上標題 + 右上日期，並盡量滿版）
-    ws.mergeCells('A2:H2');
-    ws.mergeCells('J2:O2');
-    ws.getCell('A2').value = '1F護理站';
-    ws.getCell('J2').value = '3F護理站';
-    ws.getCell('P2').value = '日期';
-    ws.getCell('Q2').value = new Date();
-    ws.getCell('Q2').numFmt = 'yyyy/mm/dd';
-    ['A2','J2','P2','Q2'].forEach(addr=>{
-      const c = ws.getCell(addr);
-      c.font = { name:'DFKai-SB', size:12, bold:true };
-      const h = (addr==='P2') ? 'right' : ((addr==='A2' || addr==='J2') ? 'center' : 'left');
-      c.alignment = { vertical:'middle', horizontal: h };
-    });
-
-    const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
-    const row3 = [];
-    headers.forEach(h=>row3.push(h));
-    row3.push('');
-    headers.forEach(h=>row3.push(h));
-    const hRow = ws.addRow(row3);
-    hRow.height = 18;
-
-    const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
-    const medium = {style:'medium', color:{argb:'FF000000'}};
-
-    function cellBorderFor(col, rowNum){
-      // 左表：1..8；中線：9；右表：10..17
-      const inLeft = (col>=1 && col<=8);
-      const inRight = (col>=10 && col<=17);
-      const isHeader = (rowNum===3);
-
-      // spacer 做中線：左右加粗
-      if(col===9){
-        return { left: medium, right: medium, top: thin, bottom: thin };
-      }
-
-      // 外框加粗（左右各自一個表格）
-      const isTop = isHeader;
-      const isBottom = (rowNum===3+27); // header(第3列) + 27筆
-
-      if(inLeft){
-        return {
-          top: isTop ? medium : thin,
-          bottom: isBottom ? medium : thin,
-          left: (col===1) ? medium : thin,
-          right: (col===8) ? medium : thin
-        };
-      }
-      if(inRight){
-        return {
-          top: isTop ? medium : thin,
-          bottom: isBottom ? medium : thin,
-          left: (col===10) ? medium : thin,
-          right: (col===17) ? medium : thin
-        };
-      }
-      return {top:thin,left:thin,right:thin,bottom:thin};
-    }
-
-    function applyGridStyle(r){
-      r.eachCell({includeEmpty:true}, (cell, colNumber)=>{
-        if(colNumber===9){
-          cell.value = cell.value || '';
-          cell.fill = null;
-          cell.alignment = { vertical:'middle', horizontal:'center' };
-          cell.border = cellBorderFor(colNumber, r.number);
-          return;
-        }
-        cell.font = { name:'DFKai-SB', size:12, bold:(r.number===3) };
-        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false, shrinkToFit:true };
-        cell.border = cellBorderFor(colNumber, r.number);
-        if(r.number===3){
-          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'}};
-        }
-      });
-    }
-    applyGridStyle(hRow);
-
-    const f1 = sortByBed((cache||[]).filter(r=> /^1\d\d/.test(String(r.bedNumber||'')) )).slice(0,27);
-    const f3 = sortByBed((cache||[]).filter(r=> /^3\d\d/.test(String(r.bedNumber||'')) )).slice(0,27);
-    // 固定 27 行（不足補空白，確保版面穩定且滿版）
-    const n = 27;
-    for(let i=0;i<n;i++){
-      const L = f1[i];
-      const R = f3[i];
-      const row = ws.addRow([
-        (i+1), L ? (String(L.bedNumber||'').replace('_','-').toUpperCase()) : '', L ? (L.id||'') : '', '', '', '', '', '',
-        '',
-        (i+1), R ? (String(R.bedNumber||'').replace('_','-').toUpperCase()) : '', R ? (R.id||'') : '', '', '', '', '', ''
-      ]);
-      row.height = 26.25;
-      applyGridStyle(row);
-    }
-
-    // also style row2 borders (keep simple: no border)
-    ws.getRow(2).height = 18;
-
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     horizontalCentered:true,
-                     margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
-  }
-
-  function addVitalSheet_2F(){
-    const ws = wb.addWorksheet('生命徵象(2F)', {views:[{state:'frozen', ySplit:3}]});
-    // 2F 住民較多：採左右兩欄各 27（共 54）仍固定單頁
-    ws.columns = [
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
-      {width:0.4},
-      {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4}
-    ];
-
-    ws.mergeCells(1,1,1,17);
-    const t = ws.getCell(1,1);
-    t.value = '安泰護理之家住民生命跡象紀錄表';
-    t.font = { name:'DFKai-SB', bold:true, size:18 };
-    t.alignment = { vertical:'middle', horizontal:'center' };
-    ws.getRow(1).height = 24.6;
-
-    // 標題列（同樣盡量滿版 + 右上日期）
-    ws.mergeCells('A2:H2');
-    ws.mergeCells('J2:O2');
-    ws.getCell('A2').value = '2F護理站';
-    // 右半不另外寫標題（留白），避免擠壓日期
-    ws.getCell('P2').value = '日期';
-    ws.getCell('Q2').value = new Date();
-    ws.getCell('Q2').numFmt = 'yyyy/mm/dd';
-    ['A2','P2','Q2'].forEach(addr=>{
-      const c = ws.getCell(addr);
-      c.font = { name:'DFKai-SB', size:12, bold:true };
-      const h = (addr==='P2') ? 'right' : (addr==='A2' ? 'center' : 'left');
-      c.alignment = { vertical:'middle', horizontal: h };
-    });
-
-    const headers = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
-    const row3 = [];
-    headers.forEach(h=>row3.push(h));
-    row3.push('');
-    headers.forEach(h=>row3.push(h)); // 右半保留（空白）
-    const hRow = ws.addRow(row3);
-    hRow.height = 18;
-
-    const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
-    const medium = {style:'medium', color:{argb:'FF000000'}};
-
-    function cellBorderFor(col, rowNum){
-      if(col===9) return { left: medium, right: medium, top: thin, bottom: thin };
-      const isTop = (rowNum===3);
-      const isBottom = (rowNum===3+27);
-      if(col>=1 && col<=8){
-        return { top:isTop?medium:thin, bottom:isBottom?medium:thin, left:(col===1)?medium:thin, right:(col===8)?medium:thin };
-      }
-      if(col>=10 && col<=17){
-        return { top:isTop?medium:thin, bottom:isBottom?medium:thin, left:(col===10)?medium:thin, right:(col===17)?medium:thin };
-      }
-      return {top:thin,left:thin,right:thin,bottom:thin};
-    }
-    function applyGridStyle(r){
-      r.eachCell({includeEmpty:true}, (cell, colNumber)=>{
-        if(colNumber===9){
-          cell.value = cell.value || '';
-          cell.fill = null;
-          cell.alignment = { vertical:'middle', horizontal:'center' };
-          cell.border = cellBorderFor(colNumber, r.number);
-          return;
-        }
-        cell.font = { name:'DFKai-SB', size:12, bold:(r.number===3) };
-        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:false, shrinkToFit:true };
-        cell.border = cellBorderFor(colNumber, r.number);
-        if(r.number===3){
-          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'}};
-        }
-      });
-    }
-    applyGridStyle(hRow);
-
-    const f2 = sortByBed((cache||[]).filter(r=> /^2\d\d/.test(String(r.bedNumber||'')) ));
-    const left = f2.slice(0,27);
-    const right = f2.slice(27,54);
-    for(let i=0;i<27;i++){
-      const L = left[i];
-      const R = right[i];
-      const row = ws.addRow([
-        (i+1), L ? (String(L.bedNumber||'').replace('_','-').toUpperCase()) : '', L ? (L.id||'') : '', '', '', '', '', '',
-        '',
-        (27+i+1), R ? (String(R.bedNumber||'').replace('_','-').toUpperCase()) : '', R ? (R.id||'') : '', '', '', '', '', ''
-      ]);
-      row.height = 26.25;
-      applyGridStyle(row);
-    }
-    ws.getRow(2).height = 18;
-
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     horizontalCentered:true,
-                     margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
-  }
 
   // ===== 各樓層人數統計 =====
   
@@ -976,15 +747,176 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
                      margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
-})()
+})();
+// ===== 生命徵象單（直式 / 盡量滿版）=====
+(function addVitalsSheets(){
+  const now = new Date();
+  const rocY = String(now.getFullYear() - 1911);
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const dd = String(now.getDate()).padStart(2,'0');
+  const rocSlash = `${rocY}/${mm}/${dd}`; // e.g. 114/12/18
 
-  // ===== 生命徵象（直式、各 1 頁）===== 
-  addVitalSheet_1F3F();
-  addVitalSheet_2F();
-;
+  // 依床號排序並分樓層
+  const all = (cache||[]).slice();
+  function getFloorOfBed(bed){
+    const t = parseBedToken(bed);
+    if(!t || !t.room) return '';
+    const f = String(t.room).trim().charAt(0);
+    return (f==='1'||f==='2'||f==='3') ? f : '';
+  }
+  const f1 = all.filter(r=>getFloorOfBed(r.bedNumber)==='1').sort((a,b)=>bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
+  const f2 = all.filter(r=>getFloorOfBed(r.bedNumber)==='2').sort((a,b)=>bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
+  const f3 = all.filter(r=>getFloorOfBed(r.bedNumber)==='3').sort((a,b)=>bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
+
+  function setAllBorders(cell, border){ cell.border = border; }
+  const thin = {style:'thin', color:{argb:'FF000000'}};
+  const thick = {style:'medium', color:{argb:'FF000000'}};
+
+  function applyGrid(ws, topRow, leftCol, bottomRow, rightCol){
+    for(let r=topRow; r<=bottomRow; r++){
+      for(let c=leftCol; c<=rightCol; c++){
+        const cell = ws.getCell(r,c);
+        const b = {top:thin,left:thin,bottom:thin,right:thin};
+        // outer frame thick
+        if(r===topRow) b.top = thick;
+        if(r===bottomRow) b.bottom = thick;
+        if(c===leftCol) b.left = thick;
+        if(c===rightCol) b.right = thick;
+        // center divider thick (between H and I => right border of H, left border of I)
+        if(c===8) b.right = thick;
+        if(c===9) b.left = thick;
+        cell.border = b;
+      }
+    }
+  }
+
+  function setupVitalsColumns(ws){
+    const widths = [4.5, 7.2, 14.5, 6.2, 6.2, 6.2, 7.6, 6.0,
+                    4.5, 7.2, 14.5, 6.2, 6.2, 6.2, 7.6, 6.0];
+    ws.columns = widths.map(w=>({width:w}));
+    ws.eachRow({includeEmpty:true}, (row)=>{ if(!row.height) row.height = 20; });
+  }
+
+  function drawVitalsPage(ws, startRow, leftLabel, rightLabel, leftList, rightList){
+    // Title row: A..M title, N "日期", O..P date
+    ws.mergeCells(startRow,1,startRow,13);
+    const titleCell = ws.getCell(startRow,1);
+    titleCell.value = '安泰護理之家住民生命跡象紀錄表';
+    titleCell.font = { name:'Microsoft JhengHei', bold:true, size:16 };
+    titleCell.alignment = { vertical:'middle', horizontal:'center' };
+
+    const dateLabel = ws.getCell(startRow,14);
+    dateLabel.value = '日期';
+    dateLabel.font = { name:'Microsoft JhengHei', bold:true, size:12 };
+    dateLabel.alignment = { vertical:'middle', horizontal:'center' };
+
+    ws.mergeCells(startRow,15,startRow,16);
+    const dateCell = ws.getCell(startRow,15);
+    dateCell.value = String(rocSlash); // keep as text to avoid ####
+    dateCell.numFmt = '@';
+    dateCell.font = { name:'Microsoft JhengHei', bold:true, size:12 };
+    dateCell.alignment = { vertical:'middle', horizontal:'center' };
+
+    ws.getRow(startRow).height = 26;
+
+    // Labels row
+    ws.mergeCells(startRow+1,1,startRow+1,8);
+    ws.mergeCells(startRow+1,9,startRow+1,16);
+    const lLab = ws.getCell(startRow+1,1);
+    const rLab = ws.getCell(startRow+1,9);
+    lLab.value = leftLabel; rLab.value = rightLabel;
+    ;[lLab,rLab].forEach(c=>{
+      c.font = { name:'Microsoft JhengHei', bold:true, size:12 };
+      c.alignment = { vertical:'middle', horizontal:'center' };
+    });
+    ws.getRow(startRow+1).height = 20;
+
+    // Header row
+    const headerNames = ['編號','房號','姓名','體溫','心跳','呼吸','血壓','SPO2'];
+    const hr = ws.getRow(startRow+2);
+    for(let i=0;i<8;i++){
+      const c1 = hr.getCell(1+i);  c1.value = headerNames[i];
+      const c2 = hr.getCell(9+i);  c2.value = headerNames[i];
+      ;[c1,c2].forEach(c=>{
+        c.font = { name:'Microsoft JhengHei', bold:true, size:11 };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF2CC'} };
+        c.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+      });
+    }
+    ws.getRow(startRow+2).height = 20;
+
+    // Data rows (固定 27 行)
+    for(let i=0;i<27;i++){
+      const rr = ws.getRow(startRow+3+i);
+      const L = leftList[i] || null;
+      const R = rightList[i] || null;
+
+      rr.getCell(1).value = i+1;
+      rr.getCell(2).value = L ? (L.bedNumber||'') : '';
+      rr.getCell(3).value = L ? (L.name||'') : '';
+      rr.getCell(9).value = i+1;
+      rr.getCell(10).value = R ? (R.bedNumber||'') : '';
+      rr.getCell(11).value = R ? (R.name||'') : '';
+
+      // align
+      for(let c=1;c<=16;c++){
+        const cell = rr.getCell(c);
+        cell.font = { name:'Microsoft JhengHei', size:11 };
+        cell.alignment = { vertical:'middle', horizontal:(c===3||c===11)?'left':'center', wrapText:true, shrinkToFit:true };
+      }
+      rr.height = 20;
+    }
+
+    // Borders for this page area
+    const top = startRow;
+    const bottom = startRow + 2 + 27; // title+label+header + 27 rows
+    applyGrid(ws, top, 1, bottom, 16);
+  }
+
+  function addVitals13(){
+    const ws = wb.addWorksheet('生命徵象(1+3)');
+    setupVitalsColumns(ws);
+
+    // page setup: portrait, 2 pages tall
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:2,
+                     horizontalCentered:true,
+                     margins:{left:0.25,right:0.25,top:0.25,bottom:0.25,header:0.1,footer:0.1} };
+
+    const p1L = f1.slice(0,27);
+    const p1R = f3.slice(0,27);
+    const p2L = f1.slice(27,54);
+    const p2R = f3.slice(27,54);
+
+    const start1 = 1;
+    drawVitalsPage(ws, start1, '1F護理站', '3F護理站', p1L, p1R);
+
+    const start2 = start1 + (1+1+1+27) + 3; // page1 rows + 3 blank rows
+    // page break after the row before start2
+    try{ ws.addPageBreak(start2-1); }catch(_e){}
+    drawVitalsPage(ws, start2, '1F護理站', '3F護理站', p2L, p2R);
+  }
+
+  function addVitals2(){
+    const ws = wb.addWorksheet('生命徵象(2F)');
+    setupVitalsColumns(ws);
+
+    // portrait, force single page
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+                     horizontalCentered:true,
+                     margins:{left:0.25,right:0.25,top:0.25,bottom:0.25,header:0.1,footer:0.1} };
+
+    const left = f2.slice(0,27);
+    const right = f2.slice(27,54);
+    drawVitalsPage(ws, 1, '2F護理站', '2F護理站', left, right);
+  }
+
+  // 依規格：生命徵象分頁放在「各樓層人數統計」後面
+  addVitals13();
+  addVitals2();
+})();
   // ===== 緊急召回名單（依名冊固定內容，不抓資料庫）=====
 ;  (function addRecallRosterSheets(){
     const roster = (typeof __RECALL_ROSTER !== 'undefined') ? __RECALL_ROSTER : {};
