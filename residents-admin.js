@@ -1274,8 +1274,6 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     }catch(e){
       console.warn('匯出時建立「照服員名冊」分頁失敗：', e);
     }
-  })();
-
   // ===== 下載 =====
   const blob = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
@@ -1283,6 +1281,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   a.download = `床位配置與總人數統計_${formatDate(new Date(), '-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);
+  window.__exportingXls = false;
+  })();
 
   })().catch(err=>{ console.error(err); alert('匯出失敗：'+(err&&err.message?err.message:err)); }).finally(()=>{
     window.__exportingXls = false;
