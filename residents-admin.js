@@ -523,6 +523,12 @@ function exportStyledXls(){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
     return `${y}${sep}${m}${sep}${da}`;
   }
+  function formatRocDateStr(d){
+    const y=d.getFullYear()-1911;
+    const m=String(d.getMonth()+1).padStart(2,'0');
+    const da=String(d.getDate()).padStart(2,'0');
+    return `${y}/${m}/${da}`;
+  }
   function getTpl(){
     try{ return JSON.parse(localStorage.getItem('FLOOR_TEMPLATE_V1')) || {'1':[],'2':[],'3':[]}; }
     catch{ return {'1':[],'2':[],'3':[]}; }
@@ -664,6 +670,7 @@ function exportStyledXls(){
   }
     function addVitalSheet_1F3F(){
     const ws = wb.addWorksheet('生命徵象(1+3)', {views:[{state:'frozen', ySplit:3}]});
+    const exportDate = new Date();
     // 版面：直式、盡量滿版（左右兩欄各最多 27 筆；不足自動增加第二頁/更多頁，並重複標題與日期）
     ws.columns = [
       // 左半
@@ -710,7 +717,7 @@ function exportStyledXls(){
       row3.push('');
       headers.forEach(h=>row3.push(h));
       const hRow = ws.insertRow(rowNo, row3);
-      hRow.height = 18;
+      hRow.height = 30;
 
       function cellBorderFor(col, rNo){
         // 左表：1..8；中線：9；右表：10..17
@@ -767,7 +774,7 @@ function exportStyledXls(){
         '',
         idxRight, RBed, recRight ? (recRight.id||'') : '', '', '', '', '', ''
       ]);
-      row.height = 26.25;
+      row.height = 30;
 
       row.eachCell({includeEmpty:true}, (cell, colNumber)=>{
         if(colNumber===9){
@@ -793,7 +800,8 @@ function exportStyledXls(){
     for(let p=0; p<pages; p++){
       if(p>0){
         // 頁與頁之間：加分頁線（列印會自動換頁）
-        try{ ws.addPageBreak(rowCursor-1); }catch(e){}
+        try{ if(typeof ws.addPageBreak==='function'){ ws.addPageBreak(rowCursor-1); } }catch(e){}
+        try{ ws.getRow(rowCursor-1).pageBreak = true; }catch(e){}
       }
 
       const titleRow = rowCursor++;
@@ -819,7 +827,7 @@ function exportStyledXls(){
       }
 
       // 頁尾留一點點空白，避免貼太緊
-      ws.insertRow(rowCursor++, Array(17).fill('')).height = 6;
+      ws.insertRow(rowCursor++, Array(17).fill('')).height = 30;
     }
 
     ws.pageSetup = {
@@ -837,6 +845,7 @@ function exportStyledXls(){
 
   function addVitalSheet_2F(){
     const ws = wb.addWorksheet('生命徵象(2F)', {views:[{state:'frozen', ySplit:3}]});
+    const exportDate = new Date();
     // 2F 住民較多：採左右兩欄各 27（共 54）仍固定單頁
     ws.columns = [
       {width:4.2},{width:8.6},{width:13.8},{width:6.4},{width:6.4},{width:6.4},{width:9.2},{width:6.4},
@@ -857,8 +866,8 @@ function exportStyledXls(){
     ws.getCell('A2').value = '2F護理站';
     // 右半不另外寫標題（留白），避免擠壓日期
     ws.getCell('P2').value = '日期';
-    ws.getCell('Q2').value = new Date();
-    ws.getCell('Q2').numFmt = 'yyyy/mm/dd';
+    ws.getCell('Q2').value = formatRocDateStr(exportDate);
+    ws.getCell('Q2').numFmt = '@';
     ['A2','P2','Q2'].forEach(addr=>{
       const c = ws.getCell(addr);
       c.font = { name:'DFKai-SB', size:12, bold:true };
@@ -872,7 +881,7 @@ function exportStyledXls(){
     row3.push('');
     headers.forEach(h=>row3.push(h)); // 右半保留（空白）
     const hRow = ws.addRow(row3);
-    hRow.height = 18;
+    hRow.height = 30;
 
     const thin = {style:'thin', color:{argb:'FF9E9E9E'}};
     const medium = {style:'medium', color:{argb:'FF000000'}};
@@ -919,12 +928,12 @@ function exportStyledXls(){
         '',
         (27+i+1), R ? (String(R.bedNumber||'').replace('_','-').toUpperCase()) : '', R ? (R.id||'') : '', '', '', '', '', ''
       ]);
-      row.height = 26.25;
+      row.height = 30;
       applyGridStyle(row);
     }
-    ws.getRow(2).height = 18;
+    ws.getRow(2).height = 30;
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0,
                      horizontalCentered:true,
                      margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
   }
