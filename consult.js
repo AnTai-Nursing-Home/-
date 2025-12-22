@@ -537,8 +537,8 @@ await loadResidents();
             // Only notify if after lastSeen AND unread for role
             if (updated > lastSeen && isUnreadForRole(doc)) {
               const title = (ROLE === 'nutritionist')
-                ? '有新的照會單'
-                : '營養師已回覆照會';
+                ? '護理之家照會系統通知:有新的照會單'
+                : '護理之家照會系統通知:營養師已回覆照會';
               const body = `${doc.bedNumber || ''} ${doc.residentName || ''}｜${doc.subject || ''}`;
 
               toast(`${title}：${body}`, 'info');
