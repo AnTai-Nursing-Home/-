@@ -113,10 +113,37 @@
     setDbStatus(true, 'Firebase 已連線');
 
     // back button default
-    // you can change href by query param (from=nurse / from=nutritionist)
-    const from = new URLSearchParams(location.search).get('from');
-    if (from === 'nurse') btnBack.href = './admin.html';       // adjust if your nurse dashboard path differs
-    if (from === 'nutritionist') btnBack.href = './nutritionist/nutritionist.html';
+    // ✅ 依 from / referrer / 角色決定返回位置（避免回到輸入密碼頁）
+    const spBack = new URLSearchParams(location.search);
+    const from = (spBack.get('from') || '').toLowerCase();
+    const ref = (document.referrer || '').toLowerCase();
+    const sameOrigin = document.referrer && document.referrer.startsWith(location.origin);
+
+    // 預設：回各自系統入口
+    let backHref = (ROLE === 'nutritionist')
+      ? './nutritionist/nutritionist.html'
+      : './admin.html';
+
+    // 明確指定 from
+    if (from.includes('nutritionist')) backHref = './nutritionist/nutritionist.html';
+    if (from.includes('nurse')) backHref = './admin.html';
+
+    // 如果 referrer 是同站且不是 consult 頁，就優先回 referrer（最符合你實際入口路徑）
+    if (sameOrigin && ref && !ref.includes('consult')) {
+      // 但若 referrer 是事務登入（密碼頁），改回「事務儀表板」參數版
+      if (ref.includes('affairs') && (ref.includes('password') || ref.includes('login'))) {
+        backHref = './affairs.html?view=dashboard';
+      } else {
+        backHref = document.referrer;
+      }
+    }
+
+    // 若角色是護理師且 referrer 看起來是事務頁（可能是密碼頁），也強制回儀表板
+    if (ROLE === 'nurse' && ref.includes('affairs') && !ref.includes('view=dashboard')) {
+      backHref = './affairs.html?view=dashboard';
+    }
+
+    btnBack.href = backHref;
 
     await loadResidents();
     wireCreateForm();
