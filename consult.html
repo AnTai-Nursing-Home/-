@@ -22,11 +22,12 @@
     .card{ border:1px solid rgba(0,0,0,.06); border-radius:16px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .badge-soft{ background:#eef2ff; color:#1e40af; border:1px solid #dbeafe; }
     .small-muted{ color:#6b7280; font-size:.9rem; }
-    .table thead th{ position:sticky; top: 96px; z-index: 1010; background:#fff; }
+    .table thead{ position: sticky; top: 96px; z-index: 1015; background:#fff; }
+    .table thead th{ position: static; background:#fff; }
     .table thead{ background:#fff; }
     .table-responsive{ min-height: 240px; }
     #refTableBody{ display: table-row-group; }
-    @media (max-width: 576px){ .table thead th{ top: 88px; } }
+    @media (max-width: 576px){ .table thead{ top: 88px; } }
     .file-chip{
       display:inline-flex; align-items:center; gap:8px;
       padding:6px 10px; border-radius:999px;
@@ -40,7 +41,8 @@
 
     /* ===== 表格穩定化（方案 B）：保留 sticky 表頭，但避免全站 CSS 破壞 table layout ===== */
     /* 1) sticky 表頭：top 必須 >= header-bar 實際高度 */
-    .table thead th{ position:sticky; top: 96px; z-index: 1010; background:#fff; }
+    .table thead{ position: sticky; top: 96px; z-index: 1015; background:#fff; }
+    .table thead th{ position: static; background:#fff; }
     .table thead{ background:#fff; }
 
     /* 2) 防止全站 CSS 把 tr/td 變成 block 造成錯位 */
@@ -59,12 +61,12 @@
     #refTableBody td{ vertical-align: middle; white-space: normal; }
 
     /* 3) 內容區高度與滾動（sticky 需要 overflow 容器） */
-    .table-responsive{ overflow: auto; min-height: 340px; }
+    .table-responsive{ overflow: auto; min-height: 340px; position: relative; }
     .table>:not(caption)>*>*{ padding:12px 12px; }
     .table tbody tr{ min-height:56px; }
 
     @media (max-width: 576px){
-      .table thead th{ top: 88px; }
+      .table thead{ top: 88px; }
     }
 
 </style>
