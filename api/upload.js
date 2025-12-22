@@ -42,7 +42,12 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const filename = sanitizeFileName(info.filename);
+            // Fix Chinese filename garbling from multipart (busboy) on some browsers:
+      // busboy may provide filename as latin1; convert back to utf8 first.
+      const rawName = (info && info.filename) ? String(info.filename) : 'file';
+      const fixedName = Buffer.from(rawName, 'latin1').toString('utf8');
+      const filename = sanitizeFileName(fixedName);
+
       const contentType = info.mimeType || 'application/octet-stream';
       const token = randomUUID();
 
