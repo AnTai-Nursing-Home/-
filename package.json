@@ -1,0 +1,9 @@
+{
+  "name": "antai-nh",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "firebase-admin": "^12.5.0"
+  }
+}
