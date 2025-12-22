@@ -4,11 +4,9 @@ let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
 
 async function initializeFirebase() {
   try {
-    // 1. 從我們的後端 API 安全地取得 Firebase 設定金鑰
+    // 1. 從後端 API 安全地取得 Firebase 設定
     const response = await fetch('/api/get-firebase-config');
-    if (!response.ok) {
-      throw new Error('無法取得 Firebase 設定');
-    }
+    if (!response.ok) throw new Error('無法取得 Firebase 設定');
     const firebaseConfig = await response.json();
 
     // 2. 初始化 Firebase App（避免重複初始化）
@@ -16,26 +14,26 @@ async function initializeFirebase() {
       firebase.initializeApp(firebaseConfig);
     }
 
-    // 3. 取得 Firestore 資料庫的連線
+    // 3. 取得 Firestore
     db = firebase.firestore();
-    window.db = db; // ✅ 讓其他系統可用 window.db
+    window.db = db;
 
-    // 4. ✅ 初始化 Firebase Storage（需要有載入 firebase-storage-compat.js）
-    // 若未載入 Storage SDK，這裡會丟錯，會進 catch 提示你補上 SDK
+    // 4. 取得 Storage（需要有載入 firebase-storage-compat.js）
     storage = firebase.storage();
     window.storage = storage;
 
-    // 5. 觸發一個自訂事件，通知其他 JS 檔案「Firebase 已準備就緒」
+    // 5. 通知其他系統 Firebase 已就緒
     document.dispatchEvent(new Event('firebase-ready'));
   } catch (error) {
     console.error("Firebase 初始化失敗:", error);
-
-    // 常見：未載入 firebase-storage-compat.js 會出現 firebase.storage is not a function
-    // 你可以在 HTML 加上：
-    // <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     alert("錯誤：無法連接到雲端資料庫/Storage，請聯繫管理員。");
   }
 }
 
-// 執行初始化
-initializeFirebase();
+// ✅ 保留你原本的保險邏輯：若已初始化成功（window.db 已存在），就直接發出 firebase-ready
+if (window.db) {
+  document.dispatchEvent(new Event("firebase-ready"));
+} else {
+  // 否則執行初始化
+  initializeFirebase();
+}
