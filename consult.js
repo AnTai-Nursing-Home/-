@@ -544,7 +544,13 @@ await loadResidents();
               toast(`${title}：${body}`, 'info');
 
               if ('Notification' in window && Notification.permission === 'granted') {
-                try { new Notification(title, { body }); } catch (_) {}
+                try { new Notification(title, {
+                  body,
+                  icon: '/icons/notify-512.png',
+                  badge: '/icons/badge-72.png',
+                  tag: 'consult-notify',
+                  renotify: true
+                }); } catch (_) {}
               }
             }
           }
