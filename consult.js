@@ -125,8 +125,8 @@
       : './admin.html';
 
     // 明確指定 from
-    if (from.includes('nutritionist')) backHref = './nutritionist/nutritionist.html';
-    if (from.includes('nurse')) backHref = './admin.html';
+    if (from.includes('nutritionist')) backHref = '/nutritionist/nutritionist.html';
+    if (from.includes('nurse')) backHref = '/admin.html';
 
     // 如果 referrer 是同站且不是 consult 頁，就優先回 referrer（最符合你實際入口路徑）
     // 但：護理師一律回護理師儀表板（避免回到密碼頁）
@@ -141,12 +141,18 @@
 
     // 護理師：一律回護理師儀表板（避免回到密碼頁）
     if (ROLE === 'nurse') {
-      backHref = './admin.html';
+      backHref = '/admin.html';
     }
 
     btnBack.href = backHref;
 
-    await loadResidents();
+    
+    // 強制用 JS 導航，避免被外部頁面/快取 referrer 影響
+    btnBack.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.assign(backHref);
+    });
+await loadResidents();
     wireCreateForm();
     wireListControls();
     await loadConsultsOnce();
