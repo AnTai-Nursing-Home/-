@@ -86,7 +86,8 @@
   }
 
   async function start() {
-    if (!db) {
+    try {
+      if (!db) {
       setDbStatus(false, 'Firebase 尚未初始化，請確認 firebase-init.js');
       toast('Firebase 尚未初始化，請確認 firebase-init.js', 'danger');
       return;
@@ -106,6 +107,13 @@
     renderTable();
 
     startRealtimeIfEnabled();
+      } catch (e) {
+      console.error(e);
+      setDbStatus(false, '載入失敗：' + (e.message || e));
+      toast('載入失敗：' + (e.message || e), 'danger');
+      // show error row
+      refTableBody.innerHTML = `<tr><td colspan=\"6\" class=\"text-center text-danger py-4\">載入失敗：${escapeHtml(e.message || String(e))}</td></tr>`;
+    }
   }
 
   function initUIBasics() {
@@ -161,12 +169,14 @@
   async function loadResidents() {
     // Pull residents and sort by bedNumber (custom sort)
     const snap = await db.collection('residents').get();
-    residents = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    residents = snap.docs
+      .map(d => ({ id: d.id, _docId: d.id, ...d.data() }))
       .filter(r => r && r.bedNumber)
       .map(r => ({
         id: r.id,
         bedNumber: String(r.bedNumber || '').trim(),
-        name: String(r.name || r.residentName || '').trim(),
+        // 有些住民文件沒有 name 欄位（文件 ID 可能就是姓名），所以用欄位優先、再用 docId 當備援
+        name: String(r.name || r.residentName || r.resident || r._docId || '').trim(),
         residentNumber: r.residentNumber || ''
       }));
 
@@ -197,7 +207,14 @@
 
     bedSelect.addEventListener('change', () => {
       const selected = bedSelect.options[bedSelect.selectedIndex];
-      nameInput.value = selected?.dataset?.name || '';
+      let nm = (selected && selected.dataset && selected.dataset.name) ? selected.dataset.name : '';
+      if (!nm) {
+        // fallback: 用 residentId 去 residents 陣列找
+        const rid = bedSelect.value;
+        const r = residents.find(x => x.id === rid);
+        nm = r ? (r.name || '') : '';
+      }
+      nameInput.value = nm;
     });
 
     btnClear.addEventListener('click', () => {
@@ -333,8 +350,20 @@
   }
 
   async function loadConsultsOnce() {
-    const snap = await db.collection('consults').orderBy('createdAt', 'desc').limit(500).get();
-    consults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    try {
+      const snap = await db.collection('consults').orderBy('createdAt', 'desc').limit(500).get();
+      consults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      // 可能是權限/索引/欄位問題 → 退回不用 orderBy 的查詢，再用前端排序
+      console.warn('loadConsultsOnce fallback:', e);
+      const snap = await db.collection('consults').limit(500).get();
+      consults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      consults.sort((a,b) => {
+        const da = tsToDate(a.createdAt) || new Date(0);
+        const dbb = tsToDate(b.createdAt) || new Date(0);
+        return dbb - da;
+      });
+    }
   }
 
   function renderTable() {
