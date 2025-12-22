@@ -139,6 +139,8 @@
       startRealtimeIfEnabled(true);
     });
 
+    window.addEventListener('resize', () => forceTableLayoutFix());
+
     btnAskNotification.addEventListener('click', async () => {
       if (!('Notification' in window)) {
         toast('此瀏覽器不支援 Notification API。', 'warning');
@@ -382,6 +384,7 @@
 
     if (!rows.length) {
       refTableBody.innerHTML = `<tr><td colspan="6" class="text-center small-muted py-4">沒有資料</td></tr>`;
+      forceTableLayoutFix();
       return;
     }
 
@@ -411,6 +414,9 @@
       tr.querySelector('button').addEventListener('click', () => openModalById(r.id));
       refTableBody.appendChild(tr);
     }
+
+    // ensure layout is stable even if global CSS overrides table semantics
+    forceTableLayoutFix();
   }
 
   function openModalById(id) {
@@ -550,6 +556,38 @@
   }
 
   // -------- Helpers --------
+
+  // ===== 強制修正：若全站 CSS 破壞 table 結構（thead/tbody 跑位、資料跑到標題上方），這裡用 JS 直接鎖回 table layout =====
+  function forceTableLayoutFix() {
+    try {
+      const body = document.getElementById('refTableBody');
+      if (!body) return;
+      const table = body.closest('table');
+      if (!table) return;
+      const thead = table.querySelector('thead');
+      const tbody = table.querySelector('tbody');
+
+      // Lock critical display modes back to table semantics
+      table.style.display = 'table';
+      table.style.width = '100%';
+      table.style.tableLayout = 'fixed';
+
+      if (thead) {
+        thead.style.display = 'table-header-group';
+        thead.style.position = 'relative';
+        thead.style.zIndex = '1';
+      }
+      if (tbody) {
+        tbody.style.display = 'table-row-group';
+      }
+
+      table.querySelectorAll('tr').forEach(tr => tr.style.display = 'table-row');
+      table.querySelectorAll('th,td').forEach(cell => cell.style.display = 'table-cell');
+    } catch (e) {
+      // silent
+    }
+  }
+
   function getRoleFromQuery() {
     const sp = new URLSearchParams(location.search);
     const r = (sp.get('role') || '').toLowerCase();
