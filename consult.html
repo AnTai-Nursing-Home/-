@@ -23,6 +23,7 @@
     .badge-soft{ background:#eef2ff; color:#1e40af; border:1px solid #dbeafe; }
     .small-muted{ color:#6b7280; font-size:.9rem; }
     .table thead th{ position:sticky; top: 96px; z-index: 1010; background:#fff; }
+    .table thead{ background:#fff; }
     .table-responsive{ min-height: 240px; }
     #refTableBody{ display: table-row-group; }
     @media (max-width: 576px){ .table thead th{ top: 88px; } }
@@ -40,11 +41,19 @@
     /* ===== 表格穩定化（方案 B）：保留 sticky 表頭，但避免全站 CSS 破壞 table layout ===== */
     /* 1) sticky 表頭：top 必須 >= header-bar 實際高度 */
     .table thead th{ position:sticky; top: 96px; z-index: 1010; background:#fff; }
+    .table thead{ background:#fff; }
 
     /* 2) 防止全站 CSS 把 tr/td 變成 block 造成錯位 */
     table.table{ width:100%; border-collapse: separate; border-spacing: 0; }
     .table tr{ display: table-row; }
     .table td, .table th{ display: table-cell; }
+
+    /* 2.1) 連 thead/tbody 的 display 也鎖回 table group，避免標題列跑到資料下面 */
+    .table thead{ display: table-header-group !important; }
+    .table tbody{ display: table-row-group !important; }
+    .table thead tr{ display: table-row !important; }
+    .table tbody tr{ display: table-row !important; }
+
     #refTableBody{ display: table-row-group; }
     #refTableBody tr{ display: table-row; }
     #refTableBody td{ vertical-align: middle; white-space: normal; }
