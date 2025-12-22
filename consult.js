@@ -687,7 +687,10 @@
       // 若目前 modal 正在看這張，關閉它
       if (currentModalId === id) {
         currentModalId = null;
-        try { refModal?.hide(); } catch(e) {}
+        try {
+          const inst = bootstrap.Modal.getInstance(refModalEl);
+          inst?.hide();
+        } catch(e) {}
       }
     } catch (e) {
       console.error(e);
