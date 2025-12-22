@@ -43,6 +43,24 @@
   const mNutFiles = document.getElementById('mNutFiles');
   const mNutFilesList = document.getElementById('mNutFilesList');
   const btnSaveReply = document.getElementById('btnSaveReply');
+  // 動態加入「刪除照會單」按鈕（僅護理師顯示）
+  let btnDeleteConsult = null;
+  (function ensureDeleteBtn(){
+    if (ROLE !== 'nurse') return;
+    const modalEl = document.getElementById('refModal');
+    const footer = modalEl?.querySelector('.modal-footer');
+    if (!footer) return;
+    btnDeleteConsult = document.createElement('button');
+    btnDeleteConsult.type = 'button';
+    btnDeleteConsult.className = 'btn btn-outline-danger me-auto';
+    btnDeleteConsult.innerHTML = '<i class="fa-solid fa-trash-can me-1"></i>刪除照會單';
+    btnDeleteConsult.addEventListener('click', () => {
+      if (!currentModalId) return;
+      deleteConsultById(currentModalId);
+    });
+    footer.insertBefore(btnDeleteConsult, footer.firstChild);
+  })();
+
 
   let db = null;
   let storage = null;
@@ -407,11 +425,16 @@
         <td><span class="badge ${badgeClass}">${status}</span></td>
         <td class="small-muted">${created}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary"><i class="fa-regular fa-eye me-1"></i>查看照會紀錄</button>
+          <div class="d-flex flex-column gap-2">
+            <button class="btn btn-sm btn-outline-primary btn-view"><i class="fa-regular fa-eye me-1"></i>查看照會紀錄</button>
+            ${ROLE === 'nurse' ? `<button class="btn btn-sm btn-outline-danger btn-del"><i class="fa-solid fa-trash-can me-1"></i>刪除</button>` : ``}
+          </div>
         </td>
       `;
 
-      tr.querySelector('button').addEventListener('click', () => openModalById(r.id));
+      tr.querySelector('.btn-view').addEventListener('click', () => openModalById(r.id));
+      const delBtn = tr.querySelector('.btn-del');
+      if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteConsultById(r.id); });
       refTableBody.appendChild(tr);
     }
 
@@ -428,6 +451,8 @@
     mName.value = r.residentName || '';
     mSubject.value = r.subject || '';
     mDesc.value = r.description || '';
+
+    if (btnDeleteConsult) btnDeleteConsult.disabled = (ROLE !== 'nurse');
 
     // nurse attachments
     mNurseFiles.innerHTML = renderFileList(r.nurseAttachments);
@@ -632,6 +657,59 @@
     if (typeof ts.seconds === 'number') return new Date(ts.seconds * 1000);
     return null;
   }
+  // ===== 刪除照會單（僅護理師可用）=====
+  async function deleteConsultById(id) {
+    if (ROLE !== 'nurse') {
+      toast('只有護理師可以刪除照會單', 'warning');
+      return;
+    }
+    const r = consults.find(x => x.id === id);
+    if (!r) return;
+
+    const ok = confirm(`確定要刪除照會單嗎？\n\n床號：${r.bedNumber || ''}\n姓名：${r.residentName || ''}\n主旨：${r.subject || ''}\n\n⚠️ 刪除後無法復原。`);
+    if (!ok) return;
+
+    try {
+      // 1) 先嘗試刪除附件（若失敗不影響刪除主資料）
+      await tryDeleteAttachments(r.nurseAttachments);
+      await tryDeleteAttachments(r.nutritionistAttachments);
+
+      // 2) 刪除 Firestore 文件
+      await db.collection('consults').doc(id).delete();
+
+      toast('已刪除照會單', 'success');
+
+      // 3) UI 更新
+      consults = consults.filter(x => x.id !== id);
+      renderTable();
+      bumpLastSeen();
+
+      // 若目前 modal 正在看這張，關閉它
+      if (currentModalId === id) {
+        currentModalId = null;
+        try { refModal?.hide(); } catch(e) {}
+      }
+    } catch (e) {
+      console.error(e);
+      toast('刪除失敗：' + (e.message || e), 'danger');
+    }
+  }
+
+  async function tryDeleteAttachments(arr) {
+    if (!arr || !arr.length) return;
+    const tasks = arr.map(async (f) => {
+      try {
+        const url = f?.url;
+        if (!url) return;
+        // Firebase v8
+        await firebase.storage().refFromURL(url).delete();
+      } catch (e) {
+        // ignore per-file error
+      }
+    });
+    await Promise.all(tasks);
+  }
+
 
   function renderFileList(list) {
     if (!list || !list.length) return '<span class="small-muted">—</span>';
