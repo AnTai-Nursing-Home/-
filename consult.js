@@ -116,7 +116,7 @@
     // you can change href by query param (from=nurse / from=nutritionist)
     const from = new URLSearchParams(location.search).get('from');
     if (from === 'nurse') btnBack.href = './admin.html';       // adjust if your nurse dashboard path differs
-    if (from === 'nutritionist') btnBack.href = './nutritionist.html';
+    if (from === 'nutritionist') btnBack.href = './nutritionist/nutritionist.html';
 
     await loadResidents();
     wireCreateForm();
@@ -617,6 +617,17 @@
     const sp = new URLSearchParams(location.search);
     const r = (sp.get('role') || '').toLowerCase();
     if (r === 'nutritionist' || r === 'nut') return 'nutritionist';
+    if (r === 'nurse') return 'nurse';
+
+    // ✅ 兼容：若未帶 role，改用 from / referrer 推斷
+    const from = (sp.get('from') || '').toLowerCase();
+    if (from.includes('nutritionist')) return 'nutritionist';
+    if (from.includes('nurse')) return 'nurse';
+
+    const ref = (document.referrer || '').toLowerCase();
+    if (ref.includes('/nutritionist/')) return 'nutritionist';
+    if (ref.includes('nutritionist')) return 'nutritionist';
+
     return 'nurse';
   }
 
@@ -687,10 +698,7 @@
       // 若目前 modal 正在看這張，關閉它
       if (currentModalId === id) {
         currentModalId = null;
-        try {
-          const inst = bootstrap.Modal.getInstance(refModalEl);
-          inst?.hide();
-        } catch(e) {}
+        try { refModal?.hide(); } catch(e) {}
       }
     } catch (e) {
       console.error(e);
