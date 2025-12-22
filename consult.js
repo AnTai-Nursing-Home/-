@@ -129,7 +129,8 @@
     if (from.includes('nurse')) backHref = './admin.html';
 
     // 如果 referrer 是同站且不是 consult 頁，就優先回 referrer（最符合你實際入口路徑）
-    if (sameOrigin && ref && !ref.includes('consult')) {
+    // 但：護理師一律回護理師儀表板（避免回到密碼頁）
+    if (ROLE !== 'nurse' && sameOrigin && ref && !ref.includes('consult')) {
       // 但若 referrer 是事務登入（密碼頁），改回「事務儀表板」參數版
       if (ref.includes('affairs') && (ref.includes('password') || ref.includes('login'))) {
         backHref = './affairs.html?view=dashboard';
@@ -138,9 +139,9 @@
       }
     }
 
-    // 若角色是護理師且 referrer 看起來是事務頁（可能是密碼頁），也強制回儀表板
-    if (ROLE === 'nurse' && ref.includes('affairs') && !ref.includes('view=dashboard')) {
-      backHref = './affairs.html?view=dashboard';
+    // 護理師：一律回護理師儀表板（避免回到密碼頁）
+    if (ROLE === 'nurse') {
+      backHref = './admin.html';
     }
 
     btnBack.href = backHref;
