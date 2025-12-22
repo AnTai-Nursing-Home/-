@@ -54,6 +54,19 @@
     #refTableBody td{ display: table-cell !important; padding: 12px 12px !important; vertical-align: middle !important; }
     .table-responsive{ overflow: auto !important; }
 
+  
+    /* ===== v4 更強：把整個 table 系列的 Bootstrap padding/高度都鎖回來 ===== */
+    table.table{ width:100% !important; border-collapse: separate !important; border-spacing: 0 !important; }
+    .table>:not(caption)>*>*{ padding:12px 12px !important; }
+    .table tbody tr{ height:auto !important; min-height:56px !important; }
+    .table tbody td{ white-space: normal !important; }
+    .table tbody td:nth-child(3) .small-muted{ display:block !important; margin-top:4px !important; }
+    /* 有些全站CSS會把所有 td/tr 設 display:block 造成錯位，這裡強制回 table layout */
+    .table tr{ display: table-row !important; }
+    .table td, .table th{ display: table-cell !important; }
+    /* 讓列表內容區至少有高度，不會整個被擠扁 */
+    .table-responsive{ min-height: 340px !important; }
+
   </style>
 </head>
 <body>
@@ -251,6 +264,6 @@
   <script src="firebase-init.js"></script>
 
   <!-- App -->
-  <script src="consult.js"></script>
+  <script src="consult_v2.js?v=2025-12-22a"></script>
 </body>
 </html>
