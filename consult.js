@@ -585,34 +585,31 @@ await loadResidents();
   }
 
   // -------- Storage upload --------
+
+  // -------- Attachments (UPLOAD via Vercel API; avoids browser-to-GCS CORS) --------
   async function uploadFilesIfAny(docId, who, files) {
     if (!files || !files.length) return [];
-    if (!storage) {
-      toast('偵測不到 Firebase Storage（firebase-storage.js），附件將不會上傳。', 'warning');
+
+    const form = new FormData();
+    form.append('docId', docId);
+    form.append('who', who);
+    for (const f of files) form.append('files', f, f.name || 'file');
+
+    try {
+      const resp = await fetch('/api/upload', { method: 'POST', body: form });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const msg = data && (data.error || data.message) ? (data.error || data.message) : ('HTTP ' + resp.status);
+        throw new Error(msg);
+      }
+      return Array.isArray(data.uploaded) ? data.uploaded : [];
+    } catch (e) {
+      console.error(e);
+      toast('附件上傳失敗：' + (e.message || e), 'danger');
       return [];
     }
-
-    const uploaded = [];
-    for (const file of files) {
-      const safeName = sanitizeFileName(file.name || 'file');
-      const path = `consults/${docId}/${who}/${Date.now()}_${safeName}`;
-      const ref = storage.ref().child(path);
-
-      const meta = { contentType: file.type || 'application/octet-stream' };
-      await ref.put(file, meta);
-      const url = await ref.getDownloadURL();
-
-      uploaded.push({
-        name: file.name || safeName,
-        url,
-        contentType: file.type || '',
-        size: file.size || 0,
-        uploadedAt: new Date().toISOString(),
-        path
-      });
-    }
-    return uploaded;
   }
+
 
   // -------- Helpers --------
 
