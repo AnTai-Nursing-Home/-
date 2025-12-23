@@ -705,19 +705,33 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
 }
 
 async function checkTwoPerDayLimitOffice(days, appIdSelf) {
+    // Firestore 規則：不等式(where <=, >= ...) 不能同時用在兩個不同欄位
+    // 這裡改成只用 startDateTime 做不等式查詢，endDateTime 用前端再過濾（避免 Invalid query）
+    const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+
     for (const d of days) {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-        let q = db.collection('stayApplications')
-            .where('startDateTime', '<=', dayEnd)
-            .where('endDateTime', '>=', dayStart);
 
-        const snap = await q.get();
+        const snap = await db.collection('stayApplications')
+            .where('startDateTime', '<=', firebase.firestore.Timestamp.fromDate(dayEnd))
+            .orderBy('startDateTime', 'asc')
+            .get();
+
         let count = 0;
-        docs.forEach(doc => {
+        snap.forEach(doc => {
             if (appIdSelf && doc.id === appIdSelf) return; // 排除自己（編輯中）
-            count++;
+            const data = doc.data() || {};
+            // 退回的不算（若你希望退回也要佔名額，把這行拿掉即可）
+            if (data.statusId === 'rejected') return;
+
+            const end = toDate(data.endDateTime);
+            if (!end) return;
+
+            // 與當天有交集：startDateTime <= dayEnd 已在查詢保證；只要 endDateTime >= dayStart 即成立
+            if (end >= dayStart) count++;
         });
+
         if (count >= 2) return true;
     }
     return false;
@@ -745,26 +759,37 @@ async function checkConflictRulesOffice(applicantId, days, appIdSelf) {
 }
 
 async function checkOthersStayOnDaysOffice(others, days, appIdSelf) {
+    const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+
     const chunks = [];
     for (let i = 0; i < others.length; i += 10) {
         chunks.push(others.slice(i, i + 10));
     }
+
     for (const d of days) {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
 
         for (const group of chunks) {
+            // 同上：避免 startDateTime + endDateTime 同時不等式
             const snap = await db.collection('stayApplications')
                 .where('applicantId', 'in', group)
-                .where('startDateTime', '<=', dayEnd)
-                .where('endDateTime', '>=', dayStart)
+                .where('startDateTime', '<=', firebase.firestore.Timestamp.fromDate(dayEnd))
+                .orderBy('startDateTime', 'asc')
                 .get();
 
             let hasOther = false;
             snap.forEach(doc => {
                 if (appIdSelf && doc.id === appIdSelf) return;
-                hasOther = true;
+                const data = doc.data() || {};
+                if (data.statusId === 'rejected') return;
+
+                const end = toDate(data.endDateTime);
+                if (!end) return;
+
+                if (end >= dayStart) hasOther = true;
             });
+
             if (hasOther) return true;
         }
     }
@@ -793,7 +818,7 @@ async function openCommentModalOffice(appId) {
     if (snap.empty) {
         listEl.innerHTML = '<li class="list-group-item text-center text-muted">目前沒有註解</li>';
     } else {
-        docs.forEach(doc => {
+        snap.forEach(doc => {
             const c = doc.data();
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-start';
