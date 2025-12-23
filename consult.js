@@ -122,11 +122,11 @@
     // 預設：回各自系統入口
     let backHref = (ROLE === 'nutritionist')
       ? './nutritionist/nutritionist.html'
-      : './admin.html';
+      : './admin.html?view=dashboard';
 
     // 明確指定 from
     if (from.includes('nutritionist')) backHref = '/nutritionist/nutritionist.html';
-    if (from.includes('nurse')) backHref = '/admin.html';
+    if (from.includes('nurse')) backHref = '/admin.html?view=dashboard';
 
     // 如果 referrer 是同站且不是 consult 頁，就優先回 referrer（最符合你實際入口路徑）
     // 但：護理師一律回護理師儀表板（避免回到密碼頁）
@@ -141,7 +141,7 @@
 
     // 護理師：一律回護理師儀表板（避免回到密碼頁）
     if (ROLE === 'nurse') {
-      backHref = '/admin.html';
+      backHref = '/admin.html?view=dashboard';
     }
 
     btnBack.href = backHref;
