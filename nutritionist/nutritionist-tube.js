@@ -127,6 +127,106 @@ function escapeHtml(s) {
   return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 }
 
+// ===== 管灌奶粉營養計算（依 0.5 匙基準，預設 5 餐） =====
+// 0.5 匙：蛋白質 2.67g、脂肪 2.22g、醣類 8.805g、熱量 65.4kcal
+const TUBE_NUTR_PER_HALF_SPOON = {
+  protein: 2.67,
+  fat: 2.22,
+  carb: 8.805,
+  kcal: 65.4,
+};
+const TUBE_DEFAULT_MEALS_PER_DAY = 5;
+
+function toNumber(v){
+  if (v == null) return NaN;
+  const s = String(v).trim();
+  if (!s) return NaN;
+  // 支援像「2.5」、「2,5」
+  const s2 = s.replace(/,/g,'');
+  const n = Number(s2);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function formatSmartNumber(n, decimals=1){
+  if (!Number.isFinite(n)) return '';
+  const s = n.toFixed(decimals);
+  return s.replace(/\.0+$/,'').replace(/(\.\d*[1-9])0+$/,'$1');
+}
+
+// 從兩個「備註」欄抓餐數：例如「*6餐」「4餐(醫囑)」
+function guessMealsFromNotes(noteText){
+  const s = String(noteText || '');
+  const m = s.match(/(\d+)\s*餐/);
+  if (m) {
+    const k = parseInt(m[1], 10);
+    if (Number.isFinite(k) && k >= 1 && k <= 10) return k;
+  }
+  return TUBE_DEFAULT_MEALS_PER_DAY;
+}
+
+function calcTubeNutritionBySpoons(spoons, meals){
+  const units = spoons / 0.5; // 每 0.5 匙為 1 單位
+  const perMealKcal = units * TUBE_NUTR_PER_HALF_SPOON.kcal;
+  const perMealProtein = units * TUBE_NUTR_PER_HALF_SPOON.protein;
+  const dayKcal = perMealKcal * meals;
+  const dayProtein = perMealProtein * meals;
+  return { dayKcal, dayProtein };
+}
+
+// 記錄目前頁籤的計算欄位（依表頭名稱自動找，不依賴固定欄位序）
+let calcColsCache = {}; // { [sheetName]: { milkCol, kcalCol, proteinCol, noteCols: number[] } }
+
+function normalizeHeaderName(s){
+  return String(s || '').replace(/\s+/g,'').toLowerCase();
+}
+
+function buildCalcColsForSheet(sheet, tableModel){
+  const cols = tableModel?.cols || [];
+  const findBy = (pred) => {
+    for (const col of cols){
+      const n = normalizeHeaderName(col.name);
+      if (pred(n)) return col.c;
+    }
+    return null;
+  };
+
+  const milkCol = findBy(n => n.includes('奶粉') || n.includes('milkp') || n.includes('milkpowder'));
+  const kcalCol = findBy(n => n.includes('總熱量') || (n.includes('熱量') && n.includes('大卡')) || n.includes('kcal'));
+  const proteinCol = findBy(n => n.includes('蛋白質') || n.includes('protein'));
+  const noteCols = cols.filter(col => normalizeHeaderName(col.name).includes('備註') || normalizeHeaderName(col.name).includes('note')).map(col => col.c);
+
+  calcColsCache[sheet] = { milkCol, kcalCol, proteinCol, noteCols };
+}
+
+function maybeRecalcRow(sheet, excelRow){
+  const meta = calcColsCache[sheet] || {};
+  if (!meta.milkCol || !meta.kcalCol || !meta.proteinCol) return;
+
+  const spoons = toNumber(gridGet(sheet, excelRow, meta.milkCol));
+  if (!Number.isFinite(spoons) || spoons <= 0) return;
+
+  // 兩個備註欄合併判斷餐數（沒有就用 5）
+  const noteText = (meta.noteCols || []).map(c => String(gridGet(sheet, excelRow, c) || '')).join(' ');
+  const meals = guessMealsFromNotes(noteText);
+  const { dayKcal, dayProtein } = calcTubeNutritionBySpoons(spoons, meals);
+
+  // 你的表格是「每日總熱量 / 每日蛋白質」
+  const kcalVal = Math.round(dayKcal);
+  const proteinVal = formatSmartNumber(dayProtein, 1);
+
+  gridSet(sheet, excelRow, meta.kcalCol, kcalVal);
+  gridSet(sheet, excelRow, meta.proteinCol, proteinVal);
+
+  // 直接更新畫面（不重 render）
+  const wrap = document.getElementById('tableWrap');
+  if (wrap){
+    const kcalEl = wrap.querySelector(`.cell[data-erow="${excelRow}"][data-ecol="${meta.kcalCol}"]`);
+    const proEl = wrap.querySelector(`.cell[data-erow="${excelRow}"][data-ecol="${meta.proteinCol}"]`);
+    if (kcalEl) kcalEl.value = String(kcalVal);
+    if (proEl) proEl.value = String(proteinVal);
+  }
+}
+
 function gridGet(sheet, r, c) {
   const g = stateGrid[sheet] || [];
   return (g[r-1] && g[r-1][c-1] != null) ? g[r-1][c-1] : '';
@@ -312,6 +412,8 @@ function deleteExcelRows(sheet, excelRows){
 
 function renderTable() {
   const tableModel = guessTable(currentSheet);
+  // 建立該分頁的「奶粉/熱量/蛋白質/備註」欄位索引，供自動計算使用
+  buildCalcColsForSheet(currentSheet, tableModel);
   const filterFn = buildFilter(tableModel);
   let rows = filterFn ? tableModel.rows.filter(filterFn) : tableModel.rows;
   // 隱藏模板內的說明/註解列（使用者表示不需要）
@@ -374,6 +476,14 @@ function renderTable() {
     const ecol = Number(t.dataset.ecol);
     if (!erow || !ecol) return;
     gridSet(currentSheet, erow, ecol, t.value);
+
+    // 若更動奶粉匙數（或備註餐數），即時重算「總熱量/蛋白質」
+    const meta = calcColsCache[currentSheet] || {};
+    const noteCols = meta.noteCols || [];
+    if (ecol === meta.milkCol || noteCols.includes(ecol)) {
+      maybeRecalcRow(currentSheet, erow);
+    }
+
     scheduleSave('修改');
   };
 }
