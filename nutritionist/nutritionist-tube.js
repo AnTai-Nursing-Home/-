@@ -254,6 +254,21 @@ function findColByNames(tableModel, names){
   return null;
 }
 
+function getColClassByName(colName){
+  const n = String(colName || '').toLowerCase();
+  // Water between meals column is too wide; constrain it and allow wrap
+  if (n.includes('餐間水') || n.includes('water supply') || n.includes('between meals')) return 'col-between-water';
+  // Notes columns should have more space
+  if (n === '備註' || n.includes('備註') || n.includes('note')) return 'col-note';
+  // Compact numeric columns
+  if (n.includes('總熱量') || (n.includes('熱量') && !n.includes('總計'))) return 'col-kcal';
+  if (n.includes('蛋白質')) return 'col-protein';
+  if (n.includes('脂肪')) return 'col-fat';
+  if (n.includes('醣') || n.includes('carb')) return 'col-carb';
+  return '';
+}
+
+
 function firstEmptyDataRow(sheet){
   // Find next row after last non-empty among meta.max_row, but keep within meta.max_row+200 safety
   const meta = sheetMeta[sheet] || {};
@@ -307,7 +322,10 @@ function renderTable() {
   html.push('<table class="sys"><thead><tr>');
   // selection column
   html.push('<th style="width:44px" title="勾選要刪除/調動的住民"><i class="fas fa-check"></i></th>');
-  for (const col of tableModel.cols) html.push(`<th>${escapeHtml(col.name)}</th>`);
+  for (const col of tableModel.cols) {
+    const cls = getColClassByName(col.name);
+    html.push(`<th class="${cls}">${escapeHtml(col.name)}</th>`);
+  }
   html.push('</tr></thead><tbody>');
 
   rows.forEach((rowObj) => {
@@ -318,14 +336,15 @@ function renderTable() {
     html.push(`<td class="text-center"><input class="form-check-input rowcheck" type="checkbox" data-erow="${excelRow}" ${checked}></td>`);
     for (const col of tableModel.cols) {
       const v = rowObj[col.c] ?? '';
+      const cls = getColClassByName(col.name);
       if (readonlySheet) {
-        html.push(`<td class="readonly">${escapeHtml(String(v)).replace(/\n/g,'<br>')}</td>`);
+        html.push(`<td class="readonly ${cls}">${escapeHtml(String(v)).replace(/\n/g,'<br>')}</td>`);
       } else {
         const s = String(v ?? '');
         if (s.includes('\\n') || s.length > 18) {
-          html.push(`<td><textarea class="cell" data-erow="${excelRow}" data-ecol="${col.c}">${escapeHtml(s)}</textarea></td>`);
+          html.push(`<td class="${cls}"><textarea class="cell" data-erow="${excelRow}" data-ecol="${col.c}">${escapeHtml(s)}</textarea></td>`);
         } else {
-          html.push(`<td><input class="cell" data-erow="${excelRow}" data-ecol="${col.c}" value="${escapeHtml(s)}"></td>`);
+          html.push(`<td class="${cls}"><input class="cell" data-erow="${excelRow}" data-ecol="${col.c}" value="${escapeHtml(s)}"></td>`);
         }
       }
     }
