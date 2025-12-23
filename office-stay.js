@@ -12,6 +12,24 @@ function escapeHtml(input) {
 }
 
 
+
+/** 按鈕載入狀態（避免使用者以為沒反應、避免重複送出） */
+function setButtonLoading(btn, isLoading, loadingText = '儲存中...') {
+  if (!btn) return;
+  if (isLoading) {
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${escapeHtml(loadingText)}`;
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.originalHtml) {
+      btn.innerHTML = btn.dataset.originalHtml;
+      delete btn.dataset.originalHtml;
+    }
+  }
+}
+
+
 document.addEventListener('firebase-ready', async () => {
     appModal = new bootstrap.Modal(document.getElementById('appModal'));
     commentModalOffice = new bootstrap.Modal(document.getElementById('commentModalOffice'));
@@ -647,8 +665,11 @@ async function saveAppFromModal() {
         createdByUserId: 'office'
     };
 
-    // 辦公室新增 / 修改也套用同樣的業務規則
-    await validateBusinessRulesForNewApplicationOffice(data, appId || null);
+    const saveBtn = document.getElementById('btnSaveApp');
+    setButtonLoading(saveBtn, true);
+    try {
+        // 辦公室新增 / 修改也套用同樣的業務規則
+        await validateBusinessRulesForNewApplicationOffice(data, appId || null);
 
     if (appId) {
         await db.collection('stayApplications').doc(appId).update({
@@ -681,7 +702,13 @@ async function saveAppFromModal() {
 
     appModal.hide();
     await loadApplicationsByFilter();
-    alert('外宿申請已儲存');
+        alert('外宿申請已儲存');
+    } catch (err) {
+        console.error('saveAppFromModal failed:', err);
+        alert('儲存失敗，請稍後再試或檢查網路連線');
+    } finally {
+        setButtonLoading(saveBtn, false);
+    }
 }
 
 // 這裡沿用 caregiver 端的規則檢查邏輯，但要忽略正在編輯的那筆（appIdSelf）
