@@ -554,7 +554,7 @@ function exportStyledXls(){
       const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
       styleRow(row,{});
     }
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   })();
 
@@ -642,7 +642,7 @@ function exportStyledXls(){
     ;[2,7,12].forEach(ci=>{ const c=sumRow.getCell(ci); c.alignment={vertical:'middle', horizontal:'center', shrinkToFit:true}; c.numFmt='0'; });
     styleRow(sumRow, {isHeader:true, height:20});
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
   }
 
@@ -956,7 +956,7 @@ function exportStyledXls(){
     ws.sheetProperties.pageSetUpPr.fitToPage = true;
     ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true,
                      margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
   }
@@ -1058,7 +1058,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.getColumn(2).width = Math.max(40, Math.min(80, Math.ceil(maxLen * 2.4)));
     ws.getColumn(2).alignment = { vertical:'middle', horizontal:'left', wrapText:false };
 
-    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
                      margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
 })()
