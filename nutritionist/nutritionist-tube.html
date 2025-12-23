@@ -48,6 +48,34 @@
       padding: .65rem .75rem;
       font-weight: 800;
     }
+
+    /* Column width tuning */
+    table.sys th.col-between-water, table.sys td.col-between-water{
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+    }
+    table.sys thead th.col-between-water{
+      white-space: normal;   /* allow wrap so it won't squeeze notes */
+      line-height: 1.15;
+    }
+
+    table.sys th.col-note, table.sys td.col-note{
+      min-width: 260px;      /* give notes more room */
+    }
+    table.sys thead th.col-note{ white-space: nowrap; }
+
+    /* Keep numeric columns compact */
+    table.sys th.col-kcal, table.sys td.col-kcal,
+    table.sys th.col-protein, table.sys td.col-protein,
+    table.sys th.col-fat, table.sys td.col-fat,
+    table.sys th.col-carb, table.sys td.col-carb{
+      width: 110px;
+      min-width: 110px;
+      max-width: 110px;
+      text-align: center;
+      white-space: nowrap;
+    }
     table.sys td{
       border-bottom: 1px solid #edf2f7;
       padding: .55rem .65rem;
