@@ -768,7 +768,7 @@ await loadResidents();
     // ✅ 兼容度最高的 Word 匯出：使用「HTML + .doc」格式（Word 可直接開啟/編輯）
     // （避免部分環境/版本對前端產生 .docx 內容嚴格檢查而出現「檔案內容有問題」）
     const header = '安泰醫療社團法人附設安泰護理之家';
-    const title = '照會單';
+    const title = '照會紀錄單';
     const created = formatTs(c.createdAt) || '';
     const reply = (c.nutritionistReply || '').trim() || '—';
 
@@ -788,7 +788,7 @@ await loadResidents();
     });
 
     const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
-    const fileName = `照會單_${sanitizeForFile(c.bedNumber)}_${sanitizeForFile(c.residentName)}.doc`;
+    const fileName = `照會紀錄單_${sanitizeForFile(c.bedNumber)}_${sanitizeForFile(c.residentName)}.doc`;
     downloadBlob(blob, fileName);
     toast('Word 已匯出', 'success');
   }
