@@ -680,13 +680,13 @@ await loadResidents();
   @page { size: A4; margin: 18mm 16mm; }
   body { font-family: "Noto Sans TC","Microsoft JhengHei", Arial, sans-serif; color:#111; }
   .head { text-align:center; margin-bottom: 10mm; }
-  .org { font-size: 16pt; font-weight: 800; letter-spacing: .5px; }
-  .doc { font-size: 18pt; font-weight: 900; margin-top: 6px; letter-spacing: 6px; }
-  .meta { margin-top: 6mm; font-size: 10.5pt; color:#333; text-align:right; }
+  .org { font-size: 18pt; font-weight: 900; letter-spacing: .5px; }
+  .doc { font-size: 22pt; font-weight: 900; margin-top: 8px; letter-spacing: 8px; }
+  .meta { margin-top: 6mm; font-size: 12pt; color:#333; text-align:right; }
   table { width:100%; border-collapse:collapse; table-layout: fixed; }
-  th, td { border:1px solid #000; padding: 8px 10px; vertical-align: top; font-size: 11.5pt; line-height: 1.5; }
-  th { width: 20%; background: #f3f4f6; font-weight: 800; }
-  .section-title { margin: 10mm 0 4mm; font-size: 12pt; font-weight: 800; }
+  th, td { border:1px solid #000; padding: 12px 14px; vertical-align: top; font-size: 14pt; line-height: 1.7; }
+  th { width: 22%; background: #f3f4f6; font-weight: 900; }
+  .section-title { margin: 10mm 0 4mm; font-size: 14pt; font-weight: 900; }
   .files a { color:#111; text-decoration: underline; word-break: break-all; }
   .muted { color:#444; }
 </style>
@@ -803,13 +803,13 @@ await loadResidents();
 <title>${escapeHtml(data.title)}</title>
 <style>
   @page { size: A4; margin: 20mm; }
-  body { font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif; font-size: 12pt; color:#000; }
-  .header { text-align:center; font-weight:700; font-size: 16pt; margin-bottom: 8mm; }
-  .title { text-align:center; font-weight:800; font-size: 18pt; letter-spacing: 2px; margin-bottom: 6mm; }
+  body { font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif; font-size: 14pt; color:#000; line-height: 1.7; }
+  .header { text-align:center; font-weight:800; font-size: 18pt; margin-bottom: 8mm; }
+  .title { text-align:center; font-weight:900; font-size: 22pt; letter-spacing: 4px; margin-bottom: 6mm; }
   table { width:100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; word-wrap: break-word; }
-  th { width: 20%; background: #f3f4f6; text-align:left; font-weight:700; }
-  .meta { margin-top: 6mm; font-size: 11pt; color:#111; }
+  th, td { border: 1px solid #000; padding: 12px 14px; vertical-align: top; word-wrap: break-word; }
+  th { width: 22%; background: #f3f4f6; text-align:left; font-weight:900; }
+  .meta { margin-top: 6mm; font-size: 12pt; color:#111; }
 </style>
 </head>
 <body>
