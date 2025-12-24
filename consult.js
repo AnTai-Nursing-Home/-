@@ -62,6 +62,50 @@
   })();
 
 
+  // 動態加入「列印 / 匯出 Word」按鈕（護理師、營養師皆可用）
+  let btnPrintConsult = null;
+  let btnExportWord = null;
+  (function ensurePrintExportBtns(){
+    const modalEl = document.getElementById('refModal');
+    const footer = modalEl?.querySelector('.modal-footer');
+    if (!footer) return;
+
+    // 列印
+    btnPrintConsult = document.createElement('button');
+    btnPrintConsult.type = 'button';
+    btnPrintConsult.className = 'btn btn-outline-secondary';
+    btnPrintConsult.id = 'btnPrintConsult';
+    btnPrintConsult.innerHTML = '<i class="fa-solid fa-print me-1"></i>列印照會單';
+    btnPrintConsult.addEventListener('click', () => {
+      const c = consults.find(x => x.id === currentModalId);
+      if (!c) return toast('找不到此照會資料', 'warning');
+      printConsult(c);
+    });
+
+    // 匯出 Word
+    btnExportWord = document.createElement('button');
+    btnExportWord.type = 'button';
+    btnExportWord.className = 'btn btn-outline-primary';
+    btnExportWord.id = 'btnExportWord';
+    btnExportWord.innerHTML = '<i class="fa-solid fa-file-word me-1"></i>匯出 Word';
+    btnExportWord.addEventListener('click', async () => {
+      const c = consults.find(x => x.id === currentModalId);
+      if (!c) return toast('找不到此照會資料', 'warning');
+      await exportConsultToWord(c);
+    });
+
+    // 插入位置：放在「關閉」之前（footer 最左側若有刪除按鈕則保持在最左）
+    const closeBtn = footer.querySelector('[data-bs-dismiss="modal"]');
+    if (closeBtn) {
+      footer.insertBefore(btnExportWord, closeBtn);
+      footer.insertBefore(btnPrintConsult, btnExportWord);
+    } else {
+      footer.appendChild(btnPrintConsult);
+      footer.appendChild(btnExportWord);
+    }
+  })();
+
+
   let db = null;
   let storage = null;
   let residents = [];         // {id, bedNumber, name, residentNumber}
@@ -617,7 +661,195 @@ await loadResidents();
   }
 
 
-  // -------- Helpers --------
+  
+  // -------- Print / Export (A4 正式版型) --------
+  function buildConsultPrintHTML(c) {
+    const header = '安泰醫療社團法人附設安泰護理之家';
+    const title = '照 會 單';
+    const created = formatTs(c.createdAt) || '';
+    const reply = (c.nutritionistReply || '').trim() || '—';
+
+    const safe = (v) => escapeHtml(String(v ?? ''));
+    return `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${header}${title}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: "Noto Sans TC","Microsoft JhengHei", Arial, sans-serif; color:#111; }
+  .head { text-align:center; margin-bottom: 10mm; }
+  .org { font-size: 16pt; font-weight: 800; letter-spacing: .5px; }
+  .doc { font-size: 18pt; font-weight: 900; margin-top: 6px; letter-spacing: 6px; }
+  .meta { margin-top: 6mm; font-size: 10.5pt; color:#333; text-align:right; }
+  table { width:100%; border-collapse:collapse; table-layout: fixed; }
+  th, td { border:1px solid #000; padding: 8px 10px; vertical-align: top; font-size: 11.5pt; line-height: 1.5; }
+  th { width: 20%; background: #f3f4f6; font-weight: 800; }
+  .section-title { margin: 10mm 0 4mm; font-size: 12pt; font-weight: 800; }
+  .files a { color:#111; text-decoration: underline; word-break: break-all; }
+  .muted { color:#444; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="org">${header}</div>
+    <div class="doc">${title}</div>
+    <div class="meta">建立時間：${safe(created)}</div>
+  </div>
+
+  <table>
+    <tr><th>住民床號</th><td>${safe(c.bedNumber || '')}</td></tr>
+    <tr><th>姓名</th><td>${safe(c.residentName || '')}</td></tr>
+    <tr><th>照會主旨</th><td>${safe(c.subject || '')}</td></tr>
+    <tr><th>照會說明</th><td>${safe(c.description || '')}</td></tr>
+    <tr><th>營養師回覆</th><td>${safe(reply)}</td></tr>
+  </table>
+
+  <div class="section-title">附件</div>
+  <div class="muted">護理師附件：</div>
+  <div class="files">${buildFilesForPrint(c.nurseAttachments)}</div>
+  <div style="height:4mm"></div>
+  <div class="muted">營養師附件：</div>
+  <div class="files">${buildFilesForPrint(c.nutritionistAttachments)}</div>
+</body>
+</html>`;
+  }
+
+  function buildFilesForPrint(list) {
+    if (!list || !list.length) return '<div class="muted">—</div>';
+    return list.map(f => {
+      const name = escapeHtml(f?.name || '附件');
+      const url = f?.url || '';
+      if (!url) return `<div>${name}</div>`;
+      return `<div><a href="${url}" target="_blank" rel="noopener">${name}</a></div>`;
+    }).join('');
+  }
+
+  function printConsult(c) {
+    const html = buildConsultPrintHTML(c);
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast('瀏覽器阻擋彈出視窗，請允許後再試一次。', 'warning');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    // 等待資源載入後再列印
+    win.onload = () => {
+      try { win.focus(); win.print(); } catch (_) {}
+    };
+  }
+
+  async function exportConsultToWord(c) {
+    // docx.js (UMD) 必須在 consult.html 加載：
+    // <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    if (!window.docx) {
+      toast('匯出 Word 需要載入 docx 套件，請確認 consult.html 已加入 docx CDN。', 'warning');
+      return;
+    }
+
+    const header = '安泰醫療社團法人附設安泰護理之家';
+    const title = '照會單';
+    const created = formatTs(c.createdAt) || '';
+    const reply = (c.nutritionistReply || '').trim() || '—';
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } = window.docx;
+
+    const mkRow = (label, value) => new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 22, type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ children:[new TextRun({ text: label, bold: true })] })],
+        }),
+        new TableCell({
+          width: { size: 78, type: WidthType.PERCENTAGE },
+          children: [new Paragraph(String(value ?? ''))],
+        }),
+      ],
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: header, bold: true })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: title, bold: true, size: 32 })],
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({ text: `建立時間：${created}`, size: 20 })],
+            spacing: { after: 250 }
+          }),
+
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              mkRow('住民床號', c.bedNumber || ''),
+              mkRow('姓名', c.residentName || ''),
+              mkRow('照會主旨', c.subject || ''),
+              mkRow('照會說明', c.description || ''),
+              mkRow('營養師回覆', reply),
+            ],
+          }),
+
+          new Paragraph({ text: '附件', spacing: { before: 300, after: 120 }, children:[new TextRun({ text:'附件', bold:true })] }),
+          new Paragraph({ children:[new TextRun({ text:'護理師附件：', bold:true })] }),
+          ...filesToWordParas(c.nurseAttachments),
+          new Paragraph({ text: '' }),
+          new Paragraph({ children:[new TextRun({ text:'營養師附件：', bold:true })] }),
+          ...filesToWordParas(c.nutritionistAttachments),
+        ],
+      }],
+    });
+
+    try {
+      const blob = await Packer.toBlob(doc);
+      const fileName = `照會單_${sanitizeForFile(c.bedNumber)}_${sanitizeForFile(c.residentName)}.docx`;
+      downloadBlob(blob, fileName);
+      toast('Word 已匯出', 'success');
+    } catch (e) {
+      console.error(e);
+      toast('匯出失敗：' + (e.message || e), 'danger');
+    }
+  }
+
+  function filesToWordParas(list) {
+    const { Paragraph, TextRun } = window.docx;
+    if (!list || !list.length) return [new Paragraph('—')];
+    return list.map(f => {
+      const name = String(f?.name || '附件');
+      const url = String(f?.url || '');
+      const line = url ? `${name}：${url}` : name;
+      return new Paragraph({ children: [new TextRun(line)] });
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'download';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function sanitizeForFile(s) {
+    return String(s || '').trim().replace(/[\\\/:*?"<>|]+/g, '_');
+  }
+
+
+// -------- Helpers --------
 
   // ===== 強制修正：若全站 CSS 破壞 table 結構（thead/tbody 跑位、資料跑到標題上方），這裡用 JS 直接鎖回 table layout =====
   function forceTableLayoutFix() {
