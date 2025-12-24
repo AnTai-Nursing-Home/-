@@ -773,9 +773,7 @@ await loadResidents();
 
   function buildWordHTML(data) {
     // Word 會以 HTML 方式開啟 .doc，這裡用「正式公文感」的版面：置中抬頭 + 表格
-    const nlToBr = (s) => escapeHtml(String(s || '')).replace(/
-?
-/g, '<br>');
+    const nlToBr = (s) => escapeHtml(String(s || '')).replace(/\r?\n/g, '<br>');
     return `<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
