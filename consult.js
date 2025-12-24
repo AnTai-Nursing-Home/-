@@ -742,6 +742,28 @@ await loadResidents();
     };
   }
 
+  // -------- Download helper (for Word/PDF exports) --------
+  function downloadBlob(blob, filename) {
+    try {
+      // IE / old Edge
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error(e);
+      toast('下載失敗：' + (e.message || e), 'danger');
+    }
+  }
+
   async function exportConsultToWord(c) {
     // ✅ 兼容度最高的 Word 匯出：使用「HTML + .doc」格式（Word 可直接開啟/編輯）
     // （避免部分環境/版本對前端產生 .docx 內容嚴格檢查而出現「檔案內容有問題」）
