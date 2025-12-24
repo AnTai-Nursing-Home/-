@@ -743,106 +743,74 @@ await loadResidents();
   }
 
   async function exportConsultToWord(c) {
-    // docx.js (UMD) 必須在 consult.html 加載：
-    // <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
-    if (!window.docx) {
-      toast('匯出 Word 需要載入 docx 套件，請確認 consult.html 已加入 docx CDN。', 'warning');
-      return;
-    }
-
+    // ✅ 兼容度最高的 Word 匯出：使用「HTML + .doc」格式（Word 可直接開啟/編輯）
+    // （避免部分環境/版本對前端產生 .docx 內容嚴格檢查而出現「檔案內容有問題」）
     const header = '安泰醫療社團法人附設安泰護理之家';
     const title = '照會單';
     const created = formatTs(c.createdAt) || '';
     const reply = (c.nutritionistReply || '').trim() || '—';
 
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } = window.docx;
+    const nurseAttach = (c.nurseAttachments || []).map(f => escapeHtml(f.name || '附件')).join('、') || '—';
+    const nutAttach = (c.nutritionistAttachments || []).map(f => escapeHtml(f.name || '附件')).join('、') || '—';
 
-    const mkRow = (label, value) => new TableRow({
-      children: [
-        new TableCell({
-          width: { size: 22, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({ children:[new TextRun({ text: label, bold: true })] })],
-        }),
-        new TableCell({
-          width: { size: 78, type: WidthType.PERCENTAGE },
-          children: [new Paragraph(String(value ?? ''))],
-        }),
-      ],
+    const html = buildWordHTML({
+      header, title,
+      bedNumber: c.bedNumber || '',
+      residentName: c.residentName || '',
+      subject: c.subject || '',
+      description: c.description || '',
+      nutritionistReply: reply,
+      createdAt: created,
+      nurseAttachments: nurseAttach,
+      nutritionistAttachments: nutAttach,
     });
 
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          new Paragraph({
-            heading: HeadingLevel.HEADING_1,
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text: header, bold: true })],
-          }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text: title, bold: true, size: 32 })],
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: `建立時間：${created}`, size: 20 })],
-            spacing: { after: 250 }
-          }),
-
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              mkRow('住民床號', c.bedNumber || ''),
-              mkRow('姓名', c.residentName || ''),
-              mkRow('照會主旨', c.subject || ''),
-              mkRow('照會說明', c.description || ''),
-              mkRow('營養師回覆', reply),
-            ],
-          }),
-
-          new Paragraph({ text: '附件', spacing: { before: 300, after: 120 }, children:[new TextRun({ text:'附件', bold:true })] }),
-          new Paragraph({ children:[new TextRun({ text:'護理師附件：', bold:true })] }),
-          ...filesToWordParas(c.nurseAttachments),
-          new Paragraph({ text: '' }),
-          new Paragraph({ children:[new TextRun({ text:'營養師附件：', bold:true })] }),
-          ...filesToWordParas(c.nutritionistAttachments),
-        ],
-      }],
-    });
-
-    try {
-      const blob = await Packer.toBlob(doc);
-      const fileName = `照會單_${sanitizeForFile(c.bedNumber)}_${sanitizeForFile(c.residentName)}.docx`;
-      downloadBlob(blob, fileName);
-      toast('Word 已匯出', 'success');
-    } catch (e) {
-      console.error(e);
-      toast('匯出失敗：' + (e.message || e), 'danger');
-    }
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    const fileName = `照會單_${sanitizeForFile(c.bedNumber)}_${sanitizeForFile(c.residentName)}.doc`;
+    downloadBlob(blob, fileName);
+    toast('Word 已匯出', 'success');
   }
 
-  function filesToWordParas(list) {
-    const { Paragraph, TextRun } = window.docx;
-    if (!list || !list.length) return [new Paragraph('—')];
-    return list.map(f => {
-      const name = String(f?.name || '附件');
-      const url = String(f?.url || '');
-      const line = url ? `${name}：${url}` : name;
-      return new Paragraph({ children: [new TextRun(line)] });
-    });
+  function buildWordHTML(data) {
+    // Word 會以 HTML 方式開啟 .doc，這裡用「正式公文感」的版面：置中抬頭 + 表格
+    const nlToBr = (s) => escapeHtml(String(s || '')).replace(/
+?
+/g, '<br>');
+    return `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(data.title)}</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif; font-size: 12pt; color:#000; }
+  .header { text-align:center; font-weight:700; font-size: 16pt; margin-bottom: 8mm; }
+  .title { text-align:center; font-weight:800; font-size: 18pt; letter-spacing: 2px; margin-bottom: 6mm; }
+  table { width:100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; word-wrap: break-word; }
+  th { width: 20%; background: #f3f4f6; text-align:left; font-weight:700; }
+  .meta { margin-top: 6mm; font-size: 11pt; color:#111; }
+</style>
+</head>
+<body>
+  <div class="header">${escapeHtml(data.header)}</div>
+  <div class="title">${escapeHtml(data.title)}</div>
+
+  <table>
+    <tr><th>床號</th><td>${escapeHtml(data.bedNumber)}</td></tr>
+    <tr><th>姓名</th><td>${escapeHtml(data.residentName)}</td></tr>
+    <tr><th>照會主旨</th><td>${escapeHtml(data.subject)}</td></tr>
+    <tr><th>照會說明</th><td>${nlToBr(data.description)}</td></tr>
+    <tr><th>護理師附件</th><td>${escapeHtml(data.nurseAttachments)}</td></tr>
+    <tr><th>營養師回覆</th><td>${nlToBr(data.nutritionistReply)}</td></tr>
+    <tr><th>營養師附件</th><td>${escapeHtml(data.nutritionistAttachments)}</td></tr>
+  </table>
+
+  <div class="meta">照會日期：${escapeHtml(data.createdAt)}</div>
+</body>
+</html>`;
   }
 
-  function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'download';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
 
   function sanitizeForFile(s) {
     return String(s || '').trim().replace(/[\\\/:*?"<>|]+/g, '_');
