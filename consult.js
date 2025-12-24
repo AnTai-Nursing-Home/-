@@ -665,7 +665,7 @@ await loadResidents();
   // -------- Print / Export (A4 正式版型) --------
   function buildConsultPrintHTML(c) {
     const header = '安泰醫療社團法人附設安泰護理之家';
-    const title = '照 會 單';
+    const title = '照 會 記 錄 單';
     const created = formatTs(c.createdAt) || '';
     const reply = (c.nutritionistReply || '').trim() || '—';
 
