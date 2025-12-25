@@ -1086,6 +1086,10 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
     styleRow(totalRow,{isHeader:true,center:true});
     ws.getRow(totalRow.number).height = 54;
+    totalRow.eachCell(cell => {
+    cell.font = { ...(cell.font || {}), size: 15 };
+  });
+  
     ws.getCell(`C${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFF00'}};
     ws.getCell(`D${totalRow.number}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2F80ED'}};
     ws.mergeCells(`F${totalRow.number+1}:G${totalRow.number+1}`);
