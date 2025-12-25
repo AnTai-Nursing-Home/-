@@ -1023,6 +1023,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.getRow(1).height = 43;
     const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
+    header.eachCell(cell=>{
+      cell.font = { ...(cell.font||{}), size:15 };
+    });
 
     // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
     function getStatus(r){
