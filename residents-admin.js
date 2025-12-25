@@ -539,24 +539,71 @@ function exportStyledXls(){
 
   // ===== 基本資料（第一張） =====
   (function addBasicSheet(){
-    const ws = wb.addWorksheet('基本資料', {views:[{state:'frozen', ySplit:1}]});
-    ws.columns = [
-      {width:8},{width:8},{width:14},{width:16},{width:6},{width:6},{width:12},{width:22}
-    ];
-    ws.mergeCells(1,1,1,8);
-    ws.getCell('A1').value='基本資料'; ws.getCell('A1').font=fontTitle; ws.getCell('A1').alignment={vertical:'middle',horizontal:'center'};
-    const header = ws.addRow(['房號','床號','床位代碼','姓名','性別','年齡','狀態','備註']);
-    styleRow(header,{isHeader:true,center:true});
-    const rows = (cache||[]).slice().sort((a,b)=>String(a.bedNumber||'').localeCompare(String(b.bedNumber||''),'zh-Hant'));
-    for(const r of rows){
-      const [room, bed] = String(r.bedNumber||'').split(/[-_]/);
-      const age = computeAge(r.birthday);
-      const row = ws.addRow([room||'', (bed||'').toUpperCase(), r.bedNumber||'', r.id||'', r.gender||'', (age===''?'':age), r.leaveStatus||'', r.note||'']);
-      styleRow(row,{});
-    }
-    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
-                     margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
-  })();
+  const ws = wb.addWorksheet('基本資料', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+  // 對應畫面「基本資料」頁 13 欄
+  ws.columns = [
+    { width: 8  },  // 護理站
+    { width: 10 },  // 床號
+    { width: 14 },  // 住民編號
+    { width: 16 },  // 姓名
+    { width: 20 },  // 身份證字號
+    { width: 12 },  // 生日
+    { width: 6  },  // 性別
+    { width: 8  },  // 住民年齡
+    { width: 18 },  // 緊急連絡人或家屬
+    { width: 16 },  // 連絡電話
+    { width: 14 },  // 行動方式
+    { width: 12 },  // 入住日期
+    { width: 10 }   // 住民請假
+  ];
+
+  ws.mergeCells(1, 1, 1, 13);
+  const titleCell = ws.getCell('A1');
+  titleCell.value = '基本資料';
+  titleCell.font = fontTitle;
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  const header = ws.addRow([
+    '護理站','床號','住民編號','姓名','身份證字號','生日','性別','住民年齡',
+    '緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'
+  ]);
+  styleRow(header, { isHeader: true, center: true });
+
+  // 依床號排序（同畫面）
+  const rows = (cache || []).slice().sort(
+    (a, b) => String(a.bedNumber || '').localeCompare(String(b.bedNumber || ''), 'zh-Hant')
+  );
+
+  for (const r of rows) {
+    const age = computeAge(r.birthday);
+    const row = ws.addRow([
+      r.nursingStation || '',
+      r.bedNumber || '',
+      r.residentNumber || '',
+      r.id || '',
+      r.idNumber || '',
+      r.birthday || '',
+      r.gender || '',
+      age === '' ? '' : age,
+      r.emergencyContact || '',
+      r.emergencyPhone || '',
+      r.mobility || '',
+      r.checkinDate || '',
+      r.leaveStatus || ''
+    ]);
+    styleRow(row, {});
+  }
+
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0, // 不強制塞一頁，允許多頁
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
+  };
+})();
 
   // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
   function addFloorSheet(name, floor){
