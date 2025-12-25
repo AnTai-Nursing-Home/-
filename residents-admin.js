@@ -880,7 +880,9 @@ function exportStyledXls(){
 
       // 讓下一頁真的斷頁：在下一個 startRow 前插入「手動分頁」(列印預覽會確實分頁)
       if(p < pages-1){
-        const breakAt = startRow + BLOCK_ROWS; // 下一頁 title 那行
+        // 斷在這一頁最後一列（也就是下一頁 title 的上一列），
+        // 才不會讓下一頁的標題被擠到前一頁底部
+        const breakAt = startRow + BLOCK_ROWS - 1; // 這一頁最後一列
         try{ ws.getRow(breakAt).addPageBreak(); }catch(e){}
         try{ if(ws.rowBreaks && ws.rowBreaks.add) ws.rowBreaks.add(breakAt); }catch(e){}
       }
