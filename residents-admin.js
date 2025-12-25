@@ -1078,6 +1078,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, (acc.total - leaveCombined), acc.total, '', '']);
       styleRow(row,{center:true,height:54});
+      row.eachCell(cell => {
+        cell.font = { ...(cell.font || {}), size: 15 };
+      });
     });
 
     const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
