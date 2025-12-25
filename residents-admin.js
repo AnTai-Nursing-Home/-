@@ -956,7 +956,7 @@ function exportStyledXls(){
     ws.sheetProperties.pageSetUpPr.fitToPage = true;
     ws.sheetProperties.pageSetUpPr.autoPageBreaks = true;
 
-    ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
+    ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true,
                      margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
   }
