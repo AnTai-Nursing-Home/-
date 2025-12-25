@@ -1391,23 +1391,33 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
         const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
         const batch=db.batch(); let count=0;
         rows.forEach(r=>{
-          const name=norm(pick(r,['姓名','住民姓名','Name'])); if(!name) return;
-          const birthdayRaw=pick(r,['生日','出生日期','出生年月日','Birth','BirthDate']);
-          const checkinRaw=pick(r,['入住日期','入住日','入院日期','Checkin','Admission']);
-          const payload={
-            nursingStation:norm(pick(r,['護理站','站別','樓層','Floor'])),
-            bedNumber:norm(pick(r,['床號','床位','Bed'])),
-            residentNumber:norm(pick(r,['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code'])),
-            gender:norm(pick(r,['性別','Gender'])),
-            idNumber:norm(pick(r,['身份證字號','身份証字號','ID','身分證'])),
-            birthday:parseDateSmart(birthdayRaw),
-            checkinDate:parseDateSmart(checkinRaw),
-            emergencyContact:norm(pick(r,['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
-            emergencyPhone:norm(pick(r,['連絡電話','聯絡電話','電話','Phone'])),
-            mobility:norm(pick(r,['行動方式','行動','Mobility'])),
-            leaveStatus:norm(pick(r,['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
+          const name = norm(pick(r, ['姓名','住民姓名','Name']));
+          if (!name) return;                      // 沒名字就略過（維持原本）
+        
+          // 先抓床號，過濾掉「@@護理站」「2共：40人」「總計：…」這種列
+          const bedRaw  = norm(pick(r, ['床號','床位','Bed']));
+          const bedNorm = normalizeToken(bedRaw);
+          if (!bedNorm) return;                   // 床號不是 3 碼房號-子床號 的就跳過
+        
+          const birthdayRaw = pick(r, ['生日','出生日期','出生年月日','Birth','BirthDate']);
+          const checkinRaw  = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
+        
+          const payload = {
+            nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
+            bedNumber:      bedNorm,              // 用整理後的床號
+            residentNumber: norm(pick(r, ['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code'])),
+            gender:         norm(pick(r, ['性別','Gender'])),
+            idNumber:       norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
+            birthday:       parseDateSmart(birthdayRaw),
+            checkinDate:    parseDateSmart(checkinRaw),
+            emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
+            emergencyPhone:   norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
+            mobility:         norm(pick(r, ['行動方式','行動','Mobility'])),
+            leaveStatus:      norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
           };
-          batch.set(db.collection(dbCol).doc(name), payload, {merge:true}); count++;
+        
+          batch.set(db.collection(dbCol).doc(name), payload, { merge:true });
+          count++;
         });
         await batch.commit();
         if(importStatus){ importStatus.className='alert alert-success'; importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...`; }
