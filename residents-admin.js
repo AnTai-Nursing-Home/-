@@ -1020,7 +1020,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.getCell('A1').value = '各樓層人數統計';
     ws.getCell('A1').font = { ...fontTitle, size:28 };
     ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
-    ws.getRow(1).height = 28;
+    ws.getRow(1).height = 43;
     const header = ws.addRow(['樓層','活動能力區分','請假人數','實到人數','住民總人數合計','','']);
     styleRow(header,{isHeader:true,center:true,height:54});
 
