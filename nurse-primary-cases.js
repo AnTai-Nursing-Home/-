@@ -373,7 +373,6 @@ async function saveCaseAssignment() {
 }
 
 // 匯出 Excel（新版：兩層表頭 + 主責個案 14 欄）
-
 async function exportCaseAssignExcel() {
   if (typeof ExcelJS === 'undefined') {
     alert('ExcelJS 載入失敗，無法匯出 Excel。');
@@ -570,44 +569,6 @@ async function exportCaseAssignExcel() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-// 列印設定
-  ws.pageSetup = {
-    paperSize: 9, // A4
-    orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 0,
-    margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 }
-  };
-
-  // 冻结到表頭下方
-  ws.views = [
-    {
-      state: 'frozen',
-      xSplit: 0,
-      ySplit: 4
-    }
-  ];
-
-  const filename = isoDate
-    ? `主責個案分配表_${isoDate.replace(/-/g, '')}.xlsx`
-    : '主責個案分配表.xlsx';
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 
 // Firebase 初始化完成後載入資料
 document.addEventListener('firebase-ready', () => {
