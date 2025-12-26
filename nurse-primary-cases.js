@@ -26,7 +26,8 @@ function buildResidentOptionsHtml() {
 function buildNurseOptionsHtml() {
   let html = '<option value="">--</option>';
   nurses.forEach(n => {
-    html += `<option value="${n.id}">${n.id}</option>`;
+    const display = n.name ? `${n.id} ${n.name}` : n.id;
+    html += `<option value="${n.id}">${display}</option>`;
   });
   return html;
 }
