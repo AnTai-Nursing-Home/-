@@ -230,8 +230,16 @@ async function loadAssignmentForCurrentDate() {
   }
 }
 
+// 顯示 / 隱藏「資料讀取中…」提示
+function setLoading(isLoading) {
+  const el = document.getElementById('loadingIndicator');
+  if (!el) return;
+  el.style.display = isLoading ? 'inline-flex' : 'none';
+}
+
 // 從 Firestore 載入 護理師 / 住民 清單
 async function loadCaseAssignBaseLists() {
+  setLoading(true);
   try {
     // 護理師
     const nurseSnap = await db.collection('nurses').orderBy('id').get();
@@ -262,6 +270,8 @@ async function loadCaseAssignBaseLists() {
   } catch (error) {
     console.error('載入主責個案分配資料失敗：', error);
     alert('載入主責個案分配資料失敗，請稍後再試。');
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -584,10 +594,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (dateInput) {
-    dateInput.addEventListener('change', () => {
+    dateInput.addEventListener('change', async () => {
       if (baseListsLoaded) {
-        renderCaseTable();
-        loadAssignmentForCurrentDate();
+        setLoading(true);
+        try {
+          renderCaseTable();
+          await loadAssignmentForCurrentDate();
+        } finally {
+          setLoading(false);
+        }
       }
     });
   }
@@ -599,8 +614,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saveBtn = document.getElementById('saveButton');
   if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-      saveCaseAssignment();
+    const originalHtml = saveBtn.innerHTML;
+    saveBtn.addEventListener('click', async () => {
+      // 若已在儲存中就不要重複觸發
+      if (saveBtn.disabled) return;
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>儲存中...';
+
+      try {
+        await saveCaseAssignment();
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHtml;
+      }
     });
   }
 
