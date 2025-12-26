@@ -409,7 +409,7 @@ async function exportCaseAssignExcel() {
 
   const fontTitle = { name: '標楷體', size: 16, bold: true };
   const fontHeader = { name: '標楷體', size: 12, bold: true };
-  const fontCell = { name: '標楷體', size: 11 };
+  const fontCell = { name: '標楷體', size: 12 };
   const borderThin = {
     top: { style: 'thin' },
     left: { style: 'thin' },
@@ -497,7 +497,7 @@ async function exportCaseAssignExcel() {
     }
 
     [topRow, bottomRow].forEach(row => {
-      row.height = 20;
+      row.height = 22;
       row.eachCell((cell, colNumber) => {
         cell.font = fontCell;
         cell.alignment = {
@@ -524,7 +524,7 @@ async function exportCaseAssignExcel() {
     const row = ws.getRow(noteRowIndex);
     ws.mergeCells(noteRowIndex, 1, noteRowIndex, 10);
     row.getCell(1).value = n.label + (n.value || '');
-    row.height = 20;
+    row.height = 22;
     row.eachCell(cell => {
       cell.font = fontCell;
       cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
