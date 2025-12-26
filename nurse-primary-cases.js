@@ -18,9 +18,9 @@ function buildResidentOptionsHtml() {
 
 // 護理師名字下拉選單 HTML（value = 員編，顯示：名字 (員編)）
 function buildNurseOptionsHtml() {
-  let html = '<option="">--</option>';
+  let html = '<option value="">--</option>';
   nurses.forEach(n => {
-    const name = n.name || r.id || '';
+    const name = n.name || n.id || '';
     const id = n.id || '';
     const label = id ? `${name} (${id})` : name;
     html += `<option value="${id}">${label}</option>`;
