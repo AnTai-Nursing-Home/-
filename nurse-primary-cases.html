@@ -54,7 +54,7 @@
               <tr>
                 <th style="min-width:80px;">員編</th>
                 <th style="min-width:90px;">護理師</th>
-                <th colspan="14">主責個案</th>
+                <th colspan="7">主責個案</th>
                 <th style="min-width:70px;">備註<br>(個案數)</th>
               </tr>
               <tr>
@@ -67,10 +67,11 @@
                 <th>5</th>
                 <th>6</th>
                 <th>7</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="caseTableBody">
-              <!-- JS 動態產生內容 -->
+              <!-- JS 動態產生 12 列 -->
             </tbody>
           </table>
         </div>
@@ -115,11 +116,10 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
   <!-- ExcelJS -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <!-- 主責個案 JS -->
-  <script src="nurse-primary-cases.js?v=2025-12-26c"></script>
+  <script src="nurse-primary-cases.js?v=2025-12-26e"></script>
 </body>
 </html>
