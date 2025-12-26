@@ -227,6 +227,9 @@ async function loadAssignmentForCurrentDate() {
     refreshResidentOptions();
   } catch (err) {
     console.error('載入指定日期主責個案分配失敗：', err);
+  } finally {
+    // 安全保險：若有誰在外面開啟 loading，這裡也關掉一次
+    setLoading(false);
   }
 }
 
@@ -587,6 +590,8 @@ document.addEventListener('firebase-ready', () => {
 
 // DOM Ready：預設日期 + 綁按鈕 + 日期改變時載入該日資料
 document.addEventListener('DOMContentLoaded', () => {
+  // 進到畫面先確保 loading 是關的
+  setLoading(false);
   const dateInput = document.getElementById('assignDate');
   if (dateInput && !dateInput.value) {
     const today = new Date().toISOString().slice(0, 10);
