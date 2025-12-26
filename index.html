@@ -4,9 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="main_title_full">安泰醫療社團法人附設安泰護理之家</title>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+  <!-- ⭐ 已改為使用你的 LOGO -->
+  <link rel="icon" type="image/png" sizes="72x72" href="/icons/badge-72.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="/icons/badge-96.png">
+  <link rel="apple-touch-icon" href="/icons/badge-96.png">
 
   <style>
     body {
@@ -56,42 +61,21 @@
       display: grid;
       gap: 20px;
       justify-content: center;
-      grid-template-columns: repeat(4, 1fr); /* 預設：桌機四個 */
+      grid-template-columns: repeat(4, 1fr);
     }
 
-    /* 🔹 響應式調整 */
     @media (max-width: 991px) {
       .menu-grid {
-        grid-template-columns: repeat(3, 1fr); /* 平板三個 */
+        grid-template-columns: repeat(3, 1fr);
       }
     }
-
     @media (max-width: 768px) {
       .menu-grid {
-        grid-template-columns: repeat(2, 1fr); /* 手機兩個 */
+        grid-template-columns: repeat(2, 1fr);
         gap: 15px;
       }
-      .menu-item {
-        padding: 25px 5px;
-        font-size: 0.95rem;
-      }
-      .menu-item i {
-        font-size: 1.8rem;
-        margin-bottom: 8px;
-      }
     }
 
-    @media (max-width: 480px) {
-      .menu-item {
-        padding: 20px 5px;
-        font-size: 0.9rem;
-      }
-      .menu-item i {
-        font-size: 1.6rem;
-      }
-    }
-
-    /* 🔹 每個選單按鈕 */
     .menu-item {
       text-decoration: none;
       background-color: #ffda00;
@@ -100,8 +84,8 @@
       text-align: center;
       padding: 30px 10px;
       font-weight: 600;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: 0.3s;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -111,12 +95,11 @@
     .menu-item:hover {
       background-color: #ffeb5c;
       transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     }
     .menu-item i {
       font-size: 2.5rem;
       margin-bottom: 12px;
-      color: #333;
     }
 
     footer {
