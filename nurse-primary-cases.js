@@ -384,9 +384,17 @@ async function exportCaseAssignExcel() {
   const assignWeekInput = document.getElementById('assignWeek');
   const assignMakerInput = document.getElementById('assignMaker');
 
+  const note1Input = document.getElementById('note1');
+  const note2Input = document.getElementById('note2');
+  const note3Input = document.getElementById('note3');
+
   const isoDate = assignDateInput && assignDateInput.value ? assignDateInput.value : '';
   const week = assignWeekInput ? assignWeekInput.value.trim() : '';
   const maker = assignMakerInput ? assignMakerInput.value.trim() : '';
+  const note1 = note1Input ? note1Input.value.trim() : '';
+  const note2 = note2Input ? note2Input.value.trim() : '';
+  const note3 = note3Input ? note3Input.value.trim() : '';
+
   const rocDate = toRocDotDate(isoDate);
   const weekText = week || '';
   const titleInfo = `日期：${rocDate || isoDate} ${weekText ? `(${weekText}) ` : ''}製表人：${maker || ''}`;
@@ -410,18 +418,18 @@ async function exportCaseAssignExcel() {
     right: { style: 'thin' }
   };
 
-  // 欄寬設定（員編 / 護理師 / 主責 1~7 / 備註個案數）
+  // 欄寬統一 17
   ws.columns = [
-    { header: '員編', key: 'nurseId', width: 10 },
-    { header: '護理師', key: 'nurseName', width: 12 },
-    { header: '1', key: 'c1', width: 10 },
-    { header: '2', key: 'c2', width: 10 },
-    { header: '3', key: 'c3', width: 10 },
-    { header: '4', key: 'c4', width: 10 },
-    { header: '5', key: 'c5', width: 10 },
-    { header: '6', key: 'c6', width: 10 },
-    { header: '7', key: 'c7', width: 10 },
-    { header: '備註(個案數)', key: 'count', width: 10 }
+    { header: '員編', key: 'nurseId', width: 17 },
+    { header: '護理師', key: 'nurseName', width: 17 },
+    { header: '1', key: 'c1', width: 17 },
+    { header: '2', key: 'c2', width: 17 },
+    { header: '3', key: 'c3', width: 17 },
+    { header: '4', key: 'c4', width: 17 },
+    { header: '5', key: 'c5', width: 17 },
+    { header: '6', key: 'c6', width: 17 },
+    { header: '7', key: 'c7', width: 17 },
+    { header: '備註(個案數)', key: 'count', width: 17 }
   ];
 
   // 標題列
@@ -505,7 +513,65 @@ async function exportCaseAssignExcel() {
     excelRowIndex += 2;
   });
 
+  // 在下方加入備註一～三
+  let noteRowIndex = excelRowIndex + 1;
+  const notes = [
+    { label: '備註一：', value: note1 },
+    { label: '備註二：', value: note2 },
+    { label: '備註三：', value: note3 }
+  ];
+
+  notes.forEach(n => {
+    const row = ws.getRow(noteRowIndex);
+    ws.mergeCells(noteRowIndex, 1, noteRowIndex, 10);
+    row.getCell(1).value = n.label + (n.value || '');
+    row.height = 20;
+    row.eachCell(cell => {
+      cell.font = fontCell;
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = borderThin;
+    });
+    noteRowIndex++;
+  });
+
   // 列印設定
+  ws.pageSetup = {
+    paperSize: 9, // A4
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 }
+  };
+
+  // 冻结到表頭下方
+  ws.views = [
+    {
+      state: 'frozen',
+      xSplit: 0,
+      ySplit: 4
+    }
+  ];
+
+  const filename = isoDate
+    ? `主責個案分配表_${isoDate.replace(/-/g, '')}.xlsx`
+    : '主責個案分配表.xlsx';
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// 列印設定
   ws.pageSetup = {
     paperSize: 9, // A4
     orientation: 'landscape',
