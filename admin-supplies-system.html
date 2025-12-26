@@ -9,25 +9,18 @@
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <style>
-    body {
-      background: #f3f6ff;
-    }
-    .system-title {
-      font-weight: 700;
-      letter-spacing: 0.08em;
-    }
+    body { background: #f3f6ff; }
+    .system-title { font-weight: 700; letter-spacing: 0.08em; }
     .menu-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      display: flex;
+      flex-wrap: wrap;
       gap: 1.5rem;
+      justify-content: center;
       margin-top: 1.5rem;
     }
     .menu-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 220px;
+      width: 240px;
+      height: 240px;
       border-radius: 22px;
       background: #ffffff;
       border: 1px solid #e1e5f2;
@@ -35,24 +28,20 @@
       color: #1b2559;
       box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
       transition: all 0.2s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
     }
-    .menu-item i {
-      margin-bottom: 14px;
-    }
-    .menu-item span {
-      font-size: 1.05rem;
-      font-weight: 600;
-    }
+    .menu-item i { margin-bottom: 14px; }
+    .menu-item span { font-size: 1.05rem; font-weight: 600; }
     .menu-item:hover {
       transform: translateY(-4px);
       box-shadow: 0 14px 30px rgba(15, 23, 42, 0.15);
       background: #e8f0ff;
     }
-    footer {
-      text-align: center;
-      margin-top: 40px;
-      color: #6c757d;
-    }
+    footer { text-align: center; margin-top: 40px; color: #6c757d; }
   </style>
 </head>
 <body>
@@ -62,12 +51,12 @@
         <div class="card shadow-sm border-0">
           <div class="card-header bg-success text-white text-center">
             <h3 class="system-title mb-1">器材 / 衛材系統</h3>
-            <div class="text-white-50 small">Supplies & Equipment System</div>
+            <div class="text-white-50 small">Supplies &amp; Equipment System</div>
           </div>
           <div class="card-body pt-3">
             <p class="text-muted text-center mb-3">請選擇要使用的子系統</p>
-            <div class="menu-grid">
 
+            <div class="menu-grid">
               <a href="supplies.html" class="menu-item">
                 <i class="fas fa-boxes-stacked fa-3x"></i>
                 <span>衛材點班</span>
@@ -76,8 +65,8 @@
                 <i class="fas fa-screwdriver-wrench fa-3x"></i>
                 <span>器材報修</span>
               </a>
-
             </div>
+
             <div class="text-center mt-4">
               <a href="admin.html?view=dashboard" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>返回護理師系統主選單
