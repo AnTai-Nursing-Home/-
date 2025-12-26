@@ -20,10 +20,9 @@ function buildResidentOptionsHtml() {
 function buildNurseOptionsHtml() {
   let html = '<option value="">--</option>';
   nurses.forEach(n => {
-    const name = n.name || n.id || '';
+    const name = n.name || '';
     const id = n.id || '';
-    const label = id ? `${name} (${id})` : name;
-    html += `<option value="${id}">${label}</option>`;
+    html += `<option value="${id}">${name}</option>`;
   });
   return html;
 }
