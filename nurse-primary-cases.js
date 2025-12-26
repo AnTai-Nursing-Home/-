@@ -1,13 +1,7 @@
-/**
- * 主責個案分配 JS
- * - 從 Firestore 載入護理師與住民
- * - 產生表格列
- * - 自動統計每列主責個案數
- * - 匯出 Excel（使用 ExcelJS）
- */
+// 主責個案分配 JS
 
-const ROW_COUNT = 12;      // 預設 12 列
-const CASE_COLS = 8;       // 主責個案 8 格
+const ROW_COUNT = 12;      // 預設 12 位護理師名額
+const CASE_COLS = 7;       // 每排 7 格，一個護理師兩排共 14 格
 
 let nurses = [];
 let residents = [];
@@ -16,34 +10,38 @@ let residents = [];
 function buildResidentOptionsHtml() {
   let html = '<option value="">--</option>';
   residents.forEach(r => {
-    const name = r.name || r.id;
+    const name = r.name || r.id || '';
     html += `<option value="${name}">${name}</option>`;
   });
   return html;
 }
 
-// 護理師員編下拉選單 HTML
+// 護理師名字下拉選單 HTML（value = 員編，顯示：名字 (員編)）
 function buildNurseOptionsHtml() {
   let html = '<option value="">--</option>';
   nurses.forEach(n => {
-    const display = n.name ? `${n.id} ${n.name}` : n.id;
-    html += `<option value="${n.id}">${display}</option>`;
+    const name = n.name || n.id || '';
+    const id = n.id || '';
+    const label = id ? `${name} (${id})` : name;
+    html += `<option value="${id}">${label}</option>`;
   });
   return html;
 }
 
-// 更新單一列的主責個案數
-function updateCaseCountForRow(tr) {
-  const selects = tr.querySelectorAll('.case-select');
+// 更新某一組（同一護理師，兩排）的主責個案數
+function updateCaseCountForGroup(groupIndex) {
+  const selects = document.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
   let count = 0;
   selects.forEach(sel => {
-    if (sel.value) count++;
+    if (sel.value && sel.value.trim() !== '') count++;
   });
-  const cell = tr.querySelector('.case-count');
-  cell.textContent = count > 0 ? String(count) : '';
+  const span = document.querySelector(`.case-count[data-group="${groupIndex}"]`);
+  if (span) {
+    span.textContent = count > 0 ? String(count) : '';
+  }
 }
 
-// 建構整張表格
+// 建立表格：一個護理師兩排
 function renderCaseTable() {
   const tbody = document.getElementById('caseTableBody');
   if (!tbody) return;
@@ -53,58 +51,89 @@ function renderCaseTable() {
   const residentOptions = buildResidentOptionsHtml();
 
   for (let i = 0; i < ROW_COUNT; i++) {
-    const tr = document.createElement('tr');
+    const groupIndex = String(i);
 
-    // 員編
+    const trTop = document.createElement('tr');
+    const trBottom = document.createElement('tr');
+
+    // 員編（由護理師名字自動帶出，rowspan=2）
     const tdId = document.createElement('td');
-    tdId.innerHTML = `<select class="form-select form-select-sm nurse-id-select">
-                        ${nurseOptions}
-                      </select>`;
-    tr.appendChild(tdId);
+    tdId.rowSpan = 2;
+    const idSpan = document.createElement('span');
+    idSpan.classList.add('nurse-id');
+    idSpan.setAttribute('data-group', groupIndex);
+    tdId.appendChild(idSpan);
+    trTop.appendChild(tdId);
 
-    // 護理師姓名（自動帶出）
+    // 護理師名字（下拉選單，rowspan=2）
     const tdName = document.createElement('td');
-    tdName.innerHTML = '<span class="nurse-name"></span>';
-    tr.appendChild(tdName);
+    tdName.rowSpan = 2;
+    tdName.innerHTML = `
+      <select class="form-select form-select-sm nurse-name-select" data-group="${groupIndex}">
+        ${nurseOptions}
+      </select>
+    `;
+    trTop.appendChild(tdName);
 
-    // 主責個案下拉選單
+    // 第一排主責個案（1~7）
     for (let j = 0; j < CASE_COLS; j++) {
       const tdCase = document.createElement('td');
-      tdCase.innerHTML = `<select class="form-select form-select-sm case-select">
-                            ${residentOptions}
-                          </select>`;
-      tr.appendChild(tdCase);
+      tdCase.innerHTML = `
+        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
+          ${residentOptions}
+        </select>
+      `;
+      trTop.appendChild(tdCase);
     }
 
-    // 備註：顯示個案數
-    const tdCount = document.createElement('td');
-    tdCount.innerHTML = '<span class="case-count"></span>';
-    tr.appendChild(tdCount);
+    // 第二排主責個案（8~14）
+    for (let j = 0; j < CASE_COLS; j++) {
+      const tdCase = document.createElement('td');
+      tdCase.innerHTML = `
+        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
+          ${residentOptions}
+        </select>
+      `;
+      trBottom.appendChild(tdCase);
+    }
 
-    tbody.appendChild(tr);
+    // 個案數（兩排一起算，rowspan=2）
+    const tdCount = document.createElement('td');
+    tdCount.rowSpan = 2;
+    tdCount.innerHTML = `<span class="case-count" data-group="${groupIndex}"></span>`;
+    trTop.appendChild(tdCount);
+
+    tbody.appendChild(trTop);
+    tbody.appendChild(trBottom);
   }
 
-  // 綁定事件：員編 → 自動帶出護理師姓名
-  tbody.querySelectorAll('.nurse-id-select').forEach(select => {
-    select.addEventListener('change', event => {
-      const tr = event.target.closest('tr');
-      const nurseNameSpan = tr.querySelector('.nurse-name');
-      const selectedId = event.target.value;
-      const nurse = nurses.find(n => n.id === selectedId);
-      nurseNameSpan.textContent = nurse ? nurse.name : '';
+  // 護理師選單事件：選名字 → 員編自動帶出
+  const nameSelects = tbody.querySelectorAll('.nurse-name-select');
+  nameSelects.forEach(select => {
+    select.addEventListener('change', (event) => {
+      const target = event.target;
+      const groupIndex = target.getAttribute('data-group');
+      const nurseId = target.value;
+      const nurse = nurses.find(n => n.id === nurseId);
+      const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
+      if (idSpan) {
+        idSpan.textContent = nurse ? nurse.id : '';
+      }
     });
   });
 
-  // 綁定事件：每次變更主責個案 → 重新統計個案數
-  tbody.querySelectorAll('.case-select').forEach(select => {
-    select.addEventListener('change', event => {
-      const tr = event.target.closest('tr');
-      updateCaseCountForRow(tr);
+  // 個案選單事件：更新個案數
+  const caseSelects = tbody.querySelectorAll('.case-select');
+  caseSelects.forEach(select => {
+    select.addEventListener('change', (event) => {
+      const target = event.target;
+      const groupIndex = target.getAttribute('data-group');
+      updateCaseCountForGroup(groupIndex);
     });
   });
 }
 
-// 從 Firestore 載入資料
+// 從 Firestore 載入 護理師 / 住民 資料
 async function loadCaseAssignData() {
   try {
     // 護理師
@@ -134,7 +163,7 @@ async function loadCaseAssignData() {
   }
 }
 
-// 將西元 yyyy-mm-dd 轉為民國年格式：114.12.19
+// 西元 yyyy-mm-dd → 民國 114.12.26 這種格式
 function toRocDotDate(isoStr) {
   if (!isoStr) return '';
   const parts = isoStr.split('-');
@@ -147,21 +176,36 @@ function toRocDotDate(isoStr) {
   return `${rocYear}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
 }
 
-// 取得目前表格資料
+// 取得目前表格資料（一個 group 一筆，含 14 個 case）
 function collectCaseTableData() {
   const rows = [];
   const tbody = document.getElementById('caseTableBody');
   if (!tbody) return rows;
 
-  tbody.querySelectorAll('tr').forEach(tr => {
-    const nurseIdSelect = tr.querySelector('.nurse-id-select');
-    const nurseId = nurseIdSelect ? nurseIdSelect.value.trim() : '';
-    const nurseNameSpan = tr.querySelector('.nurse-name');
-    const nurseName = nurseNameSpan ? nurseNameSpan.textContent.trim() : '';
-    const caseSelects = tr.querySelectorAll('.case-select');
+  for (let i = 0; i < ROW_COUNT; i++) {
+    const groupIndex = String(i);
+
+    const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
+    const nurseId = idSpan ? idSpan.textContent.trim() : '';
+
+    const nameSelect = tbody.querySelector(`.nurse-name-select[data-group="${groupIndex}"]`);
+    let nurseName = '';
+    if (nameSelect) {
+      const opt = nameSelect.options[nameSelect.selectedIndex];
+      if (opt) {
+        const fullText = opt.textContent.trim();      // 例如：陳如 (114014)
+        const match = fullText.match(/^(.*?)(\s*\(|$)/);
+        nurseName = match ? match[1].trim() : fullText;
+      }
+    }
+
+    const caseSelects = tbody.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
     const cases = [];
-    caseSelects.forEach(sel => cases.push((sel.value || '').trim()));
-    const countSpan = tr.querySelector('.case-count');
+    caseSelects.forEach(sel => {
+      cases.push((sel.value || '').trim());
+    });
+
+    const countSpan = tbody.querySelector(`.case-count[data-group="${groupIndex}"]`);
     const caseCount = countSpan ? (countSpan.textContent.trim() || '') : '';
 
     rows.push({
@@ -170,9 +214,62 @@ function collectCaseTableData() {
       cases,
       caseCount
     });
-  });
+  }
 
   return rows;
+}
+
+// 儲存主責個案分配（製表人必填）
+async function saveCaseAssignment() {
+  const assignDateInput = document.getElementById('assignDate');
+  const assignWeekInput = document.getElementById('assignWeek');
+  const assignMakerInput = document.getElementById('assignMaker');
+
+  const isoDate = assignDateInput && assignDateInput.value ? assignDateInput.value : '';
+  const week = assignWeekInput ? assignWeekInput.value.trim() : '';
+  const maker = assignMakerInput ? assignMakerInput.value.trim() : '';
+
+  const note1Input = document.getElementById('note1');
+  const note2Input = document.getElementById('note2');
+  const note3Input = document.getElementById('note3');
+  const note1 = note1Input ? note1Input.value.trim() : '';
+  const note2 = note2Input ? note2Input.value.trim() : '';
+  const note3 = note3Input ? note3Input.value.trim() : '';
+
+  if (!isoDate) {
+    alert('請先選擇日期再儲存。');
+    return;
+  }
+  if (!maker) {
+    alert('請先填寫製表人再儲存。');
+    return;
+  }
+
+  const rows = collectCaseTableData();
+  // 去掉完全空白的列
+  const filteredRows = rows.filter(r => {
+    const hasCases = Array.isArray(r.cases) && r.cases.some(c => c && c.trim() !== '');
+    return (r.nurseId && r.nurseId.trim() !== '') || hasCases;
+  });
+
+  const data = {
+    date: isoDate,
+    week,
+    maker,
+    note1,
+    note2,
+    note3,
+    rows: filteredRows,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try {
+    await db.collection('nurse_case_assignments').doc(isoDate).set(data, { merge: true });
+    alert('主責個案分配已儲存完成。');
+  } catch (err) {
+    console.error('儲存主責個案分配失敗：', err);
+    alert('儲存失敗，請稍後再試。');
+  }
 }
 
 // 匯出 Excel
@@ -187,90 +284,87 @@ async function exportCaseAssignExcel() {
   const assignMakerInput = document.getElementById('assignMaker');
 
   const isoDate = assignDateInput && assignDateInput.value ? assignDateInput.value : '';
-  const rocDate = toRocDotDate(isoDate);
   const week = assignWeekInput ? assignWeekInput.value.trim() : '';
   const maker = assignMakerInput ? assignMakerInput.value.trim() : '';
+  const rocDate = toRocDotDate(isoDate);
+  const weekText = week || '';
+  const titleInfo = `日期：${rocDate || isoDate} ${weekText ? `(${weekText}) ` : ''}製表人：${maker || ''}`;
 
   const rows = collectCaseTableData();
+  const filteredRows = rows.filter(r => {
+    const hasCases = Array.isArray(r.cases) && r.cases.some(c => c && c.trim() !== '');
+    return (r.nurseId && r.nurseId.trim() !== '') || hasCases;
+  });
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'MSICAO';
-  wb.created = new Date();
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet('主責個案分配');
 
-  const ws = wb.addWorksheet('主責個案分配');
+  const fontTitle = { name: '標楷體', size: 16, bold: true };
+  const fontHeader = { name: '標楷體', size: 12, bold: true };
+  const fontCell = { name: '標楷體', size: 11 };
+  const borderThin = {
+    top: { style: 'thin' },
+    left: { style: 'thin' },
+    bottom: { style: 'thin' },
+    right: { style: 'thin' }
+  };
 
   // 欄寬設定
   ws.columns = [
-    { width: 10 },  // 員編
-    { width: 14 },  // 護理師
-    { width: 12 },  // 個案1
-    { width: 12 },  // 個案2
-    { width: 12 },  // 個案3
-    { width: 12 },  // 個案4
-    { width: 12 },  // 個案5
-    { width: 12 },  // 個案6
-    { width: 12 },  // 個案7
-    { width: 12 },  // 個案8
-    { width: 10 }   // 個案數
+    { header: '員編', key: 'nurseId', width: 10 },
+    { header: '護理師', key: 'nurseName', width: 12 },
+    { header: '1', key: 'c1', width: 10 },
+    { header: '2', key: 'c2', width: 10 },
+    { header: '3', key: 'c3', width: 10 },
+    { header: '4', key: 'c4', width: 10 },
+    { header: '5', key: 'c5', width: 10 },
+    { header: '6', key: 'c6', width: 10 },
+    { header: '7', key: 'c7', width: 10 },
+    { header: '8', key: 'c8', width: 10 },
+    { header: '9', key: 'c9', width: 10 },
+    { header: '10', key: 'c10', width: 10 },
+    { header: '11', key: 'c11', width: 10 },
+    { header: '12', key: 'c12', width: 10 },
+    { header: '13', key: 'c13', width: 10 },
+    { header: '14', key: 'c14', width: 10 },
+    { header: '個案數', key: 'count', width: 8 }
   ];
 
-  const fontTitle = { name: 'Microsoft JhengHei', size: 16, bold: true };
-  const fontHeader = { name: 'Microsoft JhengHei', size: 12, bold: true };
-  const fontCell = { name: 'Microsoft JhengHei', size: 11 };
-  const fillHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F5' } };
-  const borderThin = {
-    top: { style: 'thin', color: { argb: 'FF999999' } },
-    left: { style: 'thin', color: { argb: 'FF999999' } },
-    bottom: { style: 'thin', color: { argb: 'FF999999' } },
-    right: { style: 'thin', color: { argb: 'FF999999' } }
-  };
-
-  // Title
-  ws.mergeCells(1, 1, 1, 11);
-  const titleCell = ws.getCell(1, 1);
+  // 標題列
+  ws.mergeCells('A1:Q1');
+  const titleCell = ws.getCell('A1');
   titleCell.value = '主責個案分配表';
   titleCell.font = fontTitle;
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getRow(1).height = 26;
 
   // 日期 / 週次 / 製表人
-  ws.mergeCells(2, 1, 2, 11);
-  const infoCell = ws.getCell(2, 1);
-  let infoText = '';
-  if (rocDate) infoText += `日期：${rocDate}  `;
-  if (week) infoText += `(${week})  `;
-  if (maker) infoText += `製表人：${maker}`;
-  infoCell.value = infoText.trim();
-  infoCell.font = { name: 'Microsoft JhengHei', size: 11 };
+  ws.mergeCells('A2:Q2');
+  const infoCell = ws.getCell('A2');
+  infoCell.value = titleInfo;
+  infoCell.font = fontCell;
   infoCell.alignment = { vertical: 'middle', horizontal: 'right' };
-  ws.getRow(2).height = 18;
 
-  // 表頭
-  const headerRow = ws.addRow([
+  // 表頭列
+  const headerRow = ws.getRow(3);
+  headerRow.values = [
     '員編',
     '護理師',
-    '主責個案1',
-    '主責個案2',
-    '主責個案3',
-    '主責個案4',
-    '主責個案5',
-    '主責個案6',
-    '主責個案7',
-    '主責個案8',
+    '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '10', '11', '12', '13', '14',
     '個案數'
-  ]);
-
+  ];
+  headerRow.height = 22;
   headerRow.eachCell(cell => {
     cell.font = fontHeader;
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    cell.fill = fillHeader;
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = borderThin;
   });
-  headerRow.height = 22;
 
   // 資料列
-  rows.forEach(r => {
-    const row = ws.addRow([
+  let excelRowIndex = 4;
+  filteredRows.forEach(r => {
+    const row = ws.getRow(excelRowIndex++);
+    row.values = [
       r.nurseId || '',
       r.nurseName || '',
       r.cases[0] || '',
@@ -281,9 +375,15 @@ async function exportCaseAssignExcel() {
       r.cases[5] || '',
       r.cases[6] || '',
       r.cases[7] || '',
+      r.cases[8] || '',
+      r.cases[9] || '',
+      r.cases[10] || '',
+      r.cases[11] || '',
+      r.cases[12] || '',
+      r.cases[13] || '',
       r.caseCount || ''
-    ]);
-
+    ];
+    row.height = 20;
     row.eachCell((cell, colNumber) => {
       cell.font = fontCell;
       cell.alignment = {
@@ -293,7 +393,6 @@ async function exportCaseAssignExcel() {
       };
       cell.border = borderThin;
     });
-    row.height = 20;
   });
 
   ws.pageSetup = {
@@ -305,46 +404,47 @@ async function exportCaseAssignExcel() {
     margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 }
   };
 
-  const rocFilePart = rocDate ? rocDate.replace(/\./g, '') : '';
-  const fileName = rocFilePart
-    ? `主責個案分配表_${rocFilePart}.xlsx`
+  const filename = isoDate
+    ? `主責個案分配表_${isoDate.replace(/-/g, '')}.xlsx`
     : '主責個案分配表.xlsx';
 
-  try {
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  } catch (err) {
-    console.error('匯出主責個案分配 Excel 失敗：', err);
-    alert('匯出 Excel 失敗，請稍後再試。');
-  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Firebase 初始化完成後開始載入資料
+// Firebase 初始化完成後載入資料
 document.addEventListener('firebase-ready', () => {
   loadCaseAssignData();
 });
 
-// DOM Ready：預設日期、綁定按鈕事件
+// DOM Ready：預設日期 + 綁按鈕
 document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().slice(0, 10);
   const dateInput = document.getElementById('assignDate');
   if (dateInput && !dateInput.value) {
-    const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
     dateInput.value = today;
   }
 
   const printBtn = document.getElementById('printButton');
   if (printBtn) {
     printBtn.addEventListener('click', () => window.print());
+  }
+
+  const saveBtn = document.getElementById('saveButton');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      saveCaseAssignment();
+    });
   }
 
   const exportBtn = document.getElementById('exportExcelButton');
