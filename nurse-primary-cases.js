@@ -7,7 +7,7 @@ let nurses = [];
 let residents = [];
 let baseListsLoaded = false;
 
-// 住民下拉選單 HTML
+// 住民下拉選單 HTML（完整清單，不排除重複，用於初始渲染）
 function buildResidentOptionsHtml() {
   let html = '<option value="">--</option>';
   residents.forEach(r => {
@@ -15,6 +15,34 @@ function buildResidentOptionsHtml() {
     html += `<option value="${name}">${name}</option>`;
   });
   return html;
+}
+
+// 依目前已選的住民，刷新所有主責個案下拉選單，避免重複選到同一位住民
+function refreshResidentOptions() {
+  const selects = document.querySelectorAll('.case-select');
+  if (!selects.length) return;
+
+  // 先收集所有已被選到的住民名字
+  const selectedSet = new Set();
+  selects.forEach(sel => {
+    const v = (sel.value || '').trim();
+    if (v) selectedSet.add(v);
+  });
+
+  // 逐一重畫每一個 select
+  selects.forEach(sel => {
+    const current = (sel.value || '').trim();
+    let html = '<option value="">--</option>';
+    residents.forEach(r => {
+      const name = r.name || r.id || '';
+      // 如果這個住民已經被其它欄位選走了，就不要出現在清單裡
+      // 但如果是自己目前選到的值，要保留，否則會把自己洗掉
+      if (selectedSet.has(name) && name !== current) return;
+      const selectedAttr = (name === current) ? ' selected' : '';
+      html += `<option value="${name}"${selectedAttr}>${name}</option>`;
+    });
+    sel.innerHTML = html;
+  });
 }
 
 // 護理師名字下拉選單 HTML（value = 員編，顯示：名字）
@@ -122,15 +150,19 @@ function renderCaseTable() {
     });
   });
 
-  // 個案選單事件：更新個案數
+  // 個案選單事件：更新個案數 + 重新整理住民清單（避免重複）
   const caseSelects = tbody.querySelectorAll('.case-select');
   caseSelects.forEach(select => {
     select.addEventListener('change', (event) => {
       const target = event.target;
       const groupIndex = target.getAttribute('data-group');
       updateCaseCountForGroup(groupIndex);
+      refreshResidentOptions();
     });
   });
+
+  // 初始渲染完也刷新一次（若有預設值的情況）
+  refreshResidentOptions();
 }
 
 // 依目前日期載入已儲存的主責個案分配
@@ -145,6 +177,8 @@ async function loadAssignmentForCurrentDate() {
   try {
     const docSnap = await db.collection('nurse_case_assignments').doc(isoDate).get();
     if (!docSnap.exists) {
+      // 沒有資料就保持空白表格（但要刷新一次避免殘留重複選項）
+      refreshResidentOptions();
       return;
     }
 
@@ -188,6 +222,9 @@ async function loadAssignmentForCurrentDate() {
       }
       updateCaseCountForGroup(groupIndex);
     }
+
+    // 資料載入完後，再刷新一次住民選單，避免重複
+    refreshResidentOptions();
   } catch (err) {
     console.error('載入指定日期主責個案分配失敗：', err);
   }
@@ -335,7 +372,7 @@ async function saveCaseAssignment() {
   }
 }
 
-// 匯出 Excel（14 個主責個案欄）
+// 匯出 Excel（新版：兩層表頭 + 主責個案 14 欄）
 async function exportCaseAssignExcel() {
   if (typeof ExcelJS === 'undefined') {
     alert('ExcelJS 載入失敗，無法匯出 Excel。');
@@ -372,7 +409,7 @@ async function exportCaseAssignExcel() {
     right: { style: 'thin' }
   };
 
-  // 欄寬設定
+  // 欄寬設定（員編 / 護理師 / 主責 1~14 / 個案數）
   ws.columns = [
     { header: '員編', key: 'nurseId', width: 10 },
     { header: '護理師', key: 'nurseName', width: 12 },
@@ -407,45 +444,47 @@ async function exportCaseAssignExcel() {
   infoCell.font = fontCell;
   infoCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  // 表頭列
-  const headerRow = ws.getRow(3);
-  headerRow.values = [
-    '員編',
-    '護理師',
-    '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', '10', '11', '12', '13', '14',
-    '個案數'
-  ];
-  headerRow.height = 22;
-  headerRow.eachCell(cell => {
-    cell.font = fontHeader;
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-    cell.border = borderThin;
+  // 表頭：兩層結構
+  // 第三列：員編 / 護理師 / 主責個案 / 備註(個案數)
+  ws.mergeCells('A3:A4');
+  ws.mergeCells('B3:B4');
+  ws.mergeCells('C3:P3');
+  ws.mergeCells('Q3:Q4');
+
+  const headerTop = ws.getRow(3);
+  headerTop.getCell(1).value = '員編';
+  headerTop.getCell(2).value = '護理師';
+  headerTop.getCell(3).value = '主責個案';
+  headerTop.getCell(17).value = '備註(個案數)';
+
+  // 第四列：1~14
+  const headerBottom = ws.getRow(4);
+  const labels = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14'];
+  for (let i = 0; i < labels.length; i++) {
+    headerBottom.getCell(3 + i).value = labels[i];
+  }
+
+  // 套用表頭樣式
+  [headerTop, headerBottom].forEach(row => {
+    row.height = 22;
+    row.eachCell(cell => {
+      cell.font = fontHeader;
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = borderThin;
+    });
   });
 
-  // 資料列
-  let excelRowIndex = 4;
+  // 資料列從第 5 列開始
+  let excelRowIndex = 5;
   filteredRows.forEach(r => {
     const row = ws.getRow(excelRowIndex++);
-    row.values = [
-      r.nurseId || '',
-      r.nurseName || '',
-      r.cases[0] || '',
-      r.cases[1] || '',
-      r.cases[2] || '',
-      r.cases[3] || '',
-      r.cases[4] || '',
-      r.cases[5] || '',
-      r.cases[6] || '',
-      r.cases[7] || '',
-      r.cases[8] || '',
-      r.cases[9] || '',
-      r.cases[10] || '',
-      r.cases[11] || '',
-      r.cases[12] || '',
-      r.cases[13] || '',
-      r.caseCount || ''
-    ];
+    row.getCell(1).value = r.nurseId || '';
+    row.getCell(2).value = r.nurseName || '';
+    for (let i = 0; i < 14; i++) {
+      row.getCell(3 + i).value = (r.cases && r.cases[i]) || '';
+    }
+    row.getCell(17).value = r.caseCount || '';
+
     row.height = 20;
     row.eachCell((cell, colNumber) => {
       cell.font = fontCell;
@@ -458,6 +497,7 @@ async function exportCaseAssignExcel() {
     });
   });
 
+  // 列印設定
   ws.pageSetup = {
     paperSize: 9, // A4
     orientation: 'landscape',
@@ -466,6 +506,15 @@ async function exportCaseAssignExcel() {
     fitToHeight: 0,
     margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 }
   };
+
+  // 冻结到表頭下方
+  ws.views = [
+    {
+      state: 'frozen',
+      xSplit: 0,
+      ySplit: 4
+    }
+  ];
 
   const filename = isoDate
     ? `主責個案分配表_${isoDate.replace(/-/g, '')}.xlsx`
