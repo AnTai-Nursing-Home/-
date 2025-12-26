@@ -373,6 +373,7 @@ async function saveCaseAssignment() {
 }
 
 // 匯出 Excel（新版：兩層表頭 + 主責個案 14 欄）
+
 async function exportCaseAssignExcel() {
   if (typeof ExcelJS === 'undefined') {
     alert('ExcelJS 載入失敗，無法匯出 Excel。');
@@ -409,7 +410,7 @@ async function exportCaseAssignExcel() {
     right: { style: 'thin' }
   };
 
-  // 欄寬設定（員編 / 護理師 / 主責 1~14 / 個案數）
+  // 欄寬設定（員編 / 護理師 / 主責 1~7 / 備註個案數）
   ws.columns = [
     { header: '員編', key: 'nurseId', width: 10 },
     { header: '護理師', key: 'nurseName', width: 12 },
@@ -420,25 +421,18 @@ async function exportCaseAssignExcel() {
     { header: '5', key: 'c5', width: 10 },
     { header: '6', key: 'c6', width: 10 },
     { header: '7', key: 'c7', width: 10 },
-    { header: '8', key: 'c8', width: 10 },
-    { header: '9', key: 'c9', width: 10 },
-    { header: '10', key: 'c10', width: 10 },
-    { header: '11', key: 'c11', width: 10 },
-    { header: '12', key: 'c12', width: 10 },
-    { header: '13', key: 'c13', width: 10 },
-    { header: '14', key: 'c14', width: 10 },
-    { header: '個案數', key: 'count', width: 8 }
+    { header: '備註(個案數)', key: 'count', width: 10 }
   ];
 
   // 標題列
-  ws.mergeCells('A1:Q1');
+  ws.mergeCells('A1:J1');
   const titleCell = ws.getCell('A1');
   titleCell.value = '主責個案分配表';
   titleCell.font = fontTitle;
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // 日期 / 週次 / 製表人
-  ws.mergeCells('A2:Q2');
+  ws.mergeCells('A2:J2');
   const infoCell = ws.getCell('A2');
   infoCell.value = titleInfo;
   infoCell.font = fontCell;
@@ -448,18 +442,18 @@ async function exportCaseAssignExcel() {
   // 第三列：員編 / 護理師 / 主責個案 / 備註(個案數)
   ws.mergeCells('A3:A4');
   ws.mergeCells('B3:B4');
-  ws.mergeCells('C3:P3');
-  ws.mergeCells('Q3:Q4');
+  ws.mergeCells('C3:I3');
+  ws.mergeCells('J3:J4');
 
   const headerTop = ws.getRow(3);
   headerTop.getCell(1).value = '員編';
   headerTop.getCell(2).value = '護理師';
   headerTop.getCell(3).value = '主責個案';
-  headerTop.getCell(17).value = '備註(個案數)';
+  headerTop.getCell(10).value = '備註(個案數)';
 
-  // 第四列：1~14
+  // 第四列：1~7
   const headerBottom = ws.getRow(4);
-  const labels = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14'];
+  const labels = ['1', '2', '3', '4', '5', '6', '7'];
   for (let i = 0; i < labels.length; i++) {
     headerBottom.getCell(3 + i).value = labels[i];
   }
@@ -474,27 +468,41 @@ async function exportCaseAssignExcel() {
     });
   });
 
-  // 資料列從第 5 列開始
+  // 資料列從第 5 列開始：每位護理師 2 列（上列主責 1~7，下列主責 8~14）
   let excelRowIndex = 5;
   filteredRows.forEach(r => {
-    const row = ws.getRow(excelRowIndex++);
-    row.getCell(1).value = r.nurseId || '';
-    row.getCell(2).value = r.nurseName || '';
-    for (let i = 0; i < 14; i++) {
-      row.getCell(3 + i).value = (r.cases && r.cases[i]) || '';
-    }
-    row.getCell(17).value = r.caseCount || '';
+    const topRow = ws.getRow(excelRowIndex);
+    const bottomRow = ws.getRow(excelRowIndex + 1);
 
-    row.height = 20;
-    row.eachCell((cell, colNumber) => {
-      cell.font = fontCell;
-      cell.alignment = {
-        vertical: 'middle',
-        horizontal: colNumber === 2 ? 'left' : 'center',
-        wrapText: false
-      };
-      cell.border = borderThin;
+    // 垂直合併 員編 / 護理師 / 備註(個案數)
+    ws.mergeCells(excelRowIndex, 1, excelRowIndex + 1, 1); // A
+    ws.mergeCells(excelRowIndex, 2, excelRowIndex + 1, 2); // B
+    ws.mergeCells(excelRowIndex, 10, excelRowIndex + 1, 10); // J
+
+    topRow.getCell(1).value = r.nurseId || '';
+    topRow.getCell(2).value = r.nurseName || '';
+    topRow.getCell(10).value = r.caseCount || '';
+
+    // 主責個案 1~7 放在上列，8~14 放在下列
+    for (let i = 0; i < 7; i++) {
+      topRow.getCell(3 + i).value = (r.cases && r.cases[i]) || '';
+      bottomRow.getCell(3 + i).value = (r.cases && r.cases[7 + i]) || '';
+    }
+
+    [topRow, bottomRow].forEach(row => {
+      row.height = 20;
+      row.eachCell((cell, colNumber) => {
+        cell.font = fontCell;
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: colNumber === 2 ? 'left' : 'center',
+          wrapText: false
+        };
+        cell.border = borderThin;
+      });
     });
+
+    excelRowIndex += 2;
   });
 
   // 列印設定
@@ -533,6 +541,7 @@ async function exportCaseAssignExcel() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
 
 // Firebase 初始化完成後載入資料
 document.addEventListener('firebase-ready', () => {
