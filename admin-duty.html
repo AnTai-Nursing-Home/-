@@ -17,17 +17,15 @@
       letter-spacing: 0.08em;
     }
     .menu-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      display: flex;
+      flex-wrap: wrap;
       gap: 1.5rem;
+      justify-content: center;
       margin-top: 1.5rem;
     }
     .menu-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 220px;
+      width: 240px;
+      height: 240px;
       border-radius: 22px;
       background: #ffffff;
       border: 1px solid #e1e5f2;
@@ -35,6 +33,11 @@
       color: #1b2559;
       box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
       transition: all 0.2s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
     }
     .menu-item i {
       margin-bottom: 14px;
@@ -66,22 +69,27 @@
           </div>
           <div class="card-body pt-3">
             <p class="text-muted text-center mb-3">請選擇要使用的子系統</p>
-            <div class="menu-grid">
 
+            <div class="menu-grid">
+              <!-- 預假系統 -->
               <a href="leave.html" class="menu-item">
                 <i class="fas fa-calendar-days fa-3x"></i>
                 <span>預假系統</span>
               </a>
+
+              <!-- 請假系統 -->
               <a href="nurse-request.html" class="menu-item">
                 <i class="fas fa-calendar-check fa-3x"></i>
                 <span>請假系統</span>
               </a>
+
+              <!-- 加班系統 -->
               <a href="nurse-overtime.html" class="menu-item">
                 <i class="fas fa-clock-rotate-left fa-3x"></i>
                 <span>加班系統</span>
               </a>
-
             </div>
+
             <div class="text-center mt-4">
               <a href="admin.html?view=dashboard" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>返回護理師系統主選單
