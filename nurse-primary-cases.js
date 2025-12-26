@@ -1,7 +1,7 @@
-// 主責個案分配 JS（每位護理師一排 7 個主責個案，支援依日期載入既有資料）
+// 主責個案分配 JS（每位護理師 2 行，每行 7 個主責個案，共 14 個）
 
-const ROW_COUNT = 12;      // 預設 12 位護理師名額
-const CASE_COLS = 7;       // 每排 7 格
+const ROW_COUNT = 12;      // 預設 12 位護理師名額（每位 2 列）
+const CASE_COLS = 7;       // 每行 7 格
 
 let nurses = [];
 let residents = [];
@@ -28,20 +28,20 @@ function buildNurseOptionsHtml() {
   return html;
 }
 
-// 更新單一列的主責個案數
-function updateCaseCountForRow(rowIndex) {
-  const selects = document.querySelectorAll(`.case-select[data-row="${rowIndex}"]`);
+// 更新某一組（同一護理師兩行）的主責個案數
+function updateCaseCountForGroup(groupIndex) {
+  const selects = document.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
   let count = 0;
   selects.forEach(sel => {
     if (sel.value && sel.value.trim() !== '') count++;
   });
-  const span = document.querySelector(`.case-count[data-row="${rowIndex}"]`);
+  const span = document.querySelector(`.case-count[data-group="${groupIndex}"]`);
   if (span) {
     span.textContent = count > 0 ? String(count) : '';
   }
 }
 
-// 建立表格：每位護理師 1 列，7 個主責個案
+// 建立表格：每位護理師 2 行，每行 7 格，共 14 格
 function renderCaseTable() {
   const tbody = document.getElementById('caseTableBody');
   if (!tbody) return;
@@ -51,43 +51,60 @@ function renderCaseTable() {
   const residentOptions = buildResidentOptionsHtml();
 
   for (let i = 0; i < ROW_COUNT; i++) {
-    const rowIndex = String(i);
-    const tr = document.createElement('tr');
+    const groupIndex = String(i);
 
-    // 員編（護理師名字選好後自動帶出）
+    const trTop = document.createElement('tr');
+    const trBottom = document.createElement('tr');
+
+    // 員編（護理師名字選好後自動帶出，rowspan = 2）
     const tdId = document.createElement('td');
+    tdId.rowSpan = 2;
     const idSpan = document.createElement('span');
     idSpan.classList.add('nurse-id');
-    idSpan.setAttribute('data-row', rowIndex);
+    idSpan.setAttribute('data-group', groupIndex);
     tdId.appendChild(idSpan);
-    tr.appendChild(tdId);
+    trTop.appendChild(tdId);
 
-    // 護理師名字（下拉選單）
+    // 護理師名字（下拉選單，rowspan = 2）
     const tdName = document.createElement('td');
+    tdName.rowSpan = 2;
     tdName.innerHTML = `
-      <select class="form-select form-select-sm nurse-name-select" data-row="${rowIndex}">
+      <select class="form-select form-select-sm nurse-name-select" data-group="${groupIndex}">
         ${nurseOptions}
       </select>
     `;
-    tr.appendChild(tdName);
+    trTop.appendChild(tdName);
 
-    // 主責個案 1~7
+    // 第一行主責個案 1~7
     for (let j = 0; j < CASE_COLS; j++) {
       const tdCase = document.createElement('td');
       tdCase.innerHTML = `
-        <select class="form-select form-select-sm case-select" data-row="${rowIndex}">
+        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
           ${residentOptions}
         </select>
       `;
-      tr.appendChild(tdCase);
+      trTop.appendChild(tdCase);
     }
 
-    // 個案數
-    const tdCount = document.createElement('td');
-    tdCount.innerHTML = `<span class="case-count" data-row="${rowIndex}"></span>`;
-    tr.appendChild(tdCount);
+    // 第二行主責個案 8~14
+    for (let j = 0; j < CASE_COLS; j++) {
+      const tdCase = document.createElement('td');
+      tdCase.innerHTML = `
+        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
+          ${residentOptions}
+        </select>
+      `;
+      trBottom.appendChild(tdCase);
+    }
 
-    tbody.appendChild(tr);
+    // 個案數（兩行一起算，rowspan = 2）
+    const tdCount = document.createElement('td');
+    tdCount.rowSpan = 2;
+    tdCount.innerHTML = `<span class="case-count" data-group="${groupIndex}"></span>`;
+    trTop.appendChild(tdCount);
+
+    tbody.appendChild(trTop);
+    tbody.appendChild(trBottom);
   }
 
   // 護理師選單事件：選名字 → 員編自動帶出
@@ -95,10 +112,10 @@ function renderCaseTable() {
   nameSelects.forEach(select => {
     select.addEventListener('change', (event) => {
       const target = event.target;
-      const rowIndex = target.getAttribute('data-row');
+      const groupIndex = target.getAttribute('data-group');
       const nurseId = target.value;
       const nurse = nurses.find(n => n.id === nurseId);
-      const idSpan = tbody.querySelector(`.nurse-id[data-row="${rowIndex}"]`);
+      const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
       if (idSpan) {
         idSpan.textContent = nurse ? nurse.id : '';
       }
@@ -110,8 +127,8 @@ function renderCaseTable() {
   caseSelects.forEach(select => {
     select.addEventListener('change', (event) => {
       const target = event.target;
-      const rowIndex = target.getAttribute('data-row');
-      updateCaseCountForRow(rowIndex);
+      const groupIndex = target.getAttribute('data-group');
+      updateCaseCountForGroup(groupIndex);
     });
   });
 }
@@ -128,7 +145,6 @@ async function loadAssignmentForCurrentDate() {
   try {
     const docSnap = await db.collection('nurse_case_assignments').doc(isoDate).get();
     if (!docSnap.exists) {
-      // 沒有資料就保持空白表格
       return;
     }
 
@@ -152,11 +168,11 @@ async function loadAssignmentForCurrentDate() {
 
     for (let i = 0; i < Math.min(rows.length, ROW_COUNT); i++) {
       const r = rows[i];
-      const rowIndex = String(i);
+      const groupIndex = String(i);
 
-      const idSpan = tbody.querySelector(`.nurse-id[data-row="${rowIndex}"]`);
-      const nameSelect = tbody.querySelector(`.nurse-name-select[data-row="${rowIndex}"]`);
-      const caseSelects = tbody.querySelectorAll(`.case-select[data-row="${rowIndex}"]`);
+      const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
+      const nameSelect = tbody.querySelector(`.nurse-name-select[data-group="${groupIndex}"]`);
+      const caseSelects = tbody.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
 
       if (idSpan) {
         idSpan.textContent = r.nurseId || '';
@@ -165,18 +181,19 @@ async function loadAssignmentForCurrentDate() {
         nameSelect.value = r.nurseId;
       }
       if (caseSelects.length) {
-        for (let j = 0; j < Math.min(caseSelects.length, (r.cases || []).length); j++) {
-          caseSelects[j].value = r.cases[j] || '';
+        const arr = Array.isArray(r.cases) ? r.cases : [];
+        for (let j = 0; j < Math.min(caseSelects.length, arr.length); j++) {
+          caseSelects[j].value = arr[j] || '';
         }
       }
-      updateCaseCountForRow(rowIndex);
+      updateCaseCountForGroup(groupIndex);
     }
   } catch (err) {
     console.error('載入指定日期主責個案分配失敗：', err);
   }
 }
 
-// 從 Firestore 載入 護理師 / 住民 資料
+// 從 Firestore 載入 護理師 / 住民 清單
 async function loadCaseAssignBaseLists() {
   try {
     // 護理師
@@ -224,19 +241,19 @@ function toRocDotDate(isoStr) {
   return `${rocYear}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
 }
 
-// 取得目前表格資料（一列一筆，含 7 個 case）
+// 取得目前表格資料（一組一筆，含 14 個 case）
 function collectCaseTableData() {
   const rows = [];
   const tbody = document.getElementById('caseTableBody');
   if (!tbody) return rows;
 
   for (let i = 0; i < ROW_COUNT; i++) {
-    const rowIndex = String(i);
+    const groupIndex = String(i);
 
-    const idSpan = tbody.querySelector(`.nurse-id[data-row="${rowIndex}"]`);
+    const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
     const nurseId = idSpan ? idSpan.textContent.trim() : '';
 
-    const nameSelect = tbody.querySelector(`.nurse-name-select[data-row="${rowIndex}"]`);
+    const nameSelect = tbody.querySelector(`.nurse-name-select[data-group="${groupIndex}"]`);
     let nurseName = '';
     if (nameSelect) {
       const opt = nameSelect.options[nameSelect.selectedIndex];
@@ -245,13 +262,13 @@ function collectCaseTableData() {
       }
     }
 
-    const caseSelects = tbody.querySelectorAll(`.case-select[data-row="${rowIndex}"]`);
+    const caseSelects = tbody.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
     const cases = [];
     caseSelects.forEach(sel => {
       cases.push((sel.value || '').trim());
     });
 
-    const countSpan = tbody.querySelector(`.case-count[data-row="${rowIndex}"]`);
+    const countSpan = tbody.querySelector(`.case-count[data-group="${groupIndex}"]`);
     const caseCount = countSpan ? (countSpan.textContent.trim() || '') : '';
 
     rows.push({
@@ -292,7 +309,7 @@ async function saveCaseAssignment() {
   }
 
   const rows = collectCaseTableData();
-  // 去掉完全空白的列
+  // 去掉完全空白的組別
   const filteredRows = rows.filter(r => {
     const hasCases = Array.isArray(r.cases) && r.cases.some(c => c && c.trim() !== '');
     return (r.nurseId && r.nurseId.trim() !== '') || hasCases;
@@ -318,7 +335,7 @@ async function saveCaseAssignment() {
   }
 }
 
-// 匯出 Excel
+// 匯出 Excel（14 個主責個案欄）
 async function exportCaseAssignExcel() {
   if (typeof ExcelJS === 'undefined') {
     alert('ExcelJS 載入失敗，無法匯出 Excel。');
@@ -366,18 +383,25 @@ async function exportCaseAssignExcel() {
     { header: '5', key: 'c5', width: 10 },
     { header: '6', key: 'c6', width: 10 },
     { header: '7', key: 'c7', width: 10 },
+    { header: '8', key: 'c8', width: 10 },
+    { header: '9', key: 'c9', width: 10 },
+    { header: '10', key: 'c10', width: 10 },
+    { header: '11', key: 'c11', width: 10 },
+    { header: '12', key: 'c12', width: 10 },
+    { header: '13', key: 'c13', width: 10 },
+    { header: '14', key: 'c14', width: 10 },
     { header: '個案數', key: 'count', width: 8 }
   ];
 
   // 標題列
-  ws.mergeCells('A1:J1');
+  ws.mergeCells('A1:Q1');
   const titleCell = ws.getCell('A1');
   titleCell.value = '主責個案分配表';
   titleCell.font = fontTitle;
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // 日期 / 週次 / 製表人
-  ws.mergeCells('A2:J2');
+  ws.mergeCells('A2:Q2');
   const infoCell = ws.getCell('A2');
   infoCell.value = titleInfo;
   infoCell.font = fontCell;
@@ -389,6 +413,7 @@ async function exportCaseAssignExcel() {
     '員編',
     '護理師',
     '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '10', '11', '12', '13', '14',
     '個案數'
   ];
   headerRow.height = 22;
@@ -412,6 +437,13 @@ async function exportCaseAssignExcel() {
       r.cases[4] || '',
       r.cases[5] || '',
       r.cases[6] || '',
+      r.cases[7] || '',
+      r.cases[8] || '',
+      r.cases[9] || '',
+      r.cases[10] || '',
+      r.cases[11] || '',
+      r.cases[12] || '',
+      r.cases[13] || '',
       r.caseCount || ''
     ];
     row.height = 20;
@@ -468,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (dateInput) {
     dateInput.addEventListener('change', () => {
-      // 日期改變時，重畫表格並載入該日資料
       if (baseListsLoaded) {
         renderCaseTable();
         loadAssignmentForCurrentDate();
