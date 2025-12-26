@@ -3,16 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>主責個案分配</title>
+  <title>主責個案分配表</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="style.css">
+  <style>
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+      }
+      .btn,
+      a[href] {
+        display: none !important;
+      }
+      .card {
+        box-shadow: none !important;
+        border: none !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="container my-4">
     <div class="card shadow">
       <div class="card-header text-center bg-dark text-white">
-        <h3>主責個案分配表</h3>
+        <h3 class="mb-0">主責個案分配表</h3>
       </div>
       <div class="card-body">
 
@@ -39,7 +54,7 @@
               <tr>
                 <th style="min-width:80px;">員編</th>
                 <th style="min-width:90px;">護理師</th>
-                <th colspan="8">主責個案</th>
+                <th colspan="14">主責個案</th>
                 <th style="min-width:70px;">備註<br>(個案數)</th>
               </tr>
               <tr>
@@ -53,11 +68,16 @@
                 <th>6</th>
                 <th>7</th>
                 <th>8</th>
-                <th></th>
+                <th>9</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+                <th>13</th>
+                <th>14</th>
               </tr>
             </thead>
             <tbody id="caseTableBody">
-              <!-- JS 動態產生 12 列 -->
+              <!-- JS 動態產生內容 -->
             </tbody>
           </table>
         </div>
@@ -82,13 +102,19 @@
           <a href="admin.html?view=dashboard" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>返回護理師儀表板
           </a>
-          <button id="printButton" class="btn btn-primary">
-            <i class="fas fa-print me-2"></i>列印
-          </button>
-          <button id="exportExcelButton" class="btn btn-success">
-            <i class="fas fa-file-excel me-2"></i>匯出 Excel
-          </button>
+          <div class="d-flex gap-2">
+            <button id="saveButton" class="btn btn-success">
+              <i class="fas fa-save me-2"></i>儲存
+            </button>
+            <button id="printButton" class="btn btn-primary">
+              <i class="fas fa-print me-2"></i>列印
+            </button>
+            <button id="exportExcelButton" class="btn btn-outline-success">
+              <i class="fas fa-file-excel me-2"></i>匯出 Excel
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -96,9 +122,10 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
+  <!-- ExcelJS -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="nurse-primary-cases.js?v=2025-12-26a"></script>
+  <!-- 主責個案 JS -->
+  <script src="nurse-primary-cases.js?v=2025-12-26c"></script>
 </body>
 </html>
