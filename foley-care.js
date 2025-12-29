@@ -44,6 +44,46 @@ document.addEventListener('firebase-ready', () => {
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
     let currentNurseName = '';
+    const nursesCollection = 'nurses';
+    let nursesList = []; // [{ id, name, display }]
+
+    function buildNurseDisplay(nurseId, data) {
+        const name = data.name || '';
+        return `${nurseId} ${name}`.trim();
+    }
+
+    async function loadNursesList() {
+        try {
+            const snapshot = await db.collection(nursesCollection).orderBy('id').get();
+            nursesList = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const display = buildNurseDisplay(doc.id, data);
+                nursesList.push({
+                    id: doc.id,
+                    name: data.name || '',
+                    display
+                });
+            });
+            console.log('護理師名單已載入，共', nursesList.length, '筆');
+        } catch (err) {
+            console.error('讀取護理師名單失敗：', err);
+        }
+    }
+
+    function buildNurseSelectHtml(selectedValue) {
+        let html = `<select class="form-select form-select-sm nurse-signature-field" data-signature="caregiver">`;
+        html += `<option value="">請選擇</option>`;
+        nursesList.forEach(nurse => {
+            const value = nurse.display;
+            const selected = (value === selectedValue) ? ' selected' : '';
+            html += `<option value="${value}"${selected}>${value}</option>`;
+        });
+        html += `</select>`;
+        return html;
+    }
+
+
 
 
     function updateNurseUI() {
@@ -196,6 +236,7 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
+    
     function renderCareTable(placementDate, closingDate, careData = {}) {
         // 預設從「基準日期 +1 天」開始；基準日期為：若有開始紀錄日則為開始紀錄日，否則為置放日
         let baseDate = new Date(placementDate + 'T00:00:00');
@@ -209,6 +250,7 @@ document.addEventListener('firebase-ready', () => {
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
         careTableBody.innerHTML = '';
+
         // 今日日期（本地時區）字串，用於高亮顯示
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -219,7 +261,7 @@ document.addEventListener('firebase-ready', () => {
             const day = d.getDate();
             const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
-            
+
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
@@ -234,32 +276,34 @@ document.addEventListener('firebase-ready', () => {
                     </div>
                 </td>`;
             });
-            
+
             const caregiverSign = dailyRecord.caregiverSign || '';
             const isToday = (dateString === todayStr);
+            const nurseSelectHtml = buildNurseSelectHtml(caregiverSign);
+
             const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
                 <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
-                <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
+                <td>${nurseSelectHtml}</td>
             </tr>`;
             careTableBody.innerHTML += row;
         }
-        
+
         // 綁定一鍵全Yes
         careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 const dateStr = btn.getAttribute('data-date');
                 const row = careTableBody.querySelector(`tr[data-date="${dateStr}"]`);
                 if (!row) return;
-                // 將該列所有 careItems radio 都設為 Yes
-                if (btn.disabled) return;
                 const radios = row.querySelectorAll('input[type="radio"][value="Yes"]:not(:disabled)');
                 radios.forEach(r => { r.checked = true; });
             });
         });
-checkTimePermissions();
+
+        // 每次重畫表格後重新套用時間/權限規則
+        checkTimePermissions();
     }
 
-    function checkTimePermissions() {
+function checkTimePermissions() {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
@@ -634,6 +678,7 @@ checkTimePermissions();
     // --- 初始操作 ---
     async function initializePage() {
         await loadResidentsDropdowns();
+        await loadNursesList();
         await loadCareFormList();
         updateNurseUI();
         updateFormPermissions();
