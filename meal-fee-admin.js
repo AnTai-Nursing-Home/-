@@ -304,6 +304,25 @@
     const { year, month } = monthToRange(monthValue);
     const dim = daysInMonth(year, month);
 
+
+    // 從目前表格內容彙總每一天的數據，供匯出使用
+    const rowsByDate = new Map();
+    document.querySelectorAll('#feeTbody tr').forEach(tr => {
+      const iso = tr.dataset.date;
+      if (!iso) return;
+      const orderQty = Number(tr.querySelector('[data-field="orderQty"]').textContent) || 0;
+      const shortQty = Number(tr.querySelector('[data-print="shortQty"]').textContent) || 0;
+      const extraQty = Number(tr.querySelector('[data-print="extraQty"]').textContent) || 0;
+      const r = computeRow(orderQty, shortQty, extraQty);
+      rowsByDate.set(iso, {
+        orderQty,
+        shortQty,
+        extraQty,
+        orderAmount: r.orderAmount,
+        totalAmount: r.totalAmount,
+      });
+    });
+
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Antai Meal Fee';
     wb.created = new Date();
