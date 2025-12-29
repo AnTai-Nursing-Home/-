@@ -16,6 +16,7 @@ document.addEventListener('firebase-ready', () => {
 
     const careFormListTitle = document.getElementById('care-form-list-title');
     const careFormList = document.getElementById('care-form-list');
+    const batchDeleteBtn = document.getElementById('batch-delete-closed-btn');
     const addNewFormBtn = document.getElementById('add-new-form-btn');
     const backToListBtn = document.getElementById('back-to-list-btn');
     const bedNumberInput = document.getElementById('resident-bedNumber');
@@ -78,6 +79,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     let currentCareFormId = null;
+    let isCurrentFormClosed = false;
     let residentsData = {};
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
@@ -104,6 +106,13 @@ document.addEventListener('firebase-ready', () => {
             }
             nurseLoginBtn.classList.add('btn-outline-danger');
             nurseLoginBtn.classList.remove('btn-outline-secondary');
+        }
+        if (batchDeleteBtn) {
+            if (currentView === 'closed' && isNurseLoggedIn) {
+                batchDeleteBtn.classList.remove('d-none');
+            } else {
+                batchDeleteBtn.classList.add('d-none');
+            }
         }
     }
 
@@ -250,6 +259,18 @@ document.addEventListener('firebase-ready', () => {
             });
 
             careFormList.innerHTML = listHTML;
+
+            // 更新批次刪除按鈕狀態
+            if (batchDeleteBtn) {
+                if (currentView === 'closed' && filteredDocs.length > 0 && isNurseLoggedIn) {
+                    batchDeleteBtn.classList.remove('d-none');
+                    batchDeleteBtn.disabled = false;
+                } else {
+                    batchDeleteBtn.classList.add('d-none');
+                    batchDeleteBtn.disabled = true;
+                }
+            }
+
 
         } catch (error) {
             console.error("讀取照護單列表失敗:", error);
@@ -441,6 +462,7 @@ checkTimePermissions();
 
         residentNameSelectForm.disabled = !isNew;
 
+        isCurrentFormClosed = false;
         if (isNew) {
             residentNameSelectForm.value = '';
             bedNumberInput.value = '';
@@ -458,6 +480,7 @@ checkTimePermissions();
             renderCareTable(placementDateInput.value, null);
             deleteCareFormBtn.classList.add('d-none');
         } else {
+            isCurrentFormClosed = !!docData.closingDate;
             const residentData = residentsData[docData.residentName];
             residentNameSelectForm.value = docData.residentName;
             bedNumberInput.value = residentData.bedNumber;
@@ -622,6 +645,40 @@ checkTimePermissions();
             checkTimePermissions();
             if (nurseNameModal) nurseNameModal.hide();
             alert('護理師登入成功');
+        });
+    }
+
+
+
+    if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', async () => {
+            if (!isNurseLoggedIn) {
+                alert('僅限護理師登入後才能批次刪除結案單');
+                return;
+            }
+            if (currentView !== 'closed') {
+                alert('僅能刪除「已結案」的照護單');
+                return;
+            }
+            const checked = Array.from(document.querySelectorAll('.care-form-checkbox:checked'));
+            if (checked.length === 0) {
+                alert('請先勾選要刪除的結案單');
+                return;
+            }
+            if (!confirm(`確定要刪除選取的 ${checked.length} 張結案照護單嗎？此動作無法復原。`)) {
+                return;
+            }
+            try {
+                for (const cb of checked) {
+                    const id = cb.dataset.id;
+                    await db.collection(careFormsCollection).doc(id).delete();
+                }
+                alert('已刪除選取的結案照護單');
+                loadCareFormList();
+            } catch (err) {
+                console.error('批次刪除失敗：', err);
+                alert('刪除時發生錯誤，請稍後再試');
+            }
         });
     }
 
