@@ -1,14 +1,15 @@
 <!DOCTYPE html>
+
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="foley_care_assessment"></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title data-i18n="foley_care_assessment"></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+<link href="style.css" rel="stylesheet"/>
+<link href="/favicon.ico" rel="icon" type="image/x-icon"/>
+<style>
         /* 今日日期高亮 */
         .care-table tr.today-row > th,
         .care-table tr.today-row > td {
@@ -24,152 +25,147 @@
             }
         }
     </style>
-    
 </head>
 <body>
-    <div class="container my-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-12">
-                <div class="card shadow">
-                    <div class="card-header text-center bg-dark text-white">
-                        <h2 data-i18n="foley_care_title"></h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="list-view">
-                            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                                <a href="caregiver.html?view=dashboard" class="btn btn-back-menu">
-                                    <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system"></span>
-                                </a>
-                                <div class="d-flex align-items-center gap-2" style="max-width: 600px;">
-                                    <select id="resident-filter-select" class="form-select form-select-lg"></select>
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-primary active" data-status="ongoing" data-i18n="status_ongoing"></button>
-                                        <button type="button" class="btn btn-secondary" data-status="closed" data-i18n="status_closed"></button>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <button id="nurse-login-btn" class="btn btn-sm btn-outline-danger">
-                                        <i class="fas fa-user-nurse me-1"></i>
-                                        <span id="nurse-login-label">護理師登入</span>
-                                    </button>
-                                    <span id="nurse-login-status" class="text-danger small"></span>
-                                    <button id="add-new-form-btn" class="btn btn-success">
-                                        <i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <h4 id="care-form-list-title"></h4>
-                            <div id="care-form-list" class="list-group"></div>
-                        </div>
+<div class="container my-5">
+<div class="row justify-content-center">
+<div class="col-lg-12">
+<div class="card shadow">
+<div class="card-header text-center bg-dark text-white">
+<h2 data-i18n="foley_care_title"></h2>
+</div>
+<div class="card-body">
+<div id="list-view">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<a class="btn btn-back-menu" href="caregiver.html?view=dashboard">
+<i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_caregiver_system"></span>
+</a>
+<div class="d-flex align-items-center gap-2" style="max-width: 600px;">
+<select class="form-select form-select-lg" id="resident-filter-select"></select>
+<div class="btn-group">
+<button class="btn btn-primary active" data-i18n="status_ongoing" data-status="ongoing" type="button"></button>
+<button class="btn btn-secondary" data-i18n="status_closed" data-status="closed" type="button"></button>
+</div>
+</div>
+<div class="d-flex align-items-center gap-2">
+<button class="btn btn-sm btn-outline-danger" id="nurse-login-btn">
+<i class="fas fa-user-nurse me-1"></i>
+<span id="nurse-login-label">護理師登入</span>
+</button>
+<span class="text-danger small" id="nurse-login-status"></span>
+<button class="btn btn-success" id="add-new-form-btn">
+<i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
+</button>
+</div>
+</div>
+<h4 id="care-form-list-title"></h4>
+<div class="list-group" id="care-form-list"></div>
+</div>
+<div class="d-none" id="form-view">
+<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+<button class="btn btn-back-menu" id="back-to-list-btn">
+<i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_list"></span>
+</button>
+<div class="d-flex gap-2">
+<button class="btn btn-sm btn-primary" id="export-word-btn"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
+<button class="btn btn-sm btn-success" id="export-excel-btn"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
+<button class="btn btn-sm btn-info" id="print-report-btn"><i class="fas fa-print me-1"></i> 列印</button>
+</div>
+</div>
+<fieldset class="border p-3 mb-4">
+<legend class="float-none w-auto px-2" data-i18n="resident_basic_info"></legend>
+<div class="row g-3">
+<div class="col-md-3">
+<label class="form-label" data-i18n="name" for="resident-name-select-form"></label>
+<select class="form-select" id="resident-name-select-form"></select>
+</div>
+<div class="col-md-3">
+<label class="form-label" data-i18n="chart_number"></label>
+<input class="form-control" id="resident-chartNumber" type="text"/>
+</div>
+<div class="col-md-2"><label class="form-label" data-i18n="bed_number"></label><input class="form-control" id="resident-bedNumber" readonly="" type="text"/></div>
+<div class="col-md-2"><label class="form-label" data-i18n="gender"></label><input class="form-control" id="resident-gender" readonly="" type="text"/></div>
+<div class="col-md-2"><label class="form-label" data-i18n="birthday"></label><input class="form-control" id="resident-birthday" readonly="" type="text"/></div>
+<div class="col-md-3"><label class="form-label" data-i18n="checkin_date"></label><input class="form-control" id="resident-checkinDate" readonly="" type="text"/></div>
+<div class="col-md-3"><label class="form-label" data-i18n="placement_date" for="foley-placement-date"></label><input class="form-control" id="foley-placement-date" type="date"/></div>
+<div class="col-md-3"><label class="form-label" data-i18n="closing_date" for="foley-closing-date"></label><input class="form-control" id="foley-closing-date" type="date"/></div>
+<div class="col-md-3">
+<label class="form-label" data-i18n="record_start_date"></label>
+<input class="form-control" id="foley-record-start-date" type="date"/>
+</div>
+<div class="col-md-3">
+<label class="form-label" data-i18n="closing_reason"></label>
+<select class="form-select" id="closing-reason">
+<option value="">請選擇</option>
+<option value="管路拔管">管路拔管</option>
+<option value="管路更換">管路更換</option>
+<option value="轉出機構">轉出機構</option>
+</select>
+</div>
+<div class="col-md-3">
+<label class="form-label">建立護理師</label>
+<input class="form-control" id="foley-created-by" readonly="" type="text"/>
+</div>
+</div>
+</fieldset>
+<div class="table-responsive">
+<h4 class="text-center mb-3" id="table-month-title"></h4>
+<table class="table table-bordered table-sm text-center align-middle care-table">
+<thead>
+<tr>
+<th data-i18n="date" rowspan="2"></th>
+<th colspan="7" data-i18n="assessment_items"></th>
+<th colspan="1" data-i18n="signature"></th>
+</tr>
+<tr>
+<th data-i18n="hand_hygiene"></th><th data-i18n="fixed_position"></th><th data-i18n="urine_bag_position"></th><th data-i18n="unobstructed_drainage"></th>
+<th data-i18n="avoid_overfill"></th><th data-i18n="urethral_cleaning"></th><th data-i18n="single_use_container"></th>
+<th data-i18n="caregiver"></th>
+</tr>
+</thead>
+<tbody id="care-table-body"></tbody>
+</table>
+</div>
+<div class="text-center mt-4 d-print-none d-flex justify-content-center gap-3">
+<button class="btn btn-danger btn-lg d-none" data-i18n="delete_this_care_form" id="delete-care-form-btn"></button>
+<button class="btn btn-primary btn-lg" data-i18n="save_this_care_form" id="save-care-form"></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<footer class="site-footer d-print-none"></footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+<script src="firebase-init.js"></script>
+<script src="i18n.js"></script>
+<script src="main.js"></script>
+<script src="foley-care.js"></script>
 
-                        <div id="form-view" class="d-none">
-                            <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
-                                <button id="back-to-list-btn" class="btn btn-back-menu">
-                                    <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_list"></span>
-                                </button>
-                                <div class="d-flex gap-2">
-                                    <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
-                                    <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
-                                    <button id="print-report-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
-                                </div>
-                            </div>
-                            <fieldset class="border p-3 mb-4">
-                                <legend class="float-none w-auto px-2" data-i18n="resident_basic_info"></legend>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="resident-name-select-form" class="form-label" data-i18n="name"></label>
-                                        <select id="resident-name-select-form" class="form-select"></select>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label" data-i18n="chart_number"></label>
-                                        <input type="text" id="resident-chartNumber" class="form-control">
-                                    </div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="bed_number"></label><input type="text" id="resident-bedNumber" class="form-control" readonly></div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="gender"></label><input type="text" id="resident-gender" class="form-control" readonly></div>
-                                    <div class="col-md-2"><label class="form-label" data-i18n="birthday"></label><input type="text" id="resident-birthday" class="form-control" readonly></div>
-                                    <div class="col-md-3"><label class="form-label" data-i18n="checkin_date"></label><input type="text" id="resident-checkinDate" class="form-control" readonly></div>
-                                    <div class="col-md-3"><label for="foley-placement-date" class="form-label" data-i18n="placement_date"></label><input type="date" id="foley-placement-date" class="form-control"></div>
-                                    <div class="col-md-3"><label for="foley-closing-date" class="form-label" data-i18n="closing_date"></label><input type="date" id="foley-closing-date" class="form-control"></div>
-                                    <div class="col-md-3">
-                                        <label class="form-label" data-i18n="record_start_date"></label>
-                                        <input type="date" id="foley-record-start-date" class="form-control">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label" data-i18n="closing_reason"></label>
-                                        <select id="closing-reason" class="form-select">
-                                            <option value="">請選擇</option>
-                                            <option value="管路拔管">管路拔管</option>
-                                            <option value="管路更換">管路更換</option>
-                                            <option value="轉出機構">轉出機構</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">建立護理師</label>
-                                        <input type="text" id="foley-created-by" class="form-control" readonly>
-                                    </div>
-
-                                </div>
-                            </fieldset>
-                            <div class="table-responsive">
-                                <h4 id="table-month-title" class="text-center mb-3"></h4>
-                                <table class="table table-bordered table-sm text-center align-middle care-table">
-                                    <thead>
-                                        <tr>
-                                            <th rowspan="2" data-i18n="date"></th>
-                                            <th colspan="7" data-i18n="assessment_items"></th>
-                                            <th colspan="1" data-i18n="signature"></th>
-                                        </tr>
-                                        <tr>
-                                            <th data-i18n="hand_hygiene"></th><th data-i18n="fixed_position"></th><th data-i18n="urine_bag_position"></th><th data-i18n="unobstructed_drainage"></th>
-                                            <th data-i18n="avoid_overfill"></th><th data-i18n="urethral_cleaning"></th><th data-i18n="single_use_container"></th>
-                                            <th data-i18n="caregiver"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="care-table-body"></tbody>
-                                </table>
-                            </div>
-                            <div class="text-center mt-4 d-print-none d-flex justify-content-center gap-3">
-                                <button id="delete-care-form-btn" class="btn btn-danger btn-lg d-none" data-i18n="delete_this_care_form"></button>
-                                <button id="save-care-form" class="btn btn-primary btn-lg" data-i18n="save_this_care_form"></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 護理師姓名選擇 Modal -->
-    <div class="modal fade" id="nurseSelectModal" tabindex="-1" aria-labelledby="nurseSelectModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="nurseSelectModalLabel">選擇護理師姓名</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <select id="nurse-select" class="form-select">
-                        <option value="">請選擇護理師</option>
-                    </select>
-                    <div class="form-text mt-2">此姓名將記錄在新建立的導尿管照護單上。</div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="confirm-nurse-select-btn">確定</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="site-footer d-print-none"></footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-    <script src="firebase-init.js"></script>
-    <script src="i18n.js"></script>
-    <script src="main.js"></script>
-    <script src="foley-care.js"></script>
+<div aria-hidden="true" class="modal fade" id="nurseNameModal" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title">選擇護理師姓名</h5>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<label class="form-label" for="nurse-name-select">請選擇護理師姓名（將記錄在新建立的導尿管照護單上）</label>
+<select class="form-select" id="nurse-name-select">
+<option value="">請選擇</option>
+</select>
+<div class="text-danger small mt-2 d-none" id="nurse-name-error">請先選擇護理師姓名</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" data-bs-dismiss="modal" type="button">取消</button>
+<button class="btn btn-primary" id="nurse-name-confirm-btn" type="button">確定</button>
+</div>
+</div>
+</div>
+</div>
 </body>
 </html>
