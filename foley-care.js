@@ -34,6 +34,13 @@ document.addEventListener('firebase-ready', () => {
     const nurseLoginBtn = document.getElementById('nurse-login-btn');
     const nurseLoginStatus = document.getElementById('nurse-login-status');
     const nurseLoginLabel = document.getElementById('nurse-login-label');
+    const nurseSelectModalEl = document.getElementById('nurseSelectModal');
+    const nurseSelectEl = document.getElementById('nurse-select');
+    const nurseSelectConfirmBtn = document.getElementById('confirm-nurse-select-btn');
+    let nurseSelectModal = null;
+    if (typeof bootstrap !== 'undefined' && nurseSelectModalEl) {
+        nurseSelectModal = new bootstrap.Modal(nurseSelectModalEl);
+    }
     
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
@@ -66,9 +73,23 @@ document.addEventListener('firebase-ready', () => {
                 });
             });
             console.log('護理師名單已載入，共', nursesList.length, '筆');
+            refreshNurseSelectOptions();
         } catch (err) {
             console.error('讀取護理師名單失敗：', err);
         }
+    }
+
+    function refreshNurseSelectOptions() {
+        if (!nurseSelectEl) return;
+        nurseSelectEl.innerHTML = '<option value="">請選擇護理師</option>';
+        nursesList.forEach(nurse => {
+            const opt = document.createElement('option');
+            opt.value = nurse.display;
+            opt.textContent = nurse.display;
+            nurseSelectEl.appendChild(opt);
+        });
+    }
+
     }
 
     function buildNurseSelectHtml(selectedValue) {
@@ -279,11 +300,10 @@ document.addEventListener('firebase-ready', () => {
 
             const caregiverSign = dailyRecord.caregiverSign || '';
             const isToday = (dateString === todayStr);
-            const nurseSelectHtml = buildNurseSelectHtml(caregiverSign);
 
             const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
                 <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
-                <td>${nurseSelectHtml}</td>
+                <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
             </tr>`;
             careTableBody.innerHTML += row;
         }
@@ -537,14 +557,17 @@ function checkTimePermissions() {
             });
             const result = await response.json();
             if (response.ok && result.success) {
-                let nurseName = prompt('請輸入護理師姓名（將記錄在新建立的導尿管照護單上）：') || '';
-                nurseName = nurseName.trim();
-                isNurseLoggedIn = true;
-                currentNurseName = nurseName;
-                alert('護理師登入成功');
-                updateNurseUI();
-                updateFormPermissions();
-                checkTimePermissions();
+                // 確保有最新護理師名單
+                if (!nursesList.length) {
+                    await loadNursesList();
+                }
+                // 更新下拉選項
+                refreshNurseSelectOptions();
+                if (nurseSelectModal) {
+                    nurseSelectModal.show();
+                } else {
+                    alert('護理師選擇視窗無法開啟，請重新整理頁面');
+                }
             } else {
                 alert('密碼錯誤，登入失敗');
             }
@@ -556,31 +579,46 @@ function checkTimePermissions() {
         }
     }
 
-    // --- 事件監聽器 ---
+    function handleNurseSelectConfirm() {
+        if (!nurseSelectEl) return;
+        const selected = nurseSelectEl.value;
+        if (!selected) {
+            alert('請先選擇護理師姓名');
+            return;
+        }
+        isNurseLoggedIn = true;
+        currentNurseName = selected;
+        alert('護理師登入成功');
+        updateNurseUI();
+        updateFormPermissions();
+        checkTimePermissions();
+        if (createdByInput && !createdByInput.value) {
+            createdByInput.value = currentNurseName;
+        }
+        if (nurseSelectModal) {
+            nurseSelectModal.hide();
+        }
+    }
+if (nurseLoginBtn) {
+        nurseLoginBtn.addEventListener('click', handleNurseLogin);
+    }
+    if (nurseSelectConfirmBtn) {
+        nurseSelectConfirmBtn.addEventListener('click', handleNurseSelectConfirm);
+    }
+
+// 篩選與狀態切換
     residentFilterSelect.addEventListener('change', loadCareFormList);
 
     statusBtnGroup.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
-            statusBtnGroup.querySelector('.active').classList.remove('active');
+            const active = statusBtnGroup.querySelector('.active');
+            if (active) active.classList.remove('active');
             e.target.classList.add('active');
-            currentView = e.target.dataset.status;
+            currentView = e.target.dataset.view;
             loadCareFormList();
         }
     });
 
-    if (addNewFormBtn) {
-        addNewFormBtn.addEventListener('click', () => {
-            if (!isNurseLoggedIn) {
-                alert('僅限護理師登入後才能新增導尿管照護單');
-                return;
-            }
-            switchToFormView(true);
-        });
-    }
-
-    if (nurseLoginBtn) {
-        nurseLoginBtn.addEventListener('click', handleNurseLogin);
-    }
     backToListBtn.addEventListener('click', switchToListView);
 
     residentNameSelectForm.addEventListener('change', () => {
