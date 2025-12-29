@@ -108,7 +108,7 @@ document.addEventListener('firebase-ready', () => {
             nurseLoginBtn.classList.remove('btn-outline-secondary');
         }
         if (batchDeleteBtn) {
-            if (currentView === 'closed' && isNurseLoggedIn) {
+            if (currentView === 'closed') {
                 batchDeleteBtn.classList.remove('d-none');
             } else {
                 batchDeleteBtn.classList.add('d-none');
@@ -248,26 +248,33 @@ document.addEventListener('firebase-ready', () => {
                     ? `<span class="badge bg-secondary">${getText('status_closed')}</span>`
                     : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
 
+                const checkboxHtml = (currentView === 'closed')
+                    ? `<div class="form-check me-2">
+                            <input class="form-check-input care-form-checkbox" type="checkbox" value="${id}" data-id="${id}" onclick="event.stopPropagation();">
+                        </div>`
+                    : '';
+
                 listHTML += `
-                    <a href="#" class="list-group-item list-group-item-action" data-id="${id}">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
-                            <small>${status}</small>
+                    <a href="#" class="list-group-item list-group-item-action d-flex align-items-center" data-id="${id}">
+                        ${checkboxHtml}
+                        <div class="flex-grow-1">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                                <small>${status}</small>
+                            </div>
+                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
                         </div>
-                        <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
                     </a>`;
             });
 
             careFormList.innerHTML = listHTML;
 
-            // 更新批次刪除按鈕狀態
+            // 更新批次刪除按鈕狀態（只控制顯示／隱藏，實際權限在點擊時再檢查）
             if (batchDeleteBtn) {
-                if (currentView === 'closed' && filteredDocs.length > 0 && isNurseLoggedIn) {
+                if (currentView === 'closed' && filteredDocs.length > 0) {
                     batchDeleteBtn.classList.remove('d-none');
-                    batchDeleteBtn.disabled = false;
                 } else {
                     batchDeleteBtn.classList.add('d-none');
-                    batchDeleteBtn.disabled = true;
                 }
             }
 
@@ -351,23 +358,26 @@ checkTimePermissions();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour + currentMinute / 60;
 
-    // 🕒 時間範圍設定：僅控制照顧員填寫及簽名時間（08:00~22:00），護理師登入後不受此限制
-    let caregiverEnabled = (currentTime >= 8 && currentTime < 22);
+    // 🕒 時間範圍：
+    // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
+    // 已結案單：僅護理師登入才可操作，照服員一律鎖定
+    let caregiverEnabled;
 
-    if (isNurseLoggedIn) {
-        caregiverEnabled = true;
+    if (isCurrentFormClosed) {
+        caregiverEnabled = isNurseLoggedIn;
+    } else {
+        caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
     }
 
-    // 🧤 照顧員：radio + 簽名
+    // radio + 簽名欄位
     document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
         el.disabled = !caregiverEnabled;
     });
 
-    // 一鍵全Yes按鈕也跟著照顧員時間規則
+    // 一鍵全Yes按鈕
     careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
 
-    // 🕓 除錯訊息（可刪除）
-    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled}`);
+    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
 }
     
     
