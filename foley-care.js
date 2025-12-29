@@ -34,25 +34,17 @@ document.addEventListener('firebase-ready', () => {
     const nurseLoginBtn = document.getElementById('nurse-login-btn');
     const nurseLoginStatus = document.getElementById('nurse-login-status');
     const nurseLoginLabel = document.getElementById('nurse-login-label');
-    const nurseSelectModalEl = document.getElementById('nurseSelectModal');
-    const nurseSelectEl = document.getElementById('nurse-select');
-    const nurseSelectConfirmBtn = document.getElementById('confirm-nurse-select-btn');
-    let nurseSelectModal = null;
-    if (typeof bootstrap !== 'undefined' && nurseSelectModalEl) {
-        nurseSelectModal = new bootstrap.Modal(nurseSelectModalEl);
-    }
     
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
     const careFormsCollection = 'foley_care_records';
-    let currentCareFormId = null;
-    let residentsData = {};
-    let currentView = 'ongoing';
-    let isNurseLoggedIn = false;
-    let currentNurseName = '';
     const nursesCollection = 'nurses';
-    let nursesList = []; // [{ id, name, display }]
+    let nursesList = [];
+    const nurseNameSelect = document.getElementById('nurse-name-select');
+    const nurseNameConfirmBtn = document.getElementById('nurse-name-confirm-btn');
+    const nurseNameError = document.getElementById('nurse-name-error');
+    let nurseNameModal = null;
 
     function buildNurseDisplay(nurseId, data) {
         const name = data.name || '';
@@ -60,51 +52,33 @@ document.addEventListener('firebase-ready', () => {
     }
 
     async function loadNursesList() {
+        if (!db) return;
         try {
             const snapshot = await db.collection(nursesCollection).orderBy('id').get();
             nursesList = [];
+            let options = '<option value="">請選擇</option>';
             snapshot.forEach(doc => {
                 const data = doc.data();
                 const display = buildNurseDisplay(doc.id, data);
-                nursesList.push({
-                    id: doc.id,
-                    name: data.name || '',
-                    display
-                });
+                nursesList.push({ id: doc.id, name: data.name || '', display });
+                options += `<option value="${display}">${display}</option>`;
             });
-            console.log('護理師名單已載入，共', nursesList.length, '筆');
-            refreshNurseSelectOptions();
+            if (nurseNameSelect) {
+                nurseNameSelect.innerHTML = options;
+            }
         } catch (err) {
             console.error('讀取護理師名單失敗：', err);
+            if (nurseNameSelect) {
+                nurseNameSelect.innerHTML = '<option value="">讀取護理師名單失敗</option>';
+            }
         }
     }
 
-    function refreshNurseSelectOptions() {
-        if (!nurseSelectEl) return;
-        nurseSelectEl.innerHTML = '<option value="">請選擇護理師</option>';
-        nursesList.forEach(nurse => {
-            const opt = document.createElement('option');
-            opt.value = nurse.display;
-            opt.textContent = nurse.display;
-            nurseSelectEl.appendChild(opt);
-        });
-    }
-
-    }
-
-    function buildNurseSelectHtml(selectedValue) {
-        let html = `<select class="form-select form-select-sm nurse-signature-field" data-signature="caregiver">`;
-        html += `<option value="">請選擇</option>`;
-        nursesList.forEach(nurse => {
-            const value = nurse.display;
-            const selected = (value === selectedValue) ? ' selected' : '';
-            html += `<option value="${value}"${selected}>${value}</option>`;
-        });
-        html += `</select>`;
-        return html;
-    }
-
-
+    let currentCareFormId = null;
+    let residentsData = {};
+    let currentView = 'ongoing';
+    let isNurseLoggedIn = false;
+    let currentNurseName = '';
 
 
     function updateNurseUI() {
@@ -257,7 +231,6 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    
     function renderCareTable(placementDate, closingDate, careData = {}) {
         // 預設從「基準日期 +1 天」開始；基準日期為：若有開始紀錄日則為開始紀錄日，否則為置放日
         let baseDate = new Date(placementDate + 'T00:00:00');
@@ -271,7 +244,6 @@ document.addEventListener('firebase-ready', () => {
 
         tableMonthTitle.textContent = `${getText('care_period')}: ${placementDate} ~ ${closingDate || getText('ongoing')}`;
         careTableBody.innerHTML = '';
-
         // 今日日期（本地時區）字串，用於高亮顯示
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -282,7 +254,7 @@ document.addEventListener('firebase-ready', () => {
             const day = d.getDate();
             const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
-
+            
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
@@ -297,33 +269,32 @@ document.addEventListener('firebase-ready', () => {
                     </div>
                 </td>`;
             });
-
+            
             const caregiverSign = dailyRecord.caregiverSign || '';
             const isToday = (dateString === todayStr);
-
             const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
                 <th>${month}/${day} <button type="button" class="btn btn-sm btn-outline-secondary fill-yes-btn" data-date="${dateString}">${getText('fill_all_yes')}</button></th>${itemCells}
                 <td><input type="text" class="form-control form-control-sm signature-field" data-signature="caregiver" placeholder="${getText('signature')}" value="${caregiverSign}"></td>
             </tr>`;
             careTableBody.innerHTML += row;
         }
-
+        
         // 綁定一鍵全Yes
         careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
                 const dateStr = btn.getAttribute('data-date');
                 const row = careTableBody.querySelector(`tr[data-date="${dateStr}"]`);
                 if (!row) return;
+                // 將該列所有 careItems radio 都設為 Yes
+                if (btn.disabled) return;
                 const radios = row.querySelectorAll('input[type="radio"][value="Yes"]:not(:disabled)');
                 radios.forEach(r => { r.checked = true; });
             });
         });
-
-        // 每次重畫表格後重新套用時間/權限規則
-        checkTimePermissions();
+checkTimePermissions();
     }
 
-function checkTimePermissions() {
+    function checkTimePermissions() {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
@@ -557,16 +528,20 @@ function checkTimePermissions() {
             });
             const result = await response.json();
             if (response.ok && result.success) {
-                // 確保有最新護理師名單
-                if (!nursesList.length) {
-                    await loadNursesList();
+                // 密碼正確，改用 Modal 方式選護理師姓名
+                if (!nurseNameModal) {
+                    const modalEl = document.getElementById('nurseNameModal');
+                    if (modalEl && window.bootstrap) {
+                        nurseNameModal = new bootstrap.Modal(modalEl);
+                    }
                 }
-                // 更新下拉選項
-                refreshNurseSelectOptions();
-                if (nurseSelectModal) {
-                    nurseSelectModal.show();
+                if (nurseNameError) nurseNameError.classList.add('d-none');
+                if (nurseNameSelect) nurseNameSelect.value = '';
+                await loadNursesList();
+                if (nurseNameModal) {
+                    nurseNameModal.show();
                 } else {
-                    alert('護理師選擇視窗無法開啟，請重新整理頁面');
+                    alert('登入成功，但護理師選擇視窗初始化失敗');
                 }
             } else {
                 alert('密碼錯誤，登入失敗');
@@ -579,46 +554,53 @@ function checkTimePermissions() {
         }
     }
 
-    function handleNurseSelectConfirm() {
-        if (!nurseSelectEl) return;
-        const selected = nurseSelectEl.value;
-        if (!selected) {
-            alert('請先選擇護理師姓名');
-            return;
-        }
-        isNurseLoggedIn = true;
-        currentNurseName = selected;
-        alert('護理師登入成功');
-        updateNurseUI();
-        updateFormPermissions();
-        checkTimePermissions();
-        if (createdByInput && !createdByInput.value) {
-            createdByInput.value = currentNurseName;
-        }
-        if (nurseSelectModal) {
-            nurseSelectModal.hide();
-        }
-    }
-if (nurseLoginBtn) {
-        nurseLoginBtn.addEventListener('click', handleNurseLogin);
-    }
-    if (nurseSelectConfirmBtn) {
-        nurseSelectConfirmBtn.addEventListener('click', handleNurseSelectConfirm);
+    // --- 事件監聽器 ---
+
+    if (nurseNameConfirmBtn) {
+        nurseNameConfirmBtn.addEventListener('click', () => {
+            if (!nurseNameSelect) return;
+            const value = nurseNameSelect.value.trim();
+            if (!value) {
+                if (nurseNameError) nurseNameError.classList.remove('d-none');
+                return;
+            }
+            isNurseLoggedIn = true;
+            currentNurseName = value;
+            if (createdByInput && !createdByInput.value) {
+                createdByInput.value = value;
+            }
+            updateNurseUI();
+            updateFormPermissions();
+            checkTimePermissions();
+            if (nurseNameModal) nurseNameModal.hide();
+            alert('護理師登入成功');
+        });
     }
 
-// 篩選與狀態切換
     residentFilterSelect.addEventListener('change', loadCareFormList);
 
     statusBtnGroup.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
-            const active = statusBtnGroup.querySelector('.active');
-            if (active) active.classList.remove('active');
+            statusBtnGroup.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
-            currentView = e.target.dataset.view;
+            currentView = e.target.dataset.status;
             loadCareFormList();
         }
     });
 
+    if (addNewFormBtn) {
+        addNewFormBtn.addEventListener('click', () => {
+            if (!isNurseLoggedIn) {
+                alert('僅限護理師登入後才能新增導尿管照護單');
+                return;
+            }
+            switchToFormView(true);
+        });
+    }
+
+    if (nurseLoginBtn) {
+        nurseLoginBtn.addEventListener('click', handleNurseLogin);
+    }
     backToListBtn.addEventListener('click', switchToListView);
 
     residentNameSelectForm.addEventListener('change', () => {
@@ -716,8 +698,12 @@ if (nurseLoginBtn) {
     // --- 初始操作 ---
     async function initializePage() {
         await loadResidentsDropdowns();
-        await loadNursesList();
         await loadCareFormList();
+        await loadNursesList();
+        const modalEl = document.getElementById('nurseNameModal');
+        if (modalEl && window.bootstrap) {
+            nurseNameModal = new bootstrap.Modal(modalEl);
+        }
         updateNurseUI();
         updateFormPermissions();
         checkTimePermissions();
