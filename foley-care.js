@@ -30,6 +30,11 @@ document.addEventListener('firebase-ready', () => {
     const exportWordBtn = document.getElementById('export-word-btn');
     const exportExcelBtn = document.getElementById('export-excel-btn');
     const printReportBtn = document.getElementById('print-report-btn');
+    const nurseLoginBtn = document.getElementById('nurse-login-btn');
+    const nurseLoginLabel = document.getElementById('nurse-login-label');
+    const nurseLoginStatus = document.getElementById('nurse-login-status');
+    const createdByInput = document.getElementById('foley-created-by');
+    
     
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
@@ -38,8 +43,65 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let residentsData = {};
     let currentView = 'ongoing';
+    
+    // 護理師登入狀態
+    let isNurseLoggedIn = false;
+    let currentNurseName = '';
+    // 密碼從 Vercel 環境變數注入，例如 window.NURSE_FOLEY_PASSWORD
+    const NURSE_PASSWORD = window.NURSE_FOLEY_PASSWORD || window.NURSE_PASSWORD || '';
+
 
     // --- 函式定義 ---
+    // --- 護理師登入相關 ---
+    function updateNurseUI() {
+        if (!nurseLoginBtn) return;
+        if (isNurseLoggedIn) {
+            if (nurseLoginLabel) nurseLoginLabel.textContent = '護理師登出';
+            if (nurseLoginStatus) {
+                nurseLoginStatus.textContent = currentNurseName ? `已登入：${currentNurseName}` : '已登入';
+                nurseLoginStatus.classList.remove('text-danger');
+                nurseLoginStatus.classList.add('text-success');
+            }
+            nurseLoginBtn.classList.remove('btn-outline-danger');
+            nurseLoginBtn.classList.add('btn-outline-secondary');
+        } else {
+            if (nurseLoginLabel) nurseLoginLabel.textContent = '護理師登入';
+            if (nurseLoginStatus) {
+                nurseLoginStatus.textContent = '';
+                nurseLoginStatus.classList.remove('text-success');
+                nurseLoginStatus.classList.add('text-danger');
+            }
+            nurseLoginBtn.classList.add('btn-outline-danger');
+            nurseLoginBtn.classList.remove('btn-outline-secondary');
+        }
+    }
+    
+    function updateFormPermissions() {
+        // 只有護理師可以操作的欄位
+        const nurseOnlySelectors = [
+            '#resident-name-select-form',
+            '#resident-chartNumber',
+            '#foley-placement-date',
+            '#foley-closing-date',
+            '#foley-record-start-date',
+            '#closing-reason'
+        ];
+        nurseOnlySelectors.forEach(sel => {
+            const el = document.querySelector(sel);
+            if (el) {
+                el.disabled = !isNurseLoggedIn;
+            }
+        });
+        // 新增 / 刪除單張按鈕：只允許護理師
+        if (addNewFormBtn) {
+            addNewFormBtn.disabled = !isNurseLoggedIn;
+            addNewFormBtn.classList.toggle('disabled', !isNurseLoggedIn);
+        }
+        if (deleteCareFormBtn) {
+            deleteCareFormBtn.disabled = !isNurseLoggedIn;
+        }
+    }
+    
     async function loadResidentsDropdowns() {
         const dropdowns = [residentFilterSelect, residentNameSelectForm];
         dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('loading')}</option>`);
@@ -203,25 +265,30 @@ checkTimePermissions();
     }
 
     function checkTimePermissions() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour + currentMinute / 60;
-
-    // 🕒 時間範圍設定：僅控制照顧員填寫及簽名時間（10:00~14:30）
-    const caregiverEnabled = (currentTime >= 08 && currentTime < 22);
-
-    // 🧤 照顧員：radio + 簽名
-    document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
-        el.disabled = !caregiverEnabled;
-    });
-
-    // 一鍵全Yes按鈕也跟著照顧員時間規則
-    careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
-
-    // 🕓 除錯訊息（可刪除）
-    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 照顧員填寫:${caregiverEnabled}`);
-}
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour + currentMinute / 60;
+        
+        // 🕒 時間範圍設定：僅控制照顧員填寫及簽名時間（原則 08:00~22:00）
+        let caregiverEnabled = (currentTime >= 8 && currentTime < 22);
+        
+        // ✅ 若護理師已登入，則不受時間限制，可隨時操作
+        if (isNurseLoggedIn) {
+            caregiverEnabled = true;
+        }
+        
+        // 🧤 照顧員 / 護理師：radio + 簽名
+        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+            el.disabled = !caregiverEnabled;
+        });
+        
+        // 一鍵全 Yes 按鈕也跟著時間規則
+        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
+        
+        // 🕓 除錯訊息（可視需要移除）
+        console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 表格可填寫:${caregiverEnabled}`);
+    }
     
     
     function generateReportHTML() {
@@ -312,9 +379,10 @@ checkTimePermissions();
         listView.classList.add('d-none');
         formView.classList.remove('d-none');
         currentCareFormId = docId;
-
-        residentNameSelectForm.disabled = !isNew;
-
+        
+        // 新單張時，住民姓名只能由護理師選擇；既有單張則固定顯示
+        residentNameSelectForm.disabled = !isNew || !isNurseLoggedIn;
+        
         if (isNew) {
             residentNameSelectForm.value = '';
             bedNumberInput.value = '';
@@ -326,24 +394,43 @@ checkTimePermissions();
             closingReasonSelect.value = '';
             placementDateInput.value = new Date().toISOString().split('T')[0];
             closingDateInput.value = '';
+            if (createdByInput) {
+                createdByInput.value = currentNurseName || '';
+            }
             renderCareTable(placementDateInput.value, null);
             deleteCareFormBtn.classList.add('d-none');
         } else {
             const residentData = residentsData[docData.residentName];
             residentNameSelectForm.value = docData.residentName;
-            bedNumberInput.value = residentData.bedNumber;
-            genderInput.value = residentData.gender;
-            birthdayInput.value = residentData.birthday;
-            checkinDateInput.value = residentData.checkinDate;
-            // 病歷號以住民資料庫的 residentNumber 為主，若無則退回照護單內既有資料
-            chartNumberInput.value = residentData.residentNumber || docData.chartNumber || '';
+            if (residentData) {
+                bedNumberInput.value = residentData.bedNumber;
+                genderInput.value = residentData.gender;
+                birthdayInput.value = residentData.birthday;
+                checkinDateInput.value = residentData.checkinDate;
+                // 病歷號以住民資料庫的 residentNumber 為主，若無則退回照護單內既有資料
+                chartNumberInput.value = residentData.residentNumber || docData.chartNumber || '';
+            } else {
+                bedNumberInput.value = '';
+                genderInput.value = '';
+                birthdayInput.value = '';
+                checkinDateInput.value = '';
+                chartNumberInput.value = docData.chartNumber || '';
+            }
             recordStartDateInput.value = docData.recordStartDate || '';
             closingReasonSelect.value = docData.closingReason || '';
             placementDateInput.value = docData.placementDate;
             closingDateInput.value = docData.closingDate || '';
+            if (createdByInput) {
+                createdByInput.value = docData.createdByNurse || '';
+            }
             renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData || {});
             deleteCareFormBtn.classList.remove('d-none');
         }
+        
+        // 依照目前登入狀態重新調整欄位權限
+        updateFormPermissions();
+        checkTimePermissions();
+        updateNurseUI();
     }
 
     async function handleSave() {
@@ -376,6 +463,9 @@ checkTimePermissions();
             chartNumber: chartNumberInput.value || '',
             dailyData
         };
+        if (createdByInput && createdByInput.value) {
+            dataToSave.createdByNurse = createdByInput.value;
+        }
         saveCareFormBtn.disabled = true;
         try {
             if (currentCareFormId) {
@@ -406,8 +496,47 @@ checkTimePermissions();
         }
     });
 
-    addNewFormBtn.addEventListener('click', () => switchToFormView(true));
+    addNewFormBtn.addEventListener('click', () => {
+        if (!isNurseLoggedIn) {
+            alert('僅限護理師登入後才能新增管路照護單。');
+            return;
+        }
+        switchToFormView(true);
+    });
     backToListBtn.addEventListener('click', switchToListView);
+    
+    if (nurseLoginBtn) {
+        nurseLoginBtn.addEventListener('click', () => {
+            // 已登入則改為登出
+            if (isNurseLoggedIn) {
+                isNurseLoggedIn = false;
+                currentNurseName = '';
+                updateNurseUI();
+                updateFormPermissions();
+                checkTimePermissions();
+                return;
+            }
+            
+            if (!NURSE_PASSWORD) {
+                alert('尚未在系統中設定護理師密碼，請通知系統管理員。');
+                return;
+            }
+            
+            const inputPwd = prompt('請輸入護理師密碼：');
+            if (inputPwd === null) return;
+            if (inputPwd !== NURSE_PASSWORD) {
+                alert('密碼錯誤，請再試一次。');
+                return;
+            }
+            const name = prompt('請輸入護理師姓名（將顯示在建立人欄位）：') || '';
+            currentNurseName = name.trim() || '護理師';
+            isNurseLoggedIn = true;
+            updateNurseUI();
+            updateFormPermissions();
+            checkTimePermissions();
+            alert('護理師登入成功。');
+        });
+    }
 
     residentNameSelectForm.addEventListener('change', () => {
         const residentData = residentsData[residentNameSelectForm.value];
@@ -455,6 +584,10 @@ checkTimePermissions();
 
     deleteCareFormBtn.addEventListener('click', async () => {
         if (!currentCareFormId) return;
+        if (!isNurseLoggedIn) {
+            alert('僅限護理師登入後才能刪除照護單。');
+            return;
+        }
         if (confirm(getText('confirm_delete_care_form'))) {
             deleteCareFormBtn.disabled = true;
             try {
@@ -505,6 +638,9 @@ checkTimePermissions();
     async function initializePage() {
         await loadResidentsDropdowns();
         await loadCareFormList();
+        updateNurseUI();
+        updateFormPermissions();
+        checkTimePermissions();
         setInterval(checkTimePermissions, 30 * 1000);
     }
 
