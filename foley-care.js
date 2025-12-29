@@ -11,6 +11,9 @@ document.addEventListener('firebase-ready', () => {
     const residentFilterSelect = document.getElementById('resident-filter-select');
     const residentNameSelectForm = document.getElementById('resident-name-select-form');
     const statusBtnGroup = document.querySelector('.btn-group');
+    const closedStartInput = document.getElementById('closed-start-date');
+    const closedEndInput = document.getElementById('closed-end-date');
+
     const careFormListTitle = document.getElementById('care-form-list-title');
     const careFormList = document.getElementById('care-form-list');
     const addNewFormBtn = document.getElementById('add-new-form-btn');
@@ -201,10 +204,37 @@ document.addEventListener('firebase-ready', () => {
                 return Number.isFinite(n) ? n : 999999;
             };
 
-            docs.sort((a, b) => bedNum(a.data.residentName) - bedNum(b.data.residentName));
+
+            // 若為結案單且有設定篩選日期，則依「開始記錄日，若無則置放日期」進行前端篩選
+            let filteredDocs = docs;
+            if (currentView === 'closed' && (closedStartInput?.value || closedEndInput?.value)) {
+                const startStr = closedStartInput && closedStartInput.value ? closedStartInput.value : null;
+                const endStr = closedEndInput && closedEndInput.value ? closedEndInput.value : null;
+                const startDate = startStr ? new Date(startStr + 'T00:00:00') : null;
+                const endDate = endStr ? new Date(endStr + 'T23:59:59') : null;
+
+                filteredDocs = docs.filter(({ data }) => {
+                    const baseStr = data.recordStartDate || data.placementDate;
+                    if (!baseStr) return false;
+                    const d = new Date(baseStr + 'T00:00:00');
+                    if (startDate && d < startDate) return false;
+                    if (endDate && d > endDate) return false;
+                    return true;
+                });
+            } else {
+                filteredDocs = docs;
+            }
+
+            filteredDocs.sort((a, b) => bedNum(a.data.residentName) - bedNum(b.data.residentName));
+
+
+            if (filteredDocs.length === 0) {
+                careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
+                return;
+            }
 
             let listHTML = '';
-            docs.forEach(({ id, data }) => {
+            filteredDocs.forEach(({ id, data }) => {
                 const status = data.closingDate
                     ? `<span class="badge bg-secondary">${getText('status_closed')}</span>`
                     : `<span class="badge bg-success">${getText('status_ongoing')}</span>`;
@@ -510,6 +540,15 @@ checkTimePermissions();
                     createdByInput.value = '';
                 }
                 updateNurseUI();
+        const filterRow = document.getElementById('closed-date-filter');
+        if (filterRow) {
+            if (currentView === 'closed') {
+                filterRow.classList.remove('d-none');
+            } else {
+                filterRow.classList.add('d-none');
+            }
+        }
+
                 updateFormPermissions();
                 checkTimePermissions();
             }
@@ -570,10 +609,35 @@ checkTimePermissions();
                 createdByInput.value = value;
             }
             updateNurseUI();
+        const filterRow = document.getElementById('closed-date-filter');
+        if (filterRow) {
+            if (currentView === 'closed') {
+                filterRow.classList.remove('d-none');
+            } else {
+                filterRow.classList.add('d-none');
+            }
+        }
+
             updateFormPermissions();
             checkTimePermissions();
             if (nurseNameModal) nurseNameModal.hide();
             alert('護理師登入成功');
+        });
+    }
+
+
+    if (closedStartInput) {
+        closedStartInput.addEventListener('change', () => {
+            if (currentView === 'closed') {
+                loadCareFormList();
+            }
+        });
+    }
+    if (closedEndInput) {
+        closedEndInput.addEventListener('change', () => {
+            if (currentView === 'closed') {
+                loadCareFormList();
+            }
         });
     }
 
@@ -584,6 +648,15 @@ checkTimePermissions();
             statusBtnGroup.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
             currentView = e.target.dataset.status;
+            // 結案單模式顯示日期篩選列，其餘隱藏
+            const filterRow = document.getElementById('closed-date-filter');
+            if (filterRow) {
+                if (currentView === 'closed') {
+                    filterRow.classList.remove('d-none');
+                } else {
+                    filterRow.classList.add('d-none');
+                }
+            }
             loadCareFormList();
         }
     });
@@ -705,6 +778,15 @@ checkTimePermissions();
             nurseNameModal = new bootstrap.Modal(modalEl);
         }
         updateNurseUI();
+        const filterRow = document.getElementById('closed-date-filter');
+        if (filterRow) {
+            if (currentView === 'closed') {
+                filterRow.classList.remove('d-none');
+            } else {
+                filterRow.classList.add('d-none');
+            }
+        }
+
         updateFormPermissions();
         checkTimePermissions();
         setInterval(checkTimePermissions, 30 * 1000);
