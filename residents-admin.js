@@ -633,7 +633,7 @@ function exportStyledXls(){
     fitToHeight: 0, // 不強制塞一頁，允許多頁
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
-})()
+})();
   // ===== 消防用名冊（第二張） =====
   (function addFireSheet(){
   const ws = wb.addWorksheet('消防用名冊', { views: [{ state: 'frozen', ySplit: 1 }] });
