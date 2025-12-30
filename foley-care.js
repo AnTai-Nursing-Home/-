@@ -81,6 +81,17 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let isCurrentFormClosed = false;
     let residentsData = {};
+
+    function getResidentDisplayName(id, data = {}) {
+        const lang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+        const english = (data.englishName || '').trim();
+        if ((lang === 'en' || lang.startsWith('en-')) && english) {
+            return english;
+        }
+        // 預設使用住民文件的 id（中文姓名）
+        return id || english || '';
+    }
+
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
     let currentNurseName = '';
@@ -153,8 +164,10 @@ document.addEventListener('firebase-ready', () => {
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             
             snapshot.forEach(doc => {
-                residentsData[doc.id] = doc.data();
-                const option = `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
+                const data = doc.data();
+                residentsData[doc.id] = data;
+                const displayName = getResidentDisplayName(doc.id, data);
+                const option = `<option value="${doc.id}">${displayName} (${data.bedNumber || ''})</option>`;
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
@@ -168,7 +181,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // ✅ 修正版：解決 Firestore Invalid query 問題
-    async function loadCareFormList() {
+    ) {
         const residentName = residentFilterSelect.value;
         careFormList.innerHTML = `<div class="list-group-item">${getText('loading')}</div>`;
         careFormListTitle.textContent =
@@ -259,7 +272,7 @@ document.addEventListener('firebase-ready', () => {
                         ${checkboxHtml}
                         <div class="flex-grow-1">
                             <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                                <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
                             <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
@@ -382,8 +395,9 @@ checkTimePermissions();
     
     
     function generateReportHTML() {
-        const residentName = residentNameSelectForm.value;
-        const residentData = residentsData[residentName] || {};
+        const residentId = residentNameSelectForm.value;
+        const residentData = residentsData[residentId] || {};
+        const displayName = getResidentDisplayName(residentId, residentData);
         const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
         const gender = genderInput.value || residentData.gender || '';
         const birthday = birthdayInput.value || residentData.birthday || '';
@@ -398,7 +412,7 @@ checkTimePermissions();
         const basicInfoTable = `
         <table style="width:100%; border-collapse:collapse; font-size:10pt; margin: 10px 0 14px 0;">
           <tr>
-            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${displayName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('chart_number')}</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
@@ -457,6 +471,7 @@ checkTimePermissions();
         tableContent += '</tbody></table>';
         const headerContent = `<div style="text-align: center;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>`;
         return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #000 !important;padding:6px}thead th{border:1px solid #000 !important}.fill-yes-btn{display:none !important}@media print{.fill-yes-btn{display:none !important}}</style></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
+    }><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #000 !important;padding:6px}thead th{border:1px solid #000 !important}.fill-yes-btn{display:none !important}@media print{.fill-yes-btn{display:none !important}}</style></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
