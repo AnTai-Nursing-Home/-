@@ -504,10 +504,10 @@ function renderStats(){
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-async function exportStyledXls(){
+function exportStyledXls(){
   if (window.__exportingXls) return;
   window.__exportingXls = true;
-  try {
+  (async () => {
 
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
@@ -665,8 +665,9 @@ async function exportStyledXls(){
     '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
     '地址','診斷','緊急連絡人或家屬','連絡電話'
   ]);
-  styleRow(header, { isHeader: true, center: true, height: 16 });
-  // 字體：預設 8 號，住民年齡/地址/診斷 欄位改 6 號
+  styleRow(header, { isHeader: true, center: true, height: 18 });
+
+  // header 字體：一般 8 號，住民年齡/地址/診斷 6 號
   header.eachCell((cell, colNumber) => {
     const baseFont = cell.font || {};
     const size = (colNumber === 9 || colNumber === 10 || colNumber === 11) ? 6 : 8;
@@ -694,7 +695,9 @@ async function exportStyledXls(){
       r.emergencyContact || '',
       r.emergencyPhone || ''
     ]);
-    styleRow(row, {});
+    styleRow(row, { height: 16 });
+
+    // 內容列字體：一般 8 號，住民年齡/地址/診斷 6 號
     row.eachCell((cell, colNumber) => {
       const baseFont = cell.font || {};
       const size = (colNumber === 9 || colNumber === 10 || colNumber === 11) ? 6 : 8;
@@ -702,15 +705,15 @@ async function exportStyledXls(){
     });
   }
 
-  // 自動欄寬：依內容長度調整，再由頁面設定壓到一頁寬
+  // 欄寬依內容自動微調，確保滿版但不過窄
   ws.columns.forEach((col, idx) => {
     let maxLength = 0;
-    col.eachCell({ includeEmpty: true }, cell => {
+    col.eachCell({ includeEmpty: true }, (cell) => {
       const v = cell.value;
       const text = (v === undefined || v === null) ? '' : String(v);
       if (text.length > maxLength) maxLength = text.length;
     });
-    // 避免太寬，設定一個上限
+    // 基本寬度：字數 + 2，限制在 6 ~ 45 之間
     col.width = Math.min(Math.max(maxLength + 2, 6), 45);
   });
 
@@ -722,7 +725,10 @@ async function exportStyledXls(){
     fitToHeight: 0,
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
-function addFloorSheet(name, floor){
+})();
+
+// ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
+  function addFloorSheet(name, floor){
     const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
     ws.columns = [
       {width:8},{width:8},{width:18},{width:12},{width:2},
@@ -1462,14 +1468,10 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   a.click();
   URL.revokeObjectURL(a.href);
 
-  }catch(err){
-    console.error(err);
-    alert('匯出失敗：'+(err&&err.message?err.message:err));
-  }finally{
+  })().catch(err=>{ console.error(err); alert('匯出失敗：'+(err&&err.message?err.message:err)); }).finally(()=>{
     window.__exportingXls = false;
-    try{ var b=document.getElementById('btnExportXls'); if(b && b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } }catch(e){}
-  }
-};
+    try{ var b=document.getElementById('btnExportXls'); if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } } }catch(e){}
+  });
 }
 
     function hookEvents(){
