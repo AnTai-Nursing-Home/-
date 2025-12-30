@@ -275,7 +275,7 @@ document.addEventListener('firebase-ready', () => {
                                 <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
-                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
+                            <p class="mb-1">${getText('placement_date')}: ${data.recordStartDate || data.placementDate || ''}</p>
                         </div>
                     </a>`;
             });
