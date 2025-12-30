@@ -275,7 +275,7 @@ document.addEventListener('firebase-ready', () => {
                                 <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
-                            <p class="mb-1">${data.recordStartDate ? getText('record_start_date') : getText('placement_date')}: ${data.recordStartDate || data.placementDate || ''}</p>
+                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
                         </div>
                     </a>`;
             });
@@ -471,6 +471,7 @@ checkTimePermissions();
         tableContent += '</tbody></table>';
         const headerContent = `<div style="text-align: center;"><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${getText('foley_care_title')}</h2></div>`;
         return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #000 !important;padding:6px}thead th{border:1px solid #000 !important}.fill-yes-btn{display:none !important}@media print{.fill-yes-btn{display:none !important}}</style></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
+    }><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${getText('foley_care_assessment')}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #000 !important;padding:6px}thead th{border:1px solid #000 !important}.fill-yes-btn{display:none !important}@media print{.fill-yes-btn{display:none !important}}</style></head><body>${headerContent}${basicInfoTable}${tableContent}</body></html>`;
     }
 
     function switchToListView() {
