@@ -722,7 +722,8 @@ function exportStyledXls(){
     fitToHeight: 0,
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
-})();e, {views:[{state:'frozen', ySplit:2}]});
+function addFloorSheet(name, floor){
+    const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
     ws.columns = [
       {width:8},{width:8},{width:18},{width:12},{width:2},
       {width:10},{width:10},{width:18},{width:12},{width:2},
