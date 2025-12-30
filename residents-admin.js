@@ -401,9 +401,24 @@ function renderStats(){
     `;
   }
   function sheetBasicHTML(){
-    const header=['護理站','床號','住民編號','姓名','身份證字號','生日','性別','住民年齡','緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'];
-    const rows=cache.map(r=>[r.nursingStation||'',r.bedNumber||'',r.residentNumber||'',r.id||'',r.idNumber||'',r.birthday||'',r.gender||'',
-      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),r.emergencyContact||'',r.emergencyPhone||'',r.mobility||'',r.checkinDate||'',r.leaveStatus||'']);
+    const header=['護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡','地址','診斷','緊急連絡人或家屬','連絡電話','行走方式','請假 / 住院'];
+    const rows=cache.map(r=>[
+      r.nursingStation||'',
+      r.residentNumber||'',
+      r.bedNumber||'',
+      r.id||'',
+      r.englishName||'',
+      r.idNumber||'',
+      r.birthday||'',
+      r.gender||'',
+      (function(a){return a!==''?a:'';})(calcAge(r.birthday)),
+      r.address||'',
+      r.diagnosis||'',
+      r.emergencyContact||'',
+      r.emergencyPhone||'',
+      r.mobility||'',
+      r.leaveStatus||''
+    ]);
     let html='<table><thead><tr>'+header.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
     rows.forEach(tr=>{ html+='<tr>'+tr.map(td=>`<td>${td||''}</td>`).join('')+'</tr>'; });
     html+='</tbody></table>';
@@ -618,7 +633,74 @@ function exportStyledXls(){
     fitToHeight: 0, // 不強制塞一頁，允許多頁
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
+})()
+  // ===== 消防用名冊（第二張） =====
+  (function addFireSheet(){
+  const ws = wb.addWorksheet('消防用名冊', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+  // 對應基本資料欄位，但不含行走方式與請假 / 住院
+  ws.columns = [
+    { width: 8  },  // 護理站
+    { width: 14 },  // 住民編號
+    { width: 10 },  // 床號
+    { width: 16 },  // 姓名
+    { width: 20 },  // 住民英文姓名
+    { width: 20 },  // 身份證字號
+    { width: 12 },  // 生日
+    { width: 6  },  // 性別
+    { width: 8  },  // 住民年齡
+    { width: 24 },  // 地址
+    { width: 24 },  // 診斷
+    { width: 18 },  // 緊急連絡人或家屬
+    { width: 16 }   // 連絡電話
+  ];
+
+  ws.mergeCells(1, 1, 1, 13);
+  const titleCell = ws.getCell('A1');
+  titleCell.value = '消防用名冊';
+  titleCell.font = fontTitle;
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  const header = ws.addRow([
+    '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
+    '地址','診斷','緊急連絡人或家屬','連絡電話'
+  ]);
+  styleRow(header, { isHeader: true, center: true });
+
+  const rows = (cache || []).slice().sort(
+    (a, b) => String(a.bedNumber || '').localeCompare(String(b.bedNumber || ''), 'zh-Hant')
+  );
+
+  for (const r of rows) {
+    const age = computeAge(r.birthday);
+    const row = ws.addRow([
+      r.nursingStation || '',
+      r.residentNumber || '',
+      r.bedNumber || '',
+      r.id || '',
+      r.englishName || '',
+      r.idNumber || '',
+      r.birthday || '',
+      r.gender || '',
+      age === '' ? '' : age,
+      r.address || '',
+      r.diagnosis || '',
+      r.emergencyContact || '',
+      r.emergencyPhone || ''
+    ]);
+    styleRow(row, {});
+  }
+
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
+  };
 })();
+
 
   // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
   function addFloorSheet(name, floor){
