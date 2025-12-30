@@ -81,31 +81,33 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let isCurrentFormClosed = false;
     let residentsData = {};
-    // 根據目前語系決定住民顯示姓名（中文 / 英文）
-    function getResidentDisplayNameById(residentName) {
-        const data = residentsData[residentName] || {};
-        let lang = '';
-        try {
-            if (window.currentLang) lang = String(window.currentLang);
-            else if (window.currentLanguage) lang = String(window.currentLanguage);
-            else if (window.appLang) lang = String(window.appLang);
-            else if (typeof window.getCurrentLanguage === 'function') lang = String(window.getCurrentLanguage());
-        } catch (e) {
-            lang = '';
-        }
-        lang = lang.toLowerCase();
-        const englishName = data.englishName;
 
-        if (lang.startsWith('en')) {
-            if (englishName && String(englishName).trim() !== '') {
-                return englishName;
+    function getResidentDisplayName(id, data = {}) {
+        // 依目前介面語系決定顯示中文或英文名字
+        // 優先使用 i18n 的文字判斷（getText('yes') 會在英文介面回傳英文）
+        let isEnglishUI = false;
+        try {
+            if (typeof getText === 'function') {
+                const yesText = String(getText('yes') || '');
+                // 有英文字母就視為英文介面
+                isEnglishUI = /[A-Za-z]/.test(yesText);
             }
+        } catch (e) {
+            isEnglishUI = false;
         }
-        // 預設仍顯示中文姓名，若沒有中文則用英文
-        if (residentName && String(residentName).trim() !== '') return residentName;
-        if (englishName && String(englishName).trim() !== '') return englishName;
+
+        const english = (data.englishName || '').trim();
+
+        if (isEnglishUI && english) {
+            return english;
+        }
+
+        // 預設使用住民文件的 id（中文姓名），若沒有中文則退回英文
+        if (id && String(id).trim() !== '') return id;
+        if (english) return english;
         return '';
     }
+}
 
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
@@ -179,8 +181,10 @@ document.addEventListener('firebase-ready', () => {
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             
             snapshot.forEach(doc => {
-                residentsData[doc.id] = doc.data();
-                const option = `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
+                const data = doc.data();
+                residentsData[doc.id] = data;
+                const displayName = getResidentDisplayName(doc.id, data);
+                const option = `<option value="${doc.id}">${displayName} (${data.bedNumber || ''})</option>`;
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
@@ -285,10 +289,10 @@ document.addEventListener('firebase-ready', () => {
                         ${checkboxHtml}
                         <div class="flex-grow-1">
                             <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">${getResidentDisplayNameById(data.residentName)} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                                <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
-                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
+                            <p class="mb-1">${data.recordStartDate ? getText('record_start_date') : getText('placement_date')}: ${data.recordStartDate || data.placementDate || ''}</p>
                         </div>
                     </a>`;
             });
@@ -430,12 +434,12 @@ checkTimePermissions();
         `目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`
     );
 }
-
-
-function generateReportHTML() {
-        const residentName = residentNameSelectForm.value;
-        const residentData = residentsData[residentName] || {};
-        const displayResidentName = getResidentDisplayNameById(residentName);
+ 
+    
+    function generateReportHTML() {
+        const residentId = residentNameSelectForm.value;
+        const residentData = residentsData[residentId] || {};
+        const displayName = getResidentDisplayName(residentId, residentData);
         const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
         const gender = genderInput.value || residentData.gender || '';
         const birthday = birthdayInput.value || residentData.birthday || '';
@@ -450,7 +454,7 @@ function generateReportHTML() {
         const basicInfoTable = `
         <table style="width:100%; border-collapse:collapse; font-size:10pt; margin: 10px 0 14px 0;">
           <tr>
-            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${displayResidentName || ''}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${displayName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('chart_number')}</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
