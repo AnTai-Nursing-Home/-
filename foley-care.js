@@ -181,7 +181,7 @@ document.addEventListener('firebase-ready', () => {
     }
 
     // ✅ 修正版：解決 Firestore Invalid query 問題
-    ) {
+    async function loadCareFormList() {
         const residentName = residentFilterSelect.value;
         careFormList.innerHTML = `<div class="list-group-item">${getText('loading')}</div>`;
         careFormListTitle.textContent =
