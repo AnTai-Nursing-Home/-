@@ -504,10 +504,10 @@ function renderStats(){
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-function exportStyledXls(){
+async function exportStyledXls(){
   if (window.__exportingXls) return;
   window.__exportingXls = true;
-  (async () => {
+  try {
 
   if (typeof ExcelJS === 'undefined') { alert('ExcelJS 載入失敗，無法匯出樣式。'); return; }
 
@@ -1462,10 +1462,14 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   a.click();
   URL.revokeObjectURL(a.href);
 
-  })().catch(err=>{ console.error(err); alert('匯出失敗：'+(err&&err.message?err.message:err)); }).finally(()=>{
+  }catch(err){
+    console.error(err);
+    alert('匯出失敗：'+(err&&err.message?err.message:err));
+  }finally{
     window.__exportingXls = false;
-    try{ var b=document.getElementById('btnExportXls'); if(b){ b.disabled=false; if(b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } } }catch(e){}
-  });
+    try{ var b=document.getElementById('btnExportXls'); if(b && b.dataset && b.dataset.idleText){ b.innerText=b.dataset.idleText; } }catch(e){}
+  }
+};
 }
 
     function hookEvents(){
