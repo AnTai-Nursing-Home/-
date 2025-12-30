@@ -387,22 +387,24 @@ function checkTimePermissions() {
     }
 
     // radio + 簽名欄位
-    document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
-        const row = el.closest('tr[data-date]');
-        let isFuture = false;
-        if (row && row.dataset.date) {
-            // 日期格式都是 YYYY-MM-DD，可以直接字串比較
-            isFuture = row.dataset.date > todayStr;
-        }
+    document
+        .querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]')
+        .forEach(el => {
+            const row = el.closest('tr[data-date]');
+            let isFuture = false;
+            if (row && row.dataset.date) {
+                // 日期格式都是 YYYY-MM-DD，可以直接字串比較
+                isFuture = row.dataset.date > todayStr;
+            }
 
-        if (isFuture) {
-            // 今天以後（未來的日期）一律鎖定，不可操作
-            el.disabled = true;
-        } else {
-            // 今天與今天以前依照原本的時間/護理師登入規則
-            el.disabled = !caregiverEnabled;
-        }
-    });
+            if (isFuture) {
+                // 今天以後（未來的日期）一律鎖定，不可操作
+                el.disabled = true;
+            } else {
+                // 今天與今天以前依照原本的時間/護理師登入規則
+                el.disabled = !caregiverEnabled;
+            }
+        });
 
     // 一鍵全Yes按鈕
     careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
@@ -412,7 +414,9 @@ function checkTimePermissions() {
         btn.disabled = !caregiverEnabled || !!isFuture;
     });
 
-    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
+    console.log(
+        `目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`
+    );
 }
  bedNumberInput.value || residentData.bedNumber || '';
         const gender = genderInput.value || residentData.gender || '';
