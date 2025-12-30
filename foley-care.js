@@ -38,7 +38,7 @@ document.addEventListener('firebase-ready', () => {
     const nurseLoginBtn = document.getElementById('nurse-login-btn');
     const nurseLoginStatus = document.getElementById('nurse-login-status');
     const nurseLoginLabel = document.getElementById('nurse-login-label');
-    
+
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
@@ -81,6 +81,17 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let isCurrentFormClosed = false;
     let residentsData = {};
+
+    function getResidentDisplayName(id, data = {}) {
+        const lang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+        const english = (data.englishName || '').trim();
+        if ((lang === 'en' || lang.startsWith('en-')) && english) {
+            return english;
+        }
+        // 預設使用住民文件的 id（中文姓名）
+        return id || english || '';
+    }
+
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
     let currentNurseName = '';
@@ -151,14 +162,16 @@ document.addEventListener('firebase-ready', () => {
             const snapshot = await db.collection(residentsCollection).orderBy('bedNumber').get();
             let filterOptionsHTML = `<option value="" selected>${getText('all_residents')}</option>`;
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
-            
+
             snapshot.forEach(doc => {
-                residentsData[doc.id] = doc.data();
-                const option = `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
+                const data = doc.data();
+                residentsData[doc.id] = data;
+                const displayName = getResidentDisplayName(doc.id, data);
+                const option = `<option value="${doc.id}">${displayName} (${data.bedNumber || ''})</option>`;
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
-            
+
             residentFilterSelect.innerHTML = filterOptionsHTML;
             residentNameSelectForm.innerHTML = formOptionsHTML;
         } catch (error) {
@@ -259,10 +272,10 @@ document.addEventListener('firebase-ready', () => {
                         ${checkboxHtml}
                         <div class="flex-grow-1">
                             <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                                <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
-                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
+                            <p class="mb-1">${data.recordStartDate ? getText('record_start_date') : getText('placement_date')}: ${data.recordStartDate || data.placementDate || ''}</p>
                         </div>
                     </a>`;
             });
@@ -312,7 +325,7 @@ document.addEventListener('firebase-ready', () => {
             const day = d.getDate();
             const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
-            
+
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
@@ -327,7 +340,7 @@ document.addEventListener('firebase-ready', () => {
                     </div>
                 </td>`;
             });
-            
+
             const caregiverSign = dailyRecord.caregiverSign || '';
             const isToday = (dateString === todayStr);
             const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
@@ -336,7 +349,7 @@ document.addEventListener('firebase-ready', () => {
             </tr>`;
             careTableBody.innerHTML += row;
         }
-        
+
         // 綁定一鍵全Yes
         careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -349,41 +362,58 @@ document.addEventListener('firebase-ready', () => {
                 radios.forEach(r => { r.checked = true; });
             });
         });
-checkTimePermissions();
+        checkTimePermissions();
     }
 
     function checkTimePermissions() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour + currentMinute / 60;
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour + currentMinute / 60;
 
-    // 🕒 時間範圍：
-    // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
-    // 已結案單：僅護理師登入才可操作，照服員一律鎖定
-    let caregiverEnabled;
+        // 🕒 時間範圍：
+        // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
+        // 已結案單：僅護理師登入才可操作，照服員一律鎖定
+        let caregiverEnabled;
 
-    if (isCurrentFormClosed) {
-        caregiverEnabled = isNurseLoggedIn;
-    } else {
-        caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
+        if (isCurrentFormClosed) {
+            caregiverEnabled = isNurseLoggedIn;
+        } else {
+            caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
+        }
+
+        // radio + 簽名欄位（先依時間 / 身份開關）
+        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+            el.disabled = !caregiverEnabled;
+        });
+
+        // 一鍵全Yes按鈕
+        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
+
+        console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
+
+        // 🔒 新增：日期限制（僅能操作「今天」與「今天以前」，未來日期一律鎖住）
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        document.querySelectorAll('#care-table-body tr[data-date]').forEach(row => {
+            const dateStr = row.dataset.date;
+            const rowDate = new Date(dateStr + 'T00:00:00');
+
+            if (rowDate > today) {
+                // 未來日期：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
+                row.querySelectorAll('input, .fill-yes-btn').forEach(el => {
+                    el.disabled = true;
+                });
+            }
+        });
     }
 
-    // radio + 簽名欄位
-    document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
-        el.disabled = !caregiverEnabled;
-    });
 
-    // 一鍵全Yes按鈕
-    careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
-
-    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
-}
-    
-    
     function generateReportHTML() {
-        const residentName = residentNameSelectForm.value;
-        const residentData = residentsData[residentName] || {};
+        const residentId = residentNameSelectForm.value;
+        const residentData = residentsData[residentId] || {};
+        const displayName = getResidentDisplayName(residentId, residentData);
         const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
         const gender = genderInput.value || residentData.gender || '';
         const birthday = birthdayInput.value || residentData.birthday || '';
@@ -398,7 +428,7 @@ checkTimePermissions();
         const basicInfoTable = `
         <table style="width:100%; border-collapse:collapse; font-size:10pt; margin: 10px 0 14px 0;">
           <tr>
-            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${displayName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('chart_number')}</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
@@ -573,14 +603,14 @@ checkTimePermissions();
                     createdByInput.value = '';
                 }
                 updateNurseUI();
-        const filterRow = document.getElementById('closed-date-filter');
-        if (filterRow) {
-            if (currentView === 'closed') {
-                filterRow.classList.remove('d-none');
-            } else {
-                filterRow.classList.add('d-none');
-            }
-        }
+                const filterRow = document.getElementById('closed-date-filter');
+                if (filterRow) {
+                    if (currentView === 'closed') {
+                        filterRow.classList.remove('d-none');
+                    } else {
+                        filterRow.classList.add('d-none');
+                    }
+                }
 
                 updateFormPermissions();
                 checkTimePermissions();
@@ -642,14 +672,14 @@ checkTimePermissions();
                 createdByInput.value = value;
             }
             updateNurseUI();
-        const filterRow = document.getElementById('closed-date-filter');
-        if (filterRow) {
-            if (currentView === 'closed') {
-                filterRow.classList.remove('d-none');
-            } else {
-                filterRow.classList.add('d-none');
+            const filterRow = document.getElementById('closed-date-filter');
+            if (filterRow) {
+                if (currentView === 'closed') {
+                    filterRow.classList.remove('d-none');
+                } else {
+                    filterRow.classList.add('d-none');
+                }
             }
-        }
 
             updateFormPermissions();
             checkTimePermissions();
