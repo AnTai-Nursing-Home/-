@@ -38,7 +38,7 @@ document.addEventListener('firebase-ready', () => {
     const nurseLoginBtn = document.getElementById('nurse-login-btn');
     const nurseLoginStatus = document.getElementById('nurse-login-status');
     const nurseLoginLabel = document.getElementById('nurse-login-label');
-    
+
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
@@ -83,31 +83,14 @@ document.addEventListener('firebase-ready', () => {
     let residentsData = {};
 
     function getResidentDisplayName(id, data = {}) {
-        // 依目前介面語系決定顯示中文或英文名字
-        // 優先使用 i18n 的文字判斷（getText('yes') 會在英文介面回傳英文）
-        let isEnglishUI = false;
-        try {
-            if (typeof getText === 'function') {
-                const yesText = String(getText('yes') || '');
-                // 有英文字母就視為英文介面
-                isEnglishUI = /[A-Za-z]/.test(yesText);
-            }
-        } catch (e) {
-            isEnglishUI = false;
-        }
-
+        const lang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
         const english = (data.englishName || '').trim();
-
-        if (isEnglishUI && english) {
+        if ((lang === 'en' || lang.startsWith('en-')) && english) {
             return english;
         }
-
-        // 預設使用住民文件的 id（中文姓名），若沒有中文則退回英文
-        if (id && String(id).trim() !== '') return id;
-        if (english) return english;
-        return '';
+        // 預設使用住民文件的 id（中文姓名）
+        return id || english || '';
     }
-}
 
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
@@ -179,7 +162,7 @@ document.addEventListener('firebase-ready', () => {
             const snapshot = await db.collection(residentsCollection).orderBy('bedNumber').get();
             let filterOptionsHTML = `<option value="" selected>${getText('all_residents')}</option>`;
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
-            
+
             snapshot.forEach(doc => {
                 const data = doc.data();
                 residentsData[doc.id] = data;
@@ -188,7 +171,7 @@ document.addEventListener('firebase-ready', () => {
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
-            
+
             residentFilterSelect.innerHTML = filterOptionsHTML;
             residentNameSelectForm.innerHTML = formOptionsHTML;
         } catch (error) {
@@ -342,7 +325,7 @@ document.addEventListener('firebase-ready', () => {
             const day = d.getDate();
             const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dailyRecord = careData[dateString] || {};
-            
+
             let itemCells = '';
             careItems.forEach(itemKey => {
                 const value = dailyRecord[itemKey];
@@ -357,7 +340,7 @@ document.addEventListener('firebase-ready', () => {
                     </div>
                 </td>`;
             });
-            
+
             const caregiverSign = dailyRecord.caregiverSign || '';
             const isToday = (dateString === todayStr);
             const row = `<tr class="${isToday ? 'today-row' : ''}" data-date="${dateString}">
@@ -366,7 +349,7 @@ document.addEventListener('firebase-ready', () => {
             </tr>`;
             careTableBody.innerHTML += row;
         }
-        
+
         // 綁定一鍵全Yes
         careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -379,63 +362,54 @@ document.addEventListener('firebase-ready', () => {
                 radios.forEach(r => { r.checked = true; });
             });
         });
-checkTimePermissions();
+        checkTimePermissions();
     }
 
     function checkTimePermissions() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour + currentMinute / 60;
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour + currentMinute / 60;
 
-    // 今日字串，用來和每列 data-date 比較（YYYY-MM-DD）
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        // 🕒 時間範圍：
+        // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
+        // 已結案單：僅護理師登入才可操作，照服員一律鎖定
+        let caregiverEnabled;
 
-    // 🕒 時間範圍：
-    // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
-    // 已結案單：僅護理師登入才可操作，照服員一律鎖定
-    let caregiverEnabled;
+        if (isCurrentFormClosed) {
+            caregiverEnabled = isNurseLoggedIn;
+        } else {
+            caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
+        }
 
-    if (isCurrentFormClosed) {
-        caregiverEnabled = isNurseLoggedIn;
-    } else {
-        caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
-    }
-
-    // radio + 簽名欄位
-    document
-        .querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]')
-        .forEach(el => {
-            const row = el.closest('tr[data-date]');
-            let isFuture = false;
-            if (row && row.dataset.date) {
-                // 日期格式都是 YYYY-MM-DD，可以直接字串比較
-                isFuture = row.dataset.date > todayStr;
-            }
-
-            if (isFuture) {
-                // 今天以後（未來的日期）一律鎖定，不可操作
-                el.disabled = true;
-            } else {
-                // 今天與今天以前依照原本的時間/護理師登入規則
-                el.disabled = !caregiverEnabled;
-            }
+        // radio + 簽名欄位（先依時間 / 身份開關）
+        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+            el.disabled = !caregiverEnabled;
         });
 
-    // 一鍵全Yes按鈕
-    careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => {
-        const dateStr = btn.getAttribute('data-date');
-        const isFuture = dateStr && dateStr > todayStr;
-        // 未來日期永遠不可按；今天/以前依時間與登入狀態決定
-        btn.disabled = !caregiverEnabled || !!isFuture;
-    });
+        // 一鍵全Yes按鈕
+        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
 
-    console.log(
-        `目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`
-    );
-}
- 
-    
+        console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
+
+        // 🔒 新增：日期限制（僅能操作「今天」與「今天以前」，未來日期一律鎖住）
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        document.querySelectorAll('#care-table-body tr[data-date]').forEach(row => {
+            const dateStr = row.dataset.date;
+            const rowDate = new Date(dateStr + 'T00:00:00');
+
+            if (rowDate > today) {
+                // 未來日期：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
+                row.querySelectorAll('input, .fill-yes-btn').forEach(el => {
+                    el.disabled = true;
+                });
+            }
+        });
+    }
+
+
     function generateReportHTML() {
         const residentId = residentNameSelectForm.value;
         const residentData = residentsData[residentId] || {};
@@ -629,14 +603,14 @@ checkTimePermissions();
                     createdByInput.value = '';
                 }
                 updateNurseUI();
-        const filterRow = document.getElementById('closed-date-filter');
-        if (filterRow) {
-            if (currentView === 'closed') {
-                filterRow.classList.remove('d-none');
-            } else {
-                filterRow.classList.add('d-none');
-            }
-        }
+                const filterRow = document.getElementById('closed-date-filter');
+                if (filterRow) {
+                    if (currentView === 'closed') {
+                        filterRow.classList.remove('d-none');
+                    } else {
+                        filterRow.classList.add('d-none');
+                    }
+                }
 
                 updateFormPermissions();
                 checkTimePermissions();
@@ -698,14 +672,14 @@ checkTimePermissions();
                 createdByInput.value = value;
             }
             updateNurseUI();
-        const filterRow = document.getElementById('closed-date-filter');
-        if (filterRow) {
-            if (currentView === 'closed') {
-                filterRow.classList.remove('d-none');
-            } else {
-                filterRow.classList.add('d-none');
+            const filterRow = document.getElementById('closed-date-filter');
+            if (filterRow) {
+                if (currentView === 'closed') {
+                    filterRow.classList.remove('d-none');
+                } else {
+                    filterRow.classList.add('d-none');
+                }
             }
-        }
 
             updateFormPermissions();
             checkTimePermissions();
