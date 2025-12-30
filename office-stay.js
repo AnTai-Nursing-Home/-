@@ -438,15 +438,9 @@ function initAppSection() {
 }
 
 function setDefaultFilterRange() {
-    const today = new Date();
-    const pad = (n) => n.toString().padStart(2, '0');
-    const toDateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-
-    document.getElementById('filterStart').value = toDateStr(start);
-    document.getElementById('filterEnd').value = toDateStr(end);
+    // 一開始不要預設日期，讓系統顯示所有申請單；起訖日期只作為篩選條件使用
+    document.getElementById('filterStart').value = '';
+    document.getElementById('filterEnd').value = '';
 }
 
 async function loadApplicationsByFilter() {
@@ -543,6 +537,14 @@ async function loadApplicationsByFilter() {
                     <span class="badge d-print-inline d-none" style="background:${status.color}">${status.name}</span>
                 </td>
                 <td>
+                    <select class="form-select form-select-sm sign-select no-print" data-app-id="${doc.id}">
+                        <option value="">—</option>
+                        <option value="林淑菁" ${app.signName === '林淑菁' ? 'selected' : ''}>林淑菁</option>
+                        <option value="呂麗雯" ${app.signName === '呂麗雯' ? 'selected' : ''}>呂麗雯</option>
+                    </select>
+                    <span class="d-print-inline d-none sign-display">${app.signName || ''}</span>
+                </td>
+                <td>
                     <button class="btn btn-sm btn-outline-secondary no-print" data-comment-app-id="${doc.id}">
                         註解
                     </button>
@@ -563,6 +565,19 @@ async function loadApplicationsByFilter() {
                 await loadStatusDefsOffice();
                 await loadApplicationsByFilter();
             });
+
+            const signSelect = tr.querySelector('.sign-select');
+            if (signSelect) {
+                signSelect.addEventListener('change', async () => {
+                    const newSign = signSelect.value || null;
+                    await db.collection('stayApplications').doc(doc.id).update({
+                        signName: newSign,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    const span = tr.querySelector('.sign-display');
+                    if (span) span.textContent = newSign || '';
+                });
+            }
 
             const commentBtn = tr.querySelector('[data-comment-app-id]');
             commentBtn.addEventListener('click', () => openCommentModalOffice(doc.id));
