@@ -665,7 +665,13 @@ function exportStyledXls(){
     '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
     '地址','診斷','緊急連絡人或家屬','連絡電話'
   ]);
-  styleRow(header, { isHeader: true, center: true });
+  styleRow(header, { isHeader: true, center: true, height: 16 });
+  // 字體：預設 8 號，住民年齡/地址/診斷 欄位改 6 號
+  header.eachCell((cell, colNumber) => {
+    const baseFont = cell.font || {};
+    const size = (colNumber === 9 || colNumber === 10 || colNumber === 11) ? 6 : 8;
+    cell.font = Object.assign({}, baseFont, { size });
+  });
 
   const rows = (cache || []).slice().sort(
     (a, b) => String(a.bedNumber || '').localeCompare(String(b.bedNumber || ''), 'zh-Hant')
@@ -689,7 +695,24 @@ function exportStyledXls(){
       r.emergencyPhone || ''
     ]);
     styleRow(row, {});
+    row.eachCell((cell, colNumber) => {
+      const baseFont = cell.font || {};
+      const size = (colNumber === 9 || colNumber === 10 || colNumber === 11) ? 6 : 8;
+      cell.font = Object.assign({}, baseFont, { size });
+    });
   }
+
+  // 自動欄寬：依內容長度調整，再由頁面設定壓到一頁寬
+  ws.columns.forEach((col, idx) => {
+    let maxLength = 0;
+    col.eachCell({ includeEmpty: true }, cell => {
+      const v = cell.value;
+      const text = (v === undefined || v === null) ? '' : String(v);
+      if (text.length > maxLength) maxLength = text.length;
+    });
+    // 避免太寬，設定一個上限
+    col.width = Math.min(Math.max(maxLength + 2, 6), 45);
+  });
 
   ws.pageSetup = {
     paperSize: 9,
@@ -699,12 +722,7 @@ function exportStyledXls(){
     fitToHeight: 0,
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
-})();
-
-
-  // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
-  function addFloorSheet(name, floor){
-    const ws = wb.addWorksheet(name, {views:[{state:'frozen', ySplit:2}]});
+})();e, {views:[{state:'frozen', ySplit:2}]});
     ws.columns = [
       {width:8},{width:8},{width:18},{width:12},{width:2},
       {width:10},{width:10},{width:18},{width:12},{width:2},
