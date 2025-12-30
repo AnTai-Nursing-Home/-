@@ -81,17 +81,6 @@ document.addEventListener('firebase-ready', () => {
     let currentCareFormId = null;
     let isCurrentFormClosed = false;
     let residentsData = {};
-
-    function getResidentDisplayName(id, data = {}) {
-        const lang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
-        const english = (data.englishName || '').trim();
-        if ((lang === 'en' || lang.startsWith('en-')) && english) {
-            return english;
-        }
-        // 預設使用住民文件的 id（中文姓名）
-        return id || english || '';
-    }
-
     let currentView = 'ongoing';
     let isNurseLoggedIn = false;
     let currentNurseName = '';
@@ -164,10 +153,8 @@ document.addEventListener('firebase-ready', () => {
             let formOptionsHTML = `<option value="" selected disabled>${getText('please_select_resident')}</option>`;
             
             snapshot.forEach(doc => {
-                const data = doc.data();
-                residentsData[doc.id] = data;
-                const displayName = getResidentDisplayName(doc.id, data);
-                const option = `<option value="${doc.id}">${displayName} (${data.bedNumber || ''})</option>`;
+                residentsData[doc.id] = doc.data();
+                const option = `<option value="${doc.id}">${doc.id} (${doc.data().bedNumber})</option>`;
                 filterOptionsHTML += option;
                 formOptionsHTML += option;
             });
@@ -272,10 +259,10 @@ document.addEventListener('firebase-ready', () => {
                         ${checkboxHtml}
                         <div class="flex-grow-1">
                             <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">${getResidentDisplayName(data.residentName, residentsData[data.residentName] || {})} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
+                                <h5 class="mb-1">${data.residentName} (${residentsData[data.residentName]?.bedNumber || 'N/A'})</h5>
                                 <small>${status}</small>
                             </div>
-                            <p class="mb-1">${data.recordStartDate ? getText('record_start_date') : getText('placement_date')}: ${data.recordStartDate || data.placementDate || ''}</p>
+                            <p class="mb-1">${getText('placement_date')}: ${data.placementDate}</p>
                         </div>
                     </a>`;
             });
@@ -365,8 +352,7 @@ document.addEventListener('firebase-ready', () => {
 checkTimePermissions();
     }
 
-    
-function checkTimePermissions() {
+    function checkTimePermissions() {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
@@ -418,7 +404,12 @@ function checkTimePermissions() {
         `目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`
     );
 }
- bedNumberInput.value || residentData.bedNumber || '';
+
+
+function generateReportHTML() {
+        const residentName = residentNameSelectForm.value;
+        const residentData = residentsData[residentName] || {};
+        const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
         const gender = genderInput.value || residentData.gender || '';
         const birthday = birthdayInput.value || residentData.birthday || '';
         const checkinDate = checkinDateInput.value || residentData.checkinDate || '';
@@ -432,7 +423,7 @@ function checkTimePermissions() {
         const basicInfoTable = `
         <table style="width:100%; border-collapse:collapse; font-size:10pt; margin: 10px 0 14px 0;">
           <tr>
-            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${displayName || ''}</td>
+            <td style="border:1px solid #000; padding:6px;"><b>${getText('name')}</b>：${residentName || ''}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('bed_number')}</b>：${bedNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('chart_number')}</b>：${chartNumber}</td>
             <td style="border:1px solid #000; padding:6px;"><b>${getText('gender')}</b>：${gender}</td>
