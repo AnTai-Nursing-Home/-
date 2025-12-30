@@ -352,55 +352,36 @@ document.addEventListener('firebase-ready', () => {
 checkTimePermissions();
     }
 
-    
     function checkTimePermissions() {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTime = currentHour + currentMinute / 60;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour + currentMinute / 60;
 
-        // 🕒 時間範圍：
-        // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
-        // 已結案單：僅護理師登入才可操作，照服員一律鎖定
-        let caregiverEnabled;
+    // 🕒 時間範圍：
+    // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
+    // 已結案單：僅護理師登入才可操作，照服員一律鎖定
+    let caregiverEnabled;
 
-        if (isCurrentFormClosed) {
-            caregiverEnabled = isNurseLoggedIn;
-        } else {
-            caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
-        }
-
-        // 先依「時間 / 身分」決定是否可操作
-        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
-            el.disabled = !caregiverEnabled;
-        });
-
-        // 一鍵全Yes按鈕
-        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
-
-        console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
-
-        // 🔒 再加上「日期」限制：
-        // 假設今天是 12/30 → 只能動 12/30 以及 12/30 以前
-        // 未來日期（12/31 之後）一律鎖住（不分護理師 / 照服員）
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);   // 把時間歸零，只比日期
-
-        document.querySelectorAll('#care-table-body tr[data-date]').forEach(row => {
-            const dateStr = row.dataset.date;          // e.g. "2025-12-30"
-            const rowDate = new Date(dateStr + 'T00:00:00');
-
-            if (rowDate > today) {
-                // 未來日期：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
-                row.querySelectorAll('input, .fill-yes-btn').forEach(el => {
-                    el.disabled = true;
-                });
-            }
-        });
+    if (isCurrentFormClosed) {
+        caregiverEnabled = isNurseLoggedIn;
+    } else {
+        caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
     }
 
+    // radio + 簽名欄位
+    document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+        el.disabled = !caregiverEnabled;
+    });
 
-function generateReportHTML() {
+    // 一鍵全Yes按鈕
+    careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
+
+    console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
+}
+    
+    
+    function generateReportHTML() {
         const residentName = residentNameSelectForm.value;
         const residentData = residentsData[residentName] || {};
         const bedNumber = bedNumberInput.value || residentData.bedNumber || '';
