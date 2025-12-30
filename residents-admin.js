@@ -130,6 +130,8 @@ document.addEventListener('residents-init', ()=>{
         <td>${r.diagnosis||''}</td>
         <td>${r.emergencyContact||''}</td>
         <td>${r.emergencyPhone||''}</td>
+        <td>${r.mobility||''}</td>
+        <td>${r.leaveStatus||''}</td>
         <td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td>
       </tr>`;
     });
@@ -550,11 +552,11 @@ function exportStyledXls(){
   (function addBasicSheet(){
   const ws = wb.addWorksheet('基本資料', { views: [{ state: 'frozen', ySplit: 1 }] });
 
-  // 對應畫面「基本資料」頁 13 欄
+  // 對應畫面「基本資料」頁 15 欄
   ws.columns = [
     { width: 8  },  // 護理站
     { width: 14 },  // 住民編號
-    { width: 10 },  // 桌號/床號
+    { width: 10 },  // 床號
     { width: 16 },  // 姓名
     { width: 20 },  // 住民英文姓名
     { width: 20 },  // 身份證字號
@@ -564,10 +566,12 @@ function exportStyledXls(){
     { width: 24 },  // 地址
     { width: 24 },  // 診斷
     { width: 18 },  // 緊急連絡人或家屬
-    { width: 16 }   // 連絡電話
+    { width: 16 },  // 連絡電話
+    { width: 14 },  // 行走方式
+    { width: 10 }   // 請假 / 住院
   ];
 
-  ws.mergeCells(1, 1, 1, 13);
+  ws.mergeCells(1, 1, 1, 15);
   const titleCell = ws.getCell('A1');
   titleCell.value = '基本資料';
   titleCell.font = fontTitle;
@@ -575,7 +579,7 @@ function exportStyledXls(){
 
   const header = ws.addRow([
     '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
-    '地址','診斷','緊急連絡人或家屬','連絡電話'
+    '地址','診斷','緊急連絡人或家屬','連絡電話','行走方式','請假 / 住院'
   ]);
   styleRow(header, { isHeader: true, center: true });
 
@@ -599,7 +603,9 @@ function exportStyledXls(){
       r.address || '',
       r.diagnosis || '',
       r.emergencyContact || '',
-      r.emergencyPhone || ''
+      r.emergencyPhone || '',
+      r.mobility || '',
+      r.leaveStatus || ''
     ]);
     styleRow(row, {});
   }
