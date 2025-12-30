@@ -117,10 +117,19 @@ document.addEventListener('residents-init', ()=>{
     cache.forEach(r=>{
       const age=calcAge(r.birthday);
       html+=`<tr data-id="${r.id}">
-        <td>${r.nursingStation||''}</td><td>${r.bedNumber||''}</td><td>${r.residentNumber||''}</td><td>${r.id||''}</td><td>${r.idNumber||''}</td>
-        <td>${r.birthday||''}</td><td>${r.gender||''}</td><td>${age!==''?age:''}</td>
-        <td>${r.emergencyContact||''}</td><td>${r.emergencyPhone||''}</td><td>${r.mobility||''}</td>
-        <td>${r.checkinDate||''}</td><td>${r.leaveStatus||''}</td>
+        <td>${r.nursingStation||''}</td>
+        <td>${r.residentNumber||''}</td>
+        <td>${r.bedNumber||''}</td>
+        <td>${r.id||''}</td>
+        <td>${r.englishName||''}</td>
+        <td>${r.idNumber||''}</td>
+        <td>${r.birthday||''}</td>
+        <td>${r.gender||''}</td>
+        <td>${age!==''?age:''}</td>
+        <td>${r.address||''}</td>
+        <td>${r.diagnosis||''}</td>
+        <td>${r.emergencyContact||''}</td>
+        <td>${r.emergencyPhone||''}</td>
         <td><button class="btn btn-sm btn-primary btn-edit">編輯</button> <button class="btn btn-sm btn-danger btn-delete">刪除</button></td>
       </tr>`;
     });
@@ -504,7 +513,7 @@ function exportStyledXls(){
     row.eachCell((c,idx)=>{
       c.font = isHeader ? fontHeader : fontCell;
       c.border = borderThin;
-      const isBedNoCol = [2,7,12].includes(idx); // 床號欄置中
+      const isBedNoCol = [2,3,7,12].includes(idx); // 床號欄置中
       c.alignment = { vertical:'middle', horizontal: (isHeader||center) ? 'center' : (isBedNoCol?'center':'left'), wrapText: wrap };
       if(isHeader) c.fill = fillHeader;
       else if(alt) c.fill = fillAlt;
@@ -544,18 +553,18 @@ function exportStyledXls(){
   // 對應畫面「基本資料」頁 13 欄
   ws.columns = [
     { width: 8  },  // 護理站
-    { width: 10 },  // 床號
     { width: 14 },  // 住民編號
+    { width: 10 },  // 桌號/床號
     { width: 16 },  // 姓名
+    { width: 20 },  // 住民英文姓名
     { width: 20 },  // 身份證字號
     { width: 12 },  // 生日
     { width: 6  },  // 性別
     { width: 8  },  // 住民年齡
+    { width: 24 },  // 地址
+    { width: 24 },  // 診斷
     { width: 18 },  // 緊急連絡人或家屬
-    { width: 16 },  // 連絡電話
-    { width: 14 },  // 行動方式
-    { width: 12 },  // 入住日期
-    { width: 10 }   // 住民請假
+    { width: 16 }   // 連絡電話
   ];
 
   ws.mergeCells(1, 1, 1, 13);
@@ -565,8 +574,8 @@ function exportStyledXls(){
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
   const header = ws.addRow([
-    '護理站','床號','住民編號','姓名','身份證字號','生日','性別','住民年齡',
-    '緊急連絡人或家屬','連絡電話','行動方式','入住日期','住民請假'
+    '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
+    '地址','診斷','緊急連絡人或家屬','連絡電話'
   ]);
   styleRow(header, { isHeader: true, center: true });
 
@@ -579,18 +588,18 @@ function exportStyledXls(){
     const age = computeAge(r.birthday);
     const row = ws.addRow([
       r.nursingStation || '',
-      r.bedNumber || '',
       r.residentNumber || '',
+      r.bedNumber || '',
       r.id || '',
+      r.englishName || '',
       r.idNumber || '',
       r.birthday || '',
       r.gender || '',
       age === '' ? '' : age,
+      r.address || '',
+      r.diagnosis || '',
       r.emergencyContact || '',
-      r.emergencyPhone || '',
-      r.mobility || '',
-      r.checkinDate || '',
-      r.leaveStatus || ''
+      r.emergencyPhone || ''
     ]);
     styleRow(row, {});
   }
@@ -1410,6 +1419,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
             idNumber:       norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
             birthday:       parseDateSmart(birthdayRaw),
             checkinDate:    parseDateSmart(checkinRaw),
+            englishName:    norm(pick(r, ['住民英文姓名','英文姓名','EnglishName','English Name'])),
+            address:        norm(pick(r, ['地址','住址','Address'])),
+            diagnosis:      norm(pick(r, ['診斷','診斷名稱','Diagnosis','Dx'])),
             emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
             emergencyPhone:   norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
             mobility:         norm(pick(r, ['行動方式','行動','Mobility'])),
@@ -1435,11 +1447,14 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   const modalTitle=document.getElementById('resident-modal-title');
   const saveBtn=document.getElementById('save-resident-btn');
   const nameInput=document.getElementById('resident-name');
+  const englishNameInput=document.getElementById('resident-englishName');
   const stationInput=document.getElementById('resident-station');
   const bedInput=document.getElementById('resident-bedNumber');
   const genderInput=document.getElementById('resident-gender');
   const birthdayInput=document.getElementById('resident-birthday');
   const idInput=document.getElementById('resident-idNumber');
+  const addressInput=document.getElementById('resident-address');
+  const diagnosisInput=document.getElementById('resident-diagnosis');
   const emgNameInput=document.getElementById('resident-emgName');
   const emgPhoneInput=document.getElementById('resident-emgPhone');
   const mobilityInput=document.getElementById('resident-mobility');
@@ -1463,6 +1478,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
         gender:genderInput?genderInput.value:'',
         birthday:birthdayInput?parseDateSmart(birthdayInput.value):'',
         idNumber:idInput?norm(idInput.value):'',
+        englishName:englishNameInput?norm(englishNameInput.value):'',
+        address:addressInput?norm(addressInput.value):'',
+        diagnosis:diagnosisInput?norm(diagnosisInput.value):'',
         emergencyContact:emgNameInput?norm(emgNameInput.value):'',
         emergencyPhone:emgPhoneInput?norm(emgPhoneInput.value):'',
         mobility:mobilityInput?norm(mobilityInput.value):'',
@@ -1487,6 +1505,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           const d=doc.data();
           if(stationInput) stationInput.value=d.nursingStation||'';
           if(bedInput) bedInput.value=d.bedNumber||'';
+          if(englishNameInput) englishNameInput.value=d.englishName||'';
+          if(addressInput) addressInput.value=d.address||'';
+          if(diagnosisInput) diagnosisInput.value=d.diagnosis||'';
           if(genderInput) genderInput.value=d.gender||'';
           if(birthdayInput) birthdayInput.value=d.birthday||'';
           if(idInput) idInput.value=d.idNumber||'';
