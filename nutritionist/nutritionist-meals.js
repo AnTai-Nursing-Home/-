@@ -616,7 +616,7 @@ async function onDateChanged(){
   renderTabs();
   renderTable();
   refreshMoveSelect();
-}}
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   initDateDefault();
