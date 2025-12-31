@@ -239,8 +239,10 @@ function gridSet(sheet, r, c, v) {
 
 function guessTable(sheet) {
   const meta = sheetMeta[sheet] || {};
-  const mr = meta.max_row || (stateGrid[sheet]?.length || 0);
-  const mc = meta.max_col || (stateGrid[sheet]?.[0]?.length || 0);
+  const gridRows = stateGrid[sheet]?.length || 0;
+  const gridCols = stateGrid[sheet]?.[0]?.length || 0;
+  const mr = Math.max(meta.max_row || 0, gridRows);
+  const mc = Math.max(meta.max_col || 0, gridCols);
 
   let headerRow = 1, best = 0;
   for (let r=1; r<=Math.min(10, mr); r++) {
@@ -372,8 +374,10 @@ function getColClassByName(colName){
 function firstEmptyDataRow(sheet){
   // Find next row after last non-empty among meta.max_row, but keep within meta.max_row+200 safety
   const meta = sheetMeta[sheet] || {};
-  const mr = meta.max_row || (stateGrid[sheet]?.length || 0);
-  const mc = meta.max_col || (stateGrid[sheet]?.[0]?.length || 0);
+  const gridRows = stateGrid[sheet]?.length || 0;
+  const gridCols = stateGrid[sheet]?.[0]?.length || 0;
+  const mr = Math.max(meta.max_row || 0, gridRows);
+  const mc = Math.max(meta.max_col || 0, gridCols);
   // search from bottom up for last non-empty in first few cols
   let last = 0;
   for (let r=1; r<=mr; r++){
