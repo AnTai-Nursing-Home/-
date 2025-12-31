@@ -55,6 +55,7 @@ const COLS = [
 
 let currentSheet = '正常餐';
 let state = structuredClone(initialData);
+let currentDateKey = '';
 
 // db 由 firebase-init.js 提供（全域變數）
 let saveTimer = null;
@@ -227,13 +228,16 @@ function setSaveStatus(text) {
 }
 
 function scheduleSave(reason='儲存') {
-  if (!getDb()) {
-    setSaveStatus('（尚未連上 Firebase，不會儲存）');
-    return;
-  }
   setSaveStatus(`已變更：${reason}（準備儲存…）`);
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveToFirestore(), 700);
+  saveTimer = setTimeout(() => {
+    const db = getDb();
+    if (!db) {
+      setSaveStatus('Firebase 尚未連線，暫時無法儲存（請稍候幾秒再試一次）');
+      return;
+    }
+    saveToFirestore();
+  }, 700);
 }
 
 function getDateKey() {
@@ -272,13 +276,16 @@ async function loadFromFirestore(dateKey) {
 }
 
 async function saveToFirestore() {
-  if (!getDb()) return;
+  const db = getDb();
   const dateKey = getDateKey();
-  if (!dateKey) return;
+  if (!db || !dateKey) {
+    console.warn('saveToFirestore aborted：db 或 dateKey 無效', { db: !!db, dateKey });
+    return;
+  }
 
   try {
     setSaveStatus('儲存中…');
-    const docRef = getDb().collection(FS_COLLECTION).doc(dateKey);
+    const docRef = db.collection(FS_COLLECTION).doc(dateKey);
 
     await docRef.set({
       sheets: state,
@@ -289,7 +296,8 @@ async function saveToFirestore() {
     setSaveStatus(`已儲存（${new Date(lastSavedAt).toLocaleTimeString()}）`);
   } catch (err) {
     console.error('saveToFirestore error', err);
-    setSaveStatus('儲存失敗（請檢查 Firestore 權限/網路）');
+    setSaveStatus('儲存失敗（請檢查 Firestore 權限/網路；Console 內有詳細錯誤）');
+    alert('餐食系統儲存失敗，請打開開發者工具（F12）→ Console 查看錯誤訊息，截圖給開發者。');
   }
 }
 
@@ -528,17 +536,28 @@ async function onDateChanged(){
   const dateKey = getDateKey();
   if (!dateKey) return;
 
-  // 先記住目前畫面的資料，若新日期沒有任何 Firebase 資料，就沿用這份當模板
-  const templateState = structuredClone(state || initialData);
+  // 記住切換前的日期與畫面資料
+  const prevDateKey = currentDateKey || '';
+  const prevState = structuredClone(state || initialData);
 
-  // 嘗試讀 Firebase（有就覆蓋 state，沒有就回傳 false）
+  // 先嘗試讀取 Firebase（若該日期已有資料會覆蓋 state）
   const hasData = await loadFromFirestore(dateKey);
 
   if (!hasData) {
-    // 沒有資料：沿用上一個日期的餐單當起始模板
-    state = templateState;
-    setSaveStatus('此日期尚無餐單資料，已沿用上一份餐單作為模板');
+    // 沒有任何 Firebase 資料時才決定要用哪個模板
+    if (prevDateKey && dateKey > prevDateKey) {
+      // 只在「往後一天 / 未來日期」時，沿用上一份餐單當作模板
+      state = prevState;
+      setSaveStatus('此日期尚無餐單資料，已沿用上一份餐單作為模板');
+    } else {
+      // 往前選日期或是第一次載入，就用最原始模板，不要帶到未來新增的人
+      state = structuredClone(initialData);
+      setSaveStatus('此日期尚無餐單資料，已使用模板預設');
+    }
   }
+
+  // 更新當前日期記錄
+  currentDateKey = dateKey;
 
   renderTabs();
   renderTable();
