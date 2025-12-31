@@ -275,6 +275,8 @@ async function loadFromFirestore(dateKey) {
     setSaveStatus('讀取 Firebase 失敗（使用模板預設）');
     return false;
   }
+}
+
 
 async function fetchSheetsForDate(dateKey){
   const db = getDb();
@@ -424,6 +426,8 @@ function removeResident() {
   renderTable();
   refreshMoveSelect();
   scheduleSave('移除住民');
+}
+
 
 async function exportExcel() {
   if (typeof ExcelJS === "undefined") {
