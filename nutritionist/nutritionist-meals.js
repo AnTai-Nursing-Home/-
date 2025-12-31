@@ -245,6 +245,39 @@ function getDateKey() {
   return v || '';
 }
 
+
+async function loadNearestPast(dateKey){
+  const db = getDb();
+  if (!db || !dateKey) return false;
+
+  try {
+    // 依照文件 ID（日期字串）排序，取「小於等於目標日期」中最新的一筆
+    const snap = await db.collection(FS_COLLECTION)
+      .orderBy(firebase.firestore.FieldPath.documentId())
+      .endAt(dateKey)
+      .limitToLast(1)
+      .get();
+
+    if (snap.empty) return false;
+
+    const doc = snap.docs[0];
+    const data = doc.data() || {};
+    if (!data || !data.sheets) return false;
+
+    state = structuredClone(data.sheets);
+    // 補齊缺的分頁
+    for (const s of SHEETS) {
+      if (!Array.isArray(state[s])) state[s] = [];
+    }
+    setSaveStatus(`此日期尚無餐單資料，已沿用 ${doc.id} 的餐單作為模板`);
+    return true;
+  } catch (err) {
+    console.error('loadNearestPast error', err);
+    setSaveStatus('讀取歷史餐單失敗（使用模板預設）');
+    return false;
+  }
+}
+
 async function loadFromFirestore(dateKey) {
   if (!getDb()) return false;
   if (!dateKey) return false;
@@ -536,28 +569,21 @@ async function onDateChanged(){
   const dateKey = getDateKey();
   if (!dateKey) return;
 
-  // 記住切換前的日期與畫面資料
-  const prevDateKey = currentDateKey || '';
-  const prevState = structuredClone(state || initialData);
+  // 更新目前所在日期
+  currentDateKey = dateKey;
 
-  // 先嘗試讀取 Firebase（若該日期已有資料會覆蓋 state）
-  const hasData = await loadFromFirestore(dateKey);
+  // 先嘗試讀取「這一天」是否已有 Firebase 資料
+  const hasExact = await loadFromFirestore(dateKey);
 
-  if (!hasData) {
-    // 沒有任何 Firebase 資料時才決定要用哪個模板
-    if (prevDateKey && dateKey > prevDateKey) {
-      // 只在「往後一天 / 未來日期」時，沿用上一份餐單當作模板
-      state = prevState;
-      setSaveStatus('此日期尚無餐單資料，已沿用上一份餐單作為模板');
-    } else {
-      // 往前選日期或是第一次載入，就用最原始模板，不要帶到未來新增的人
+  if (!hasExact) {
+    // 若當日完全沒有資料，改為尋找「最近一個在此日期之前的餐單」來當模板
+    const loadedPast = await loadNearestPast(dateKey);
+    if (!loadedPast) {
+      // 完全找不到歷史資料 → 回到最原始模板
       state = structuredClone(initialData);
       setSaveStatus('此日期尚無餐單資料，已使用模板預設');
     }
   }
-
-  // 更新當前日期記錄
-  currentDateKey = dateKey;
 
   renderTabs();
   renderTable();
