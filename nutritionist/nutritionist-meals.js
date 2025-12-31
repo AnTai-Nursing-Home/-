@@ -115,16 +115,13 @@ function normNum(v) {
 }
 
 function initDateDefault() {
-  const m = String(initialTitle).match(/(\d{3})\.(\d{2})\.(\d{2})/);
   const input = $('#mealDate');
   if (!input) return;
-  if (m) {
-    const y = Number(m[1]) + 1911;
-    input.value = `${y}-${m[2]}-${m[3]}`;
-  } else {
-    const now = new Date();
-    input.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  }
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  input.value = `${y}-${m}-${d}`;
 }
 
 function renderTabs() {
@@ -531,11 +528,17 @@ async function onDateChanged(){
   const dateKey = getDateKey();
   if (!dateKey) return;
 
-  // 先用模板預設重置，避免切換日期時殘留上次資料
-  state = structuredClone(initialData);
+  // 先記住目前畫面的資料，若新日期沒有任何 Firebase 資料，就沿用這份當模板
+  const templateState = structuredClone(state || initialData);
 
-  // 再嘗試讀 Firebase（有就覆蓋）
-  await loadFromFirestore(dateKey);
+  // 嘗試讀 Firebase（有就覆蓋 state，沒有就回傳 false）
+  const hasData = await loadFromFirestore(dateKey);
+
+  if (!hasData) {
+    // 沒有資料：沿用上一個日期的餐單當起始模板
+    state = templateState;
+    setSaveStatus('此日期尚無餐單資料，已沿用上一份餐單作為模板');
+  }
 
   renderTabs();
   renderTable();
