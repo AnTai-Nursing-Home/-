@@ -295,7 +295,6 @@ async function fetchSheetsForDate(dateKey){
     return null;
   }
 }
-}
 
 async function saveToFirestore() {
   const db = getDb();
