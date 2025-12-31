@@ -308,6 +308,38 @@ async function loadFromFirestore(dateKey) {
   }
 }
 
+async function loadNearestPast(dateKey){
+  const db = getDb();
+  if (!db || !dateKey) return false;
+
+  try {
+    // 依照文件 ID（日期字串）排序，取「小於等於目標日期」中最新的一筆
+    const snap = await db.collection(FS_COLLECTION)
+      .orderBy(firebase.firestore.FieldPath.documentId())
+      .endAt(dateKey)
+      .limitToLast(1)
+      .get();
+
+    if (snap.empty) return false;
+
+    const doc = snap.docs[0];
+    const data = doc.data() || {};
+    if (!data || !data.sheets) return false;
+
+    // 將找到的餐單作為目前狀態
+    state = structuredClone(data.sheets);
+    for (const s of SHEETS) {
+      if (!Array.isArray(state[s])) state[s] = [];
+    }
+    setSaveStatus(`此日期尚無餐單，已沿用 ${doc.id} 的餐單作為模板`);
+    return true;
+  } catch (err) {
+    console.error('loadNearestPast error', err);
+    setSaveStatus('讀取歷史餐單失敗（使用模板預設）');
+    return false;
+  }
+}
+
 async function saveToFirestore() {
   const db = getDb();
   const dateKey = getDateKey();
@@ -576,13 +608,17 @@ async function onDateChanged(){
   // 更新目前所在日期
   currentDateKey = dateKey;
 
-  // 嘗試讀取「這一天」的 Firebase 資料
+  // 先嘗試讀取「這一天」的 Firebase 資料
   const hasExact = await loadFromFirestore(dateKey);
 
   if (!hasExact) {
-    // 完全沒有資料：回到最原始模板
-    state = structuredClone(initialData);
-    setSaveStatus('此日期尚無餐單，已使用模板預設');
+    // 若當日完全沒有資料，改為尋找「最近一個在此日期之前或當日的餐單」來當模板
+    const loadedPast = await loadNearestPast(dateKey);
+    if (!loadedPast) {
+      // 完全找不到歷史資料 → 回到最原始模板
+      state = structuredClone(initialData);
+      setSaveStatus('此日期尚無任何歷史餐單，已使用模板預設');
+    }
   }
 
   renderTabs();
