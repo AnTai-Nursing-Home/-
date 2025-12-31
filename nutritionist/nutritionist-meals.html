@@ -147,13 +147,16 @@
 
     <div class="sticky-actions no-print">
       <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
-        <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="d-flex flex-wrap gap-3 align-items-center">
           <span class="pill">
             <i class="fas fa-calendar-day"></i>
             <span>餐單日期</span>
             <input id="mealDate" type="date" class="form-control form-control-sm" style="width: 160px;">
           </span>
-          <span class="hint">提示：日期會寫進 Excel 標題（A1）</span>
+          <button id="btnCopyFromDate" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-clone me-1"></i>從其他日期複製
+          </button>
+          <span id="saveStatus" class="hint ms-1">尚未載入</span>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
@@ -257,7 +260,7 @@
 
         </div>
         <div class="modal-footer">
-          <div class="me-auto small text-muted" id="saveStatus">尚未儲存</div>
+          <div class="me-auto small text-muted" id="modalSaveHint">變更會寫入目前選擇的餐單日期</div>
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
       </div></div>
