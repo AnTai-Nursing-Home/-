@@ -426,50 +426,6 @@ function removeResident() {
   refreshMoveSelect();
   scheduleSave('移除住民');
 
-function openCopyFromDateDialog() {
-  const current = getDateKey() || '';
-  const example = current || '2025-12-10';
-  const input = prompt('請輸入要複製「來源日期」(YYYY-MM-DD)：', example);
-  if (!input) return;
-  copyFromDate(input.trim());
-}
-window.openCopyFromDateDialog = openCopyFromDateDialog;
-
-
-async function copyFromDate(srcDateKey){
-  if (!srcDateKey) return;
-  const current = getDateKey();
-  if (!current) {
-    alert('請先選擇「目標餐單日期」再進行複製。');
-    return;
-  }
-  if (srcDateKey === current) {
-    alert('來源日期不能與目前日期相同。');
-    return;
-  }
-
-  showLoading('從其他日期載入中…');
-
-  const sheets = await fetchSheetsForDate(srcDateKey);
-  if (!sheets) {
-    alert('找不到來源日期的餐單資料，請確認已有儲存。');
-    await onDateChanged(); // 還原目前日期畫面
-    return;
-  }
-
-  if (!confirm(`確定要將 ${srcDateKey} 的餐單內容複製到目前日期（${current}）嗎？\n\n此動作會覆蓋目前畫面上的內容。`)) {
-    await onDateChanged();
-    return;
-  }
-
-  state = sheets;
-  renderTabs();
-  renderTable();
-  refreshMoveSelect();
-  scheduleSave(`從 ${srcDateKey} 複製餐單`);
-}
-}
-
 async function exportExcel() {
   if (typeof ExcelJS === "undefined") {
     alert("ExcelJS 尚未載入，無法匯出 .xlsx");
@@ -639,7 +595,45 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btnExport').addEventListener('click', exportExcel);
   $('#btnPrint').addEventListener('click', printCurrent);
   $('#btnManage').addEventListener('click', openManageModal);
-  $('#btnCopyFromDate').addEventListener('click', openCopyFromDateDialog);
+
+  $('#btnCopyFromDate').addEventListener('click', async () => {
+    const current = getDateKey() || '';
+    const example = current || '2025-12-10';
+    const input = prompt('請輸入要複製「來源日期」(YYYY-MM-DD)：', example);
+    if (!input) return;
+    const srcDateKey = input.trim();
+    if (!srcDateKey) return;
+
+    const target = getDateKey();
+    if (!target) {
+      alert('請先選擇「目標餐單日期」再進行複製。');
+      return;
+    }
+    if (srcDateKey === target) {
+      alert('來源日期不能與目前日期相同。');
+      return;
+    }
+
+    showLoading('從其他日期載入中…');
+
+    const sheets = await fetchSheetsForDate(srcDateKey);
+    if (!sheets) {
+      alert('找不到來源日期的餐單資料，請確認已有儲存。');
+      await onDateChanged(); // 還原目前日期畫面
+      return;
+    }
+
+    if (!confirm(`確定要將 ${srcDateKey} 的餐單內容複製到目前日期（${target}）嗎？\n\n此動作會覆蓋目前畫面上的內容。`)) {
+      await onDateChanged();
+      return;
+    }
+
+    state = sheets;
+    renderTabs();
+    renderTable();
+    refreshMoveSelect();
+    scheduleSave(`從 ${srcDateKey} 複製餐單`);
+  });
 
   $('#btnAddResident').addEventListener('click', addResident);
   $('#btnMoveResident').addEventListener('click', moveResident);
