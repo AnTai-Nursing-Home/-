@@ -246,37 +246,6 @@ function getDateKey() {
 }
 
 
-async function loadNearestPast(dateKey){
-  const db = getDb();
-  if (!db || !dateKey) return false;
-
-  try {
-    // 依照文件 ID（日期字串）排序，取「小於等於目標日期」中最新的一筆
-    const snap = await db.collection(FS_COLLECTION)
-      .orderBy(firebase.firestore.FieldPath.documentId())
-      .endAt(dateKey)
-      .limitToLast(1)
-      .get();
-
-    if (snap.empty) return false;
-
-    const doc = snap.docs[0];
-    const data = doc.data() || {};
-    if (!data || !data.sheets) return false;
-
-    state = structuredClone(data.sheets);
-    // 補齊缺的分頁
-    for (const s of SHEETS) {
-      if (!Array.isArray(state[s])) state[s] = [];
-    }
-    setSaveStatus(`此日期尚無餐單資料，已沿用 ${doc.id} 的餐單作為模板`);
-    return true;
-  } catch (err) {
-    console.error('loadNearestPast error', err);
-    setSaveStatus('讀取歷史餐單失敗（使用模板預設）');
-    return false;
-  }
-}
 
 async function loadFromFirestore(dateKey) {
   if (!getDb()) return false;
@@ -306,6 +275,26 @@ async function loadFromFirestore(dateKey) {
     setSaveStatus('讀取 Firebase 失敗（使用模板預設）');
     return false;
   }
+
+async function fetchSheetsForDate(dateKey){
+  const db = getDb();
+  if (!db || !dateKey) return null;
+  try {
+    const docRef = db.collection(FS_COLLECTION).doc(dateKey);
+    const snap = await docRef.get();
+    if (!snap.exists) return null;
+    const data = snap.data() || {};
+    if (!data.sheets) return null;
+    const cloned = structuredClone(data.sheets);
+    for (const s of SHEETS) {
+      if (!Array.isArray(cloned[s])) cloned[s] = [];
+    }
+    return cloned;
+  } catch (err) {
+    console.error('fetchSheetsForDate error', err);
+    return null;
+  }
+}
 }
 
 async function saveToFirestore() {
@@ -436,6 +425,47 @@ function removeResident() {
   renderTable();
   refreshMoveSelect();
   scheduleSave('移除住民');
+
+function openCopyFromDateDialog() {
+  const current = getDateKey() || '';
+  const example = current || '2025-12-10';
+  const input = prompt('請輸入要複製「來源日期」(YYYY-MM-DD)：', example);
+  if (!input) return;
+  copyFromDate(input.trim());
+}
+
+async function copyFromDate(srcDateKey){
+  if (!srcDateKey) return;
+  const current = getDateKey();
+  if (!current) {
+    alert('請先選擇「目標餐單日期」再進行複製。');
+    return;
+  }
+  if (srcDateKey === current) {
+    alert('來源日期不能與目前日期相同。');
+    return;
+  }
+
+  showLoading('從其他日期載入中…');
+
+  const sheets = await fetchSheetsForDate(srcDateKey);
+  if (!sheets) {
+    alert('找不到來源日期的餐單資料，請確認已有儲存。');
+    await onDateChanged(); // 還原目前日期畫面
+    return;
+  }
+
+  if (!confirm(`確定要將 ${srcDateKey} 的餐單內容複製到目前日期（${current}）嗎？\n\n此動作會覆蓋目前畫面上的內容。`)) {
+    await onDateChanged();
+    return;
+  }
+
+  state = sheets;
+  renderTabs();
+  renderTable();
+  refreshMoveSelect();
+  scheduleSave(`從 ${srcDateKey} 複製餐單`);
+}
 }
 
 async function exportExcel() {
@@ -567,28 +597,26 @@ function printCurrent() {
 async function onDateChanged(){
   showLoading('讀取中…');
   const dateKey = getDateKey();
-  if (!dateKey) return;
+  if (!dateKey) {
+    setSaveStatus('請先選擇餐單日期');
+    return;
+  }
 
-  // 更新目前所在日期
   currentDateKey = dateKey;
 
-  // 先嘗試讀取「這一天」是否已有 Firebase 資料
+  // 先嘗試讀取「這一天」的資料
   const hasExact = await loadFromFirestore(dateKey);
 
   if (!hasExact) {
-    // 若當日完全沒有資料，改為尋找「最近一個在此日期之前的餐單」來當模板
-    const loadedPast = await loadNearestPast(dateKey);
-    if (!loadedPast) {
-      // 完全找不到歷史資料 → 回到最原始模板
-      state = structuredClone(initialData);
-      setSaveStatus('此日期尚無餐單資料，已使用模板預設');
-    }
+    // 若完全沒有資料，就用模板當起點（不自動套用其他日期）
+    state = structuredClone(initialData);
+    setSaveStatus('此日期尚無餐單，已使用模板預設');
   }
 
   renderTabs();
   renderTable();
   refreshMoveSelect();
-}
+}}
 
 document.addEventListener('DOMContentLoaded', () => {
   initDateDefault();
@@ -609,6 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btnExport').addEventListener('click', exportExcel);
   $('#btnPrint').addEventListener('click', printCurrent);
   $('#btnManage').addEventListener('click', openManageModal);
+  $('#btnCopyFromDate').addEventListener('click', openCopyFromDateDialog);
 
   $('#btnAddResident').addEventListener('click', addResident);
   $('#btnMoveResident').addEventListener('click', moveResident);
