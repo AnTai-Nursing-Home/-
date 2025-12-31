@@ -139,6 +139,22 @@ document.addEventListener('residents-init', ()=>{
   }
 
   function parseBedToken(s){ const m=String(s||'').trim().match(/^(\d{3})[-_]?([A-Za-z0-9]+)$/); if(!m) return null; return {room:m[1], sub:m[2], token:`${m[1]}-${m[2]}`}; }
+
+
+  function normalizeLeaveStatus(r){
+    const raw = (r && r.leaveStatus != null) ? String(r.leaveStatus) : '';
+    return raw.replace(/\s/g, '');
+  }
+  function isHospStatus(r){
+    const v = normalizeLeaveStatus(r);
+    return v.includes('住院');
+  }
+  function isLeaveStatus(r){
+    const v = normalizeLeaveStatus(r);
+    if (!v) return false;      // 空白視為在院
+    return !v.includes('住院'); // 只要不是「住院」就當作請假
+  }
+
   function buildFloorHtml(container,floor,tpl,data){
     if(!container) return;
     container.innerHTML='';
@@ -165,7 +181,7 @@ document.addEventListener('residents-init', ()=>{
         const token=`${room}-${sub}`;
         const r=resByToken.get(token);
         const age=r?calcAge(r.birthday):'';
-        const status = r ? (r.leaveStatus==='住院'?'bg-danger-subtle':(r.leaveStatus==='請假'?'bg-warning-subtle':'bg-success-subtle')) : 'bg-light';
+        const status = r ? (isHospStatus(r)?'bg-danger-subtle':(isLeaveStatus(r)?'bg-warning-subtle':'bg-success-subtle')) : 'bg-light';
         if(r) usedBeds++; else emptyTokens.push(token);
         rows+=`<div class="d-flex justify-content-between border-bottom py-2 ${status}">
           <div class="small text-muted">🛏 ${token}</div>
@@ -203,15 +219,12 @@ document.addEventListener('residents-init', ()=>{
 
   
 function renderStats(){
-  function _norm(v){return (v==null?'':String(v));}
-  function isLeaveOnly(r){const v=_norm(r.leaveStatus).replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
-  function isHosp(r){const v=_norm(r.leaveStatus).replace(/\s/g,'');return v.includes('住院');}
   if(!statsArea) return;
   var total = cache.length;
   var male = cache.filter(function(r){ return r.gender==='男'; }).length;
   var female = cache.filter(function(r){ return r.gender==='女'; }).length;
-  var leave = cache.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-  var hosp  = cache.filter(function(r){ return r.leaveStatus==='住院'; }).length;
+  var leave = cache.filter(function(r){ return isLeaveStatus(r); }).length;
+  var hosp  = cache.filter(function(r){ return isHospStatus(r); }).length;
   var present = total - (leave + hosp);
 
   function normv(s){ return (s==null?'':String(s)); }
@@ -230,17 +243,17 @@ function renderStats(){
   var floors = [1,2,3].map(function(f){
       var arr = inFloor(f);
       var fTotal = arr.length;
-      var fLeave = arr.filter(function(r){ return r.leaveStatus==='請假'; }).length;
-      var fHosp  = arr.filter(function(r){ return r.leaveStatus==='住院'; }).length;
+      var fLeave = arr.filter(function(r){ return isLeaveStatus(r); }).length;
+      var fHosp  = arr.filter(function(r){ return isHospStatus(r); }).length;
       var fPresent = fTotal - (fLeave + fHosp);
-      var arrActive = arr.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
+      var arrActive = arr.filter(function(r){ return !(isLeaveStatus(r) || isHospStatus(r)); });
       var fWheel = arrActive.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
       var fTrolley = arrActive.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
       var fWalk = arrActive.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
       return {f:f, fTotal:fTotal, fPresent:fPresent, fLeave:fLeave, fHosp:fHosp, fWheel:fWheel, fTrolley:fTrolley, fWalk:fWalk};
   });
 
-  var activeAll = cache.filter(function(r){ return !(r.leaveStatus==='請假' || r.leaveStatus==='住院'); });
+  var activeAll = cache.filter(function(r){ return !(isLeaveStatus(r) || isHospStatus(r)); });
   var mWheel = activeAll.filter(function(r){ return WHEEL.test(normv(r.mobility)); }).length;
   var mTrolley = activeAll.filter(function(r){ return TROLLEY.test(normv(r.mobility)); }).length;
   var mWalk = activeAll.filter(function(r){ return WALK.test(normv(r.mobility)); }).length;
@@ -449,7 +462,7 @@ function renderStats(){
           const r=resMap.get(key);
           if(r) floorUsed++;
           const age=r? calcAge(r.birthday):'';
-          const status=r? (r.leaveStatus==='住院'?'bg-red':(r.leaveStatus==='請假'?'bg-yellow':'bg-green')):'';
+          const status=r? (isHospStatus(r)?'bg-red':(isLeaveStatus(r)?'bg-yellow':'bg-green')):'';
           row+=`<td class="cell-muted">🛏 ${key||''}</td>`;
           row+=`<td>${r?(r.id||''):'🈳 空床'}</td>`;
           row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</td>`;
@@ -466,7 +479,7 @@ function renderStats(){
   }
   function sheetStatsHTML(){
     const total=cache.length, male=cache.filter(r=>r.gender==='男').length, female=cache.filter(r=>r.gender==='女').length;
-    const leave=cache.filter(r=>r.leaveStatus==='請假').length, hosp=cache.filter(r=>r.leaveStatus==='住院').length;
+    const leave=cache.filter(r=>isLeaveStatus(r)).length, hosp=cache.filter(r=>isHospStatus(r)).length;
     const present=total-(leave+hosp);
     let html='<table>';
     html+=`<tr><th colspan="8" class="room-title">總人數統計</th></tr>`;
@@ -503,7 +516,7 @@ function renderStats(){
 
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
-function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('請假') && !v.includes('住院');}
+function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');if(!v)return false;return !v.includes('住院');}
 function exportStyledXls(){
   if (window.__exportingXls) return;
   window.__exportingXls = true;
@@ -1149,12 +1162,12 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       cell.font = { ...(cell.font||{}), size:15 };
     });
 
-    // 只用 leaveStatus 判斷：包含「請假」「住院」關鍵字；其他=present
+    // 只用 leaveStatus 判斷：只要不是「住院」且欄位有值，一律視為請假
     function getStatus(r){
       const raw = ((r.leaveStatus||'')+'').replace(/\s/g,'');
+      if (!raw) return 'present';
       if (raw.includes('住院')) return 'hospital';
-      if (raw.includes('請假')) return 'leave';
-      return 'present';
+      return 'leave';
     }
 
     const floors = {'1':[],'2':[],'3':[]};
