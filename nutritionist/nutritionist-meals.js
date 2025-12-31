@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btnRemoveResident').addEventListener('click', removeResident);
 
   $('#mealDate').addEventListener('change', () => {
-    scheduleSave('切換日期（會讀取該日期資料）');
+    // 切換日期時不要自動儲存上一個日期，只重新載入對應日期的餐單
     onDateChanged();
   });
 
