@@ -433,6 +433,8 @@ function openCopyFromDateDialog() {
   if (!input) return;
   copyFromDate(input.trim());
 }
+window.openCopyFromDateDialog = openCopyFromDateDialog;
+
 
 async function copyFromDate(srcDateKey){
   if (!srcDateKey) return;
