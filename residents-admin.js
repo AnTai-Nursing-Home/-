@@ -116,7 +116,7 @@ document.addEventListener('residents-init', ()=>{
     let html='';
     cache.forEach(r=>{
       const age=calcAge(r.birthday);
-      html+=`<tr data-id="${r.residentName||r.id}">
+      html+=`<tr data-id="${r.id}">
         <td>${r.nursingStation||''}</td>
         <td>${r.residentNumber||''}</td>
         <td>${r.bedNumber||''}</td>
