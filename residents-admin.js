@@ -116,11 +116,11 @@ document.addEventListener('residents-init', ()=>{
     let html='';
     cache.forEach(r=>{
       const age=calcAge(r.birthday);
-      html+=`<tr data-id="${r.id}">
+      html+=`<tr data-id="${r.residentName||r.id}">
         <td>${r.nursingStation||''}</td>
         <td>${r.residentNumber||''}</td>
         <td>${r.bedNumber||''}</td>
-        <td>${r.id||''}</td>
+        <td>${r.residentName||r.id||''}</td>
         <td>${r.englishName||''}</td>
         <td>${r.idNumber||''}</td>
         <td>${r.birthday||''}</td>
@@ -185,7 +185,7 @@ document.addEventListener('residents-init', ()=>{
         if(r) usedBeds++; else emptyTokens.push(token);
         rows+=`<div class="d-flex justify-content-between border-bottom py-2 ${status}">
           <div class="small text-muted">🛏 ${token}</div>
-          <div>${r?(r.id||'🈳 空床'):'🈳 空床'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</div>
+          <div>${r?((r.residentName||r.id)||'🈳 空床'):'🈳 空床'} ${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</div>
         </div>`;
       });
       html+=`<div class="col-12 col-sm-6 col-lg-4"><div class="card h-100">
@@ -419,7 +419,7 @@ function renderStats(){
       r.nursingStation||'',
       r.residentNumber||'',
       r.bedNumber||'',
-      r.id||'',
+      r.residentName||r.id||'',
       r.englishName||'',
       r.idNumber||'',
       r.birthday||'',
@@ -464,7 +464,7 @@ function renderStats(){
           const age=r? calcAge(r.birthday):'';
           const status=r? (isHospStatus(r)?'bg-red':(isLeaveStatus(r)?'bg-yellow':'bg-green')):'';
           row+=`<td class="cell-muted">🛏 ${key||''}</td>`;
-          row+=`<td>${r?(r.id||''):'🈳 空床'}</td>`;
+          row+=`<td>${r?(r.residentName||r.id||''):'🈳 空床'}</td>`;
           row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</td>`;
           row+=`<td></td>`;
         });
@@ -622,7 +622,7 @@ function exportStyledXls(){
       r.nursingStation || '',
       r.residentNumber || '',
       r.bedNumber || '',
-      r.id || '',
+      r.residentName || r.id || '',
       r.englishName || '',
       r.idNumber || '',
       r.birthday || '',
@@ -697,7 +697,7 @@ function exportStyledXls(){
       r.nursingStation || '',
       r.residentNumber || '',
       r.bedNumber || '',
-      r.id || '',
+      r.residentName || r.id || '',
       r.englishName || '',
       r.idNumber || '',
       r.birthday || '',
@@ -1543,6 +1543,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
             nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
             bedNumber:      bedNorm,              // 用整理後的床號
             residentNumber: residentNo,
+            residentName:   name,
             gender:         norm(pick(r, ['性別','Gender'])),
             idNumber:       norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
             birthday:       parseDateSmart(birthdayRaw),
