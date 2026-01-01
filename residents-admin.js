@@ -1610,18 +1610,22 @@ if (Array.isArray(cache) && cache.length) {
   const mobilityInput=document.getElementById('resident-mobility');
   const checkinInput=document.getElementById('resident-checkinDate');
   const statusInput=document.getElementById('resident-status');
+  let currentEditId = null;
+
 
   if(addBtn && modal){
     addBtn.addEventListener('click', ()=>{
       modalTitle && (modalTitle.textContent='新增住民');
       const form=document.getElementById('resident-form'); if(form) form.reset();
+      currentEditId = null;
       if(nameInput){ nameInput.disabled=false; nameInput.value=''; }
       modal.show();
     });
   }
   if(saveBtn){
     saveBtn.addEventListener('click', async ()=>{
-      const name=nameInput? nameInput.value.trim():''; if(!name) return alert('請填寫姓名');
+      const name=nameInput? nameInput.value.trim():'';
+      if(!name) return alert('請填寫姓名');
       const payload={
         nursingStation:stationInput?norm(stationInput.value):'',
         bedNumber:bedInput?norm(bedInput.value):'',
@@ -1635,9 +1639,11 @@ if (Array.isArray(cache) && cache.length) {
         emergencyPhone:emgPhoneInput?norm(emgPhoneInput.value):'',
         mobility:mobilityInput?norm(mobilityInput.value):'',
         checkinDate:checkinInput?parseDateSmart(checkinInput.value):'',
-        leaveStatus:statusInput?norm(statusInput.value):''
+        leaveStatus:statusInput?norm(statusInput.value):'',
+        residentName:name
       };
-      await db.collection(dbCol).doc(name).set(payload,{merge:true});
+      const docId = currentEditId || name;
+      await db.collection(dbCol).doc(docId).set(payload,{merge:true});
       if(modal) modal.hide();
       load();
     });
@@ -1649,10 +1655,11 @@ if (Array.isArray(cache) && cache.length) {
       if(btn.classList.contains('btn-edit')){
         if(!modal) return;
         modalTitle && (modalTitle.textContent='編輯住民資料');
-        if(nameInput){ nameInput.disabled=true; nameInput.value=id; }
+        currentEditId = id;
         const doc=await db.collection(dbCol).doc(id).get();
         if(doc.exists){
           const d=doc.data();
+          if(nameInput){ nameInput.disabled=false; nameInput.value=d.residentName||id; }
           if(stationInput) stationInput.value=d.nursingStation||'';
           if(bedInput) bedInput.value=d.bedNumber||'';
           if(englishNameInput) englishNameInput.value=d.englishName||'';
