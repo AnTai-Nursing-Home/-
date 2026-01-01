@@ -1525,6 +1525,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
         const batch=db.batch(); let count=0;
+        const excelNames = new Set();
         rows.forEach(r=>{
           const name = norm(pick(r, ['姓名','住民姓名','Name']));
           if (!name) return;                      // 沒名字就略過（維持原本）
@@ -1537,10 +1538,11 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           const birthdayRaw = pick(r, ['生日','出生日期','出生年月日','Birth','BirthDate']);
           const checkinRaw  = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
         
+          const residentNo = norm(pick(r, ['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code']));
           const payload = {
             nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
             bedNumber:      bedNorm,              // 用整理後的床號
-            residentNumber: norm(pick(r, ['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code'])),
+            residentNumber: residentNo,
             gender:         norm(pick(r, ['性別','Gender'])),
             idNumber:       norm(pick(r, ['身份證字號','身份証字號','ID','身分證'])),
             birthday:       parseDateSmart(birthdayRaw),
@@ -1554,9 +1556,30 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
             leaveStatus:      norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
           };
         
-          batch.set(db.collection(dbCol).doc(name), payload, { merge:true });
+          // 以住民編號為主鍵：如果住民編號跟舊資料一樣，就更新舊的那一筆
+          let docId = name;
+          if (residentNo && Array.isArray(cache)) {
+            const found = cache.find(o => o && o.residentNumber === residentNo && o.id);
+            if (found && found.id) {
+              docId = found.id;
+            }
+          }
+        
+          excelNames.add(docId);
+          batch.set(db.collection(dbCol).doc(docId), payload, { merge:true });
           count++;
         });
+
+// 匯入後以本次 Excel 為主：
+// 若現有住民沒有出現在這次匯入的 Excel 名單中，就一併刪除
+if (Array.isArray(cache) && cache.length) {
+  cache.forEach(old => {
+    if (old && old.id && !excelNames.has(old.id)) {
+      batch.delete(db.collection(dbCol).doc(old.id));
+    }
+  });
+}
+
         await batch.commit();
         if(importStatus){ importStatus.className='alert alert-success'; importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...`; }
         setTimeout(()=>location.reload(),1000);
