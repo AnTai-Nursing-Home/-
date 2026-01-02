@@ -299,11 +299,11 @@ function renderStats(){
     return '<ul class="list-group list-group-flush">' + items + '</ul>';
   }
 
+  // NOTE: #stats-area 在 HTML 內已經是 row g-3，這裡只輸出 col-*，避免 row 包 row 造成版面怪異。
   var html = ''
-    + '<div class="row g-3">'
-    +   '<div class="col-12 col-xl-4">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
+    +   '<div class="col-12 col-lg-4">'
+    +     '<div class="card border-0 shadow-sm h-100 stats-card">'
+    +       '<div class="card-body d-flex flex-column">'
     +         '<div class="d-flex align-items-center justify-content-between mb-3">'
     +           '<div class="h5 mb-0">總人數</div>'
     +           '<span class="badge bg-dark fs-6">' + total + '</span>'
@@ -342,9 +342,9 @@ function renderStats(){
     +     '</div>'
     +   '</div>'
 
-    +   '<div class="col-12 col-xl-3">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
+    +   '<div class="col-12 col-lg-4">'
+    +     '<div class="card border-0 shadow-sm h-100 stats-card">'
+    +       '<div class="card-body d-flex flex-column">'
     +         '<div class="d-flex align-items-center justify-content-between mb-3">'
     +           '<div class="h5 mb-0">請假/住院</div>'
     +           '<div class="d-flex gap-2">'
@@ -354,25 +354,26 @@ function renderStats(){
     +         '</div>'
     +         '<div class="mb-3">'
     +           '<div class="fw-bold text-warning mb-2"><i class="fa-solid fa-person-walking-arrow-right me-1"></i>請假名單</div>'
-    +           '<div class="border rounded-3 overflow-hidden">' + buildLHList(leaveArr, '目前無請假') + '</div>'
+    +           '<div class="border rounded-3 overflow-hidden stats-scroll">' + buildLHList(leaveArr, '目前無請假') + '</div>'
     +         '</div>'
     +         '<div>'
     +           '<div class="fw-bold text-danger mb-2"><i class="fa-solid fa-hospital me-1"></i>住院名單</div>'
-    +           '<div class="border rounded-3 overflow-hidden">' + buildLHList(hospArr, '目前無住院') + '</div>'
+    +           '<div class="border rounded-3 overflow-hidden stats-scroll">' + buildLHList(hospArr, '目前無住院') + '</div>'
     +         '</div>'
     +       '</div>'
     +     '</div>'
     +   '</div>'
 
-    +   '<div class="col-12 col-xl-5">'
-    +     '<div class="card border-0 shadow-sm h-100">'
-    +       '<div class="card-body">'
+    +   '<div class="col-12 col-lg-4">'
+    +     '<div class="card border-0 shadow-sm h-100 stats-card">'
+    +       '<div class="card-body d-flex flex-column">'
     +         '<div class="d-flex justify-content-between align-items-center mb-3">'
-    +           '<div class="h6 mb-0 text-muted">動作區</div>'
-    +           '<button id="export-xls-styled" class="btn btn-success btn-sm">'
-    +             '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
-    +           '</button>'
+    +           '<div class="h5 mb-0">動作區</div>'
+    +           '<span class="badge bg-success-subtle text-success">報表</span>'
     +         '</div>'
+    +         '<button id="export-xls-styled" class="btn btn-success w-100 mb-3">'
+    +           '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
+    +         '</button>'
     +         '<ul class="list-group list-group-flush">'
     +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
     +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
@@ -385,7 +386,22 @@ function renderStats(){
     +       '</div>'
     +     '</div>'
     +   '</div>'
-    + '</div>';
+    ;
+
+  // 補一點樣式（只影響總人數統計頁三張卡）
+  try{
+    if(!document.getElementById('stats-cards-style')){
+      var st=document.createElement('style');
+      st.id='stats-cards-style';
+      st.textContent='\
+        .stats-card .card-body{gap:8px;}\
+        .stats-card .table-responsive{flex:1; min-height:0;}\
+        .stats-scroll{max-height:220px; overflow:auto;}\
+        @media (min-width: 992px){ .stats-scroll{max-height:260px;} }\
+      ';
+      document.head.appendChild(st);
+    }
+  }catch(e){}
 
   statsArea.innerHTML = html;
   try{ updateStatsHeaderCounts(present, total); }catch(e){}
