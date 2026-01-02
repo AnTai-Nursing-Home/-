@@ -295,7 +295,7 @@ async function validateBusinessRulesForNewApplication(data) {
 
     const overLimit = await checkTwoPerDayLimit(days);
     if (overLimit) {
-        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達一人上限，無法再申請'));
+        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達兩人上限，無法再申請'));
     }
 
     const conflictMsg = await checkConflictRules(data.applicantId, days);
@@ -319,7 +319,7 @@ function enumerateDates(start, end) {
 // 所以這裡改成：只用 startDateTime 落在當天來判斷「同日」
 // 代表規則是：「同一天起始的外宿申請不得超過兩人」
 async function checkTwoPerDayLimit(days) {
-    // 規則：同一天（以日曆日計）外宿人數上限 = 1 人
+    // 規則：同一天（以日曆日計）外宿人數上限 = 2 人
     // Firestore 查詢限制：同一 query 不能同時對 startDateTime 與 endDateTime 做不等式
     // 作法：用「startDateTime 在 (dayStart-30d) ~ dayEnd」先抓候選，再用程式判斷區間是否與當天重疊
     const MAX_LOOKBACK_DAYS = 30;
@@ -349,7 +349,7 @@ async function checkTwoPerDayLimit(days) {
             if (s <= dayEnd && e >= dayStart) count += 1;
         });
 
-        if (count >= 1) return true;
+        if (count >= 2) return true;
     }
     return false;
 }
