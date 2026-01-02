@@ -5,6 +5,14 @@
 (function(){
   const AUTH_KEY = 'officeAuth';
 
+  // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
+  const SOURCE_LABEL = {
+    adminStaff: '管理員/辦公室',
+    caregivers: '照服員',
+    localCaregivers: '本國照服員',
+    nurses: '護理師'
+  };
+
   const tbody = document.getElementById('tbody');
   const msg = document.getElementById('msg');
   const btnRefresh = document.getElementById('btnRefresh');
@@ -120,8 +128,10 @@
       const acc = r.account || {};
       const tr = document.createElement('tr');
 
+      const sourceText = SOURCE_LABEL[r.source] || r.source;
+
       tr.innerHTML = `
-        <td><span class="badge bg-secondary">${escapeHtml(r.source)}</span></td>
+        <td><span class="badge bg-secondary">${escapeHtml(sourceText)}</span></td>
         <td class="mono">${escapeHtml(r.staffId)}</td>
         <td>${escapeHtml(r.name)}</td>
         <td>
