@@ -46,28 +46,10 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
                 <div class="card shadow">
-
-                    <!-- ✅ 恢復原本 header 置中版面 + 右上角登入資訊 -->
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <!-- 左側佔位：維持標題視覺置中 -->
-                        <div style="width: 170px;"></div>
-
-                        <!-- 中間標題：保持原本置中 -->
-                        <h2 class="mb-0 text-center flex-grow-1">辦公室系統</h2>
-
-                        <!-- 右上角登入資訊（登入後才顯示） -->
-                        <div id="loginInfoOffice" class="text-end small d-none" style="min-width: 170px;">
-                            <div class="mb-1">已登入</div>
-                            <div class="fw-semibold">
-                                <span id="loginStaffId"></span>
-                                <span id="loginStaffName"></span>
-                            </div>
-                            <button id="logoutBtnOffice" class="btn btn-sm btn-outline-light mt-2">
-                                <i class="fas fa-right-from-bracket me-1"></i>登出
-                            </button>
-                        </div>
+                    <div class="card-header bg-dark text-white py-3">
+                        <!-- 使用 w-100 + text-center，避免任何額外元素/樣式影響置中 -->
+                        <h2 class="m-0 w-100 text-center">辦公室系統</h2>
                     </div>
-
                     <div class="card-body">
                         <!-- 登入區 -->
                         <div id="password-section-office">
@@ -85,6 +67,9 @@
                             <div class="d-flex gap-2 mb-3">
                                 <button id="loginButton-office" class="btn btn-primary">
                                     <i class="fas fa-right-to-bracket me-1"></i>登入
+                                </button>
+                                <button id="logoutButton-office" class="btn btn-outline-secondary d-none">
+                                    <i class="fas fa-right-from-bracket me-1"></i>登出
                                 </button>
                             </div>
 
@@ -106,6 +91,16 @@
 
                         <!-- 主選單 -->
                         <div id="dashboard-section-office" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span class="badge bg-secondary me-2">已登入</span>
+                                    <span id="loginInfo-office" class="text-muted small"></span>
+                                </div>
+                                <button id="btnLogoutTop" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-right-from-bracket me-1"></i>登出
+                                </button>
+                            </div>
+
                             <div class="menu-grid">
 
                                 <!-- 評鑑系統（連到第二層） -->
@@ -170,7 +165,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="firebase-init.js"></script>
     <script src="office.js"></script>
 </body>
