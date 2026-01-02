@@ -24,12 +24,14 @@
   const errorMessage = document.getElementById('errorMessage-office');
   const loginInfo = document.getElementById('loginInfo-office');
   const btnLogoutTop = document.getElementById('btnLogoutTop');
+  const loginUserTopRight = document.getElementById('loginUserTopRight');
 
   function showLogin(){
     passwordSection.classList.remove('d-none');
     dashboardSection.classList.add('d-none');
     logoutButton.classList.add('d-none');
     errorMessage.classList.add('d-none');
+    if (loginUserTopRight) loginUserTopRight.textContent = '';
   }
 
   function showDashboard(user){
@@ -41,6 +43,11 @@
       const name = user?.displayName || user?.username || '';
       const role = 'Office';
       loginInfo.textContent = `${name}（${role}）`;
+    }
+    if (loginUserTopRight) {
+      const sid = user?.staffId ? String(user.staffId) : '';
+      const nm = user?.displayName || user?.username || '';
+      loginUserTopRight.textContent = sid && nm ? `${sid} ${nm}` : (nm || sid);
     }
   }
 
