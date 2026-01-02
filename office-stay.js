@@ -466,7 +466,9 @@ async function loadApplicationsByFilter() {
 
     const snap = await queryRef.orderBy('startDateTime', 'asc').get();
 
-    // 依送件時間排序（最早先送在上面）。注意：Firestore 有不等式篩選時不能直接 orderBy(createdAt)
+    // 依送件時間（申請日期 / createdAt）排序：最新送件在上面
+    // 注意：Firestore 若同時有 where(startDateTime...) 的不等式篩選，無法直接 orderBy(createdAt)，
+    // 所以這裡先用 startDateTime 抓資料，再在前端用 createdAt 排序。
     const docs = snap.empty ? [] : snap.docs.slice();
     const toMs = (tsOrDate) => {
         if (!tsOrDate) return 0;
@@ -474,37 +476,12 @@ async function loadApplicationsByFilter() {
         const t = d.getTime();
         return isNaN(t) ? 0 : t;
     };
-    docs.sort((a, b) => {
-        const A = a.data() || {};
-        const B = b.data() || {};
-
-        const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
-        const sa = toDate(A.startDateTime);
-        const sb = toDate(B.startDateTime);
-
-        const now = Date.now();
-        const ta = sa ? sa.getTime() : 0;
-        const tb = sb ? sb.getTime() : 0;
-
-        const aIsUpcoming = ta >= now;
-        const bIsUpcoming = tb >= now;
-
-        // 先把「即將到來」的排在上面
-        if (aIsUpcoming !== bIsUpcoming) return aIsUpcoming ? -1 : 1;
-
-        if (aIsUpcoming && bIsUpcoming) {
-            // 兩個都是未來：越接近現在（越早）越上面
-            if (ta !== tb) return ta - tb;
-        } else {
-            // 兩個都是過去：越接近現在（越晚）越上面
-            if (ta !== tb) return tb - ta;
-        }
-
-        // 同日期：用送件時間（createdAt/updatedAt）較早者在上
-        const ca = toMs(A.createdAt) || toMs(A.updatedAt) || toMs(A.startDateTime);
-        const cb = toMs(B.createdAt) || toMs(B.updatedAt) || toMs(B.startDateTime);
-        return ca - cb;
-    });
+    const getApplyMs = (doc) => {
+        const A = doc.data() || {};
+        // 以 createdAt 為主；若舊資料沒有 createdAt，改用 updatedAt；再不行就用 startDateTime 當作替代
+        return toMs(A.createdAt) || toMs(A.updatedAt) || toMs(A.startDateTime);
+    };
+    docs.sort((a, b) => getApplyMs(b) - getApplyMs(a));
 
     tbody.innerHTML = '';
     if (snap.empty) {
