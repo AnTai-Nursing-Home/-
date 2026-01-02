@@ -13,6 +13,7 @@
 
 (function(){
   const AUTH_KEY = 'officeAuth';
+
   const passwordSection = document.getElementById('password-section-office');
   if (!passwordSection) return;
 
@@ -20,48 +21,49 @@
   const usernameInput = document.getElementById('usernameInput-office');
   const passwordInput = document.getElementById('passwordInput-office');
   const loginButton = document.getElementById('loginButton-office');
-  const logoutButton = document.getElementById('logoutButton-office');
   const errorMessage = document.getElementById('errorMessage-office');
-  const loginInfo = document.getElementById('loginInfo-office');
-  const btnLogoutTop = document.getElementById('btnLogoutTop');
-  const loginUserTopRight = document.getElementById('loginUserTopRight');
+
+  // ✅ 右上角登入資訊（在 card-header）
+  const loginInfoOffice = document.getElementById('loginInfoOffice');
+  const loginStaffIdEl = document.getElementById('loginStaffId');
+  const loginStaffNameEl = document.getElementById('loginStaffName');
+  const logoutBtnOffice = document.getElementById('logoutBtnOffice');
 
   function showLogin(){
     passwordSection.classList.remove('d-none');
     dashboardSection.classList.add('d-none');
-    logoutButton.classList.add('d-none');
     errorMessage.classList.add('d-none');
-    if (loginUserTopRight) loginUserTopRight.textContent = '';
+
+    // header 右上角資訊隱藏
+    if (loginInfoOffice) loginInfoOffice.classList.add('d-none');
+    if (loginStaffIdEl) loginStaffIdEl.textContent = '';
+    if (loginStaffNameEl) loginStaffNameEl.textContent = '';
   }
 
   function showDashboard(user){
     passwordSection.classList.add('d-none');
     dashboardSection.classList.remove('d-none');
-    logoutButton.classList.remove('d-none');
     errorMessage.classList.add('d-none');
-    if (loginInfo) {
-      const name = user?.displayName || user?.username || '';
-      const role = 'Office';
-      loginInfo.textContent = `${name}（${role}）`;
-    }
-    if (loginUserTopRight) {
-      const sid = user?.staffId ? String(user.staffId) : '';
-      const nm = user?.displayName || user?.username || '';
-      loginUserTopRight.textContent = sid && nm ? `${sid} ${nm}` : (nm || sid);
-    }
+
+    // header 右上角資訊顯示
+    if (loginInfoOffice) loginInfoOffice.classList.remove('d-none');
+    if (loginStaffIdEl) loginStaffIdEl.textContent = user?.staffId ? String(user.staffId) : '';
+    if (loginStaffNameEl) loginStaffNameEl.textContent = user?.displayName ? ` ${user.displayName}` : '';
   }
 
   function setAuth(user){
-    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch(e){}
+    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch(e) {}
   }
+
   function getAuth(){
     try {
       const raw = sessionStorage.getItem(AUTH_KEY);
       return raw ? JSON.parse(raw) : null;
-    } catch(e){ return null; }
+    } catch(e) { return null; }
   }
+
   function clearAuth(){
-    try { sessionStorage.removeItem(AUTH_KEY); } catch(e){}
+    try { sessionStorage.removeItem(AUTH_KEY); } catch(e) {}
   }
 
   async function waitForDbReady(){
@@ -78,7 +80,7 @@
     // ✅ 未勾選不得登入
     const privacyCheck = document.getElementById('privacyCheck');
     if (privacyCheck && !privacyCheck.checked) {
-      alert("請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》");
+      alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
       return;
     }
 
@@ -96,7 +98,7 @@
       await waitForDbReady();
       if (typeof db === 'undefined' || !db) throw new Error('Firestore 尚未初始化');
 
-      // 以 username 查找（userAccounts 量通常不大，這樣最穩）
+      // 以 username 查找（userAccounts 量通常不大）
       const snap = await db.collection('userAccounts')
         .where('username', '==', username)
         .limit(1)
@@ -151,8 +153,7 @@
   loginButton?.addEventListener('click', handleLogin);
   usernameInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
   passwordInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
-  logoutButton?.addEventListener('click', handleLogout);
-  btnLogoutTop?.addEventListener('click', handleLogout);
+  logoutBtnOffice?.addEventListener('click', handleLogout);
 
   // --- 自動登入 ---
   (function boot(){
