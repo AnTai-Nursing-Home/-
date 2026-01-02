@@ -372,7 +372,7 @@ function renderStats(){
     +           '<span class="badge bg-success-subtle text-success">報表</span>'
     +         '</div>'
     +         '<button id="export-xls-styled" class="btn btn-success w-100 mb-3">'
-    +           '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（含框線與底色）'
+    +           '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（V1.0）'
     +         '</button>'
     +         '<ul class="list-group list-group-flush">'
     +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
