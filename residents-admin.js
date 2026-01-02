@@ -274,9 +274,34 @@ function renderStats(){
       + '</tr>';
   }
 
+  var leaveArr = cache.filter(function(r){ return isLeaveStatus(r); })
+    .slice()
+    .sort(function(a,b){ return String(a.bedNumber||'').localeCompare(String(b.bedNumber||''), 'zh-Hant', {numeric:true}); });
+  var hospArr  = cache.filter(function(r){ return isHospStatus(r); })
+    .slice()
+    .sort(function(a,b){ return String(a.bedNumber||'').localeCompare(String(b.bedNumber||''), 'zh-Hant', {numeric:true}); });
+
+  function buildLHList(arr, emptyText){
+    if(!arr || !arr.length){
+      return '<div class="small text-muted">'+(emptyText||'無')+'</div>';
+    }
+    var items = '';
+    for(var i=0;i<arr.length;i++){
+      var r = arr[i] || {};
+      var bed = (r.bedNumber!=null? String(r.bedNumber):'');
+      var name = (r.residentName || r.id || '');
+      items += ''
+        + '<li class="list-group-item d-flex justify-content-between align-items-center py-2">'
+        +   '<span class="small text-muted">🛏 ' + (bed||'') + '</span>'
+        +   '<span class="fw-semibold">' + (name||'') + '</span>'
+        + '</li>';
+    }
+    return '<ul class="list-group list-group-flush">' + items + '</ul>';
+  }
+
   var html = ''
     + '<div class="row g-3">'
-    +   '<div class="col-12 col-xl-5">'
+    +   '<div class="col-12 col-xl-4">'
     +     '<div class="card border-0 shadow-sm h-100">'
     +       '<div class="card-body">'
     +         '<div class="d-flex align-items-center justify-content-between mb-3">'
@@ -316,7 +341,30 @@ function renderStats(){
     +       '</div>'
     +     '</div>'
     +   '</div>'
-    +   '<div class="col-12 col-xl-7">'
+
+    +   '<div class="col-12 col-xl-3">'
+    +     '<div class="card border-0 shadow-sm h-100">'
+    +       '<div class="card-body">'
+    +         '<div class="d-flex align-items-center justify-content-between mb-3">'
+    +           '<div class="h5 mb-0">請假/住院</div>'
+    +           '<div class="d-flex gap-2">'
+    +             '<span class="badge bg-warning-subtle text-warning">請假 <strong>' + leave + '</strong></span>'
+    +             '<span class="badge bg-danger-subtle text-danger">住院 <strong>' + hosp + '</strong></span>'
+    +           '</div>'
+    +         '</div>'
+    +         '<div class="mb-3">'
+    +           '<div class="fw-bold text-warning mb-2"><i class="fa-solid fa-person-walking-arrow-right me-1"></i>請假名單</div>'
+    +           '<div class="border rounded-3 overflow-hidden">' + buildLHList(leaveArr, '目前無請假') + '</div>'
+    +         '</div>'
+    +         '<div>'
+    +           '<div class="fw-bold text-danger mb-2"><i class="fa-solid fa-hospital me-1"></i>住院名單</div>'
+    +           '<div class="border rounded-3 overflow-hidden">' + buildLHList(hospArr, '目前無住院') + '</div>'
+    +         '</div>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+
+    +   '<div class="col-12 col-xl-5">'
     +     '<div class="card border-0 shadow-sm h-100">'
     +       '<div class="card-body">'
     +         '<div class="d-flex justify-content-between align-items-center mb-3">'
