@@ -117,7 +117,6 @@
       }
     });
 
-});
 
     const logoutBtn = qs('logoutBtnNurse');
     if (logoutBtn) {
