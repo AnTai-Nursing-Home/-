@@ -1,120 +1,151 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // --- 元件宣告 ---
-    const passwordSection = document.getElementById('password-section');
-    const dashboardSection = document.getElementById('dashboard-section');
-// removed booking-list:     const resultsSection = document.getElementById('results-section');
-    const passwordInput = document.getElementById('passwordInput');
-    const loginButton = document.getElementById('loginButton');
-    const errorMessage = document.getElementById('errorMessage');
-// removed booking-list:     const showBookingsBtn = document.getElementById('show-bookings-btn');
-// removed booking-list:     const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
-// removed booking-list:     const bookingListContainer = document.getElementById('booking-list');
+// admin.js - 護理師端登入（改為個人帳號密碼）
+// 依賴 firebase-init.js 提供 db 與 firebase-ready 事件
+(function () {
+  const SESSION_KEY = 'antai_session_user'; // 與辦公室端共用
 
-    // --- 登入邏輯 (不需要等待 Firebase) ---
-    async function handleLogin() {
-        // ✅ 新增：未勾選不得登入
-        const privacyCheck = document.getElementById('privacyCheck');
-        if (!privacyCheck.checked) {
-            alert("請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》");
-            return;
-        }
-        const password = passwordInput.value;
-        if (!password) { alert('請輸入密碼'); return; }
-        loginButton.disabled = true;
-        try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password }),
-            });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                passwordSection.classList.add('d-none');
-                dashboardSection.classList.remove('d-none');
-                errorMessage.classList.add('d-none');
-            } else {
-                errorMessage.classList.remove('d-none');
-            }
-        } catch (error) {
-            console.error('登入時發生錯誤:', error);
-            alert('登入時發生網路錯誤，請稍後再試。');
-        } finally {
-            loginButton.disabled = false;
-        }
+  function qs(id) { return document.getElementById(id); }
+  function setVisible(el, visible) { if (el) el.classList.toggle('d-none', !visible); }
+
+  function showError(msg) {
+    const el = qs('errorMessage');
+    if (!el) return;
+    el.textContent = msg || '帳號或密碼錯誤，請重試！';
+    el.classList.remove('d-none');
+  }
+  function hideError() { const el = qs('errorMessage'); if (el) el.classList.add('d-none'); }
+
+  function saveSession(user) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(user)); } catch (e) {} }
+  function loadSession() { try { const raw = sessionStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
+  function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
+
+  function renderLoginInfo(user) {
+    qs('loginStaffId').textContent = user?.staffId || '';
+    qs('loginStaffName').textContent = user?.displayName || '';
+    setVisible(qs('loginInfoNurse'), true);
+  }
+  function hideLoginInfo() {
+    setVisible(qs('loginInfoNurse'), false);
+    if (qs('loginStaffId')) qs('loginStaffId').textContent = '';
+    if (qs('loginStaffName')) qs('loginStaffName').textContent = '';
+  }
+
+  function showDashboard() {
+    setVisible(qs('password-section'), false);
+    setVisible(qs('dashboard-section'), true);
+  }
+  function showLogin() {
+    setVisible(qs('dashboard-section'), false);
+    setVisible(qs('password-section'), true);
+  }
+
+  async function findAccountByUsername(username) {
+    const snap = await db.collection('userAccounts')
+      .where('username', '==', username)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() };
+  }
+
+  async function handleLogin() {
+    const privacyCheck = qs('privacyCheck');
+    if (privacyCheck && !privacyCheck.checked) {
+      alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
+      return;
     }
 
-    if (loginButton) { loginButton.addEventListener('click', handleLogin); }
-    if (passwordInput) { passwordInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleLogin(); }); }
+    const username = (qs('usernameInput')?.value || '').trim();
+    const password = (qs('passwordInput')?.value || '').trim();
+    if (!username || !password) {
+      showError('請輸入帳號與密碼');
+      return;
+    }
 
-    // --- 需要 Firebase 的功能，在 firebase-ready 後才綁定 ---
-    document.addEventListener('firebase-ready', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('view') === 'dashboard') {
-            passwordSection.classList.add('d-none');
-            dashboardSection.classList.remove('d-none');
-        }
+    const btn = qs('loginButton');
+    if (btn) btn.disabled = true;
+    hideError();
 
-        /* removed booking-list function:
-// removed booking-list: async function displayBookings() {
-            bookingListContainer.innerHTML = '讀取中...';
-            try {
-                const todayString = new Date().toISOString().split('T')[0];
-                const snapshot = await db.collection('bookings')
-                    .where('date', '>=', todayString)
-                    .orderBy('date', 'asc')
-                    .orderBy('time', 'asc')
-                    .get();
+    try {
+      const acc = await findAccountByUsername(username);
+      if (!acc) { showError('帳號或密碼錯誤，請重試！'); return; }
 
-                const bookingsByDate = {};
-                snapshot.forEach(doc => {
-                    const booking = { id: doc.id, ...doc.data() };
-                    if (!bookingsByDate[booking.date]) bookingsByDate[booking.date] = [];
-                    bookingsByDate[booking.date].push(booking);
-                });
+      if (acc.canNurse !== true) { showError('此帳號沒有護理師系統權限'); return; }
+      if ((acc.password || '') !== password) { showError('帳號或密碼錯誤，請重試！'); return; }
 
-                const upcomingDates = Object.keys(bookingsByDate).sort();
-                if (upcomingDates.length === 0) {
-                    bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
-                    return;
-                }
+      const user = {
+        staffId: acc.staffId || acc.id || acc.username || '',
+        displayName: acc.displayName || acc.name || '',
+        username: acc.username || '',
+        source: acc.source || '',
+        canOffice: acc.canOffice === true,
+        canNurse: acc.canNurse === true,
+        role: 'nurse',
+        loginAt: Date.now()
+      };
 
-                let html = '';
-                upcomingDates.forEach(date => {
-                    html += `<h4>${date}</h4>`;
-                    html += `<table class="table table-bordered table-striped table-hover"><thead class="table-light"><tr><th>時段</th><th>住民姓名</th><th>床號</th><th>家屬姓名</th><th>與住民關係</th><th>聯絡電話</th><th>操作</th></tr></thead><tbody>`;
-                    bookingsByDate[date].forEach(booking => {
-                        html += `<tr><td>${booking.time}</td><td>${booking.residentName}</td><td>${booking.bedNumber}</td><td>${booking.visitorName}</td><td>${booking.visitorRelationship || '未填寫'}</td><td>${booking.visitorPhone}</td><td><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${booking.id}">刪除</button></td></tr>`;
-                    });
-                    html += `</tbody></table>`;
-                });
-                bookingListContainer.innerHTML = html;
-            } catch (error) {
-                console.error("讀取預約列表失敗:", error);
-                bookingListContainer.innerHTML = '<div class="alert alert-danger">讀取預約列表失敗，請重新整理頁面。</div>';
-            }
-        }
+      saveSession(user);
+      renderLoginInfo(user);
+      showDashboard();
+    } catch (e) {
+      console.error('護理師登入錯誤：', e);
+      showError('登入時發生錯誤，請稍後再試');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
 
-// removed booking-list:         if (showBookingsBtn) { showBookingsBtn.addEventListener('click', (e) => { e.preventDefault(); dashboardSection.classList.add('d-none'); resultsSection.classList.remove('d-none'); displayBookings(); }); }
-// removed booking-list:         if (backToDashboardBtn) { backToDashboardBtn.addEventListener('click', () => { resultsSection.classList.add('d-none'); dashboardSection.classList.remove('d-none'); }); }
-// removed booking-list:         if (bookingListContainer) { bookingListContainer.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('btn-admin-delete')) {
-                const docId = e.target.dataset.id;
-                if (confirm(`確定要刪除這筆預約嗎？\n此操作無法復原。`)) {
-                    try {
-                        e.target.disabled = true;
-                        await db.collection('bookings').doc(docId).delete();
-                        alert('預約已刪除！');
-// removed booking-list:                         displayBookings();
-                    } catch (error) {
-                        console.error("管理員刪除失敗:", error);
-                        alert("刪除失敗，請稍後再試。");
-                        e.target.disabled = false;
-                    }
-                }
-            }
-        }); }
+  function bindUI() {
+    const loginBtn = qs('loginButton');
+    const u = qs('usernameInput');
+    const p = qs('passwordInput');
+
+    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+    if (u) u.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // 在帳號輸入框按 Enter：跳到密碼欄位
+        if (p) p.focus();
+      }
     });
-}
-*/
+
+    if (p) p.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // 在密碼輸入框按 Enter：直接登入
+        handleLogin();
+      }
     });
+
 });
+
+    const logoutBtn = qs('logoutBtnNurse');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        clearSession();
+        hideLoginInfo();
+        if (qs('usernameInput')) qs('usernameInput').value = '';
+        if (qs('passwordInput')) qs('passwordInput').value = '';
+        showLogin();
+      });
+    }
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    bindUI();
+
+    const sess = loadSession();
+    if (sess && sess.canNurse === true) {
+      renderLoginInfo(sess);
+      showDashboard();
+    } else {
+      hideLoginInfo();
+      showLogin();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // 即使 firebase-ready 延遲，也先把按鈕事件掛好（登入真正查詢 db 仍需 firebase-ready）
+    bindUI();
+  });
+})();
