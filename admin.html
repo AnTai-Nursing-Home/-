@@ -1,71 +1,125 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="nurse_login">護理師登入</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <style>
+    .app-header-grid{
+      display:grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items:center;
+      gap:12px;
+      padding: 14px 16px;
+    }
+    .app-header-title{
+      grid-column:2;
+      margin:0;
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.08em;
+    }
+    .app-header-right{
+      grid-column:3;
+      justify-self:end;
+      text-align:right;
+      font-size:.875rem;
+      line-height:1.2;
+      min-width: 170px;
+    }
+    .app-header-right .btn{
+      padding:.25rem .5rem;
+      font-size:.8rem;
+    }
+    .menu-item-text{ margin-top: 10px; display:inline-block; }
+  </style>
 </head>
+
 <body>
   <div class="container my-5">
     <div class="row justify-content-center">
       <div class="col-lg-12">
         <div class="card shadow">
-          <div class="card-header text-center bg-dark text-white">
-            <h2 data-i18n="nurse_system">護理師系統</h2>
+
+          <div class="card-header bg-dark text-white">
+            <div class="app-header-grid">
+              <div></div>
+              <h2 class="app-header-title" data-i18n="nurse_system">護理師系統</h2>
+
+              <div id="loginInfoNurse" class="app-header-right d-none">
+                <div class="fw-semibold">已登入</div>
+                <div>
+                  <span id="loginStaffId"></span>
+                  <span id="loginStaffName"></span>
+                </div>
+                <button id="logoutBtnNurse" class="btn btn-sm btn-outline-light mt-2">
+                  <i class="fas fa-right-from-bracket me-1"></i>登出
+                </button>
+              </div>
+            </div>
           </div>
+
           <div class="card-body">
 
-            <!-- 登入區 -->
             <div id="password-section">
-              <h5 class="card-title" data-i18n="enter_nurse_password">請輸入護理師密碼</h5>
-              <div class="input-group mb-3">
-                <input type="password" id="passwordInput" class="form-control" data-i18n-placeholder="please_enter_password" placeholder="請輸入密碼">
-                <button id="loginButton" class="btn btn-primary" data-i18n="login">登入</button>
+              <h5 class="card-title">請輸入個人帳號密碼</h5>
+
+              <div class="row g-2 align-items-center mb-3">
+                <div class="col-md-6">
+                  <input type="text" id="usernameInput" class="form-control" placeholder="帳號（建議用員工編號或自訂）" autocomplete="username" />
+                </div>
+                <div class="col-md-6">
+                  <input type="password" id="passwordInput" class="form-control" placeholder="密碼" autocomplete="current-password" />
+                </div>
               </div>
-              <!-- 隱私權同意 -->
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="privacyCheck">
+
+              <button id="loginButton" class="btn btn-primary">
+                <i class="fas fa-right-to-bracket me-1"></i>登入
+              </button>
+
+              <div class="form-check mt-3 mb-2">
+                <input class="form-check-input" type="checkbox" id="privacyCheck" />
                 <label class="form-check-label" for="privacyCheck">
                   我同意 <a href="privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
                 </label>
               </div>
-              <div id="errorMessage" class="text-danger d-none" data-i18n="password_error">密碼錯誤，請重試！</div>
-              <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
+
+              <div class="text-muted small mb-3">
+                ※ 若尚未建立帳號，請由「辦公室 → 帳號管理」建立。
+              </div>
+
+              <div id="errorMessage" class="text-danger d-none">帳號或密碼錯誤，請重試！</div>
+
+              <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3">返回首頁</a>
             </div>
 
-            <!-- 儀表板 -->
             <div id="dashboard-section" class="d-none">
               <div class="menu-grid admin-menu-grid">
 
-                <!-- 探視系統 -->
                 <a href="admin-visit.html" class="menu-item">
                   <i class="fas fa-user-friends fa-3x"></i>
                   <span class="menu-item-text">探視系統</span>
                 </a>
 
-                <!-- 班務系統 -->
                 <a href="admin-duty.html" class="menu-item">
                   <i class="fas fa-clipboard-list fa-3x"></i>
                   <span class="menu-item-text">班務系統</span>
                 </a>
 
-                <!-- 器材 / 衛材系統 -->
                 <a href="admin-supplies-system.html" class="menu-item">
                   <i class="fas fa-boxes-stacked fa-3x"></i>
                   <span class="menu-item-text">器材 / 衛材系統</span>
                 </a>
 
-                <!-- 住民系統 -->
                 <a href="admin-resident-system.html" class="menu-item">
                   <i class="fas fa-users-cog fa-3x"></i>
                   <span class="menu-item-text">住民系統</span>
                 </a>
 
-                <!-- 仍然獨立的系統 -->
                 <a href="doctor-rounds.html" class="menu-item">
                   <i class="fas fa-stethoscope fa-3x"></i>
                   <span class="menu-item-text">醫師巡診系統</span>
@@ -90,8 +144,9 @@
                 </a>
               </div>
             </div>
-          </div> <!-- card-body -->
-        </div> <!-- card -->
+
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -103,7 +158,6 @@
     © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
   </footer>
 
-  <!-- Firebase + JS -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -113,7 +167,6 @@
   <script src="main.js"></script>
   <script src="admin.js"></script>
 
-  <!-- 初始化翻譯 -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (typeof applyTranslations === 'function') applyTranslations();
