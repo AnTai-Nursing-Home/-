@@ -1,169 +1,224 @@
-// office.js - 辦公室端登入（個人帳號密碼版）
-// 依 Firestore 集合 userAccounts 驗證帳號/密碼與權限（canOffice=true）
-//
-// userAccounts/{staffId} 建議欄位：
-// - username: string
-// - password: string   (⚠️ 明文；若你之後要更安全可改成 hash)
-// - displayName: string
-// - staffId: string
-// - source: 'adminStaff'|'caregivers'|'localCaregivers'|'nurses'
-// - canOffice: boolean
-// - canNurse: boolean
-// - updatedAt, createdAt: serverTimestamp()
-
-(function(){
+// office.js - 辦公室端個人帳號密碼登入（含 Enter 換格）
+// 依賴 firebase-init.js 提供 db 與 firebase-ready 事件
+(function () {
   const AUTH_KEY = 'officeAuth';
+
   const passwordSection = document.getElementById('password-section-office');
   if (!passwordSection) return;
 
   const dashboardSection = document.getElementById('dashboard-section-office');
+
   const usernameInput = document.getElementById('usernameInput-office');
   const passwordInput = document.getElementById('passwordInput-office');
   const loginButton = document.getElementById('loginButton-office');
-  const logoutButton = document.getElementById('logoutButton-office');
   const errorMessage = document.getElementById('errorMessage-office');
-  const loginInfo = document.getElementById('loginInfo-office');
-  const btnLogoutTop = document.getElementById('btnLogoutTop');
+  const privacyCheck = document.getElementById('privacyCheck');
 
-  function showLogin(){
-    passwordSection.classList.remove('d-none');
-    dashboardSection.classList.add('d-none');
-    logoutButton.classList.add('d-none');
+  // 兼容多版 HTML：登入資訊 / 登出按鈕可能有不同 id
+  const loginInfo =
+    document.getElementById('loginInfoOffice') ||
+    document.getElementById('loginInfo-office');
+
+  const logoutBtn =
+    document.getElementById('logoutBtnOffice') ||
+    document.getElementById('logoutButton-office') ||
+    document.getElementById('btnLogoutTop');
+
+  const loginStaffIdEl = document.getElementById('loginStaffId');
+  const loginStaffNameEl = document.getElementById('loginStaffName');
+
+  function setVisible(el, visible) {
+    if (!el) return;
+    el.classList.toggle('d-none', !visible);
+  }
+
+  function showError(msg) {
+    if (!errorMessage) return;
+    errorMessage.textContent = msg || '帳號或密碼錯誤，請重試！';
+    errorMessage.classList.remove('d-none');
+  }
+
+  function hideError() {
+    if (!errorMessage) return;
     errorMessage.classList.add('d-none');
   }
 
-  function showDashboard(user){
-    passwordSection.classList.add('d-none');
-    dashboardSection.classList.remove('d-none');
-    logoutButton.classList.remove('d-none');
-    errorMessage.classList.add('d-none');
-    if (loginInfo) {
-      const name = user?.displayName || user?.username || '';
-      const role = 'Office';
-      loginInfo.textContent = `${name}（${role}）`;
-    }
+  function setAuth(user) {
+    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch (e) {}
   }
 
-  function setAuth(user){
-    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch(e){}
-  }
-  function getAuth(){
+  function getAuth() {
     try {
       const raw = sessionStorage.getItem(AUTH_KEY);
       return raw ? JSON.parse(raw) : null;
-    } catch(e){ return null; }
-  }
-  function clearAuth(){
-    try { sessionStorage.removeItem(AUTH_KEY); } catch(e){}
+    } catch (e) {
+      return null;
+    }
   }
 
-  async function waitForDbReady(){
-    // firebase-init.js 可能會晚於本檔初始化
+  function clearAuth() {
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
+  }
+
+  async function waitForDbReady() {
     if (typeof db !== 'undefined' && db) return;
     await new Promise((resolve) => {
       document.addEventListener('firebase-ready', () => resolve(), { once: true });
-      // 若 firebase-ready 沒有 dispatch，最多等 2 秒後再試一次
       setTimeout(resolve, 2000);
     });
   }
 
-  async function handleLogin(){
-    // ✅ 未勾選不得登入
-    const privacyCheck = document.getElementById('privacyCheck');
+  function renderHeaderUser(user) {
+    // 如果你的 office.html 是「header 右上角顯示」那版
+    if (loginStaffIdEl && loginStaffNameEl) {
+      loginStaffIdEl.textContent = user?.staffId || '';
+      loginStaffNameEl.textContent = user?.displayName || '';
+      // header 區塊容器（若存在）
+      const loginInfoOffice = document.getElementById('loginInfoOffice');
+      if (loginInfoOffice) loginInfoOffice.classList.remove('d-none');
+      return;
+    }
+    // 舊版：直接顯示文字
+    if (loginInfo) {
+      const name = user?.displayName || user?.username || '';
+      loginInfo.textContent = `${user?.staffId || ''} ${name}`.trim();
+      loginInfo.classList.remove('d-none');
+    }
+  }
+
+  function clearHeaderUser() {
+    const loginInfoOffice = document.getElementById('loginInfoOffice');
+    if (loginInfoOffice) loginInfoOffice.classList.add('d-none');
+    if (loginStaffIdEl) loginStaffIdEl.textContent = '';
+    if (loginStaffNameEl) loginStaffNameEl.textContent = '';
+    if (loginInfo) loginInfo.classList.add('d-none');
+  }
+
+  function showLogin() {
+    setVisible(passwordSection, true);
+    setVisible(dashboardSection, false);
+    setVisible(logoutBtn, false);
+    hideError();
+  }
+
+  function showDashboard(user) {
+    setVisible(passwordSection, false);
+    setVisible(dashboardSection, true);
+    setVisible(logoutBtn, true);
+    hideError();
+    renderHeaderUser(user);
+  }
+
+  async function findAccountByUsername(username) {
+    const snap = await db.collection('userAccounts')
+      .where('username', '==', username)
+      .limit(1)
+      .get();
+
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() };
+  }
+
+  async function handleLogin() {
     if (privacyCheck && !privacyCheck.checked) {
-      alert("請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》");
+      alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
       return;
     }
 
     const username = (usernameInput?.value || '').trim();
     const password = (passwordInput?.value || '').trim();
+
     if (!username || !password) {
-      alert('請輸入帳號與密碼');
+      showError('請輸入帳號與密碼');
       return;
     }
 
-    loginButton.disabled = true;
-    errorMessage.classList.add('d-none');
+    if (loginButton) loginButton.disabled = true;
+    hideError();
 
     try {
       await waitForDbReady();
-      if (typeof db === 'undefined' || !db) throw new Error('Firestore 尚未初始化');
 
-      // 以 username 查找（userAccounts 量通常不大，這樣最穩）
-      const snap = await db.collection('userAccounts')
-        .where('username', '==', username)
-        .limit(1)
-        .get();
+      const acc = await findAccountByUsername(username);
+      if (!acc) { showError('帳號或密碼錯誤，請重試！'); return; }
 
-      if (snap.empty) {
-        errorMessage.classList.remove('d-none');
-        return;
-      }
-
-      const doc = snap.docs[0];
-      const u = doc.data() || {};
-
-      // 密碼比對（明文）
-      if ((u.password || '') !== password) {
-        errorMessage.classList.remove('d-none');
-        return;
-      }
-
-      // 權限：必須 canOffice=true 才能進入辦公室
-      if (u.canOffice !== true) {
-        errorMessage.classList.remove('d-none');
-        return;
-      }
+      if (acc.canOffice !== true) { showError('此帳號沒有辦公室系統權限'); return; }
+      if ((acc.password || '') !== password) { showError('帳號或密碼錯誤，請重試！'); return; }
 
       const user = {
-        staffId: u.staffId || doc.id,
-        username: u.username || username,
-        displayName: u.displayName || u.name || u.username || username,
-        canOffice: !!u.canOffice,
-        canNurse: !!u.canNurse,
-        source: u.source || '',
+        staffId: acc.staffId || acc.id || acc.username || '',
+        displayName: acc.displayName || acc.name || '',
+        username: acc.username || '',
+        source: acc.source || '',
+        canOffice: acc.canOffice === true,
+        canNurse: acc.canNurse === true,
+        role: 'office',
         loginAt: Date.now()
       };
 
       setAuth(user);
       showDashboard(user);
-    } catch (err) {
-      console.error('登入錯誤:', err);
-      alert('登入時發生錯誤，請稍後再試。');
+    } catch (e) {
+      console.error('辦公室登入錯誤：', e);
+      showError('登入時發生錯誤，請稍後再試');
     } finally {
-      loginButton.disabled = false;
+      if (loginButton) loginButton.disabled = false;
     }
   }
 
-  function handleLogout(){
-    clearAuth();
-    showLogin();
+  function bindUI() {
+    if (loginButton) loginButton.addEventListener('click', handleLogin);
+
+    // Enter 行為：帳號 Enter → 跳到密碼；密碼 Enter → 直接登入
+    if (usernameInput) {
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (passwordInput) passwordInput.focus();
+        }
+      });
+    }
+
+    if (passwordInput) {
+      passwordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleLogin();
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        if (!confirm('確定要登出嗎？')) return;
+        clearAuth();
+        clearHeaderUser();
+        if (usernameInput) usernameInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        showLogin();
+      });
+    }
   }
 
-  // --- 事件綁定 ---
-  loginButton?.addEventListener('click', handleLogin);
-  usernameInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
-  passwordInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
-  logoutButton?.addEventListener('click', handleLogout);
-  btnLogoutTop?.addEventListener('click', handleLogout);
+  async function boot() {
+    bindUI();
 
-  // --- 自動登入 ---
-  (function boot(){
     const urlParams = new URLSearchParams(window.location.search);
-    const auth = getAuth();
+    const wantsDashboard = (urlParams.get('view') === 'dashboard');
 
-    // 只有在 session 有登入且 canOffice=true 才自動進 dashboard
-    if (auth && auth.canOffice === true) {
-      showDashboard(auth);
+    const sess = getAuth();
+    if (sess && sess.canOffice === true) {
+      showDashboard(sess);
+      if (wantsDashboard) {
+        // 已登入：保持在儀表板
+      }
       return;
     }
 
-    // 如果有人手動輸入 ?view=dashboard，但沒有 session，就回登入頁
-    if (urlParams.get('view') === 'dashboard') {
-      showLogin();
-      return;
-    }
-
+    clearHeaderUser();
     showLogin();
-  })();
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
 })();
