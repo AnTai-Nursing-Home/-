@@ -18,34 +18,18 @@
   if (!passwordSection) return;
 
   const dashboardSection = document.getElementById('dashboard-section-office');
+
   const usernameInput = document.getElementById('usernameInput-office');
   const passwordInput = document.getElementById('passwordInput-office');
   const loginButton = document.getElementById('loginButton-office');
   const errorMessage = document.getElementById('errorMessage-office');
+  const privacyCheck = document.getElementById('privacyCheck');
 
-  // Header 右上角登入資訊
+  // Header login info (右上角)
   const loginInfoOffice = document.getElementById('loginInfoOffice');
   const loginStaffIdEl = document.getElementById('loginStaffId');
   const loginStaffNameEl = document.getElementById('loginStaffName');
   const logoutBtnOffice = document.getElementById('logoutBtnOffice');
-
-  function showLogin() {
-    passwordSection.classList.remove('d-none');
-    dashboardSection.classList.add('d-none');
-    errorMessage.classList.add('d-none');
-    if (loginInfoOffice) loginInfoOffice.classList.add('d-none');
-  }
-
-  function showDashboard(user) {
-    passwordSection.classList.add('d-none');
-    dashboardSection.classList.remove('d-none');
-    errorMessage.classList.add('d-none');
-
-    // 右上角顯示：員編 + 姓名
-    if (loginInfoOffice) loginInfoOffice.classList.remove('d-none');
-    if (loginStaffIdEl) loginStaffIdEl.textContent = user?.staffId ? `${user.staffId}` : '';
-    if (loginStaffNameEl) loginStaffNameEl.textContent = user?.displayName ? ` ${user.displayName}` : '';
-  }
 
   function setAuth(user) {
     try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch (e) {}
@@ -60,16 +44,52 @@
     try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
   }
 
-  async function waitForDbReady() {
-    if (typeof db !== 'undefined' && db) return;
-    await new Promise((resolve) => {
-      document.addEventListener('firebase-ready', () => resolve(), { once: true });
-      setTimeout(resolve, 2000);
-    });
+  function showLogin() {
+    passwordSection.classList.remove('d-none');
+    dashboardSection.classList.add('d-none');
+
+    // header 右上角資訊隱藏
+    if (loginInfoOffice) loginInfoOffice.classList.add('d-none');
+
+    // 清空欄位/狀態
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    errorMessage?.classList.add('d-none');
+
+    // 恢復登入按鈕
+    if (loginButton) loginButton.disabled = false;
+  }
+
+  function showDashboard(user) {
+    passwordSection.classList.add('d-none');
+    dashboardSection.classList.remove('d-none');
+
+    // 顯示右上角登入資訊
+    if (loginInfoOffice) loginInfoOffice.classList.remove('d-none');
+    if (loginStaffIdEl) loginStaffIdEl.textContent = (user?.staffId || user?.username || '');
+    if (loginStaffNameEl) loginStaffNameEl.textContent = (user?.displayName || user?.name || '');
+  }
+
+  async function findAccountByUsername(username) {
+    // db 由 firebase-init.js 提供
+    if (typeof db === 'undefined' || !db?.collection) {
+      throw new Error('Firebase 尚未初始化（db 不存在）');
+    }
+
+    // username 建索引前：用 where 查詢（建議你之後在 Firebase Console 建 composite index）
+    const snap = await db.collection('userAccounts')
+      .where('username', '==', username)
+      .limit(1)
+      .get();
+
+    if (snap.empty) return null;
+
+    const doc = snap.docs[0];
+    return { id: doc.id, ...(doc.data() || {}) };
   }
 
   async function handleLogin() {
-    const privacyCheck = document.getElementById('privacyCheck');
+    // ✅ 未勾選不得登入
     if (privacyCheck && !privacyCheck.checked) {
       alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
       return;
@@ -77,91 +97,76 @@
 
     const username = (usernameInput?.value || '').trim();
     const password = (passwordInput?.value || '').trim();
+
     if (!username || !password) {
       alert('請輸入帳號與密碼');
       return;
     }
 
-    loginButton.disabled = true;
-    errorMessage.classList.add('d-none');
+    loginButton && (loginButton.disabled = true);
+    errorMessage?.classList.add('d-none');
 
     try {
-      await waitForDbReady();
-      if (typeof db === 'undefined' || !db) throw new Error('Firestore 尚未初始化');
-
-      // 以 username 查找
-      const snap = await db.collection('userAccounts')
-        .where('username', '==', username)
-        .limit(1)
-        .get();
-
-      if (snap.empty) {
-        errorMessage.classList.remove('d-none');
+      const account = await findAccountByUsername(username);
+      if (!account) {
+        errorMessage && (errorMessage.textContent = '查無此帳號，請洽辦公室建立帳號');
+        errorMessage?.classList.remove('d-none');
         return;
       }
 
-      const doc = snap.docs[0];
-      const u = doc.data() || {};
-
-      // 密碼比對（明文）
-      if ((u.password || '') !== password) {
-        errorMessage.classList.remove('d-none');
+      // 密碼比對（目前為明文）
+      if ((account.password || '') !== password) {
+        errorMessage && (errorMessage.textContent = '帳號或密碼錯誤，請重試！');
+        errorMessage?.classList.remove('d-none');
         return;
       }
 
-      // 權限：必須 canOffice=true 才能進入辦公室
-      if (u.canOffice !== true) {
-        errorMessage.classList.remove('d-none');
+      // 權限檢查
+      if (account.canOffice !== true) {
+        errorMessage && (errorMessage.textContent = '此帳號未授權進入辦公室系統');
+        errorMessage?.classList.remove('d-none');
         return;
       }
 
+      // 存 session
       const user = {
-        staffId: u.staffId || doc.id,
-        username: u.username || username,
-        displayName: u.displayName || u.name || u.username || username,
-        canOffice: !!u.canOffice,
-        canNurse: !!u.canNurse,
-        source: u.source || '',
-        loginAt: Date.now()
+        staffId: account.staffId || account.id || '',
+        displayName: account.displayName || '',
+        username: account.username || '',
+        canOffice: account.canOffice === true,
+        canNurse: account.canNurse === true,
+        source: account.source || '',
       };
 
       setAuth(user);
       showDashboard(user);
     } catch (err) {
-      console.error('登入錯誤:', err);
-      alert('登入時發生錯誤，請稍後再試。');
+      console.error('office login error:', err);
+      alert(err?.message || '登入失敗，請稍後再試');
     } finally {
-      loginButton.disabled = false;
+      loginButton && (loginButton.disabled = false);
     }
   }
 
   function handleLogout() {
+    if (!confirm('確定要登出嗎？')) return;
     clearAuth();
     showLogin();
   }
 
-  // 事件綁定
+  // --- 綁定事件 ---
   loginButton?.addEventListener('click', handleLogin);
   usernameInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
   passwordInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
   logoutBtnOffice?.addEventListener('click', handleLogout);
 
-  // 自動登入
+  // --- 自動登入 ---
   (function boot() {
-    const urlParams = new URLSearchParams(window.location.search);
     const auth = getAuth();
-
     if (auth && auth.canOffice === true) {
       showDashboard(auth);
-      return;
-    }
-
-    // 有人手動輸入 ?view=dashboard，但沒有 session，就回登入頁
-    if (urlParams.get('view') === 'dashboard') {
+    } else {
       showLogin();
-      return;
     }
-
-    showLogin();
   })();
 })();
