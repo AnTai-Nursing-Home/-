@@ -121,6 +121,8 @@
     const logoutBtn = qs('logoutBtnNurse');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
+        if (!confirm('確定要登出嗎？')) return;
+
         clearSession();
         hideLoginInfo();
         if (qs('usernameInput')) qs('usernameInput').value = '';
