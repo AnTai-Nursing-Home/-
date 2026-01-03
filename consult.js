@@ -20,6 +20,7 @@
   const nameInput = document.getElementById('nameInput');
   const subjectInput = document.getElementById('subjectInput');
   const descInput = document.getElementById('descInput');
+  const senderNurseInput = document.getElementById('senderNurseInput');
   const nurseFiles = document.getElementById('nurseFiles');
 
   const btnSubmit = document.getElementById('btnSubmit');
@@ -37,6 +38,7 @@
   const mName = document.getElementById('mName');
   const mSubject = document.getElementById('mSubject');
   const mDesc = document.getElementById('mDesc');
+  const mSenderNurse = document.getElementById('mSenderNurse');
   const mNurseFiles = document.getElementById('mNurseFiles');
   const mReply = document.getElementById('mReply');
   const replyHint = document.getElementById('replyHint');
@@ -118,6 +120,27 @@
   let unsubConsults = null;
 
   initUIBasics();
+
+  // -------- Login session (Office/Nurse) --------
+  function getLoggedInUser() {
+    const keys = ['antai_session_user', 'officeAuth', 'office_user', 'nurse_user'];
+    for (const k of keys) {
+      try {
+        const raw = sessionStorage.getItem(k);
+        if (!raw) continue;
+        const obj = JSON.parse(raw);
+        if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function formatSender(user) {
+    if (!user) return '';
+    const id = (user.staffId || '').toString().trim();
+    const name = (user.displayName || user.name || user.username || '').toString().trim();
+    return (id && name) ? `${id} ${name}` : (name || id || '');
+  }
 
   // -------- Init flow --------
   if (window.db && window.firebase) {
@@ -216,6 +239,12 @@ await loadResidents();
     const roleText = ROLE === 'nutritionist' ? '營養師' : '護理師';
     roleBadge.textContent = `角色：${roleText}`;
     createCard.style.display = (ROLE === 'nurse') ? '' : 'none';
+
+    // 送單護理師：依登入者自動帶入（護理師送單用）
+    if (ROLE === 'nurse' && senderNurseInput) {
+      const u = getLoggedInUser();
+      senderNurseInput.value = formatSender(u) || '';
+    }
 
     // nutritionist can edit reply; nurse read-only in modal
     const canReply = ROLE === 'nutritionist';
@@ -340,7 +369,16 @@ await loadResidents();
         btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>送出中…';
 
         const createdAt = firebase.firestore.FieldValue.serverTimestamp();
+
+        // 送單護理師（登入者）
+        const loginUser = getLoggedInUser();
+        const senderDisplay = formatSender(loginUser);
+        const senderStaffId = (loginUser && (loginUser.staffId || loginUser.username)) ? String(loginUser.staffId || loginUser.username) : '';
+        const senderName = loginUser ? String(loginUser.displayName || loginUser.name || loginUser.username || '') : '';
         const baseDoc = {
+          senderNurseDisplay: senderDisplay || '',
+          senderNurseStaffId: senderStaffId || '',
+          senderNurseName: senderName || '',
           residentId,
           bedNumber,
           residentName,
@@ -414,6 +452,7 @@ await loadResidents();
 
         const update = {
           nutritionistReply: reply,
+      senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
           status: 'replied',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           lastActionBy: 'nutritionist',
@@ -529,6 +568,14 @@ await loadResidents();
     mName.value = r.residentName || '';
     mSubject.value = r.subject || '';
     mDesc.value = r.description || '';
+
+    // 送單護理師
+    if (mSenderNurse) {
+      const disp = (r.senderNurseDisplay || '').trim();
+      const sid = (r.senderNurseStaffId || '').trim();
+      const sn = (r.senderNurseName || '').trim();
+      mSenderNurse.value = disp || ((sid && sn) ? `${sid} ${sn}` : (sn || sid || '')) || '—';
+    }
 
     if (btnDeleteConsult) btnDeleteConsult.disabled = (ROLE !== 'nurse');
 
@@ -701,6 +748,7 @@ await loadResidents();
   <table>
     <tr><th>住民床號</th><td>${safe(c.bedNumber || '')}</td></tr>
     <tr><th>姓名</th><td>${safe(c.residentName || '')}</td></tr>
+    <tr><th>送單護理師</th><td>${safe(c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—')}</td></tr>
     <tr><th>照會主旨</th><td>${safe(c.subject || '')}</td></tr>
     <tr><th>照會說明</th><td>${safe(c.description || '')}</td></tr>
     <tr><th>營養師回覆</th><td>${safe(reply)}</td></tr>
@@ -782,6 +830,7 @@ await loadResidents();
       subject: c.subject || '',
       description: c.description || '',
       nutritionistReply: reply,
+      senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
       createdAt: created,
       nurseAttachments: nurseAttach,
       nutritionistAttachments: nutAttach,
@@ -819,6 +868,7 @@ await loadResidents();
   <table>
     <tr><th>床號</th><td>${escapeHtml(data.bedNumber)}</td></tr>
     <tr><th>姓名</th><td>${escapeHtml(data.residentName)}</td></tr>
+    <tr><th>送單護理師</th><td>${escapeHtml(data.senderNurse || '—')}</td></tr>
     <tr><th>照會主旨</th><td>${escapeHtml(data.subject)}</td></tr>
     <tr><th>照會說明</th><td>${nlToBr(data.description)}</td></tr>
     <tr><th>護理師附件</th><td>${escapeHtml(data.nurseAttachments)}</td></tr>
