@@ -11,7 +11,7 @@
 // - canNurse: boolean
 // - updatedAt, createdAt: serverTimestamp()
 
-(function(){
+(function () {
   const AUTH_KEY = 'officeAuth';
 
   const passwordSection = document.getElementById('password-section-office');
@@ -23,61 +23,52 @@
   const loginButton = document.getElementById('loginButton-office');
   const errorMessage = document.getElementById('errorMessage-office');
 
-  // ✅ 右上角登入資訊（在 card-header）
+  // Header 右上角登入資訊
   const loginInfoOffice = document.getElementById('loginInfoOffice');
   const loginStaffIdEl = document.getElementById('loginStaffId');
   const loginStaffNameEl = document.getElementById('loginStaffName');
   const logoutBtnOffice = document.getElementById('logoutBtnOffice');
 
-  function showLogin(){
+  function showLogin() {
     passwordSection.classList.remove('d-none');
     dashboardSection.classList.add('d-none');
     errorMessage.classList.add('d-none');
-
-    // header 右上角資訊隱藏
     if (loginInfoOffice) loginInfoOffice.classList.add('d-none');
-    if (loginStaffIdEl) loginStaffIdEl.textContent = '';
-    if (loginStaffNameEl) loginStaffNameEl.textContent = '';
   }
 
-  function showDashboard(user){
+  function showDashboard(user) {
     passwordSection.classList.add('d-none');
     dashboardSection.classList.remove('d-none');
     errorMessage.classList.add('d-none');
 
-    // header 右上角資訊顯示
+    // 右上角顯示：員編 + 姓名
     if (loginInfoOffice) loginInfoOffice.classList.remove('d-none');
-    if (loginStaffIdEl) loginStaffIdEl.textContent = user?.staffId ? String(user.staffId) : '';
+    if (loginStaffIdEl) loginStaffIdEl.textContent = user?.staffId ? `${user.staffId}` : '';
     if (loginStaffNameEl) loginStaffNameEl.textContent = user?.displayName ? ` ${user.displayName}` : '';
   }
 
-  function setAuth(user){
-    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch(e) {}
+  function setAuth(user) {
+    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch (e) {}
   }
-
-  function getAuth(){
+  function getAuth() {
     try {
       const raw = sessionStorage.getItem(AUTH_KEY);
       return raw ? JSON.parse(raw) : null;
-    } catch(e) { return null; }
+    } catch (e) { return null; }
+  }
+  function clearAuth() {
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
   }
 
-  function clearAuth(){
-    try { sessionStorage.removeItem(AUTH_KEY); } catch(e) {}
-  }
-
-  async function waitForDbReady(){
-    // firebase-init.js 可能會晚於本檔初始化
+  async function waitForDbReady() {
     if (typeof db !== 'undefined' && db) return;
     await new Promise((resolve) => {
       document.addEventListener('firebase-ready', () => resolve(), { once: true });
-      // 若 firebase-ready 沒有 dispatch，最多等 2 秒後再試一次
       setTimeout(resolve, 2000);
     });
   }
 
-  async function handleLogin(){
-    // ✅ 未勾選不得登入
+  async function handleLogin() {
     const privacyCheck = document.getElementById('privacyCheck');
     if (privacyCheck && !privacyCheck.checked) {
       alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
@@ -98,7 +89,7 @@
       await waitForDbReady();
       if (typeof db === 'undefined' || !db) throw new Error('Firestore 尚未初始化');
 
-      // 以 username 查找（userAccounts 量通常不大）
+      // 以 username 查找
       const snap = await db.collection('userAccounts')
         .where('username', '==', username)
         .limit(1)
@@ -144,29 +135,28 @@
     }
   }
 
-  function handleLogout(){
+  function handleLogout() {
     clearAuth();
     showLogin();
   }
 
-  // --- 事件綁定 ---
+  // 事件綁定
   loginButton?.addEventListener('click', handleLogin);
   usernameInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
   passwordInput?.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
   logoutBtnOffice?.addEventListener('click', handleLogout);
 
-  // --- 自動登入 ---
-  (function boot(){
+  // 自動登入
+  (function boot() {
     const urlParams = new URLSearchParams(window.location.search);
     const auth = getAuth();
 
-    // 只有在 session 有登入且 canOffice=true 才自動進 dashboard
     if (auth && auth.canOffice === true) {
       showDashboard(auth);
       return;
     }
 
-    // 如果有人手動輸入 ?view=dashboard，但沒有 session，就回登入頁
+    // 有人手動輸入 ?view=dashboard，但沒有 session，就回登入頁
     if (urlParams.get('view') === 'dashboard') {
       showLogin();
       return;
