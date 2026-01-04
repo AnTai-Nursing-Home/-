@@ -79,14 +79,11 @@
   }
 
   function applyReadonlyMode(readonly) {
-    // 匯出 Excel 仍允許
+    // ✅ 唯讀模式：允許「查看/篩選/匯出」，禁止「新增/刪除/修改扣除區間」
+    // 1) 禁用「會改資料」的控制項
     const disableSelectors = [
-      '#reqFilterBtn', '#reqClearBtn',
-      '#statFilterBtn', '#statClearBtn',
       '#quickSubmit',
-      '#reqDateFrom', '#reqDateTo', '#reqEmpSelect', '#statEmpSelect',
-      '#quickEmpSelect', '#quickDate', '#quickAmount', '#quickUnit', '#quickReason', '#quickPeriodSelect',
-      '#quickFilterSelect'
+      '#quickEmpSelect', '#quickDate', '#quickAmount', '#quickUnit', '#quickReason', '#quickPeriodSelect'
     ];
 
     disableSelectors.forEach(sel => {
@@ -95,6 +92,21 @@
       if (readonly) el.setAttribute('disabled', 'disabled');
       else el.removeAttribute('disabled');
     });
+
+    // 2) 禁用「扣除區間」下拉（會寫回請假單）
+    document.querySelectorAll('.al-period-select').forEach(el => {
+      if (readonly) el.setAttribute('disabled', 'disabled');
+      else el.removeAttribute('disabled');
+    });
+
+    // 3) 禁用「刪除補登」按鈕
+    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
+      if (readonly) btn.setAttribute('disabled', 'disabled');
+      else btn.removeAttribute('disabled');
+    });
+
+    // 4) Tab 不鎖，讓唯讀也能看快速補登/統計/特休單
+  });
 
     document.querySelectorAll('.al-period-select').forEach(el => {
       if (readonly) el.setAttribute('disabled', 'disabled');
