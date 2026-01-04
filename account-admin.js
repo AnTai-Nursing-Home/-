@@ -7,9 +7,9 @@
 
   // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
   const SOURCE_LABEL = {
-    adminStaff: '社工/其他',
-    caregivers: '外籍照服員',
-    localCaregivers: '本籍照服員',
+    adminStaff: '管理員/辦公室',
+    caregivers: '照服員',
+    localCaregivers: '本國照服員',
     nurses: '護理師'
   };
 
@@ -120,7 +120,7 @@
   function render(rows){
     tbody.innerHTML = '';
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">沒有資料</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`;
       return;
     }
 
@@ -145,6 +145,9 @@
         </td>
         <td class="text-center">
           <input type="checkbox" class="form-check-input" data-k="canNurse" ${acc.canNurse===true?'checked':''}>
+        </td>
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input" data-k="canAnnualLeave" ${acc.canAnnualLeave===true?'checked':''}>
         </td>
         <td>
           <div class="d-flex gap-2">
@@ -185,6 +188,7 @@
       password: v.password,
       canOffice: !!v.canOffice,
       canNurse: !!v.canNurse,
+      canAnnualLeave: !!v.canAnnualLeave,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
 
@@ -242,6 +246,7 @@
         password: r.staffId,
         canOffice: (r.source === 'adminStaff' || r.source === 'localCaregivers'), // 你可自行調整預設
         canNurse: (r.source === 'nurses'),
+        canAnnualLeave: false,
         createdAt: now,
         updatedAt: now
       }, { merge: true });
@@ -260,7 +265,7 @@
   let allRows = [];
 
   async function refresh(){
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">載入中...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
     msg.textContent = '';
 
     await waitForDbReady();
