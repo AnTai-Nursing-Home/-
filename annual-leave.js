@@ -10,6 +10,116 @@
   };
   const $ = (sel) => document.querySelector(sel);
   const msPerYear = 365.25 * 24 * 3600 * 1000;
+  // ===== Login / Permission =====
+  const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
+
+  function getLoggedInUser() {
+    for (const k of SESSION_KEYS) {
+      try {
+        const raw = sessionStorage.getItem(k);
+        if (!raw) continue;
+        const obj = JSON.parse(raw);
+        if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function formatUser(user) {
+    if (!user) return { staffId: '', name: '' };
+    const staffId = String(user.staffId || user.empId || user.username || '').trim();
+    const name = String(user.displayName || user.name || user.username || '').trim();
+    return { staffId, name };
+  }
+
+  function renderLoginHeader(user, readonly) {
+    const idEl = document.getElementById('alLoginStaffId');
+    const nameEl = document.getElementById('alLoginStaffName');
+    const roEl = document.getElementById('alReadonlyTag');
+    const u = formatUser(user);
+    if (idEl) idEl.textContent = u.staffId || '';
+    if (nameEl) nameEl.textContent = u.name ? (' ' + u.name) : '';
+    if (roEl) roEl.textContent = readonly ? '（唯讀）' : '';
+  }
+
+  async function loadAnnualLeavePermission(user) {
+    // 預設：沒有登入就唯讀
+    if (!user) return { canUse: false, readonly: true };
+
+    // session 直接帶旗標
+    if (user.canAnnualLeave === true) return { canUse: true, readonly: false };
+
+    // 從 userAccounts 查詢（以 staffId 或 username）
+    try {
+      const staffId = String(user.staffId || '').trim();
+      const username = String(user.username || '').trim();
+
+      if (staffId) {
+        const snap1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
+        if (!snap1.empty) {
+          const acc = snap1.docs[0].data() || {};
+          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
+          return { canUse: can, readonly: !can };
+        }
+      }
+
+      const key = username || staffId;
+      if (key) {
+        const snap2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
+        if (!snap2.empty) {
+          const acc = snap2.docs[0].data() || {};
+          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
+          return { canUse: can, readonly: !can };
+        }
+      }
+    } catch (e) {
+      console.error('loadAnnualLeavePermission error', e);
+    }
+    return { canUse: false, readonly: true };
+  }
+
+  function applyReadonlyMode(readonly) {
+    // 匯出 Excel 仍允許
+    const disableSelectors = [
+      '#reqFilterBtn', '#reqClearBtn',
+      '#statFilterBtn', '#statClearBtn',
+      '#quickSubmit',
+      '#reqDateFrom', '#reqDateTo', '#reqEmpSelect', '#statEmpSelect',
+      '#quickEmpSelect', '#quickDate', '#quickAmount', '#quickUnit', '#quickReason', '#quickPeriodSelect',
+      '#quickFilterSelect'
+    ];
+
+    disableSelectors.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      if (readonly) el.setAttribute('disabled', 'disabled');
+      else el.removeAttribute('disabled');
+    });
+
+    document.querySelectorAll('.al-period-select').forEach(el => {
+      if (readonly) el.setAttribute('disabled', 'disabled');
+      else el.removeAttribute('disabled');
+    });
+
+    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
+      if (readonly) btn.setAttribute('disabled', 'disabled');
+      else btn.removeAttribute('disabled');
+    });
+
+    const quickTabBtn = document.getElementById('tab-quick-tab');
+    if (quickTabBtn) {
+      if (readonly) {
+        quickTabBtn.classList.add('disabled');
+        quickTabBtn.setAttribute('tabindex', '-1');
+        quickTabBtn.setAttribute('aria-disabled', 'true');
+      } else {
+        quickTabBtn.classList.remove('disabled');
+        quickTabBtn.removeAttribute('tabindex');
+        quickTabBtn.removeAttribute('aria-disabled');
+      }
+    }
+  }
+
 
   // 年資對應（依你現行制度，可再微調）
   const ENTITLE_STEPS = [
@@ -374,11 +484,14 @@
         const key = periodKey(p);
         options.push(`<option value="${key}">${ymd(p.start)} ~ ${ymd(p.end)}</option>`);
       });
+
+    applyReadonlyMode(window.__AL_READONLY__);
       sel.innerHTML = options.join("");
 
       if (row.periodValue) sel.value = row.periodValue;
 
       sel.addEventListener("change", async () => {
+        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
         const v = sel.value;
         const label = sel.closest("td").querySelector(".period-label");
         try {
@@ -491,6 +604,7 @@
 
     tbody.querySelectorAll("button[data-id]").forEach(btn => {
       btn.addEventListener("click", async () => {
+        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限刪除"); return; }
         const id = btn.getAttribute("data-id");
         if (!confirm("確定刪除此補登紀錄？")) return;
         try {
@@ -501,6 +615,8 @@
         renderQuickList(allEmployees);
         renderSummary(allEmployees);
       });
+
+    applyReadonlyMode(window.__AL_READONLY__);
     });
   }
 
@@ -822,6 +938,7 @@
     });
 
     $("#quickSubmit")?.addEventListener("click", async () => {
+      if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限新增補登"); return; }
       const empSel = $("#quickEmpSelect");
       const dateEl = $("#quickDate");
       const amountEl = $("#quickAmount");
@@ -936,6 +1053,11 @@
 
   // ===== Init =====
   async function init() {
+    const loginUser = getLoggedInUser();
+    const perm = await loadAnnualLeavePermission(loginUser);
+    window.__AL_READONLY__ = perm.readonly;
+    renderLoginHeader(loginUser, perm.readonly);
+
     const employees = await loadEmployees();
     fillEmpSelects(employees);
     bindUI(employees);
@@ -944,6 +1066,9 @@
       renderQuickList(employees),
       renderSummary(employees),
     ]);
+
+    applyReadonlyMode(window.__AL_READONLY__);
+
   }
 
   let inited = false;
