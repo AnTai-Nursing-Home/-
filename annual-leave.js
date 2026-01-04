@@ -11,77 +11,6 @@
   const $ = (sel) => document.querySelector(sel);
   const msPerYear = 365.25 * 24 * 3600 * 1000;
 
-  // ===== Login / Permission =====
-  const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
-
-  function getLoggedInUser() {
-    for (const k of SESSION_KEYS) {
-      try {
-        const raw = sessionStorage.getItem(k);
-        if (!raw) continue;
-        const obj = JSON.parse(raw);
-        if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  function formatUser(user) {
-    if (!user) return { staffId: '', name: '' };
-    const staffId = String(user.staffId || user.empId || user.username || '').trim();
-    const name = String(user.displayName || user.name || user.username || '').trim();
-    return { staffId, name };
-  }
-
-  function renderLoginHeader(user, readonly) {
-    const idEl = document.getElementById('alLoginStaffId');
-    const nameEl = document.getElementById('alLoginStaffName');
-    const roEl = document.getElementById('alReadonlyTag');
-    const u = formatUser(user);
-    if (idEl) idEl.textContent = u.staffId || '';
-    if (nameEl) nameEl.textContent = u.name ? (' ' + u.name) : '';
-    if (roEl) roEl.textContent = readonly ? '（唯讀）' : '';
-  }
-
-  async function loadAnnualLeavePermission(user) {
-    if (!user) return { readonly: true };
-    if (user.canAnnualLeave === true) return { readonly: false };
-
-    const staffId = String(user.staffId || user.empId || '').trim();
-    const username = String(user.username || '').trim();
-
-    try {
-      if (staffId) {
-        const s1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
-        if (!s1.empty) return { readonly: !(s1.docs[0].data()?.canAnnualLeave === true) };
-      }
-      const key = username || staffId;
-      if (key) {
-        const s2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
-        if (!s2.empty) return { readonly: !(s2.docs[0].data()?.canAnnualLeave === true) };
-      }
-    } catch (e) {
-      console.error('loadAnnualLeavePermission error', e);
-    }
-    return { readonly: true };
-  }
-
-  function applyReadonlyMode(readonly) {
-    // 只鎖「會寫入」的 UI，保持可查看/篩選/切換/匯出
-    const writeSelectors = [
-      '#quickSubmit',
-      '.al-period-select',
-      '#quick-body button[data-id]'
-    ];
-    writeSelectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => {
-        if (readonly) el.setAttribute('disabled', 'disabled');
-        else el.removeAttribute('disabled');
-      });
-    });
-  }
-
-
   // 年資對應（依你現行制度，可再微調）
   const ENTITLE_STEPS = [
     { years: 0.5, days: 3 },
@@ -243,42 +172,19 @@
       { name: "localCaregivers", role: "localCaregiver" },
       { name: "caregivers", role: "foreignCaregiver" },
     ];
-
+  
     for (const c of collections) {
       try {
-        let snap = null;
-        try {
-          snap = await DB().collection(c.name).orderBy("sortOrder").get();
-        } catch (e1) {
-          console.warn(`[annual-leave] orderBy(sortOrder) failed on ${c.name}, fallback to get()`, e1);
-          snap = await DB().collection(c.name).get();
-        }
-
+        const snap = await DB().collection(c.name).orderBy("sortOrder").get();
         snap.forEach(doc => {
           const d = doc.data() || {};
-          const empId = (d.empId || d.empID || d.id || d.staffId || d.staffID || d.staffNo || d.employeeId || doc.id || "").toString().trim();
-          const name = (d.name || d.fullName || d.displayName || "").toString().trim();
-          const hireRaw = d.hireDate || d.joinDate || d.entryDate || d.startDate || d.onboardDate || d.hiredAt;
-          const hireDate = hireRaw ? toDate(hireRaw) : null;
+          const empId = d.id || d.empId || doc.id || "";
+          const name = d.name || "";
+          const hireDate = d.hireDate ? toDate(d.hireDate) : null;
           const role = c.role;
-
-          if (!empId) return;
           list.push({ empId, name, hireDate, role });
           EMP_MAP[empId] = { name, hireDate, role };
         });
-      } catch (e) {
-        console.error(`load ${c.name} error`, e);
-      }
-    }
-
-    const orderRole = { admin: 0, nurse: 1, localCaregiver: 2, foreignCaregiver: 3 };
-    list.sort((a, b) => {
-      const rr = (orderRole[a.role] ?? 9) - (orderRole[b.role] ?? 9);
-      if (rr !== 0) return rr;
-      return (a.empId || "").localeCompare(b.empId || "");
-    });
-    return list;
-  });
       } catch (e) {
         console.error(`load ${c.name} error`, e);
       }
@@ -473,7 +379,6 @@
       if (row.periodValue) sel.value = row.periodValue;
 
       sel.addEventListener("change", async () => {
-        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
         const v = sel.value;
         const label = sel.closest("td").querySelector(".period-label");
         try {
@@ -496,7 +401,6 @@
           alert("更新區間失敗，請重新確認。");
         }
         renderSummary(allEmployees);
-        applyReadonlyMode(window.__AL_READONLY__);
       });
     });
   }
@@ -587,7 +491,6 @@
 
     tbody.querySelectorAll("button[data-id]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限刪除"); return; }
         const id = btn.getAttribute("data-id");
         if (!confirm("確定刪除此補登紀錄？")) return;
         try {
@@ -919,7 +822,6 @@
     });
 
     $("#quickSubmit")?.addEventListener("click", async () => {
-      if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限新增補登"); return; }
       const empSel = $("#quickEmpSelect");
       const dateEl = $("#quickDate");
       const amountEl = $("#quickAmount");
@@ -1034,11 +936,6 @@
 
   // ===== Init =====
   async function init() {
-    const loginUser = getLoggedInUser();
-    const perm = await loadAnnualLeavePermission(loginUser);
-    window.__AL_READONLY__ = perm.readonly;
-    renderLoginHeader(loginUser, perm.readonly);
-
     const employees = await loadEmployees();
     fillEmpSelects(employees);
     bindUI(employees);
@@ -1047,9 +944,6 @@
       renderQuickList(employees),
       renderSummary(employees),
     ]);
-
-    applyReadonlyMode(window.__AL_READONLY__);
-
   }
 
   let inited = false;
