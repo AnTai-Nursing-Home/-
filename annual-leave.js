@@ -11,6 +11,77 @@
   const $ = (sel) => document.querySelector(sel);
   const msPerYear = 365.25 * 24 * 3600 * 1000;
 
+  // ===== Login / Permission =====
+  const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
+
+  function getLoggedInUser() {
+    for (const k of SESSION_KEYS) {
+      try {
+        const raw = sessionStorage.getItem(k);
+        if (!raw) continue;
+        const obj = JSON.parse(raw);
+        if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function formatUser(user) {
+    if (!user) return { staffId: '', name: '' };
+    const staffId = String(user.staffId || user.empId || user.username || '').trim();
+    const name = String(user.displayName || user.name || user.username || '').trim();
+    return { staffId, name };
+  }
+
+  function renderLoginHeader(user, readonly) {
+    const idEl = document.getElementById('alLoginStaffId');
+    const nameEl = document.getElementById('alLoginStaffName');
+    const roEl = document.getElementById('alReadonlyTag');
+    const u = formatUser(user);
+    if (idEl) idEl.textContent = u.staffId || '';
+    if (nameEl) nameEl.textContent = u.name ? (' ' + u.name) : '';
+    if (roEl) roEl.textContent = readonly ? '（唯讀）' : '';
+  }
+
+  async function loadAnnualLeavePermission(user) {
+    if (!user) return { readonly: true };
+    if (user.canAnnualLeave === true) return { readonly: false };
+
+    const staffId = String(user.staffId || user.empId || '').trim();
+    const username = String(user.username || '').trim();
+
+    try {
+      if (staffId) {
+        const s1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
+        if (!s1.empty) return { readonly: !(s1.docs[0].data()?.canAnnualLeave === true) };
+      }
+      const key = username || staffId;
+      if (key) {
+        const s2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
+        if (!s2.empty) return { readonly: !(s2.docs[0].data()?.canAnnualLeave === true) };
+      }
+    } catch (e) {
+      console.error('loadAnnualLeavePermission error', e);
+    }
+    return { readonly: true };
+  }
+
+  function applyReadonlyMode(readonly) {
+    // 只鎖「會寫入」的 UI，保持可查看/篩選/切換/匯出
+    const writeSelectors = [
+      '#quickSubmit',
+      '.al-period-select',
+      '#quick-body button[data-id]'
+    ];
+    writeSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (readonly) el.setAttribute('disabled', 'disabled');
+        else el.removeAttribute('disabled');
+      });
+    });
+  }
+
+
   // 年資對應（依你現行制度，可再微調）
   const ENTITLE_STEPS = [
     { years: 0.5, days: 3 },
@@ -52,6 +123,39 @@
         const d = v.toDate();
         return isNaN(d) ? null : d;
       } catch (_) {}
+    }
+
+    // Firestore Timestamp-like {seconds,nanoseconds}
+    if (typeof v === "object" && v.seconds) {
+      const d = new Date(v.seconds * 1000);
+      return isNaN(d) ? null : d;
+    }
+
+    const s0 = String(v).trim();
+    if (!s0) return null;
+
+    // 民國日期：例如 114/01/02 或 114-1-2
+    const roc = s0.match(/^(\d{2,3})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+    if (roc) {
+      const y = Number(roc[1]);
+      const m = Number(roc[2]);
+      const d = Number(roc[3]);
+      if (y && m && d) {
+        const ad = (y + 1911);
+        const dt = new Date(ad, m - 1, d);
+        return isNaN(dt) ? null : dt;
+      }
+    }
+
+    // 先試原字串
+    let d = new Date(s0);
+    if (!isNaN(d)) return d;
+
+    // 常見分隔符
+    const s1 = s0.replace(/\./g, "-").replace(/\//g, "-");
+    d = new Date(s1);
+    return isNaN(d) ? null : d;
+  } catch (_) {}
     }
     const s = String(v);
     let d = new Date(s);
@@ -172,19 +276,42 @@
       { name: "localCaregivers", role: "localCaregiver" },
       { name: "caregivers", role: "foreignCaregiver" },
     ];
-  
+
     for (const c of collections) {
       try {
-        const snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        let snap = null;
+        try {
+          snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        } catch (e1) {
+          console.warn(`[annual-leave] orderBy(sortOrder) failed on ${c.name}, fallback to get()`, e1);
+          snap = await DB().collection(c.name).get();
+        }
+
         snap.forEach(doc => {
           const d = doc.data() || {};
-          const empId = d.id || d.empId || doc.id || "";
-          const name = d.name || "";
-          const hireDate = d.hireDate ? toDate(d.hireDate) : null;
+          const empId = (d.empId || d.empID || d.id || d.staffId || d.staffID || d.staffNo || d.employeeId || doc.id || "").toString().trim();
+          const name = (d.name || d.fullName || d.displayName || "").toString().trim();
+          const hireRaw = d.hireDate || d.hiredate || d.hire_date || d.joinDate || d.entryDate || d.entrydate || d.startDate || d.start_date || d.onboardDate || d.hiredAt;
+          const hireDate = hireRaw ? toDate(hireRaw) : null;
           const role = c.role;
+
+          if (!empId) return;
           list.push({ empId, name, hireDate, role });
           EMP_MAP[empId] = { name, hireDate, role };
         });
+      } catch (e) {
+        console.error(`load ${c.name} error`, e);
+      }
+    }
+
+    const orderRole = { admin: 0, nurse: 1, localCaregiver: 2, foreignCaregiver: 3 };
+    list.sort((a, b) => {
+      const rr = (orderRole[a.role] ?? 9) - (orderRole[b.role] ?? 9);
+      if (rr !== 0) return rr;
+      return (a.empId || "").localeCompare(b.empId || "");
+    });
+    return list;
+  });
       } catch (e) {
         console.error(`load ${c.name} error`, e);
       }
@@ -366,7 +493,7 @@
       const empId = sel.getAttribute("data-emp");
       const row = rows.find(r => r.id === docId);
       const emp = row?.emp;
-      if (!emp || !emp.hireDate) return;
+      if (!emp) return;
 
       const periods = buildPeriods(emp.hireDate, new Date());
       const options = [`<option value="">自動（進行中區間）</option>`];
@@ -379,6 +506,7 @@
       if (row.periodValue) sel.value = row.periodValue;
 
       sel.addEventListener("change", async () => {
+        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
         const v = sel.value;
         const label = sel.closest("td").querySelector(".period-label");
         try {
@@ -401,6 +529,7 @@
           alert("更新區間失敗，請重新確認。");
         }
         renderSummary(allEmployees);
+        applyReadonlyMode(window.__AL_READONLY__);
       });
     });
   }
@@ -491,6 +620,7 @@
 
     tbody.querySelectorAll("button[data-id]").forEach(btn => {
       btn.addEventListener("click", async () => {
+        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限刪除"); return; }
         const id = btn.getAttribute("data-id");
         if (!confirm("確定刪除此補登紀錄？")) return;
         try {
@@ -543,7 +673,7 @@
         const d = doc.data() || {};
         const empId = d.empId || "";
         const emp = EMP_MAP[empId];
-        if (!emp || !emp.hireDate) return;
+        if (!emp) return;
 
         const leaveAt = toDate(d.leaveDate || d.date);
         if (!leaveAt) return;
@@ -558,9 +688,13 @@
           if (ps && pe) key = `${ps}~${pe}`;
         }
         if (!key) {
-          const p = findPeriodForDate(emp.hireDate, leaveAt);
-          if (!p) return;
-          key = periodKey(p);
+          if (emp.hireDate) {
+            const p = findPeriodForDate(emp.hireDate, leaveAt);
+            if (!p) return;
+            key = periodKey(p);
+          } else {
+            key = '@unknown';
+          }
         }
 
         if (!usage[empId]) usage[empId] = {};
@@ -570,7 +704,25 @@
 
     const rows = [];
     for (const emp of people) {
-      if (!emp.hireDate) continue;
+      if (!emp.hireDate) {
+        // 沒有入職日：仍顯示（避免看起來像資料不見），但不計算應放/剩餘
+        const allUsedMap = usage[emp.empId] || {};
+        const allUsedH = Object.values(allUsedMap).reduce((a, b) => a + (Number(b) || 0), 0);
+        const used = decomposeHours(allUsedH);
+        const usedText = `${used.neg ? "-" : ""}${used.days} 天 ${used.hours} 小時${used.minutes ? ` ${used.minutes} 分鐘` : ""}（${allUsedH} 小時）`;
+        rows.push({
+          empId: emp.empId,
+          name: `${emp.name}${emp.role === 'nurse' ? '（護理師）' : emp.role === 'admin' ? '（行政）' : emp.role === 'localCaregiver' ? '（台籍照服）' : '（外籍照服）'}`,
+          hireDate: '—',
+          seniority: '—',
+          currentPeriod: '—（請補入入職日）',
+          entitlement: '—',
+          used: usedText,
+          remain: '—'
+        });
+        continue;
+      }
+
       const curP = findCurrentPeriod(emp.hireDate, today);
       if (!curP) continue;
 
@@ -634,7 +786,7 @@
       tr.addEventListener("click", () => {
         const empId = tr.getAttribute("data-emp");
         const emp = EMP_MAP[empId];
-        if (!emp || !emp.hireDate) return;
+        if (!emp) return;
 
         const periods = buildPeriods(emp.hireDate, today);
         const u = usage[empId] || {};
@@ -822,6 +974,7 @@
     });
 
     $("#quickSubmit")?.addEventListener("click", async () => {
+      if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限新增補登"); return; }
       const empSel = $("#quickEmpSelect");
       const dateEl = $("#quickDate");
       const amountEl = $("#quickAmount");
@@ -910,7 +1063,7 @@
       if (!empId) return;
 
       const emp = EMP_MAP[empId];
-      if (!emp || !emp.hireDate) return;
+      if (!emp) return;
 
       const ref = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
       const periods = buildPeriods(emp.hireDate, ref);
@@ -936,6 +1089,11 @@
 
   // ===== Init =====
   async function init() {
+    const loginUser = getLoggedInUser();
+    const perm = await loadAnnualLeavePermission(loginUser);
+    window.__AL_READONLY__ = perm.readonly;
+    renderLoginHeader(loginUser, perm.readonly);
+
     const employees = await loadEmployees();
     fillEmpSelects(employees);
     bindUI(employees);
@@ -944,6 +1102,9 @@
       renderQuickList(employees),
       renderSummary(employees),
     ]);
+
+    applyReadonlyMode(window.__AL_READONLY__);
+
   }
 
   let inited = false;
