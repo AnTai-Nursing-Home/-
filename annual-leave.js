@@ -1,1083 +1,299 @@
-(function () {
-  const DB = () => firebase.firestore();
-  const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
-  const COL_REQ = "annual_leave_requests";
-  const ROLE_TXT = { 
-    admin: "行政人員",
-    nurse: "護理師", 
-    localCaregiver: "台籍照服員", 
-    foreignCaregiver: "外籍照服員"
+// account-admin.js - 辦公室端帳號管理
+// 讀取員工資料：adminStaff / caregivers / localCaregivers / nurses
+// 帳號資料：userAccounts/{staffId}
+
+(function(){
+  const AUTH_KEY = 'officeAuth';
+
+  // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
+  const SOURCE_LABEL = {
+    adminStaff: '管理員/辦公室',
+    caregivers: '照服員',
+    localCaregivers: '本國照服員',
+    nurses: '護理師'
   };
-  const $ = (sel) => document.querySelector(sel);
-  const msPerYear = 365.25 * 24 * 3600 * 1000;
-  // ===== Login / Permission =====
-  const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
 
-  function getLoggedInUser() {
-    for (const k of SESSION_KEYS) {
-      try {
-        const raw = sessionStorage.getItem(k);
-        if (!raw) continue;
-        const obj = JSON.parse(raw);
-        if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
-      } catch (_) {}
-    }
-    return null;
+  const tbody = document.getElementById('tbody');
+  const msg = document.getElementById('msg');
+  const btnRefresh = document.getElementById('btnRefresh');
+  const qInput = document.getElementById('q');
+  const sourceFilter = document.getElementById('sourceFilter');
+  const statusFilter = document.getElementById('statusFilter');
+  const btnCreateMissing = document.getElementById('btnCreateMissing');
+
+  function getAuth(){
+    try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch(e){ return null; }
   }
 
-  function formatUser(user) {
-    if (!user) return { staffId: '', name: '' };
-    const staffId = String(user.staffId || user.empId || user.username || '').trim();
-    const name = String(user.displayName || user.name || user.username || '').trim();
-    return { staffId, name };
-  }
-
-  function renderLoginHeader(user, readonly) {
-    const idEl = document.getElementById('alLoginStaffId');
-    const nameEl = document.getElementById('alLoginStaffName');
-    const roEl = document.getElementById('alReadonlyTag');
-    const u = formatUser(user);
-    if (idEl) idEl.textContent = u.staffId || '';
-    if (nameEl) nameEl.textContent = u.name ? (' ' + u.name) : '';
-    if (roEl) roEl.textContent = readonly ? '（唯讀）' : '';
-  }
-
-  async function loadAnnualLeavePermission(user) {
-    // 預設：沒有登入就唯讀
-    if (!user) return { canUse: false, readonly: true };
-
-    // session 直接帶旗標
-    if (user.canAnnualLeave === true) return { canUse: true, readonly: false };
-
-    // 從 userAccounts 查詢（以 staffId 或 username）
-    try {
-      const staffId = String(user.staffId || '').trim();
-      const username = String(user.username || '').trim();
-
-      if (staffId) {
-        const snap1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
-        if (!snap1.empty) {
-          const acc = snap1.docs[0].data() || {};
-          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
-          return { canUse: can, readonly: !can };
-        }
-      }
-
-      const key = username || staffId;
-      if (key) {
-        const snap2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
-        if (!snap2.empty) {
-          const acc = snap2.docs[0].data() || {};
-          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
-          return { canUse: can, readonly: !can };
-        }
-      }
-    } catch (e) {
-      console.error('loadAnnualLeavePermission error', e);
-    }
-    return { canUse: false, readonly: true };
-  }
-
-  function applyReadonlyMode(readonly) {
-    // 匯出 Excel 仍允許
-    const disableSelectors = [
-      '#reqFilterBtn', '#reqClearBtn',
-      '#statFilterBtn', '#statClearBtn',
-      '#quickSubmit',
-      '#reqDateFrom', '#reqDateTo', '#reqEmpSelect', '#statEmpSelect',
-      '#quickEmpSelect', '#quickDate', '#quickAmount', '#quickUnit', '#quickReason', '#quickPeriodSelect',
-      '#quickFilterSelect'
-    ];
-
-    disableSelectors.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      if (readonly) el.setAttribute('disabled', 'disabled');
-      else el.removeAttribute('disabled');
+  async function waitForDbReady(){
+    if (typeof db !== 'undefined' && db) return;
+    await new Promise((resolve) => {
+      document.addEventListener('firebase-ready', () => resolve(), { once: true });
+      setTimeout(resolve, 2000);
     });
-
-    document.querySelectorAll('.al-period-select').forEach(el => {
-      if (readonly) el.setAttribute('disabled', 'disabled');
-      else el.removeAttribute('disabled');
-    });
-
-    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
-      if (readonly) btn.setAttribute('disabled', 'disabled');
-      else btn.removeAttribute('disabled');
-    });
-
-    const quickTabBtn = document.getElementById('tab-quick-tab');
-    if (quickTabBtn) {
-      if (readonly) {
-        quickTabBtn.classList.add('disabled');
-        quickTabBtn.setAttribute('tabindex', '-1');
-        quickTabBtn.setAttribute('aria-disabled', 'true');
-      } else {
-        quickTabBtn.classList.remove('disabled');
-        quickTabBtn.removeAttribute('tabindex');
-        quickTabBtn.removeAttribute('aria-disabled');
-      }
-    }
   }
 
+  function escapeHtml(s){
+    return (s ?? '').toString()
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
 
-  // 年資對應（依你現行制度，可再微調）
-  const ENTITLE_STEPS = [
-    { years: 0.5, days: 3 },
-    { years: 1, days: 7 },
-    { years: 2, days: 10 },
-    { years: 3, days: 14 },
-    { years: 4, days: 14 },
-    { years: 5, days: 15 },
-    { years: 6, days: 15 },
-    { years: 7, days: 15 },
-    { years: 8, days: 15 },
-    { years: 9, days: 15 },
-    { years: 10, days: 16 },
-    { years: 11, days: 17 },
-    { years: 12, days: 18 },
-    { years: 13, days: 19 },
-    { years: 14, days: 20 },
-    { years: 15, days: 21 },
-    { years: 16, days: 22 },
-    { years: 17, days: 23 },
-    { years: 18, days: 24 },
-    { years: 19, days: 25 },
-    { years: 20, days: 26 },
-    { years: 21, days: 27 },
-    { years: 22, days: 28 },
-    { years: 23, days: 29 },
-    { years: 24, days: 30 },
-  ];
+  async function ensureOfficeLogin(){
+    const auth = getAuth();
+    if (!auth || auth.canOffice !== true) {
+      alert('請先以可進辦公室的帳號登入。');
+      window.location.href = 'office.html';
+      return false;
+    }
+    return true;
+  }
 
-  // empId -> { name, role, hireDate }
-  const EMP_MAP = Object.create(null);
+  async function loadAllStaff(){
+    const sources = ['adminStaff', 'caregivers', 'localCaregivers', 'nurses'];
+    const staff = [];
 
-  // ===== Common helpers =====
-  function toDate(v) {
-    if (!v) return null;
-    if (v instanceof Date) return isNaN(v) ? null : v;
-    if (typeof v.toDate === "function") {
+    for (const col of sources) {
       try {
-        const d = v.toDate();
-        return isNaN(d) ? null : d;
-      } catch (_) {}
-    }
-    const s = String(v);
-    let d = new Date(s);
-    if (!isNaN(d)) return d;
-    d = new Date(s.replace(/\./g, "-").replace(/\//g, "-"));
-    return isNaN(d) ? null : d;
-  }
-
-  function ymd(d) {
-    if (!d) return "";
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const da = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${da}`;
-  }
-
-  function hoursToText(hours) {
-    const h = Number(hours) || 0;
-    const neg = h < 0;
-    const abs = Math.abs(h);
-    const d = Math.floor(abs / HOURS_PER_DAY);
-    const rem = abs % HOURS_PER_DAY;
-    const fullH = Math.floor(rem);
-    const minutes = Math.round((rem - fullH) * 60);
-    let txt = `${d} 天 ${fullH} 小時`;
-    if (minutes > 0) txt += ` ${minutes} 分鐘`;
-    return (neg ? "-" : "") + txt;
-  }
-
-  function decomposeHours(hours) {
-    const h = Number(hours) || 0;
-    const neg = h < 0;
-    const abs = Math.abs(h);
-    const d = Math.floor(abs / HOURS_PER_DAY);
-    const rem = abs % HOURS_PER_DAY;
-    const fullH = Math.floor(rem);
-    const minutes = Math.round((rem - fullH) * 60);
-    return { neg, days: d, hours: fullH, minutes, total: h };
-  }
-
-  function recordHours(rec) {
-    const h = Number(rec?.hoursUsed);
-    if (!isNaN(h) && isFinite(h)) return h;
-    const days = Number(rec?.daysUsed ?? rec?.durationValue);
-    if (!isNaN(days) && isFinite(days)) return days * HOURS_PER_DAY;
-    return 0;
-  }
-
-  // 建立以入職日為基準的一年期區間（不重疊、不留空白）
-  // 建立以入職日為基準的區間（含半年期 3 天假 + 每年期 7 天起）
-  function buildPeriods(hireDate, untilDate) {
-    const periods = [];
-    if (!hireDate) return periods;
-    const limit = untilDate || new Date();
-
-    // 半年後起算的第一段區間（3天年假）
-    const halfStart = new Date(hireDate);
-    halfStart.setMonth(halfStart.getMonth() + 6);
-    const halfEnd = new Date(hireDate);
-    halfEnd.setFullYear(halfEnd.getFullYear(), hireDate.getMonth(), hireDate.getDate());
-    halfEnd.setFullYear(halfEnd.getFullYear() + 1);
-    halfEnd.setDate(halfEnd.getDate() - 1);
-    if (halfStart <= limit) periods.push({ start: halfStart, end: halfEnd });
-
-    // 一年期區間（7天以上）
-    let curStart = new Date(hireDate);
-    curStart.setFullYear(curStart.getFullYear() + 1);
-    for (let i = 0; i < 40; i++) {
-      const start = new Date(curStart);
-      const end = new Date(start);
-      end.setFullYear(end.getFullYear() + 1);
-      end.setDate(end.getDate() - 1);
-      if (start > limit) break;
-      periods.push({ start, end });
-      curStart.setFullYear(curStart.getFullYear() + 1);
-    }
-    return periods;
-  }
-
-  function findPeriodForDate(hireDate, targetDate) {
-    if (!hireDate || !targetDate) return null;
-    const periods = buildPeriods(hireDate, targetDate);
-    for (const p of periods) {
-      if (targetDate >= p.start && targetDate <= p.end) return p;
-    }
-    return null;
-  }
-
-  function findCurrentPeriod(hireDate, refDate) {
-    const d = refDate || new Date();
-    return findPeriodForDate(hireDate, d);
-  }
-
-  function periodKey(p) {
-    if (!p) return "";
-    return `${ymd(p.start)}~${ymd(p.end)}`;
-  }
-
-  // 以「該區間結束日的年資」決定該區間應放年假
-  function entitlementHoursForPeriod(hireDate, periodEnd) {
-    if (!hireDate || !periodEnd) return 0;
-    const diffYears = (periodEnd - hireDate) / msPerYear;
-    if (diffYears <= 0) return 0;
-    let days = 0;
-    for (const s of ENTITLE_STEPS) {
-      if (diffYears >= s.years) days = s.days;
-      else break;
-    }
-    return days * HOURS_PER_DAY;
-  }
-
-  // ===== Employees =====
-  async function loadEmployees() {
-    const list = [];
-    const collections = [
-      { name: "adminStaff", role: "admin" },
-      { name: "nurses", role: "nurse" },
-      { name: "localCaregivers", role: "localCaregiver" },
-      { name: "caregivers", role: "foreignCaregiver" },
-    ];
-  
-    for (const c of collections) {
-      try {
-        const snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        // 若你有 sortOrder 就用，沒有就直接 get 後排序
+        const snap = await db.collection(col).get();
         snap.forEach(doc => {
           const d = doc.data() || {};
-          const empId = d.id || d.empId || doc.id || "";
-          const name = d.name || "";
-          const hireDate = d.hireDate ? toDate(d.hireDate) : null;
-          const role = c.role;
-          list.push({ empId, name, hireDate, role });
-          EMP_MAP[empId] = { name, hireDate, role };
+          const name = d.name || d.fullName || d.displayName || doc.id;
+          staff.push({
+            staffId: doc.id,
+            name,
+            source: col,
+          });
         });
       } catch (e) {
-        console.error(`load ${c.name} error`, e);
+        console.warn('讀取集合失敗:', col, e);
       }
     }
-  
-    const orderRole = { admin: 0, nurse: 1, localCaregiver: 2, foreignCaregiver: 3 };
-    list.sort((a, b) => {
-      const rr = (orderRole[a.role] ?? 9) - (orderRole[b.role] ?? 9);
-      if (rr !== 0) return rr;
-      return (a.empId || "").localeCompare(b.empId || "");
-    });
-    return list;
+
+    // 去重：同 staffId 若跨表重複，以先出現者為主
+    const seen = new Set();
+    const uniq = [];
+    for (const s of staff) {
+      if (seen.has(s.staffId)) continue;
+      seen.add(s.staffId);
+      uniq.push(s);
+    }
+
+    // 排序：先 source 再 staffId
+    uniq.sort((a,b)=> (a.source+ a.staffId).localeCompare(b.source+b.staffId,'zh-Hant'));
+    return uniq;
   }
 
-  function fillEmpSelects(employees) {
-    // Quick filter select (篩選快速補登列表)
-    const selQuickFilter = $("#quickFilterSelect");
-    if (selQuickFilter) {
-      selQuickFilter.innerHTML = ['<option value="">全部</option>']
-        .concat(
-          employees.map(p =>
-            `<option value="${p.empId}">${p.empId} ${p.name} (${ROLE_TXT[p.role] || p.role})</option>`
-          )
-        )
-        .join("");
+  async function loadAccountsMap(){
+    const map = new Map();
+    try {
+      const snap = await db.collection('userAccounts').get();
+      snap.forEach(doc => map.set(doc.id, { id: doc.id, ...(doc.data()||{}) }));
+    } catch (e) {
+      console.warn('讀取 userAccounts 失敗:', e);
     }
-
-    const selReq = $("#reqEmpSelect");
-    const selStat = $("#statEmpSelect");
-    const selQuick = $("#quickEmpSelect");
-  
-    const label = p => `${p.empId} ${p.name} (${ROLE_TXT[p.role] || p.role})`;
-  
-    if (selReq) {
-      selReq.innerHTML = [
-        `<option value="">全部</option>`,
-        `<option value="@admin">行政人員</option>`,
-        `<option value="@nurse">護理師</option>`,
-        `<option value="@localCaregiver">台籍照服員</option>`,
-        `<option value="@foreignCaregiver">外籍照服員</option>`,
-        ...employees.map(p => `<option value="${p.empId}">${label(p)}</option>`),
-      ].join("");
-    }
-    if (selStat) {
-      selStat.innerHTML = [
-        `<option value="">全部</option>`,
-        `<option value="@admin">行政人員</option>`,
-        `<option value="@nurse">護理師</option>`,
-        `<option value="@localCaregiver">台籍照服員</option>`,
-        `<option value="@foreignCaregiver">外籍照服員</option>`,
-        ...employees.map(p => `<option value="${p.empId}">${label(p)}</option>`),
-      ].join("");
-    }
-    if (selQuick) {
-      selQuick.innerHTML = [
-        `<option value="">請選擇</option>`,
-        ...employees.map(p => `<option value="${p.empId}" data-name="${p.name}">${label(p)}</option>`),
-      ].join("");
-    }
+    return map;
   }
 
-  // ===== Requests (唯讀＋可指定扣除區間) =====
-  async function renderRequests(allEmployees) {
-    const tbody = $("#al-req-body");
-    if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted-ghost">讀取中…</td></tr>`;
+  function applyFilters(rows){
+    const q = (qInput.value || '').trim().toLowerCase();
+    const src = sourceFilter.value || '';
+    const st = statusFilter.value || '';
 
-    const fromVal = $("#reqDateFrom")?.value;
-    const toVal = $("#reqDateTo")?.value;
-    const empSelVal = $("#reqEmpSelect")?.value || "";
-    const from = fromVal ? new Date(fromVal + "T00:00:00") : null;
-    const to = toVal ? new Date(toVal + "T23:59:59") : null;
+    return rows.filter(r=>{
+      if (src && r.source !== src) return false;
 
-    const snap = await DB().collection(COL_REQ).get().catch(e => {
-      console.error("load requests error", e);
-      return null;
+      const hasAcc = !!r.account;
+      if (st === 'has' && !hasAcc) return false;
+      if (st === 'none' && hasAcc) return false;
+
+      if (!q) return true;
+      const hay = `${r.staffId} ${r.name} ${(r.account?.username||'')}`.toLowerCase();
+      return hay.includes(q);
     });
-    if (!snap) {
-      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted-ghost">沒有資料</td></tr>`;
-      return;
-    }
+  }
 
-    const rows = [];
-    snap.forEach(doc => {
-      const d = doc.data() || {};
-      if (d.source === "快速補登") return;
-      const leaveAt = toDate(d.leaveDate || d.date);
-      if (!leaveAt) return;
-      if (from && leaveAt < from) return;
-      if (to && leaveAt > to) return;
-
-      const empId = d.empId || "";
-      const emp = EMP_MAP[empId];
-
-      if (empSelVal) {
-        if (empSelVal === "@admin" && emp?.role !== "admin") return;
-        if (empSelVal === "@nurse" && emp?.role !== "nurse") return;
-        if (empSelVal === "@localCaregiver" && emp?.role !== "localCaregiver") return;
-        if (empSelVal === "@foreignCaregiver" && emp?.role !== "foreignCaregiver") return;
-        if (!["@admin", "@nurse", "@localCaregiver", "@foreignCaregiver"].includes(empSelVal) && empId !== empSelVal) return;
-      }
-
-      const leaveType = d.leaveType || "特休";
-      const hours = recordHours(d);
-
-      let periodDisplay = "";
-      let periodValue = "";
-      if (leaveType === "特休" && emp?.hireDate) {
-        const ps = d.periodStart ? toDate(d.periodStart) : null;
-        const pe = d.periodEnd ? toDate(d.periodEnd) : null;
-        if (ps && pe) {
-          periodDisplay = `${ymd(ps)} ~ ${ymd(pe)}`;
-          periodValue = `${ymd(ps)}~${ymd(pe)}`;
-        } else {
-          const cur = findCurrentPeriod(emp.hireDate, leaveAt);
-          if (cur) {
-            periodDisplay = `${ymd(cur.start)} ~ ${ymd(cur.end)}（預設）`;
-            periodValue = periodKey(cur);
-          }
-        }
-      }
-
-      const who = d.applicant || d.name || (emp ? emp.name : "");
-      const roleTxt = emp ? (ROLE_TXT[emp.role] || "") : "";
-      const applicant = roleTxt ? `${who}(${roleTxt})` : who;
-
-      rows.push({
-        id: doc.id,
-        applyDate: d.applyDate ? ymd(toDate(d.applyDate)) : (d.createdAt ? ymd(toDate(d.createdAt)) : ""),
-        applicant,
-        leaveType,
-        leaveDate: ymd(leaveAt),
-        shift: d.shift || "-",
-        hoursText: hoursToText(hours),
-        reason: d.reason || "",
-        note: d.note || "",
-        supervisor: d.supervisorSign || d.approvedBy || "",
-        empId,
-        emp,
-        periodDisplay,
-        periodValue,
-      });
-    });
-
+  function render(rows){
+    tbody.innerHTML = '';
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted-ghost">沒有資料</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`;
       return;
     }
 
-    rows.sort((a, b) => a.leaveDate.localeCompare(b.leaveDate));
+    for (const r of rows) {
+      const acc = r.account || {};
+      const tr = document.createElement('tr');
 
-    tbody.innerHTML = rows.map(r => {
-    
-      const periodSelect = (r.leaveType === "特休" && r.emp?.hireDate)
-        ? `<select class="form-select form-select-sm al-period-select" data-id="${r.id}" data-emp="${r.empId}">
-             <option value="">自動（進行中區間）</option>
-           </select>
-           <div class="small text-muted mt-1 period-label">${r.periodDisplay || ""}</div>`
-        : "";
-      return `
-        <tr>
-          <td>${r.applyDate}</td>
-          <td>${r.applicant}</td>
-          <td>${r.leaveType}</td>
-          <td>${r.leaveDate}</td>
-          <td>${r.shift}</td>
-          <td>${r.hoursText}</td>
-          <td>${r.reason}</td>
-          <td>${r.note}</td>
-          <td>${r.supervisor}</td>
-          <td>${r.id}</td>
-          <td>${periodSelect}</td>
-        </tr>
-      `;
-    }).join("");
+      const sourceText = SOURCE_LABEL[r.source] || r.source;
 
-    tbody.querySelectorAll(".al-period-select").forEach(sel => {
-      const docId = sel.getAttribute("data-id");
-      const empId = sel.getAttribute("data-emp");
-      const row = rows.find(r => r.id === docId);
-      const emp = row?.emp;
-      if (!emp || !emp.hireDate) return;
-
-      const periods = buildPeriods(emp.hireDate, new Date());
-      const options = [`<option value="">自動（進行中區間）</option>`];
-      periods.forEach(p => {
-        const key = periodKey(p);
-        options.push(`<option value="${key}">${ymd(p.start)} ~ ${ymd(p.end)}</option>`);
-      });
-
-    applyReadonlyMode(window.__AL_READONLY__);
-      sel.innerHTML = options.join("");
-
-      if (row.periodValue) sel.value = row.periodValue;
-
-      sel.addEventListener("change", async () => {
-        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
-        const v = sel.value;
-        const label = sel.closest("td").querySelector(".period-label");
-        try {
-          if (!v) {
-            await DB().collection(COL_REQ).doc(docId).set({
-              periodStart: firebase.firestore.FieldValue.delete(),
-              periodEnd: firebase.firestore.FieldValue.delete(),
-            }, { merge: true });
-            if (label) label.textContent = "自動（進行中區間）";
-          } else {
-            const [ps, pe] = v.split("~");
-            await DB().collection(COL_REQ).doc(docId).set({
-              periodStart: ps,
-              periodEnd: pe,
-            }, { merge: true });
-            if (label) label.textContent = `${ps} ~ ${pe}`;
-          }
-        } catch (e) {
-          console.error("set period error", e);
-          alert("更新區間失敗，請重新確認。");
-        }
-        renderSummary(allEmployees);
-      });
-    });
-  }
-
-  // ===== Quick add（支援指定區間） =====
-  async function renderQuickList(allEmployees) {
-    const tbody = $("#quick-body");
-    if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted-ghost">讀取中…</td></tr>`;
-
-    const snap = await DB().collection(COL_REQ)
-      .where("source", "==", "快速補登")
-      .get()
-      .catch(e => {
-        console.error("quick list error", e);
-        return null;
-      });
-
-    if (!snap || snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">沒有資料</td></tr>`;
-      return;
-    }
-
-    const rows = [];
-    snap.forEach(doc => {
-      const d = doc.data() || {};
-      const leaveAt = toDate(d.leaveDate || d.date);
-      const empId = d.empId || "";
-      const emp = EMP_MAP[empId];
-      const who = `${empId} ${(d.name || d.applicant || emp?.name || "")}`.trim();
-      const hours = recordHours(d);
-
-      let ps = d.periodStart ? ymd(toDate(d.periodStart)) : "";
-      let pe = d.periodEnd ? ymd(toDate(d.periodEnd)) : "";
-      let periodText = "";
-      if (ps && pe) {
-        periodText = `${ps} ~ ${pe}`;
-      } else if (emp?.hireDate && leaveAt) {
-        const p = findPeriodForDate(emp.hireDate, leaveAt);
-        if (p) periodText = `${ymd(p.start)} ~ ${ymd(p.end)}（自動）`;
-      }
-
-      rows.push({
-        id: doc.id,
-        date: leaveAt ? ymd(leaveAt) : "",
-        who,
-        hoursText: hoursToText(hours),
-        reason: d.reason || "",
-        periodText,
-      });
-    });
-
-    rows.sort((a, b) => a.date.localeCompare(b.date));
-
-    tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.date}</td>
-        <td>${r.who}</td>
-        <td>${r.hoursText}</td>
-        <td>${r.reason}</td>
-        <td>${r.periodText}</td>
+      tr.innerHTML = `
+        <td><span class="badge bg-secondary">${escapeHtml(sourceText)}</span></td>
+        <td class="mono">${escapeHtml(r.staffId)}</td>
+        <td>${escapeHtml(r.name)}</td>
         <td>
-          <button class="btn btn-sm btn-outline-danger" data-id="${r.id}">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
+          <input class="form-control form-control-sm" data-k="username" value="${escapeHtml(acc.username || '')}" placeholder="帳號">
         </td>
-      </tr>
-    `).join("");
+        <td>
+          <input class="form-control form-control-sm" data-k="password" value="${escapeHtml(acc.password || '')}" placeholder="密碼">
+        </td>
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input" data-k="canOffice" ${acc.canOffice===true?'checked':''}>
+        </td>
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input" data-k="canNurse" ${acc.canNurse===true?'checked':''}>
+        </td>
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input" data-k="canAnnualLeave" ${acc.canAnnualLeave===true?'checked':''}>
+        </td>
+        <td>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-primary" data-act="save"><i class="fas fa-floppy-disk me-1"></i>儲存</button>
+            <button class="btn btn-sm btn-outline-danger" data-act="clear"><i class="fas fa-trash me-1"></i>清空</button>
+          </div>
+        </td>
+      `;
 
-    // ===== 下拉選單篩選快速補登 =====
-    const quickFilter = document.getElementById("quickFilterSelect");
-    if (quickFilter) {
-      quickFilter.addEventListener("change", () => {
-        const val = quickFilter.value;
-        const trs = tbody.querySelectorAll("tr");
-        trs.forEach(tr => {
-          const empText = tr.children[1]?.textContent || "";
-          if (!val) {
-            tr.style.display = "";
-          } else if (empText.startsWith(val)) {
-            tr.style.display = "";
-          } else {
-            tr.style.display = "none";
-          }
-        });
-      });
+      tr.querySelector('[data-act="save"]').addEventListener('click', () => saveRow(tr, r));
+      tr.querySelector('[data-act="clear"]').addEventListener('click', () => clearRow(tr, r));
+      tbody.appendChild(tr);
     }
-
-    tbody.querySelectorAll("button[data-id]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限刪除"); return; }
-        const id = btn.getAttribute("data-id");
-        if (!confirm("確定刪除此補登紀錄？")) return;
-        try {
-          await DB().collection(COL_REQ).doc(id).delete();
-        } catch (e) {
-          console.error("delete quick error", e);
-        }
-        renderQuickList(allEmployees);
-        renderSummary(allEmployees);
-      });
-
-    applyReadonlyMode(window.__AL_READONLY__);
-    });
   }
 
-  // ===== Summary（當前區間＋可展開歷史區間） =====
-  async function renderSummary(allEmployees) {
-    const tbody = $("#al-stat-body");
-    if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted-ghost">讀取中…</td></tr>`;
+  function readRowInputs(tr){
+    const out = {};
+    tr.querySelectorAll('[data-k]').forEach(el=>{
+      const k = el.getAttribute('data-k');
+      if (el.type === 'checkbox') out[k] = el.checked;
+      else out[k] = (el.value || '').trim();
+    });
+    return out;
+  }
 
-    const empSelVal = $("#statEmpSelect")?.value || "";
-    const today = new Date();
+  async function saveRow(tr, r){
+    const v = readRowInputs(tr);
 
-    let people = allEmployees.slice();
-    if (empSelVal) {
-      if (empSelVal === "@admin") {
-        people = people.filter(p => p.role === "admin");
-      } else if (empSelVal === "@nurse") {
-        people = people.filter(p => p.role === "nurse");
-      } else if (empSelVal === "@localCaregiver") {
-        people = people.filter(p => p.role === "localCaregiver");
-      } else if (empSelVal === "@foreignCaregiver") {
-        people = people.filter(p => p.role === "foreignCaregiver");
-      } else if (empSelVal) {
-        people = people.filter(p => p.empId === empSelVal);
+    if (!v.username) { alert('請輸入帳號'); return; }
+    if (!v.password) { alert('請輸入密碼'); return; }
+
+    // 基本資訊同步寫入，方便查詢與顯示
+    const payload = {
+      staffId: r.staffId,
+      displayName: r.name,
+      source: r.source,
+      username: v.username,
+      password: v.password,
+      canOffice: !!v.canOffice,
+      canNurse: !!v.canNurse,
+      canAnnualLeave: !!v.canAnnualLeave,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    try {
+      const ref = db.collection('userAccounts').doc(r.staffId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       }
+      await ref.set(payload, { merge: true });
+      msg.textContent = `已儲存：${r.staffId} ${r.name}`;
+      // 更新內存
+      r.account = payload;
+    } catch (e) {
+      console.error(e);
+      alert('儲存失敗，請稍後再試');
     }
+  }
 
-    const snap = await DB().collection(COL_REQ)
-      .where("leaveType", "==", "特休")
-      .get()
-      .catch(e => {
-        console.error("summary load error", e);
-        return null;
+  async function clearRow(tr, r){
+    if (!confirm(`確定要清空/刪除 ${r.staffId} ${r.name} 的帳號資料嗎？`)) return;
+    try {
+      await db.collection('userAccounts').doc(r.staffId).delete();
+      msg.textContent = `已刪除：${r.staffId} ${r.name}`;
+      // 清空畫面
+      tr.querySelectorAll('[data-k]').forEach(el=>{
+        if (el.type === 'checkbox') el.checked = false;
+        else el.value = '';
       });
-
-    const usage = {}; // usage[empId][periodKey] = hours
-
-    if (snap) {
-      snap.forEach(doc => {
-        const d = doc.data() || {};
-        const empId = d.empId || "";
-        const emp = EMP_MAP[empId];
-        if (!emp || !emp.hireDate) return;
-
-        const leaveAt = toDate(d.leaveDate || d.date);
-        if (!leaveAt) return;
-
-        const hours = recordHours(d);
-        if (!hours) return;
-
-        let key = "";
-        if (d.periodStart && d.periodEnd) {
-          const ps = ymd(toDate(d.periodStart));
-          const pe = ymd(toDate(d.periodEnd));
-          if (ps && pe) key = `${ps}~${pe}`;
-        }
-        if (!key) {
-          const p = findPeriodForDate(emp.hireDate, leaveAt);
-          if (!p) return;
-          key = periodKey(p);
-        }
-
-        if (!usage[empId]) usage[empId] = {};
-        usage[empId][key] = (usage[empId][key] || 0) + hours;
-      });
+      r.account = null;
+    } catch (e) {
+      console.error(e);
+      alert('刪除失敗，請稍後再試');
     }
+  }
 
-    const rows = [];
-    for (const emp of people) {
-      if (!emp.hireDate) continue;
-      const curP = findCurrentPeriod(emp.hireDate, today);
-      if (!curP) continue;
-
-      const key = periodKey(curP);
-      const entH = entitlementHoursForPeriod(emp.hireDate, curP.end);
-      const usedH = (usage[emp.empId] && usage[emp.empId][key]) || 0;
-      const remainH = entH - usedH;
-
-      const yrs = (today - emp.hireDate) / msPerYear;
-      const yrsInt = Math.max(0, Math.floor(yrs));
-      const months = Math.max(0, Math.floor((yrs - yrsInt) * 12));
-      const seniorityText = `${yrsInt} 年 ${months} 月`;
-
-      const entDays = entH / HOURS_PER_DAY;
-      const used = decomposeHours(usedH);
-      const remain = decomposeHours(remainH);
-
-      const usedText = `${used.neg ? "-" : ""}${used.days} 天 ${used.hours} 小時${used.minutes ? ` ${used.minutes} 分鐘` : ""}（${usedH} 小時）`;
-      const remainText = `${remain.neg ? "-" : ""}${remain.days} 天 ${remain.hours} 小時${remain.minutes ? ` ${remain.minutes} 分鐘` : ""}`;
-
-      rows.push({
-        empId: emp.empId,
-        name: `${emp.name}${emp.role==="nurse"?"(護理師)":emp.role==="caregiver"?"(照服員)":""}`,
-        hire: ymd(emp.hireDate),
-        seniority: seniorityText,
-        period: `${ymd(curP.start)} ~ ${ymd(curP.end)}`,
-        entText: `${entDays} 天`,
-        usedText,
-        remainText,
-        remainHours: remainH,
-      });
-    }
-
-    if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted-ghost">沒有符合條件的資料</td></tr>`;
+  async function createMissing(rows){
+    const missing = rows.filter(r => !r.account);
+    if (!missing.length) {
+      alert('沒有缺少帳號的員工。');
       return;
     }
+    if (!confirm(`將為 ${missing.length} 位員工建立帳號（username/password=員工編號），確定嗎？`)) return;
 
-    rows.sort((a, b) => a.empId.localeCompare(b.empId));
+    const batch = db.batch();
+    const now = firebase.firestore.FieldValue.serverTimestamp();
 
-    tbody.innerHTML = rows.map(r => `
-      <tr class="emp-row" data-emp="${r.empId}">
-        <td>${r.empId}</td>
-        <td>${r.name}</td>
-        <td>${r.hire}</td>
-        <td>${r.seniority}</td>
-        <td>${r.period}</td>
-        <td>${r.entText}</td>
-        <td>${r.usedText}</td>
-        <td class="${r.remainHours < 0 ? "neg" : ""}">${r.remainText}</td>
-        <td class="${r.remainHours < 0 ? "neg" : ""}">${r.remainHours}</td>
-      </tr>
-    `).join("");
-
-    const modalEl = document.getElementById("empDetailModal");
-    const modalBody = modalEl ? modalEl.querySelector(".modal-body") : null;
-    if (!modalEl || !modalBody || typeof bootstrap === "undefined") return;
-    const bsModal = new bootstrap.Modal(modalEl);
-
-    tbody.querySelectorAll(".emp-row").forEach(tr => {
-      tr.addEventListener("click", () => {
-        const empId = tr.getAttribute("data-emp");
-        const emp = EMP_MAP[empId];
-        if (!emp || !emp.hireDate) return;
-
-        const periods = buildPeriods(emp.hireDate, today);
-        const u = usage[empId] || {};
-
-        const yrs = (today - emp.hireDate) / msPerYear;
-        const yrsInt = Math.max(0, Math.floor(yrs));
-        const months = Math.max(0, Math.floor((yrs - yrsInt) * 12));
-        const senTxt = `${yrsInt} 年 ${months} 月`;
-
-        let html = `
-          <div class="mb-2">
-            <strong>${empId} ${emp.name}${emp.role==="nurse"?"(護理師)":emp.role==="caregiver"?"(照服員)":""}</strong>
-            <div class="small text-muted">入職日：${ymd(emp.hireDate)}｜目前總年資：約 ${senTxt}</div>
-          </div>
-          <div class="table-responsive">
-          <table class="table table-sm table-bordered align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>區間</th>
-                <th>應放年假</th>
-                <th>已用年假</th>
-                <th>剩餘年假</th>
-                <th>剩餘時數</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-
-        periods.forEach(p => {
-          const key = periodKey(p);
-          const entH = entitlementHoursForPeriod(emp.hireDate, p.end);
-          const usedH = u[key] || 0;
-          const remainH = entH - usedH;
-
-          const entDays = entH / HOURS_PER_DAY;
-          const used = decomposeHours(usedH);
-          const remain = decomposeHours(remainH);
-
-          const usedTxt = `${used.neg ? "-" : ""}${used.days} 天 ${used.hours} 小時${used.minutes ? ` ${used.minutes} 分鐘` : ""}（${usedH} 小時）`;
-          const remainTxt = `${remain.neg ? "-" : ""}${remain.days} 天 ${remain.hours} 小時${remain.minutes ? ` ${remain.minutes} 分鐘` : ""}`;
-
-          html += `
-            <tr>
-              <td>${ymd(p.start)} ~ ${ymd(p.end)}</td>
-              <td>${entDays} 天</td>
-              <td>${usedTxt}</td>
-              <td class="${remainH < 0 ? "neg" : ""}">${remainTxt}</td>
-              <td class="${remainH < 0 ? "neg" : ""}">${remainH}</td>
-            </tr>
-          `;
-        });
-
-        html += `
-            </tbody>
-          </table>
-          </div>
-        `;
-
-        modalBody.innerHTML = html;
-
-    // ===== 區間點擊展開該區間請假紀錄（支援 date 與 leaveDate 範圍查詢） =====
-    setTimeout(() => {
-      const tbodyInner = modalBody.querySelector("tbody");
-      if (!tbodyInner) return;
-      tbodyInner.querySelectorAll("tr").forEach(tr2 => {
-        tr2.style.cursor = "pointer";
-        tr2.addEventListener("click", async () => {
-          const tdText = tr2.children[0]?.textContent || "";
-          const [ps, pe] = tdText.split("~").map(s => s.trim());
-          if (!ps || !pe) return;
-          modalBody.querySelectorAll("tbody tr").forEach(x => x.classList.remove("table-primary"));
-          tr2.classList.add("table-primary");
-          const oldDetail = modalBody.querySelector("#intervalDetailTable");
-          if (oldDetail) oldDetail.remove();
-
-          const detailDiv = document.createElement("div");
-          detailDiv.id = "intervalDetailTable";
-          detailDiv.innerHTML = `<div class='text-muted small my-2'>載入中...</div>`;
-          modalBody.appendChild(detailDiv);
-
-          try {
-            const snap = await DB().collection("annual_leave_requests")
-              .where("empId", "==", empId)
-              .get();
-
-            if (snap.empty) {
-              detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
-              return;
-            }
-            const selectedKey = `${ps}~${pe}`;
-
-            // 依「扣除區間」歸屬來顯示明細：若該筆有 periodStart/periodEnd，優先用它；
-            // 沒有才回退用請假日期推算區間（舊資料兼容）
-            const rows = [];
-
-            function keyForRecord(emp, d) {
-              const ps0 = d.periodStart ? ymd(toDate(d.periodStart)) : "";
-              const pe0 = d.periodEnd ? ymd(toDate(d.periodEnd)) : "";
-              if (ps0 && pe0) return `${ps0}~${pe0}`;
-
-              const dt0 = toDate(d.date || d.leaveDate);
-              if (!dt0) return "";
-              const p0 = findPeriodForDate(emp.hireDate, dt0);
-              return p0 ? periodKey(p0) : "";
-            }
-
-            snap.forEach(doc => {
-              const d = doc.data() || {};
-              const dt = toDate(d.date || d.leaveDate);
-              const key = keyForRecord(emp, d);
-
-              // ✅ 核心修正：用「所選扣除區間」決定放哪個區間
-              if (key !== selectedKey) return;
-
-              const hours = recordHours(d);
-              const srcTxt = d.source === "快速補登" ? "快速補登" : "特休單（唯讀）";
-              const reason = d.reason || "";
-              const leaveDate = dt ? ymd(dt) : "";
-
-              rows.push({ leaveDate, hours, reason, srcTxt });
-            });
-
-            // 依日期排序（顯示用）
-            rows.sort((a, b) => (a.leaveDate || "").localeCompare(b.leaveDate || ""));
-
-            if (rows.length === 0) {
-              detailDiv.innerHTML = `<div class='text-muted small my-2'>此區間無請假紀錄。</div>`;
-              return;
-            }
-
-            detailDiv.innerHTML = `
-              <div class="table-responsive mt-3">
-                <table class="table table-sm table-bordered align-middle">
-                  <thead class="table-light">
-                    <tr><th>請假日期</th><th>時數</th><th>原因</th><th>來源</th></tr>
-                  </thead>
-                  <tbody>${rows.map(r => `
-                      <tr>
-                        <td>${r.leaveDate}</td>
-                        <td>${hoursToText(r.hours)}</td>
-                        <td>${r.reason}</td>
-                        <td>${r.srcTxt}</td>
-                      </tr>
-                    `).join("")}</tbody>
-                </table>
-              </div>`;
-          } catch (e) {
-            console.error("load interval details error", e);
-            detailDiv.innerHTML = `<div class='text-danger small my-2'>讀取失敗，請稍後再試。</div>`;
-          }
-        });
-      });
-    }, 100);
-
-        bsModal.show();
-      });
+    missing.forEach(r=>{
+      const ref = db.collection('userAccounts').doc(r.staffId);
+      batch.set(ref, {
+        staffId: r.staffId,
+        displayName: r.name,
+        source: r.source,
+        username: r.staffId,
+        password: r.staffId,
+        canOffice: (r.source === 'adminStaff' || r.source === 'localCaregivers'), // 你可自行調整預設
+        canNurse: (r.source === 'nurses'),
+        canAnnualLeave: false,
+        createdAt: now,
+        updatedAt: now
+      }, { merge: true });
     });
-  }
 
-  // ===== Excel export =====
-  function exportTableToExcel(tableId, filename) {
-    const table = document.getElementById(tableId);
-    if (!table) {
-      alert("找不到表格");
-      return;
+    try {
+      await batch.commit();
+      alert('已建立缺少帳號（可再修改密碼/權限）。');
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      alert('批次建立失敗，請稍後再試');
     }
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
-    XLSX.writeFile(wb, filename);
   }
 
-  // ===== Bind UI =====
-  function bindUI(allEmployees) {
-    $("#reqFilterBtn")?.addEventListener("click", () => renderRequests(allEmployees));
-    $("#reqClearBtn")?.addEventListener("click", () => {
-      if ($("#reqEmpSelect")) $("#reqEmpSelect").value = "";
-      if ($("#reqDateFrom")) $("#reqDateFrom").value = "";
-      if ($("#reqDateTo")) $("#reqDateTo").value = "";
-      renderRequests(allEmployees);
-    });
+  let allRows = [];
 
-    $("#statFilterBtn")?.addEventListener("click", () => renderSummary(allEmployees));
-    $("#statClearBtn")?.addEventListener("click", () => {
-      if ($("#statEmpSelect")) $("#statEmpSelect").value = "";
-      renderSummary(allEmployees);
-    });
+  async function refresh(){
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
+    msg.textContent = '';
 
-    $("#quickSubmit")?.addEventListener("click", async () => {
-      if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限新增補登"); return; }
-      const empSel = $("#quickEmpSelect");
-      const dateEl = $("#quickDate");
-      const amountEl = $("#quickAmount");
-      const unitEl = $("#quickUnit");
-      const reasonEl = $("#quickReason");
-      const periodSel = $("#quickPeriodSelect");
+    await waitForDbReady();
 
-      const empId = empSel?.value || "";
-      const empName = empSel?.selectedOptions?.[0]?.getAttribute("data-name") || "";
-      const dateStr = dateEl?.value || "";
-      const amount = Number(amountEl?.value || "0");
-      const unit = (unitEl?.value || "day").toLowerCase();
-      const reason = reasonEl?.value || "";
+    const staff = await loadAllStaff();
+    const accountsMap = await loadAccountsMap();
 
-      if (!empId || !dateStr || !(amount > 0)) {
-        alert("請選擇員工、日期並輸入正確數值");
-        return;
-      }
+    allRows = staff.map(s => ({
+      ...s,
+      account: accountsMap.get(s.staffId) || null
+    }));
 
-      const hours = unit === "day" ? amount * HOURS_PER_DAY : amount;
-      const emp = EMP_MAP[empId];
-      if (!emp || !emp.hireDate) {
-        alert("找不到該員工的入職日，無法歸屬區間");
-        return;
-      }
-
-      const leaveAt = new Date(dateStr + "T00:00:00");
-
-      let ps = "";
-      let pe = "";
-      if (periodSel && periodSel.value) {
-        [ps, pe] = periodSel.value.split("~");
-      } else {
-        const p = findPeriodForDate(emp.hireDate, leaveAt) || findCurrentPeriod(emp.hireDate, leaveAt);
-        if (p) {
-          ps = ymd(p.start);
-          pe = ymd(p.end);
-        }
-      }
-
-      const payload = {
-        createdAt: new Date().toISOString(),
-        date: dateStr,
-        empId,
-        name: empName,
-        hoursUsed: hours,
-        leaveType: "特休",
-        reason: reason || "快速補登",
-        source: "快速補登",
-        status: "審核通過",
-      };
-      if (ps && pe) {
-        payload.periodStart = ps;
-        payload.periodEnd = pe;
-      }
-
-      try {
-        await DB().collection(COL_REQ).add(payload);
-      } catch (e) {
-        console.error("quickSubmit error", e);
-        alert("送出失敗，請稍後再試");
-        return;
-      }
-
-      amountEl.value = "";
-      reasonEl.value = "";
-      renderQuickList(allEmployees);
-      renderSummary(allEmployees);
-      alert("✅ 已送出補登，並歸屬到指定區間");
-    });
-
-    // 動態更新快速補登的區間選項
-    $("#quickEmpSelect")?.addEventListener("change", updateQuickPeriodOptions);
-    $("#quickDate")?.addEventListener("change", updateQuickPeriodOptions);
-
-    function updateQuickPeriodOptions() {
-      const empSel = $("#quickEmpSelect");
-      const dateEl = $("#quickDate");
-      const periodSel = $("#quickPeriodSelect");
-      if (!periodSel) return;
-
-      const empId = empSel?.value || "";
-      const dateStr = dateEl?.value || "";
-
-      periodSel.innerHTML = `<option value="">自動（依日期歸屬）</option>`;
-      if (!empId) return;
-
-      const emp = EMP_MAP[empId];
-      if (!emp || !emp.hireDate) return;
-
-      const ref = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
-      const periods = buildPeriods(emp.hireDate, ref);
-      periods.forEach(p => {
-        const key = periodKey(p);
-        periodSel.innerHTML += `<option value="${key}">${ymd(p.start)} ~ ${ymd(p.end)}</option>`;
-      });
-
-      if (dateStr) {
-        const leaveAt = new Date(dateStr + "T00:00:00");
-        const p = findPeriodForDate(emp.hireDate, leaveAt);
-        if (p) periodSel.value = periodKey(p);
-      }
-    }
-
-    $("#export-req-excel")?.addEventListener("click", () =>
-      exportTableToExcel("reqTable", "特休單_區間制.xlsx")
-    );
-    $("#export-stat-excel")?.addEventListener("click", () =>
-      exportTableToExcel("statTable", "年假統計_區間制.xlsx")
-    );
+    const filtered = applyFilters(allRows);
+    render(filtered);
+    msg.textContent = `共 ${filtered.length} 筆（總員工 ${allRows.length}）`;
   }
 
-  // ===== Init =====
-  async function init() {
-    const loginUser = getLoggedInUser();
-    const perm = await loadAnnualLeavePermission(loginUser);
-    window.__AL_READONLY__ = perm.readonly;
-    renderLoginHeader(loginUser, perm.readonly);
+  // 綁定事件
+  btnRefresh.addEventListener('click', refresh);
+  qInput.addEventListener('input', () => render(applyFilters(allRows)));
+  sourceFilter.addEventListener('change', () => render(applyFilters(allRows)));
+  statusFilter.addEventListener('change', () => render(applyFilters(allRows)));
+  btnCreateMissing.addEventListener('click', () => createMissing(allRows));
 
-    const employees = await loadEmployees();
-    fillEmpSelects(employees);
-    bindUI(employees);
-    await Promise.all([
-      renderRequests(employees),
-      renderQuickList(employees),
-      renderSummary(employees),
-    ]);
+  // 啟動
+  (async function boot(){
+    if (!await ensureOfficeLogin()) return;
+    await refresh();
+  })();
 
-    applyReadonlyMode(window.__AL_READONLY__);
-
-  }
-
-  let inited = false;
-  document.addEventListener("firebase-ready", () => {
-    if (inited) return;
-    inited = true;
-    init().catch(e => {
-      console.error("[annual-leave interval] init error", e);
-      inited = false;
-    });
-  });
 })();
