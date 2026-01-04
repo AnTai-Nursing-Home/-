@@ -256,6 +256,7 @@ function exportExcel() {
   ws.mergeCells('A1:G1');
   ws.mergeCells('A2:C2');
   ws.mergeCells('D2:E2');
+  ws.mergeCells('F2:G2');
   ws.mergeCells('A19:E19');
   ws.mergeCells('F19:G19');
 
@@ -294,6 +295,7 @@ function exportExcel() {
   // Info row
   setCell('A2', `醫巡日期：${rocDate}`, { font: fontInfo, align: { horizontal: 'center' }, border: borderThinBlack });
   setCell('D2', '醫巡醫師：王冠勛醫師', { font: fontInfo, align: { horizontal: 'center' }, border: borderThinBlack });
+  setCell('F2', `看診人數：${count}`, { font: fontInfo, align: { horizontal: 'center' }, border: borderThinBlack });
 
   // Header row (row 3)
   const headers = ['排序', '床號', '姓名', '身分證字號', '生命徵象', '病情簡述', '醫師手記'];
