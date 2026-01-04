@@ -7,8 +7,8 @@
 
   // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
   const SOURCE_LABEL = {
-    adminStaff: '管理員/辦公室',
-    caregivers: '照服員',
+    adminStaff: '社工/其他',
+    caregivers: '外籍照服員',
     localCaregivers: '本國照服員',
     nurses: '護理師'
   };
