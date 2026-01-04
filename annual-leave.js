@@ -1,5 +1,16 @@
 (function () {
   const DB = () => firebase.firestore();
+  const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
+  const COL_REQ = "annual_leave_requests";
+  const ROLE_TXT = { 
+    admin: "行政人員",
+    nurse: "護理師", 
+    localCaregiver: "台籍照服員", 
+    foreignCaregiver: "外籍照服員"
+  };
+  const $ = (sel) => document.querySelector(sel);
+  const msPerYear = 365.25 * 24 * 3600 * 1000;
+
   // ===== Login / Permission =====
   const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
 
@@ -10,7 +21,7 @@
         if (!raw) continue;
         const obj = JSON.parse(raw);
         if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
-      } catch (e) {}
+      } catch (_) {}
     }
     return null;
   }
@@ -33,32 +44,21 @@
   }
 
   async function loadAnnualLeavePermission(user) {
-    // 沒登入：唯讀
     if (!user) return { readonly: true };
-
-    // session 直接有旗標就用
     if (user.canAnnualLeave === true) return { readonly: false };
 
+    const staffId = String(user.staffId || user.empId || '').trim();
+    const username = String(user.username || '').trim();
+
     try {
-      const staffId = String(user.staffId || '').trim();
-      const username = String(user.username || '').trim();
-
-      // 以 staffId 查
       if (staffId) {
-        const snap1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
-        if (!snap1.empty) {
-          const acc = snap1.docs[0].data() || {};
-          return { readonly: !(acc.canAnnualLeave === true) };
-        }
+        const s1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
+        if (!s1.empty) return { readonly: !(s1.docs[0].data()?.canAnnualLeave === true) };
       }
-
-      // 以 username 查
-      if (username) {
-        const snap2 = await DB().collection('userAccounts').where('username', '==', username).limit(1).get();
-        if (!snap2.empty) {
-          const acc = snap2.docs[0].data() || {};
-          return { readonly: !(acc.canAnnualLeave === true) };
-        }
+      const key = username || staffId;
+      if (key) {
+        const s2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
+        if (!s2.empty) return { readonly: !(s2.docs[0].data()?.canAnnualLeave === true) };
       }
     } catch (e) {
       console.error('loadAnnualLeavePermission error', e);
@@ -67,35 +67,20 @@
   }
 
   function applyReadonlyMode(readonly) {
-    // 唯讀：只鎖「會寫入」的操作（不影響查詢/篩選/切頁/匯出）
-    document.querySelectorAll('.al-period-select').forEach(el => {
-      if (readonly) el.setAttribute('disabled', 'disabled');
-      else el.removeAttribute('disabled');
-    });
-    const quickSubmit = document.getElementById('quickSubmit');
-    if (quickSubmit) {
-      if (readonly) quickSubmit.setAttribute('disabled', 'disabled');
-      else quickSubmit.removeAttribute('disabled');
-    }
-    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
-      if (readonly) btn.setAttribute('disabled', 'disabled');
-      else btn.removeAttribute('disabled');
+    // 只鎖「會寫入」的 UI，保持可查看/篩選/切換/匯出
+    const writeSelectors = [
+      '#quickSubmit',
+      '.al-period-select',
+      '#quick-body button[data-id]'
+    ];
+    writeSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (readonly) el.setAttribute('disabled', 'disabled');
+        else el.removeAttribute('disabled');
+      });
     });
   }
 
-  // 全域旗標（供事件 handler 判斷）
-  window.__AL_READONLY__ = false;
-
-  const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
-  const COL_REQ = "annual_leave_requests";
-  const ROLE_TXT = { 
-    admin: "行政人員",
-    nurse: "護理師", 
-    localCaregiver: "台籍照服員", 
-    foreignCaregiver: "外籍照服員"
-  };
-  const $ = (sel) => document.querySelector(sel);
-  const msPerYear = 365.25 * 24 * 3600 * 1000;
 
   // 年資對應（依你現行制度，可再微調）
   const ENTITLE_STEPS = [
@@ -258,19 +243,42 @@
       { name: "localCaregivers", role: "localCaregiver" },
       { name: "caregivers", role: "foreignCaregiver" },
     ];
-  
+
     for (const c of collections) {
       try {
-        const snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        let snap = null;
+        try {
+          snap = await DB().collection(c.name).orderBy("sortOrder").get();
+        } catch (e1) {
+          console.warn(`[annual-leave] orderBy(sortOrder) failed on ${c.name}, fallback to get()`, e1);
+          snap = await DB().collection(c.name).get();
+        }
+
         snap.forEach(doc => {
           const d = doc.data() || {};
-          const empId = d.id || d.empId || doc.id || "";
-          const name = d.name || "";
-          const hireDate = d.hireDate ? toDate(d.hireDate) : null;
+          const empId = (d.empId || d.empID || d.id || d.staffId || d.staffID || d.staffNo || d.employeeId || doc.id || "").toString().trim();
+          const name = (d.name || d.fullName || d.displayName || "").toString().trim();
+          const hireRaw = d.hireDate || d.joinDate || d.entryDate || d.startDate || d.onboardDate || d.hiredAt;
+          const hireDate = hireRaw ? toDate(hireRaw) : null;
           const role = c.role;
+
+          if (!empId) return;
           list.push({ empId, name, hireDate, role });
           EMP_MAP[empId] = { name, hireDate, role };
         });
+      } catch (e) {
+        console.error(`load ${c.name} error`, e);
+      }
+    }
+
+    const orderRole = { admin: 0, nurse: 1, localCaregiver: 2, foreignCaregiver: 3 };
+    list.sort((a, b) => {
+      const rr = (orderRole[a.role] ?? 9) - (orderRole[b.role] ?? 9);
+      if (rr !== 0) return rr;
+      return (a.empId || "").localeCompare(b.empId || "");
+    });
+    return list;
+  });
       } catch (e) {
         console.error(`load ${c.name} error`, e);
       }
@@ -460,20 +468,12 @@
         const key = periodKey(p);
         options.push(`<option value="${key}">${ymd(p.start)} ~ ${ymd(p.end)}</option>`);
       });
-
-    applyReadonlyMode(window.__AL_READONLY__);
       sel.innerHTML = options.join("");
 
       if (row.periodValue) sel.value = row.periodValue;
 
       sel.addEventListener("change", async () => {
-        if (window.__AL_READONLY__) {
-          alert("目前為唯讀模式，無權限修改扣除區間");
-          // 退回原值
-          if (row && row.periodValue) sel.value = row.periodValue;
-          else sel.value = "";
-          return;
-        }
+        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
         const v = sel.value;
         const label = sel.closest("td").querySelector(".period-label");
         try {
@@ -496,6 +496,7 @@
           alert("更新區間失敗，請重新確認。");
         }
         renderSummary(allEmployees);
+        applyReadonlyMode(window.__AL_READONLY__);
       });
     });
   }
@@ -597,8 +598,6 @@
         renderQuickList(allEmployees);
         renderSummary(allEmployees);
       });
-
-    applyReadonlyMode(window.__AL_READONLY__);
     });
   }
 
