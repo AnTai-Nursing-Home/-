@@ -1,15 +1,5 @@
 (function () {
   const DB = () => firebase.firestore();
-  const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
-  const COL_REQ = "annual_leave_requests";
-  const ROLE_TXT = { 
-    admin: "行政人員",
-    nurse: "護理師", 
-    localCaregiver: "台籍照服員", 
-    foreignCaregiver: "外籍照服員"
-  };
-  const $ = (sel) => document.querySelector(sel);
-  const msPerYear = 365.25 * 24 * 3600 * 1000;
   // ===== Login / Permission =====
   const SESSION_KEYS = ['officeAuth', 'antai_session_user', 'office_user', 'nurse_user'];
 
@@ -20,7 +10,7 @@
         if (!raw) continue;
         const obj = JSON.parse(raw);
         if (obj && (obj.staffId || obj.displayName || obj.username || obj.name)) return obj;
-      } catch (_) {}
+      } catch (e) {}
     }
     return null;
   }
@@ -43,95 +33,69 @@
   }
 
   async function loadAnnualLeavePermission(user) {
-    // 預設：沒有登入就唯讀
-    if (!user) return { canUse: false, readonly: true };
+    // 沒登入：唯讀
+    if (!user) return { readonly: true };
 
-    // session 直接帶旗標
-    if (user.canAnnualLeave === true) return { canUse: true, readonly: false };
+    // session 直接有旗標就用
+    if (user.canAnnualLeave === true) return { readonly: false };
 
-    // 從 userAccounts 查詢（以 staffId 或 username）
     try {
       const staffId = String(user.staffId || '').trim();
       const username = String(user.username || '').trim();
 
+      // 以 staffId 查
       if (staffId) {
         const snap1 = await DB().collection('userAccounts').where('staffId', '==', staffId).limit(1).get();
         if (!snap1.empty) {
           const acc = snap1.docs[0].data() || {};
-          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
-          return { canUse: can, readonly: !can };
+          return { readonly: !(acc.canAnnualLeave === true) };
         }
       }
 
-      const key = username || staffId;
-      if (key) {
-        const snap2 = await DB().collection('userAccounts').where('username', '==', key).limit(1).get();
+      // 以 username 查
+      if (username) {
+        const snap2 = await DB().collection('userAccounts').where('username', '==', username).limit(1).get();
         if (!snap2.empty) {
           const acc = snap2.docs[0].data() || {};
-          const can = (acc.canAnnualLeave === true) || (acc.allowAnnualLeave === true);
-          return { canUse: can, readonly: !can };
+          return { readonly: !(acc.canAnnualLeave === true) };
         }
       }
     } catch (e) {
       console.error('loadAnnualLeavePermission error', e);
     }
-    return { canUse: false, readonly: true };
+    return { readonly: true };
   }
 
   function applyReadonlyMode(readonly) {
-    // ✅ 唯讀模式：允許「查看/篩選/匯出」，禁止「新增/刪除/修改扣除區間」
-    // 1) 禁用「會改資料」的控制項
-    const disableSelectors = [
-      '#quickSubmit',
-      '#quickEmpSelect', '#quickDate', '#quickAmount', '#quickUnit', '#quickReason', '#quickPeriodSelect'
-    ];
-
-    disableSelectors.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      if (readonly) el.setAttribute('disabled', 'disabled');
-      else el.removeAttribute('disabled');
-    });
-
-    // 2) 禁用「扣除區間」下拉（會寫回請假單）
+    // 唯讀：只鎖「會寫入」的操作（不影響查詢/篩選/切頁/匯出）
     document.querySelectorAll('.al-period-select').forEach(el => {
       if (readonly) el.setAttribute('disabled', 'disabled');
       else el.removeAttribute('disabled');
     });
-
-    // 3) 禁用「刪除補登」按鈕
-    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
-      if (readonly) btn.setAttribute('disabled', 'disabled');
-      else btn.removeAttribute('disabled');
-    });
-
-    // 4) Tab 不鎖，讓唯讀也能看快速補登/統計/特休單
-  });
-
-    document.querySelectorAll('.al-period-select').forEach(el => {
-      if (readonly) el.setAttribute('disabled', 'disabled');
-      else el.removeAttribute('disabled');
-    });
-
-    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
-      if (readonly) btn.setAttribute('disabled', 'disabled');
-      else btn.removeAttribute('disabled');
-    });
-
-    const quickTabBtn = document.getElementById('tab-quick-tab');
-    if (quickTabBtn) {
-      if (readonly) {
-        quickTabBtn.classList.add('disabled');
-        quickTabBtn.setAttribute('tabindex', '-1');
-        quickTabBtn.setAttribute('aria-disabled', 'true');
-      } else {
-        quickTabBtn.classList.remove('disabled');
-        quickTabBtn.removeAttribute('tabindex');
-        quickTabBtn.removeAttribute('aria-disabled');
-      }
+    const quickSubmit = document.getElementById('quickSubmit');
+    if (quickSubmit) {
+      if (readonly) quickSubmit.setAttribute('disabled', 'disabled');
+      else quickSubmit.removeAttribute('disabled');
     }
+    document.querySelectorAll('#quick-body button[data-id]').forEach(btn => {
+      if (readonly) btn.setAttribute('disabled', 'disabled');
+      else btn.removeAttribute('disabled');
+    });
   }
 
+  // 全域旗標（供事件 handler 判斷）
+  window.__AL_READONLY__ = false;
+
+  const HOURS_PER_DAY = window.HOURS_PER_DAY || 8;
+  const COL_REQ = "annual_leave_requests";
+  const ROLE_TXT = { 
+    admin: "行政人員",
+    nurse: "護理師", 
+    localCaregiver: "台籍照服員", 
+    foreignCaregiver: "外籍照服員"
+  };
+  const $ = (sel) => document.querySelector(sel);
+  const msPerYear = 365.25 * 24 * 3600 * 1000;
 
   // 年資對應（依你現行制度，可再微調）
   const ENTITLE_STEPS = [
@@ -503,7 +467,13 @@
       if (row.periodValue) sel.value = row.periodValue;
 
       sel.addEventListener("change", async () => {
-        if (window.__AL_READONLY__) { alert("目前為唯讀模式，無權限修改扣除區間"); return; }
+        if (window.__AL_READONLY__) {
+          alert("目前為唯讀模式，無權限修改扣除區間");
+          // 退回原值
+          if (row && row.periodValue) sel.value = row.periodValue;
+          else sel.value = "";
+          return;
+        }
         const v = sel.value;
         const label = sel.closest("td").querySelector(".period-label");
         try {
