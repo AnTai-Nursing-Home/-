@@ -25,6 +25,11 @@ document.addEventListener('firebase-ready', () => {
     const adminSettingsPanel = document.getElementById('admin-settings-panel');
     const adminHr = document.getElementById('admin-hr');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const addBlockBtn = document.getElementById('add-block-btn');
+    const blockedListDiv = document.getElementById('blocked-list');
+    const blockStartInput = document.getElementById('block-start-date');
+    const blockEndInput = document.getElementById('block-end-date');
+    const blockReasonInput = document.getElementById('block-reason');
     const adminViewPanel = document.getElementById('admin-view-panel');
     const adminSummaryTableDiv = document.getElementById('admin-summary-table');
     const shiftModalEl = document.getElementById('shift-modal');
@@ -39,9 +44,112 @@ document.addEventListener('firebase-ready', () => {
     const settingsCollection = 'leave_settings';
     const requestsCollection = 'leave_requests';
     let isRequestPeriodOpen = false;
+    let blockedRanges = [];
     let employeesData = {};
 
+
+    function toISODateOnly(s) {
+        if (!s) return '';
+        const str = String(s);
+        return str.includes('T') ? str.split('T')[0] : str;
+    }
+
+    function normalizeBlockedRanges(ranges) {
+        const out = [];
+        (Array.isArray(ranges) ? ranges : []).forEach(r => {
+            const start = toISODateOnly(r?.start || r?.startDate || r?.from || '');
+            const end = toISODateOnly(r?.end || r?.endDate || r?.to || start);
+            if (!start) return;
+            const a = new Date(start);
+            const b = new Date(end || start);
+            if (isNaN(a) || isNaN(b)) return;
+
+            const sISO = start;
+            const eISO = end || start;
+            const s = new Date(sISO) <= new Date(eISO) ? sISO : eISO;
+            const e = new Date(sISO) <= new Date(eISO) ? eISO : sISO;
+
+            out.push({ start: s, end: e, reason: String(r?.reason || '').trim() });
+        });
+
+        out.sort((x,y) => x.start.localeCompare(y.start) || x.end.localeCompare(y.end));
+
+        const merged = [];
+        out.forEach(r => {
+            if (!merged.length) { merged.push(r); return; }
+            const last = merged[merged.length - 1];
+            const lastEnd = new Date(last.end);
+            const nextStart = new Date(r.start);
+            if (nextStart <= lastEnd) {
+                if (new Date(r.end) > new Date(last.end)) last.end = r.end;
+                if (!last.reason && r.reason) last.reason = r.reason;
+            } else {
+                merged.push(r);
+            }
+        });
+
+        return merged;
+    }
+
+    function isDateBlocked(dateStr) {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d)) return false;
+        return (blockedRanges || []).some(r => d >= new Date(r.start) && d <= new Date(r.end));
+    }
+
+    function getBlockReason(dateStr) {
+        const d = new Date(dateStr);
+        if (isNaN(d)) return '';
+        const hit = (blockedRanges || []).find(r => d >= new Date(r.start) && d <= new Date(r.end));
+        return hit?.reason || '';
+    }
+
+    function escapeHtmlSafe(s) {
+        const str = String(s ?? '');
+        return str
+            .replaceAll('&','&amp;')
+            .replaceAll('<','&lt;')
+            .replaceAll('>','&gt;')
+            .replaceAll('"','&quot;')
+            .replaceAll("'",'&#39;');
+    }
+
     // --- 函式定義 ---
+
+    async function loadAdminSettingsToUI() {
+        try {
+            const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+            const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+            document.getElementById('leave-start-date').value = settings.startDate || '';
+            document.getElementById('leave-end-date').value = settings.endDate || '';
+            blockedRanges = normalizeBlockedRanges(settings.blockedRanges || settings.blocked || []);
+            renderBlockedList();
+        } catch (e) {
+            console.warn('讀取管理員設定失敗:', e);
+        }
+    }
+
+    function renderBlockedList() {
+        if (!blockedListDiv) return;
+        if (!blockedRanges || blockedRanges.length === 0) {
+            blockedListDiv.innerHTML = '<div class="text-muted">目前未設定不可預日期/區間。</div>';
+            return;
+        }
+        let html = '<div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0">';
+        html += '<thead><tr><th style="width:28%">區間</th><th>原因</th><th style="width:90px">操作</th></tr></thead><tbody>';
+        blockedRanges.forEach((r, idx) => {
+            const label = (r.start === r.end) ? r.start : `${r.start} ～ ${r.end}`;
+            html += `<tr>
+                <td>${label}</td>
+                <td>${escapeHtmlSafe(r.reason || '')}</td>
+                <td class="text-center"><button class="btn btn-sm btn-outline-danger" data-remove-block="${idx}">移除</button></td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        blockedListDiv.innerHTML = html;
+    }
+
     async function loadEmployeesDropdown() {
         employeeNameSelect.innerHTML = `<option value="">讀取中...</option>`;
         try {
@@ -63,7 +171,8 @@ document.addEventListener('firebase-ready', () => {
         calendarDiv.innerHTML = '<div class="text-center">讀取中...</div>';
         try {
             const settingsDoc = await db.collection(settingsCollection).doc('period').get();
-            const settings = settingsDoc.exists ? settingsDoc.data() : {};
+            const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+            blockedRanges = normalizeBlockedRanges(settings.blockedRanges || settings.blocked || []);
             const startDate = settings.startDate ? new Date(settings.startDate) : null;
             const endDate = settings.endDate ? new Date(settings.endDate) : null;
             const today = new Date();
@@ -107,6 +216,23 @@ document.addEventListener('firebase-ready', () => {
             }
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
+        // blocked days (不可預)
+        let blockedDays = new Set();
+        try {
+            const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+            const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+            const blocks = normalizeBlockedRanges(settings.blockedRanges || settings.blocked || []);
+            blocks.forEach(r => {
+                const s = new Date(r.start);
+                const e = new Date(r.end);
+                for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                    if (d.getFullYear() === year && d.getMonth() === month) blockedDays.add(d.getDate());
+                }
+            });
+        } catch (e) {
+            console.warn('讀取不可預設定失敗(報表):', e);
+        }
+
             
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayEl = document.createElement('div');
@@ -133,9 +259,15 @@ document.addEventListener('firebase-ready', () => {
                     });
                     namesHTML += '</ul>';
                 }
-                dayEl.innerHTML = `<div class="day-number">${i}</div>${namesHTML}`;
-                
+                const blocked = isDateBlocked(dateStr);
+                const reason = blocked ? getBlockReason(dateStr) : '';
+                const badge = blocked ? `<div class=\"blocked-badge\" title=\"${escapeHtmlSafe(reason || '不可預假/預班')}\">不可預</div>` : '';
+                dayEl.innerHTML = `<div class=\"day-number\">${i}</div>${namesHTML}${badge}`;
                 if (!isRequestPeriodOpen) {
+                    dayEl.classList.add('disabled');
+                }
+                if (blocked) {
+                    dayEl.classList.add('blocked');
                     dayEl.classList.add('disabled');
                 }
                 calendarDiv.appendChild(dayEl);
@@ -203,8 +335,28 @@ document.addEventListener('firebase-ready', () => {
         empSnapshot.forEach(doc => sortedEmployees.push(doc.data()));
 
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        // blocked days (不可預)
+        let blockedDays = new Set();
+        try {
+            const settingsDoc = await db.collection(settingsCollection).doc('period').get();
+            const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+            const blocks = normalizeBlockedRanges(settings.blockedRanges || settings.blocked || []);
+            blocks.forEach(r => {
+                const s = new Date(r.start);
+                const e = new Date(r.end);
+                for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                    if (d.getFullYear() === year && d.getMonth() === month) blockedDays.add(d.getDate());
+                }
+            });
+        } catch (e) {
+            console.warn('讀取不可預設定失敗(報表):', e);
+        }
+
         let tableHeaderHTML = '<tr><th>員編</th><th>姓名</th>';
-        for (let i = 1; i <= daysInMonth; i++) { tableHeaderHTML += `<th>${i}</th>`; }
+        for (let i = 1; i <= daysInMonth; i++) {
+            const mark = blockedDays.has(i) ? '<div style="font-size:10px;">X</div>' : '';
+            tableHeaderHTML += `<th class="${blockedDays.has(i) ? 'blockedcol' : ''}">${i}${mark}</th>`;
+        }
         tableHeaderHTML += '</tr>';
 
         let tableBodyHTML = '';
@@ -214,19 +366,22 @@ document.addEventListener('firebase-ready', () => {
             for (let i = 1; i <= daysInMonth; i++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const shift = requestsByDate[dateStr]?.[employee.name] || '';
-                tableBodyHTML += `<td>${shift}</td>`;
+                const val = shift || (blockedDays.has(i) ? 'X' : '');
+                tableBodyHTML += `<td class="${blockedDays.has(i) ? 'blockedcol' : ''}">${val}</td>`;
             }
             tableBodyHTML += '</tr>';
         });
 
         const tableContent = `<table><thead>${tableHeaderHTML}</thead><tbody>${tableBodyHTML}</tbody></table>`;
         const title = "護理師預假/預班總表";
-        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;font-size:10pt;}th{background-color:#f2f2f2;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
+        return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:'Microsoft JhengHei',sans-serif;}@page{size:A4 landscape;margin:15mm;}h1,h2{text-align:center;margin:5px 0;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;text-align:center;font-size:10pt;}th{background-color:#f2f2f2;} .blockedcol{background:#f8d7da !important;}</style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthName})</h2>${tableContent}</body></html>`;
     }
 
     calendarDiv.addEventListener('click', (e) => {
         if (isRequestPeriodOpen) {
             const dayEl = e.target.closest('.calendar-day');
+            if (!dayEl) return;
+            if (dayEl.classList.contains('blocked')) { alert('此日期已被設定為不可預假/預班。'); return; }
             if (dayEl && !dayEl.classList.contains('disabled')) {
                 if (!employeeNameSelect.value) { alert('請先選擇您的姓名！'); return; }
                 currentlyEditingDate = dayEl.dataset.date;
@@ -250,6 +405,7 @@ document.addEventListener('firebase-ready', () => {
     async function saveShiftForCurrentUser(date, shift) {
         const currentEmployee = employeeNameSelect.value;
         if (!currentEmployee || !date) return;
+        if (isDateBlocked(date)) { alert('此日期已被設定為不可預假/預班，無法送出。'); return; }
         try {
             const docRef = db.collection(requestsCollection).doc(date);
             await db.runTransaction(async (transaction) => {
@@ -276,6 +432,7 @@ document.addEventListener('firebase-ready', () => {
     employeeNameSelect.addEventListener('change', renderCalendar);
 
     adminSettingsBtn.addEventListener('click', () => {
+        loadAdminSettingsToUI();
         adminPasswordInput.value = '';
         adminErrorMsg.classList.add('d-none');
         adminPasswordModal.show();
@@ -301,7 +458,8 @@ document.addEventListener('firebase-ready', () => {
                 adminViewPanel.classList.remove('d-none');
                 renderAdminView();
                 const settingsDoc = await db.collection(settingsCollection).doc('period').get();
-                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+            const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+            blockedRanges = normalizeBlockedRanges(settings.blockedRanges || settings.blocked || []);
                 document.getElementById('leave-start-date').value = settings.startDate || '';
                 document.getElementById('leave-end-date').value = settings.endDate || '';
             } else {
@@ -323,7 +481,7 @@ document.addEventListener('firebase-ready', () => {
         if (new Date(endDate) < new Date(startDate)) { alert('結束日期不可早於開始日期'); return; }
         saveSettingsBtn.disabled = true;
         try {
-            await db.collection(settingsCollection).doc('period').set({ startDate, endDate });
+            await db.collection(settingsCollection).doc('period').set({ startDate, endDate, blockedRanges: blockedRanges || [] });
             alert('預假期間已儲存！頁面將會重新載入以套用新設定。');
             window.location.reload();
         } catch (error) {
@@ -334,7 +492,40 @@ document.addEventListener('firebase-ready', () => {
         }
     });
     
-    if(exportAdminWordBtn) {
+
+    // ===== 不可預日期/區間（管理員）=====
+    if (addBlockBtn) {
+        addBlockBtn.addEventListener('click', () => {
+            const s = toISODateOnly(blockStartInput?.value || '');
+            const e = toISODateOnly(blockEndInput?.value || s);
+            if (!s) { alert('請先選擇開始日期'); return; }
+            if (e && new Date(e) < new Date(s)) { alert('結束日期不可早於開始日期'); return; }
+
+            const reason = String(blockReasonInput?.value || '').trim();
+            blockedRanges = normalizeBlockedRanges([...(blockedRanges || []), { start: s, end: e || s, reason }]);
+            renderBlockedList();
+
+            if (blockStartInput) blockStartInput.value = '';
+            if (blockEndInput) blockEndInput.value = '';
+            if (blockReasonInput) blockReasonInput.value = '';
+        });
+    }
+
+    if (blockedListDiv) {
+        blockedListDiv.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-remove-block]');
+            if (!btn) return;
+            const idx = Number(btn.getAttribute('data-remove-block'));
+            if (Number.isNaN(idx)) return;
+            if (!confirm('確定要移除此不可預日期/區間嗎？')) return;
+            blockedRanges = (blockedRanges || []).filter((_, i) => i !== idx);
+            blockedRanges = normalizeBlockedRanges(blockedRanges);
+            renderBlockedList();
+        });
+    }
+
+
+if(exportAdminWordBtn) {
         exportAdminWordBtn.addEventListener('click', async () => {
             const content = await generateProfessionalReportHTML();
             const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
