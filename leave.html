@@ -21,6 +21,23 @@
 .leave-names-list li:has(:is(strong):contains("V")), /* 非所有瀏覽器支援，備用下一條 */
 .leave-names-list li { /* 保守作法：維持原狀，避免過度影響其他班別 */
 }
+
+/* 不可預假/預班（管理員鎖定日期） */
+.leave-calendar-grid .calendar-day.blocked {
+  background: #f8d7da;
+  border-color: #f5c2c7;
+  opacity: 0.9;
+}
+.leave-calendar-grid .calendar-day.blocked .blocked-badge{
+  display:inline-block;
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #dc3545;
+  color: #fff;
+}
+
 </style>
 
 </head>
@@ -49,7 +66,31 @@
                                 <div class="col-md-5"><label for="leave-end-date" class="form-label">結束日期與時間</label><input type="datetime-local" id="leave-end-date" class="form-control"></div>
                                 <div class="col-md-2"><button id="save-settings-btn" class="btn btn-success w-100">儲存</button></div>
                             </div>
-                        </div>
+                        
+                            <hr class="my-3">
+                            <h6 class="mb-2">設定「不可預假/預班」日期或區間</h6>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label for="block-start-date" class="form-label">開始日期</label>
+                                    <input type="date" id="block-start-date" class="form-control">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="block-end-date" class="form-label">結束日期</label>
+                                    <input type="date" id="block-end-date" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="block-reason" class="form-label">原因（選填）</label>
+                                    <input type="text" id="block-reason" class="form-control" placeholder="例如：訪查/教育訓練/人力調整">
+                                </div>
+                                <div class="col-md-2">
+                                    <button id="add-block-btn" class="btn btn-outline-danger w-100">新增</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="small text-muted">※ 此設定只會影響「下個月」行事曆（本頁顯示月份）。</div>
+                                <div id="blocked-list" class="mt-2"></div>
+                            </div>
+</div>
 
                         <div id="admin-view-panel" class="d-none">
                             <hr>
