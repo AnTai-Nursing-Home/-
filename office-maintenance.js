@@ -30,6 +30,7 @@
     const db = firebase.firestore();
     const colStatus = db.collection("maintenance_status");
     const colReq = db.collection("maintenance_requests");
+    const colResidents = db.collection("residents");
 
     // Utils
     const pad = (n) => String(n).padStart(2, "0");
@@ -56,6 +57,90 @@
     };
     const fmtDateOnly = (d) =>
       d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+
+
+    // -------------------- Login User (for top-right display + auto reporter/comment author) --------------------
+    function getLoggedUser() {
+      if (window.loginUser && typeof window.loginUser === "object") return window.loginUser;
+      if (window.currentUser && typeof window.currentUser === "object") return window.currentUser;
+
+      const safeParse = (raw) => {
+        try { return JSON.parse(raw); } catch (_) { return null; }
+      };
+
+      // Prefer sessionStorage (你的系統登入多數在 sessionStorage)
+      const sessionKeys = ["officeAuth","nurseAuth","adminAuth","auth","userAuth","loginAuth"];
+      for (const k of sessionKeys) {
+        try {
+          const raw = sessionStorage.getItem(k);
+          if (!raw) continue;
+          const u = safeParse(raw);
+          if (u && typeof u === "object") return u;
+        } catch (_) {}
+      }
+
+      // Compatible with antai_session* key naming: scan all sessionStorage keys
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (!key) continue;
+          const lk = key.toLowerCase();
+          if (lk.startsWith("antai_session") || lk.startsWith("antai_sess") || lk.includes("antai_session")) {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) continue;
+            const u = safeParse(raw);
+            if (u && typeof u === "object") return u;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback localStorage JSON
+      const jsonKeys = ["loginUser","currentUser","loggedInUser","officeUser","user","userInfo","authUser"];
+      for (const k of jsonKeys) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const obj = safeParse(raw);
+        if (obj && typeof obj === "object") return obj;
+      }
+
+      // Fallback combine fields
+      const empId =
+        localStorage.getItem("empId") ||
+        localStorage.getItem("employeeId") ||
+        localStorage.getItem("staffId") ||
+        localStorage.getItem("employeeNo") ||
+        localStorage.getItem("empNo") ||
+        localStorage.getItem("username") ||
+        "";
+
+      const name =
+        localStorage.getItem("employeeName") ||
+        localStorage.getItem("displayName") ||
+        localStorage.getItem("name") ||
+        localStorage.getItem("staffName") ||
+        "";
+
+      if (empId || name) return { empId, employeeId: empId, staffId: empId, empNo: empId, id: empId, name, displayName: name };
+      return {};
+    }
+
+    const loggedUser = getLoggedUser();
+    const loggedEmpId = (loggedUser.empId || loggedUser.employeeId || loggedUser.staffId || loggedUser.staffNo || loggedUser.empNo || loggedUser.id || "").toString().trim();
+    const loggedName = (loggedUser.name || loggedUser.employeeName || loggedUser.displayName || loggedUser.display_name || loggedUser.username || loggedUser.userName || "").toString().trim();
+
+    function getLoggedUserLabel() {
+      if (loggedEmpId && loggedName) return `${loggedEmpId} ${loggedName}`;
+      if (loggedName) return loggedName;
+      if (loggedEmpId) return loggedEmpId;
+      return "未登入";
+    }
+
+    function setTopRightLoginInfo() {
+      const el = document.getElementById("loginUserInfo");
+      if (!el) return;
+      el.textContent = `登入者：${getLoggedUserLabel()}`;
+    }
+    setTopRightLoginInfo();
 
     // -------------------- Top: Status Admin --------------------
     // 狀態管理 UI 元素（對應 HTML 正確 ID）
@@ -265,6 +350,93 @@
       });
     }
 
+
+    // -------------------- Cascading selects for new request modal --------------------
+    function setOptions(selectEl, options, placeholder) {
+      if (!selectEl) return;
+      const ph = placeholder || "請選擇";
+      selectEl.innerHTML = `<option value="">${esc(ph)}</option>` + (options || [])
+        .map((v) => `<option value="${esc(v)}">${esc(v)}</option>`)
+        .join("");
+    }
+
+    async function refreshLocationAndItems() {
+      const cat = ($categorySelect && $categorySelect.value) || "";
+      if (!cat) {
+        setOptions($locationSelect, [], "請先選分類");
+        setOptions($itemSelect, [], "請先選位置");
+        return;
+      }
+
+      if (cat === "其他") {
+        setOptions($locationSelect, ["其他"], "請選擇");
+        $locationSelect.value = "其他";
+        setOptions($itemSelect, ["洗澡床", "洗澡椅", "輪椅"], "請選擇");
+        return;
+      }
+
+      // 1F/2F/3F
+      setOptions($locationSelect, ["護理站", "房間"], "請選擇");
+      setOptions($itemSelect, [], "請先選位置");
+    }
+
+    async function refreshItemsByLocation() {
+      const cat = ($categorySelect && $categorySelect.value) || "";
+      const loc = ($locationSelect && $locationSelect.value) || "";
+      if (!cat || !loc) {
+        setOptions($itemSelect, [], "請先選位置");
+        return;
+      }
+
+      if (cat === "其他") {
+        setOptions($itemSelect, ["洗澡床", "洗澡椅", "輪椅"], "請選擇");
+        return;
+      }
+
+      if (loc === "護理站") {
+        setOptions($itemSelect, ["飲水機"], "請選擇");
+        return;
+      }
+
+      if (loc === "房間") {
+        await loadBedsOnce();
+        const beds = bedsByFloor[cat] || [];
+        const items = [];
+        beds.forEach((b) => {
+          items.push(`${b}床`);
+          items.push(`${b}叫人鈴`);
+        });
+        setOptions($itemSelect, items, items.length ? "請選擇" : "此樓層無床號");
+        return;
+      }
+
+      setOptions($itemSelect, [], "請先選位置");
+    }
+
+    function initModalSelects() {
+      if ($categorySelect) {
+        setOptions($categorySelect, ["1F", "2F", "3F", "其他"], "請選擇");
+      }
+      refreshLocationAndItems();
+
+      if ($categorySelect) {
+        $categorySelect.addEventListener("change", async function () {
+          await refreshLocationAndItems();
+        });
+      }
+      if ($locationSelect) {
+        $locationSelect.addEventListener("change", async function () {
+          await refreshItemsByLocation();
+        });
+      }
+      if ($categorySelect) {
+        $categorySelect.addEventListener("change", async function () {
+          // if category becomes "其他", location auto set, also refresh items
+          await refreshItemsByLocation();
+        });
+      }
+    }
+
     // -------------------- Bottom: Requests Admin --------------------
     const $tbody = document.getElementById("maintenanceTableBody");
     const $statusFilter = document.getElementById("statusFilter");
@@ -278,6 +450,9 @@
     const $addRequest = document.getElementById("addRequestBtn");
     const $saveRequest = document.getElementById("saveRequestBtn");
     const $statusSelectInModal = document.getElementById("statusSelect");
+    const $categorySelect = document.getElementById("categorySelect");
+    const $locationSelect = document.getElementById("locationSelect");
+    const $itemSelect = document.getElementById("itemSelect");
     const $addModalEl = document.getElementById("addRequestModal");
     const addModal = $addModalEl ? new bootstrap.Modal($addModalEl) : null;
 
@@ -286,6 +461,45 @@
     let currentStatusFilter = "all";
     let currentStart = null;
     let currentEnd = null;
+
+
+    // -------------------- Beds for room items (from residents system) --------------------
+    const bedsByFloor = { "1F": [], "2F": [], "3F": [] };
+    let bedsLoaded = false;
+
+    function normalizeBedToken(v) {
+      const s = String(v || "").trim().replace(/_/g, "-");
+      const m = s.match(/^(\d{3})-(\w+)$/);
+      return m ? `${m[1]}-${m[2]}` : null;
+    }
+
+    function uniqSortBeds(arr) {
+      const uniq = Array.from(new Set((arr || []).filter(Boolean)));
+      uniq.sort((a, b) => a.localeCompare(b, "zh-Hant", { numeric: true }));
+      return uniq;
+    }
+
+    async function loadBedsOnce() {
+      if (bedsLoaded) return;
+      bedsLoaded = true;
+      try {
+        const snap = await colResidents.get();
+        const f1 = [], f2 = [], f3 = [];
+        snap.forEach((doc) => {
+          const data = doc.data() || {};
+          const bed = normalizeBedToken(data.bedNumber);
+          if (!bed) return;
+          if (bed.startsWith("1")) f1.push(bed);
+          else if (bed.startsWith("2")) f2.push(bed);
+          else if (bed.startsWith("3")) f3.push(bed);
+        });
+        bedsByFloor["1F"] = uniqSortBeds(f1);
+        bedsByFloor["2F"] = uniqSortBeds(f2);
+        bedsByFloor["3F"] = uniqSortBeds(f3);
+      } catch (e) {
+        console.warn("loadBedsOnce failed:", e);
+      }
+    }
 
     function setSelectColor(selectEl, statusName) {
       const color = colorOf(statusName);
@@ -300,7 +514,7 @@
     function showLoadingRow() {
       if (!$tbody) return;
       $tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>';
+        '<tr><td colspan="9" class="text-center text-muted">讀取中...</td></tr>';
     }
 
     async function loadStatusesForRequests() {
@@ -419,7 +633,7 @@
       $tbody.innerHTML = "";
       if (!rows.length) {
         $tbody.innerHTML =
-          '<tr><td colspan="7" class="text-center text-muted">目前沒有報修單</td></tr>';
+          '<tr><td colspan="9" class="text-center text-muted">目前沒有報修單</td></tr>';
         return;
       }
 
@@ -429,10 +643,12 @@
           '<span class="text-muted">—</span>';
         const tr = document.createElement("tr");
         tr.innerHTML = [
+          "<td>" + esc(r.category || "") + "</td>",
+          "<td>" + esc(r.location || "") + "</td>",
           "<td>" + esc(r.item || "") + "</td>",
           "<td>" + esc(r.detail || "") + "</td>",
           "<td>" + esc(r.reporter || "") + "</td>",
-          '<td>',
+          "<td>",
           '  <select class="form-select form-select-sm statusSelectCell">',
           statuses
             .map(function (s) {
@@ -450,11 +666,11 @@
           "  </select>",
           "</td>",
           "<td>" + fmtTS(r.createdAt) + "</td>",
-          '<td style="min-width:260px;">',
+          '<td style="min-width:320px;">',
+          '  <div class="mb-2"><strong>備註：</strong> ' + esc(r.note || "") + "</div>",
           '  <div class="mb-2"><strong>註解：</strong><div class="mt-1">' +
             commentsHTML +
             "</div></div>",
-          '  <input type="text" class="form-control form-control-sm comment-author mb-1" placeholder="留言者名稱">',
           '  <textarea class="form-control form-control-sm comment-input mb-1" placeholder="新增註解..."></textarea>',
           '  <button class="btn btn-sm btn-primary btn-add-comment">新增註解</button>',
           "</td>",
@@ -491,7 +707,7 @@
         // Update status
         await colReq.doc(id).update({ status: newStatus });
         // System comment
-        const operator = localStorage.getItem("adminName") || "管理端";
+        const operator = getLoggedUserLabel() || "管理端";
         const msg =
           "系統：" +
           operator +
@@ -525,14 +741,9 @@
           alert("找不到報修單 ID");
           return;
         }
-        const authorEl = row.querySelector(".comment-author");
         const inputEl = row.querySelector(".comment-input");
-        const author = (authorEl && authorEl.value.trim()) || "";
+        const author = getLoggedUserLabel();
         const message = (inputEl && inputEl.value.trim()) || "";
-        if (!author) {
-          alert("請輸入留言者名稱");
-          return;
-        }
         if (!message) {
           alert("請輸入註解內容");
           return;
@@ -543,8 +754,7 @@
           role: "admin",
           time: firebase.firestore.FieldValue.serverTimestamp(),
         });
-        if (authorEl) authorEl.value = "";
-        if (inputEl) inputEl.value = "";
+                if (inputEl) inputEl.value = "";
         await loadRequests();
       });
 
@@ -690,32 +900,23 @@
         "</h2></div>"
       );
     }
+    
     function buildFormalTableHTML(rows) {
       var thead =
-        "<thead><tr><th>報修物品</th><th>詳細資訊</th><th>報修人</th><th>狀態</th><th>報修時間</th><th>備註</th></tr></thead>";
+        "<thead><tr><th>分類</th><th>位置</th><th>報修物品</th><th>詳細資訊</th><th>報修人</th><th>狀態</th><th>報修時間</th><th>備註</th></tr></thead>";
       var trows = rows
         .map(function (r) {
           var ts = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
           return (
             "<tr>" +
-            "<td>" +
-            esc(r.item) +
-            "</td>" +
-            "<td>" +
-            esc(r.detail) +
-            "</td>" +
-            "<td>" +
-            esc(r.reporter) +
-            "</td>" +
-            "<td>" +
-            esc(r.status) +
-            "</td>" +
-            "<td>" +
-            (ts ? fmtTS({ toDate: function () { return ts; } }) : "") +
-            "</td>" +
-            "<td>" +
-            esc(r.note || "") +
-            "</td>" +
+            "<td>" + esc(r.category || "") + "</td>" +
+            "<td>" + esc(r.location || "") + "</td>" +
+            "<td>" + esc(r.item || "") + "</td>" +
+            "<td>" + esc(r.detail || "") + "</td>" +
+            "<td>" + esc(r.reporter || "") + "</td>" +
+            "<td>" + esc(r.status || "") + "</td>" +
+            "<td>" + (ts ? fmtTS({ toDate: function () { return ts; } }) : "") + "</td>" +
+            "<td>" + esc(r.note || "") + "</td>" +
             "</tr>"
           );
         })
@@ -728,6 +929,7 @@
         "</tbody></table>"
       );
     }
+
     function downloadURL(url, filename) {
       var a = document.createElement("a");
       a.href = url;
@@ -806,34 +1008,50 @@
 
     // Add Request (Modal)
     if ($addRequest) {
-      $addRequest.addEventListener("click", function () {
-        var item = document.getElementById("item");
+      $addRequest.addEventListener("click", async function () {
+        // reset fields
         var detail = document.getElementById("detail");
         var reporter = document.getElementById("reporter");
         var note = document.getElementById("note");
-        if (item) item.value = "";
+
+        if ($categorySelect) $categorySelect.value = "";
+        if ($locationSelect) $locationSelect.value = "";
+        if ($itemSelect) $itemSelect.value = "";
+        await refreshLocationAndItems();
+
         if (detail) detail.value = "";
-        if (reporter) reporter.value = "";
         if (note) note.value = "";
+
+        // reporter auto = login user (name preferred)
+        if (reporter) reporter.value = loggedName || getLoggedUserLabel();
+
         if ($statusSelectInModal && $statusSelectInModal.options.length > 0) {
-          // default select first or keep existing
+          // keep default option
         }
         if (addModal) addModal.show();
       });
     }
 
+
     if ($saveRequest) {
       $saveRequest.addEventListener("click", async function () {
-        var item = (document.getElementById("item")?.value || "").trim();
+        var category = ($categorySelect && $categorySelect.value) || "";
+        var location = ($locationSelect && $locationSelect.value) || "";
+        var item = ($itemSelect && $itemSelect.value) || "";
         var detail = (document.getElementById("detail")?.value || "").trim();
         var reporter = (document.getElementById("reporter")?.value || "").trim();
-        var statusVal = ($statusSelectInModal && $statusSelectInModal.value) || "待處理";
+        var statusVal =
+          ($statusSelectInModal && $statusSelectInModal.value) || "待處理";
         var note = (document.getElementById("note")?.value || "").trim();
-        if (!item || !detail || !reporter) {
-          alert("請輸入完整資料");
+
+        if (!category || !location || !item || !detail || !reporter) {
+          alert("請輸入完整資料（分類/位置/報修物品/詳細資訊/報修人）");
           return;
         }
+
         await colReq.add({
+          category: category,
+          location: location,
           item: item,
           detail: detail,
           reporter: reporter,
@@ -847,7 +1065,9 @@
       });
     }
 
+
     // Init
+    initModalSelects();
     await loadStatusesForAdmin(); // internally calls loadStatusesForRequests
     await loadRequests();
   }
