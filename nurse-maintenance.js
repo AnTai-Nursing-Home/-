@@ -33,6 +33,18 @@ document.addEventListener("firebase-ready", async () => {
       if (u) return u;
     }
 
+    // ✅ 再掃描 sessionStorage：支援 antai_session* / antai_sess*（你系統目前實際使用）
+    try {
+      const keys = Object.keys(sessionStorage || {});
+      for (const k of keys) {
+        const lk = String(k).toLowerCase();
+        if (lk.startsWith("antai_session") || lk.startsWith("antai_sess")) {
+          const u = readAuthFromSession(k);
+          if (u) return u;
+        }
+      }
+    } catch (_) {}
+
     // 其他頁面若有掛全域
     if (window.loginUser && typeof window.loginUser === 'object') return window.loginUser;
     if (window.currentUser && typeof window.currentUser === 'object') return window.currentUser;
