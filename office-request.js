@@ -111,20 +111,31 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   function fillSupervisorSelectElement(sel, currentValue) {
     if (!sel) return;
+
+    // ✅ 動態把「目前登入者」也加入可選清單（避免自動帶入時下拉找不到該名字）
+    const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
+    const names = Array.from(new Set([loginName, ...(SUPERVISORS || [])].filter(Boolean)));
+
     let html = '<option value=""></option>';
-    SUPERVISORS.forEach(name => {
+    names.forEach(name => {
       const selected = (name === (currentValue || "")) ? "selected" : "";
       html += `<option value="${name}" ${selected}>${name}</option>`;
     });
     sel.innerHTML = html;
   }
 
-  function initSupervisorDropdowns() {
+    function initSupervisorDropdowns() {
     // leave & swap table 中的主管簽名欄位
     document.querySelectorAll("select.supervisor-sign").forEach(sel => {
       const cur = sel.getAttribute("data-supervisor") || "";
       fillSupervisorSelectElement(sel, cur);
     });
+
+    // 編輯視窗（Modal）的主管簽名下拉
+    const modalSel = document.getElementById("eSupervisorSign");
+    if (modalSel) {
+      fillSupervisorSelectElement(modalSel, modalSel.value || "");
+    }
   }
 
 
@@ -489,10 +500,39 @@ window.COL_SWAP  = "nurse_shift_requests";
       if (e.target.classList.contains("status-select")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
+
         const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
         e.target.style.background = color;
         e.target.style.color = "#fff";
-        await updateRequestFieldSmart(id, { status: value });
+
+        // ✅ 狀態被變更時，自動把主管簽名帶入「目前登入者」
+        const loginName = getLoggedInUserName();
+        const patch = { status: value };
+
+        if (loginName) {
+          patch.supervisorSign = loginName;
+
+          const tr = e.target.closest("tr");
+          const supSel = tr ? tr.querySelector("select.supervisor-sign") : null;
+          if (supSel) {
+            // 確保下拉裡有登入者的名字可選
+            const hasOpt = Array.from(supSel.options || []).some(o => o.value === loginName);
+            if (!hasOpt) {
+              const opt = document.createElement("option");
+              opt.value = loginName;
+              opt.textContent = loginName;
+              // 插在空白選項後面（若存在）
+              if (supSel.options && supSel.options.length > 0) {
+                supSel.insertBefore(opt, supSel.options[1] || null);
+              } else {
+                supSel.appendChild(opt);
+              }
+            }
+            supSel.value = loginName;
+          }
+        }
+
+        await updateRequestFieldSmart(id, patch);
       }
     });
   }
