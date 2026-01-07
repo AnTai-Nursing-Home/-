@@ -151,6 +151,25 @@ function toInputDateTime(d) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function formatPeriodText(app) {
+    // 只顯示起訖日期（不顯示原因/地點等）
+    const s = app.startDateTime?.toDate?.() || (app.startDateTime ? new Date(app.startDateTime) : null);
+    const e = app.endDateTime?.toDate?.() || (app.endDateTime ? new Date(app.endDateTime) : null);
+
+    const fmtDate = (d) => {
+        if (!d || isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    if (s && e) return `${fmtDate(s)} ~ ${fmtDate(e)}`;
+    if (s) return `${fmtDate(s)} ~`;
+    if (e) return `~ ${fmtDate(e)}`;
+    return '';
+}
+
 function formatDateTime(d) {
     if (!d) return '';
     if (d.toDate) d = d.toDate();
@@ -461,14 +480,15 @@ function renderStayTableHead() {
     if (!thead) return;
 
     if (currentViewMode === 'all') {
-        thead.innerHTML = `
-            <tr>
-                <th>${getTextSafe('stay_table_applicant','申請人')}</th>
-                <th>${getTextSafe('stay_table_apply_date','申請日期')}</th>
-                <th>${getTextSafe('stay_table_status','狀態')}</th>
-            </tr>
-        `;
-    } else {
+                            thead.innerHTML = `
+                                <tr>
+                                    <th>${getTextSafe('stay_table_applicant','申請人')}</th>
+                                    <th>${getTextSafe('stay_table_apply_date','申請日期')}</th>
+                                    <th>${getTextSafe('stay_table_period','起訖時間')}</th>
+                                    <th>${getTextSafe('stay_table_status','狀態')}</th>
+                                </tr>
+                            `;
+                        } else {
         thead.innerHTML = `
             <tr>
                 <th>${getTextSafe('stay_table_applicant','申請人')}</th>
@@ -529,7 +549,7 @@ async function loadMyApps(tbody) {
 
 async function loadAllAppsSummary(tbody) {
     // 全部人的申請單：只能看申請人、申請日期、申請狀態
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
 
     const snap = await db.collection('stayApplications')
         .orderBy('startDateTime', 'desc')
@@ -538,7 +558,7 @@ async function loadAllAppsSummary(tbody) {
 
     tbody.innerHTML = '';
     if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
         return;
     }
 
@@ -557,10 +577,11 @@ async function loadAllAppsSummary(tbody) {
         const applyDateText = applyDt ? formatDateTime(applyDt).split(' ')[0] : '';
 
         tr.innerHTML = `
-            <td>${app.applicantName || ''}</td>
-            <td>${applyDateText}</td>
-            <td><span class="badge" style="background:${status.color}">${status.name}</span></td>
-        `;
+                <td>${app.applicantName || ''}</td>
+                <td>${applyDateText}</td>
+                <td>${formatPeriodText(app)}</td>
+                <td><span class="badge" style="background:${status.color}">${status.name}</span></td>
+            `;
         tbody.appendChild(tr);
     });
 }
