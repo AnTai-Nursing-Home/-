@@ -38,6 +38,8 @@
           <table class="table table-bordered align-middle">
             <thead class="table-light">
               <tr>
+                <th>分類</th>
+                <th>位置</th>
                 <th>報修物品</th>
                 <th>詳細資訊</th>
                 <th>報修人</th>
@@ -47,7 +49,7 @@
               </tr>
             </thead>
             <tbody id="maintenanceTableBody">
-              <tr><td colspan="6" class="text-center text-muted">讀取中...</td></tr>
+              <tr><td colspan="8" class="text-center text-muted">讀取中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -62,20 +64,45 @@
             <h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
+          
           <div class="modal-body">
             <div class="mb-3">
-              <label class="form-label">報修物品</label>
-              <input type="text" id="item" class="form-control" placeholder="請輸入報修物品">
+              <label class="form-label">分類</label>
+              <select id="category" class="form-select">
+                <option value="" selected disabled>請選擇分類</option>
+                <option value="1F">1F</option>
+                <option value="2F">2F</option>
+                <option value="3F">3F</option>
+                <option value="其他">其他</option>
+              </select>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label">位置</label>
+              <select id="location" class="form-select" disabled>
+                <option value="" selected disabled>請先選擇分類</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">報修物品</label>
+              <select id="item" class="form-select" disabled>
+                <option value="" selected disabled>請先選擇位置</option>
+              </select>
+              <div class="form-text">房間類：會依樓層自動帶出床號，並提供「床 / 叫人鈴」兩種選項。</div>
+            </div>
+
             <div class="mb-3">
               <label class="form-label">詳細資訊</label>
-              <textarea id="detail" class="form-control" placeholder="請輸入詳細資訊"></textarea>
+              <textarea id="detail" class="form-control" placeholder="請輸入詳細資訊（可選填）"></textarea>
             </div>
+
             <div class="mb-3">
               <label class="form-label">報修人</label>
               <input type="text" id="reporter" class="form-control" placeholder="請輸入報修人姓名">
             </div>
           </div>
+
           <div class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
             <button class="btn btn-success" id="saveRequestBtn">儲存</button>
