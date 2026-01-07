@@ -79,6 +79,147 @@ document.addEventListener('firebase-ready', () => {
     }
 
     let currentCareFormId = null;
+
+// --- 未儲存變更偵測（Dirty Check） ---
+let isDirty = false;
+let lastSavedSnapshot = '';
+let unsavedModal = null;
+
+function computeFormSnapshot() {
+    // 僅在表單視圖時才計算
+    if (!formView || formView.classList.contains('d-none')) return '';
+    const residentName = residentNameSelectForm?.value || '';
+    const placementDate = placementDateInput?.value || '';
+    const recordStartDate = recordStartDateInput?.value || '';
+    const closingDate = closingDateInput?.value || '';
+    const closingReason = closingReasonSelect?.value || '';
+    const chartNumber = chartNumberInput?.value || '';
+    const createdBy = createdByInput?.value || '';
+
+    const dailyData = {};
+    if (careTableBody) {
+        careTableBody.querySelectorAll('tr[data-date]').forEach(row => {
+            const date = row.dataset.date;
+            const record = {};
+            let hasData = false;
+            careItems.forEach(itemKey => {
+                const checkedRadio = row.querySelector(`input[name^="${itemKey}"]:checked`);
+                if (checkedRadio) { record[itemKey] = checkedRadio.value; hasData = true; }
+            });
+            const caregiverSignInput = row.querySelector('[data-signature="caregiver"]');
+            if (caregiverSignInput && caregiverSignInput.value) { record.caregiverSign = caregiverSignInput.value; hasData = true; }
+            if (hasData) { dailyData[date] = record; }
+        });
+    }
+
+    const snapshotObj = {
+        currentCareFormId: currentCareFormId || '',
+        residentName, placementDate, recordStartDate, closingDate,
+        closingReason, chartNumber, createdBy,
+        dailyData
+    };
+    try { return JSON.stringify(snapshotObj); } catch (e) { return String(Date.now()); }
+}
+
+function markClean() {
+    lastSavedSnapshot = computeFormSnapshot();
+    isDirty = false;
+}
+
+function markDirty() {
+    if (!formView || formView.classList.contains('d-none')) return;
+    const nowSnap = computeFormSnapshot();
+    if (nowSnap !== lastSavedSnapshot) isDirty = true;
+}
+
+function ensureUnsavedModal() {
+    if (unsavedModal) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+    <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">偵測到未儲存變更</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">不儲存</button>
+            <button type="button" class="btn btn-primary" id="unsaved-save-btn">儲存</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(wrapper.firstElementChild);
+
+    const modalEl = document.getElementById('unsavedChangesModal');
+    if (modalEl && window.bootstrap) {
+        unsavedModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+    } else {
+        unsavedModal = null;
+    }
+}
+
+function showUnsavedChangesDialog() {
+    // Promise<'save'|'discard'|'cancel'>
+    return new Promise((resolve) => {
+        ensureUnsavedModal();
+        if (!unsavedModal) {
+            const ok = confirm('系統偵測到您有做更改但尚未儲存。是否要儲存變更？\\n按「確定」=儲存，按「取消」=不儲存');
+            resolve(ok ? 'save' : 'discard');
+            return;
+        }
+        const modalEl = document.getElementById('unsavedChangesModal');
+        const btnSave = document.getElementById('unsaved-save-btn');
+        const btnDiscard = document.getElementById('unsaved-discard-btn');
+        const btnCancel = document.getElementById('unsaved-cancel-btn');
+
+        const cleanup = () => {
+            btnSave?.removeEventListener('click', onSave);
+            btnDiscard?.removeEventListener('click', onDiscard);
+            btnCancel?.removeEventListener('click', onCancel);
+        };
+        const onSave = () => { cleanup(); unsavedModal.hide(); resolve('save'); };
+        const onDiscard = () => { cleanup(); unsavedModal.hide(); resolve('discard'); };
+        const onCancel = () => { cleanup(); unsavedModal.hide(); resolve('cancel'); };
+
+        btnSave?.addEventListener('click', onSave);
+        btnDiscard?.addEventListener('click', onDiscard);
+        btnCancel?.addEventListener('click', onCancel);
+
+        unsavedModal.show();
+    });
+}
+
+async function guardUnsavedChanges(nextAction) {
+    if (!formView || formView.classList.contains('d-none')) {
+        await nextAction();
+        return true;
+    }
+    markDirty();
+    if (!isDirty) {
+        await nextAction();
+        return true;
+    }
+    const choice = await showUnsavedChangesDialog();
+    if (choice === 'cancel') return false;
+
+    if (choice === 'save') {
+        await handleSave();
+        // handleSave 若成功會 markClean；這裡再確認一次
+        markDirty();
+        if (isDirty) return false;
+    } else {
+        isDirty = false;
+    }
+    await nextAction();
+    return true;
+}
+
     let isCurrentFormClosed = false;
     let residentsData = {};
 
@@ -516,7 +657,10 @@ document.addEventListener('firebase-ready', () => {
             closingDateInput.value = '';
             if (createdByInput) {
                 createdByInput.value = isNurseLoggedIn ? currentNurseName : '';
-            }
+
+        // 初始化快照（進入表單後視為乾淨狀態）
+        markClean();
+    }
             renderCareTable(placementDateInput.value, null);
             deleteCareFormBtn.classList.add('d-none');
         } else {
@@ -582,6 +726,8 @@ document.addEventListener('firebase-ready', () => {
                 deleteCareFormBtn.classList.remove('d-none');
             }
             alert(getText('care_form_saved'));
+            // 儲存成功後，更新快照
+            markClean();
         } catch (error) {
             console.error("儲存失敗:", error);
             alert(getText('save_failed'));
@@ -759,19 +905,21 @@ document.addEventListener('firebase-ready', () => {
     });
 
     if (addNewFormBtn) {
-        addNewFormBtn.addEventListener('click', () => {
+        addNewFormBtn.addEventListener('click', async () => {
             if (!isNurseLoggedIn) {
                 alert('僅限護理師登入後才能新增導尿管照護單');
                 return;
             }
-            switchToFormView(true);
+            await guardUnsavedChanges(async () => { switchToFormView(true); });
         });
     }
 
     if (nurseLoginBtn) {
         nurseLoginBtn.addEventListener('click', handleNurseLogin);
     }
-    backToListBtn.addEventListener('click', switchToListView);
+    backToListBtn.addEventListener('click', async () => {
+        await guardUnsavedChanges(async () => { switchToListView(); });
+    });
 
     residentNameSelectForm.addEventListener('change', () => {
         const residentData = residentsData[residentNameSelectForm.value];
@@ -793,7 +941,7 @@ document.addEventListener('firebase-ready', () => {
         try {
             const doc = await db.collection(careFormsCollection).doc(docId).get();
             if (doc.exists) {
-                switchToFormView(false, doc.data(), doc.id);
+                await guardUnsavedChanges(async () => { switchToFormView(false, doc.data(), doc.id); });
             }
         } catch (error) {
             alert(getText('load_care_form_failed'));
@@ -801,6 +949,24 @@ document.addEventListener('firebase-ready', () => {
     });
 
     saveCareFormBtn.addEventListener('click', handleSave);
+
+
+// --- Dirty tracking：任何欄位變更都標記 ---
+if (formView) {
+    formView.addEventListener('input', () => { markDirty(); }, true);
+    formView.addEventListener('change', () => { markDirty(); }, true);
+}
+
+// 視窗關閉/重整提示（瀏覽器原生提示）
+window.addEventListener('beforeunload', (e) => {
+    if (!formView || formView.classList.contains('d-none')) return;
+    markDirty();
+    if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
 
     careTableBody.addEventListener('blur', (e) => {
         const target = e.target;
