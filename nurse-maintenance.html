@@ -23,7 +23,10 @@
     <div class="card shadow-sm">
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h4 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>器材報修（護理師端）</h4>
-        <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+        <div class="d-flex align-items-center gap-2">
+          <div id="loginUserInfo" class="small text-white-50"></div>
+          <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+        </div>
       </div>
 
       <div class="card-body">
@@ -99,7 +102,7 @@
 
             <div class="mb-3">
               <label class="form-label">報修人</label>
-              <input type="text" id="reporter" class="form-control" placeholder="請輸入報修人姓名">
+              <input type="text" id="reporter" class="form-control" placeholder="自動帶入登入者" readonly>
             </div>
           </div>
 
