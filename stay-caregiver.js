@@ -8,6 +8,9 @@ let currentApplicantName = null;
 let commentModal = null;
 let currentAppIdForComment = null;
 
+// 清單檢視模式：'my' | 'all'
+let currentViewMode = 'my';
+
 // 安全取得多語系文字的工具函式
 function getTextSafe(key, fallback) {
     if (typeof getText === 'function') {
@@ -77,6 +80,8 @@ async function initStayCaregiver() {
         const stayForm = document.getElementById('stayForm');
         const stayTableBody = document.querySelector('#stayTable tbody');
         const btnRefresh = document.getElementById('btnRefresh');
+        const btnViewMy = document.getElementById('btnViewMy');
+        const btnViewAll = document.getElementById('btnViewAll');
 
         await loadStatusDefs();
         await loadApplicants(applicantSelect);
@@ -88,7 +93,7 @@ async function initStayCaregiver() {
                 const data = getFormData();
                 await validateBusinessRulesForNewApplication(data);
                 await saveApplication(data);
-                await loadMyApps(stayTableBody);
+                await refreshStayList(stayTableBody);
                 stayForm.reset();
                 setMinDateForStart();
                 alert(getTextSafe('stay_submit_success', '外宿申請已送出'));
@@ -99,12 +104,29 @@ async function initStayCaregiver() {
         });
 
         btnRefresh.addEventListener('click', async () => {
-            await loadMyApps(stayTableBody);
+            await refreshStayList(stayTableBody);
         });
+
+
+// 切換檢視：我的 / 全部（全部僅顯示申請人、申請日期、申請狀態）
+if (btnViewMy && btnViewAll) {
+    btnViewMy.addEventListener('click', async () => {
+        currentViewMode = 'my';
+        btnViewMy.classList.add('active');
+        btnViewAll.classList.remove('active');
+        await refreshStayList(stayTableBody);
+    });
+    btnViewAll.addEventListener('click', async () => {
+        currentViewMode = 'all';
+        btnViewAll.classList.add('active');
+        btnViewMy.classList.remove('active');
+        await refreshStayList(stayTableBody);
+    });
+}
 
         document.getElementById('btnSaveComment').addEventListener('click', saveCommentFromModal);
 
-        await loadMyApps(stayTableBody);
+        await refreshStayList(stayTableBody);
         // 初始化完成後套用目前語系文字
         if (typeof applyTranslations === 'function') {
             applyTranslations();
@@ -418,6 +440,49 @@ async function saveApplication(data) {
     });
 }
 
+async function refreshStayList(tbody) {
+    renderStayTableHead();
+    const titleEl = document.getElementById('stayListTitle');
+    if (titleEl) {
+        if (currentViewMode === 'all') {
+            titleEl.textContent = getTextSafe('stay_all_records_title', '所有人的外宿申請（僅摘要）');
+        } else {
+            titleEl.textContent = getTextSafe('stay_my_records_title', '我的外宿申請紀錄');
+        }
+    }
+    if (currentViewMode === 'all') {
+        return await loadAllAppsSummary(tbody);
+    }
+    return await loadMyApps(tbody);
+}
+
+function renderStayTableHead() {
+    const thead = document.querySelector('#stayTable thead');
+    if (!thead) return;
+
+    if (currentViewMode === 'all') {
+        thead.innerHTML = `
+            <tr>
+                <th>${getTextSafe('stay_table_applicant','申請人')}</th>
+                <th>${getTextSafe('stay_table_apply_date','申請日期')}</th>
+                <th>${getTextSafe('stay_table_status','狀態')}</th>
+            </tr>
+        `;
+    } else {
+        thead.innerHTML = `
+            <tr>
+                <th>${getTextSafe('stay_table_applicant','申請人')}</th>
+                <th>${getTextSafe('stay_table_period','起訖時間')}</th>
+                <th>${getTextSafe('stay_table_start_shift','起始日班別')}</th>
+                <th>${getTextSafe('stay_table_location','地點')}</th>
+                <th>${getTextSafe('stay_table_reason','原因')}</th>
+                <th>${getTextSafe('stay_table_status','狀態')}</th>
+                <th>${getTextSafe('stay_table_comment','註解')}</th>
+            </tr>
+        `;
+    }
+}
+
 async function loadMyApps(tbody) {
     if (!currentApplicantId) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">${getTextSafe('stay_msg_select_applicant_first', '請先選擇申請人')}</td></tr>`;
@@ -458,6 +523,44 @@ async function loadMyApps(tbody) {
         `;
         const btn = tr.querySelector('button');
         btn.addEventListener('click', () => openCommentModal(doc.id));
+        tbody.appendChild(tr);
+    });
+}
+
+async function loadAllAppsSummary(tbody) {
+    // 全部人的申請單：只能看申請人、申請日期、申請狀態
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">${getTextSafe('stay_msg_loading', '載入中...')}</td></tr>`;
+
+    const snap = await db.collection('stayApplications')
+        .orderBy('startDateTime', 'desc')
+        .limit(500)
+        .get();
+
+    tbody.innerHTML = '';
+    if (snap.empty) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">${getTextSafe('stay_msg_no_applications', '目前沒有外宿申請')}</td></tr>`;
+        return;
+    }
+
+    snap.forEach(doc => {
+        const app = doc.data() || {};
+        const tr = document.createElement('tr');
+
+        const status = statusMap[app.statusId] || { name: app.statusId || '—', color: '#6c757d' };
+
+        // 申請日期：優先 createdAt，其次 updatedAt，再用 startDateTime（保底）
+        const applyDt = app.createdAt?.toDate?.()
+            || app.updatedAt?.toDate?.()
+            || app.startDateTime?.toDate?.()
+            || (app.startDateTime ? new Date(app.startDateTime) : null);
+
+        const applyDateText = applyDt ? formatDateTime(applyDt).split(' ')[0] : '';
+
+        tr.innerHTML = `
+            <td>${app.applicantName || ''}</td>
+            <td>${applyDateText}</td>
+            <td><span class="badge" style="background:${status.color}">${status.name}</span></td>
+        `;
         tbody.appendChild(tr);
     });
 }
