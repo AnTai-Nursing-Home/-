@@ -23,27 +23,6 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   // ===== 登入者顯示（右上角）=====
   function getLoggedInUserName() {
-    // ✅ 優先抓辦公室登入（office.html / office.js）使用的 sessionStorage: officeAuth
-    // officeAuth 內容形如：{ staffId, displayName, username, canOffice, ... }
-    try {
-      const raw = sessionStorage.getItem('officeAuth');
-      if (raw) {
-        const u = JSON.parse(raw);
-        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
-        if (n && n.trim()) return n.trim();
-      }
-    } catch (e) {}
-
-    // ✅ 其次抓護理端登入（如果此頁也會從護理端入口開）
-    try {
-      const raw = sessionStorage.getItem('nurseAuth');
-      if (raw) {
-        const u = JSON.parse(raw);
-        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
-        if (n && n.trim()) return n.trim();
-      }
-    } catch (e) {}
-
     // 盡量兼容你其他系統可能用的命名（不確定就多抓幾個）
     const candidates = [
       window.CURRENT_USER_NAME,
@@ -105,39 +84,6 @@ window.COL_SWAP  = "nurse_shift_requests";
     if (leaveSel) leaveSel.innerHTML = opts;
     if (swapSel)  swapSel.innerHTML  = opts;
   }
-
-  // ===== 主管簽名下拉（目前只有林淑菁） =====
-  const SUPERVISORS = ["林淑菁"];
-
-  function fillSupervisorSelectElement(sel, currentValue) {
-    if (!sel) return;
-
-    // ✅ 動態把「目前登入者」也加入可選清單（避免自動帶入時下拉找不到該名字）
-    const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
-    const names = Array.from(new Set([loginName, ...(SUPERVISORS || [])].filter(Boolean)));
-
-    let html = '<option value=""></option>';
-    names.forEach(name => {
-      const selected = (name === (currentValue || "")) ? "selected" : "";
-      html += `<option value="${name}" ${selected}>${name}</option>`;
-    });
-    sel.innerHTML = html;
-  }
-
-    function initSupervisorDropdowns() {
-    // leave & swap table 中的主管簽名欄位
-    document.querySelectorAll("select.supervisor-sign").forEach(sel => {
-      const cur = sel.getAttribute("data-supervisor") || "";
-      fillSupervisorSelectElement(sel, cur);
-    });
-
-    // 編輯視窗（Modal）的主管簽名下拉
-    const modalSel = document.getElementById("eSupervisorSign");
-    if (modalSel) {
-      fillSupervisorSelectElement(modalSel, modalSel.value || "");
-    }
-  }
-
 
   // ========= Utilities =========
   function ymd(dLike) {
@@ -249,7 +195,7 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><select class="form-select form-select-sm supervisor-sign" data-id="${doc.id}" data-supervisor="${d.supervisorSign || ""}"></select></td>
+          <td><input class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}" readonly></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-leave" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
@@ -288,7 +234,7 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><select class="form-select form-select-sm supervisor-sign" data-id="${doc.id}" data-supervisor="${d.supervisorSign || ""}"></select></td>
+          <td><input class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}" readonly></td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-swap" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
@@ -490,49 +436,17 @@ window.COL_SWAP  = "nurse_shift_requests";
     });
 
     document.addEventListener("change", async (e) => {
-      if (e.target.classList.contains("supervisor-sign")) {
-        const id = e.target.dataset.id;
-        const value = e.target.value;
-        debounceUpdate(`sup-${id}`, 100, async () => {
+`, 100, async () => {
           await updateRequestFieldSmart(id, { supervisorSign: value });
         });
       }
       if (e.target.classList.contains("status-select")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
-
         const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
         e.target.style.background = color;
         e.target.style.color = "#fff";
-
-        // ✅ 狀態被變更時，自動把主管簽名帶入「目前登入者」
-        const loginName = getLoggedInUserName();
-        const patch = { status: value };
-
-        if (loginName) {
-          patch.supervisorSign = loginName;
-
-          const tr = e.target.closest("tr");
-          const supSel = tr ? tr.querySelector("select.supervisor-sign") : null;
-          if (supSel) {
-            // 確保下拉裡有登入者的名字可選
-            const hasOpt = Array.from(supSel.options || []).some(o => o.value === loginName);
-            if (!hasOpt) {
-              const opt = document.createElement("option");
-              opt.value = loginName;
-              opt.textContent = loginName;
-              // 插在空白選項後面（若存在）
-              if (supSel.options && supSel.options.length > 0) {
-                supSel.insertBefore(opt, supSel.options[1] || null);
-              } else {
-                supSel.appendChild(opt);
-              }
-            }
-            supSel.value = loginName;
-          }
-        }
-
-        await updateRequestFieldSmart(id, patch);
+        await updateRequestFieldSmart(id, { status: value });
       }
     });
   }
