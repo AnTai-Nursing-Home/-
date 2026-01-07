@@ -21,6 +21,59 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   const $ = (s) => document.querySelector(s);
 
+  // ===== 登入者顯示（右上角）=====
+  function getLoggedInUserName() {
+    // ✅ 優先抓辦公室登入（office.html / office.js）使用的 sessionStorage: officeAuth
+    // officeAuth 內容形如：{ staffId, displayName, username, canOffice, ... }
+    try {
+      const raw = sessionStorage.getItem('officeAuth');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
+        if (n && n.trim()) return n.trim();
+      }
+    } catch (e) {}
+
+    // ✅ 其次抓護理端登入（如果此頁也會從護理端入口開）
+    try {
+      const raw = sessionStorage.getItem('nurseAuth');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
+        if (n && n.trim()) return n.trim();
+      }
+    } catch (e) {}
+
+    // 盡量兼容你其他系統可能用的命名（不確定就多抓幾個）
+    const candidates = [
+      window.CURRENT_USER_NAME,
+      window.LOGIN_USER_NAME,
+      window.LOGIN_NAME,
+      window.currentUserName,
+      window.userName,
+      window.loggedInUserName,
+      (() => { try { return sessionStorage.getItem("loginName"); } catch(_) { return ""; } })(),
+      (() => { try { return sessionStorage.getItem("loggedInUser"); } catch(_) { return ""; } })(),
+      (() => { try { return sessionStorage.getItem("username"); } catch(_) { return ""; } })(),
+      (() => { try { return localStorage.getItem("loginName"); } catch(_) { return ""; } })(),
+      (() => { try { return localStorage.getItem("loggedInUser"); } catch(_) { return ""; } })(),
+      (() => { try { return localStorage.getItem("username"); } catch(_) { return ""; } })(),
+    ].filter(Boolean);
+
+    return String(candidates[0] || "").trim();
+  }
+
+  function renderLoggedInUser() {
+    const el = document.getElementById("loginUserName");
+    if (!el) return;
+    const name = getLoggedInUserName();
+    el.textContent = name ? `登入者：${name}` : "登入者：未登入";
+  }
+
+  // 允許其他頁面在登入後用 event 通知更新（可選）
+  window.addEventListener("user-changed", renderLoggedInUser);
+
+
   // ===== 員工清單（申請人下拉選單用） =====
   const EMP_COLLECTIONS = ["caregivers","localCaregivers","nurses","adminStaff"];  // 調整順序：外籍 → 台籍 → 護理師 → 行政
   let EMP_NAMES = []; // 只存姓名給辦公室端選擇
@@ -671,6 +724,7 @@ $("#printLeaveTable")?.addEventListener("click", () => {
 
   // ========= Init =========
   document.addEventListener("firebase-ready", async () => {
+    renderLoggedInUser();
     await loadEmployeeListForOffice();
     await loadStatuses();
     await loadLeaveRequests();
@@ -832,6 +886,7 @@ function bindEditModal() {
 
 document.addEventListener('DOMContentLoaded', () => {
   try { bindEditModal(); } catch(e) { console.error(e); }
+  try { if (typeof renderLoggedInUser === 'function') renderLoggedInUser(); } catch(e) { console.error(e); }
 });
 
 
