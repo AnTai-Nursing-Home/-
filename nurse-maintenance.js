@@ -13,6 +13,144 @@ document.addEventListener("firebase-ready", async () => {
   // 暫存未送出的輸入
   const tempInputs = new Map();
 
+
+  // === 新版新增報修單：分類/位置/物品下拉 ===
+  const categorySel = document.getElementById("category");
+  const locationSel = document.getElementById("location");
+  const itemSel = document.getElementById("item");
+
+  // 從住民系統抓床號，建立每樓層床號清單（供「房間」使用）
+  const bedsByFloor = { "1F": [], "2F": [], "3F": [] };
+  let bedsLoaded = false;
+
+  function normalizeBedToken(v) {
+    const s = String(v || "").trim().replace(/_/g, "-");
+    // 接受 3 碼房號 + 子床號，例如 101-1
+    const m = s.match(/^(\d{3})-(\w+)$/);
+    return m ? `${m[1]}-${m[2]}` : null;
+  }
+
+  function uniqSortBeds(arr) {
+    const uniq = Array.from(new Set(arr.filter(Boolean)));
+    uniq.sort((a, b) => a.localeCompare(b, "zh-Hant", { numeric: true }));
+    return uniq;
+  }
+
+  async function loadBedsOnce() {
+    if (bedsLoaded) return;
+    try {
+      const snap = await db.collection("residents").get();
+      const f1 = [], f2 = [], f3 = [];
+      snap.forEach(doc => {
+        const data = doc.data() || {};
+        const bed = normalizeBedToken(data.bedNumber);
+        if (!bed) return;
+        if (bed.startsWith("1")) f1.push(bed);
+        else if (bed.startsWith("2")) f2.push(bed);
+        else if (bed.startsWith("3")) f3.push(bed);
+      });
+      bedsByFloor["1F"] = uniqSortBeds(f1);
+      bedsByFloor["2F"] = uniqSortBeds(f2);
+      bedsByFloor["3F"] = uniqSortBeds(f3);
+      bedsLoaded = true;
+    } catch (e) {
+      console.warn("loadBedsOnce failed:", e);
+      bedsLoaded = true; // 避免一直重試卡住
+    }
+  }
+
+  function setSelectOptions(sel, options, placeholder) {
+    if (!sel) return;
+    sel.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.disabled = true;
+    ph.selected = true;
+    ph.textContent = placeholder || "請選擇";
+    sel.appendChild(ph);
+
+    options.forEach(opt => {
+      const o = document.createElement("option");
+      o.value = opt.value ?? opt;
+      o.textContent = opt.label ?? opt;
+      sel.appendChild(o);
+    });
+
+    sel.disabled = options.length === 0;
+  }
+
+  function buildItemOptions(category, location) {
+    // 其他：位置只能其他，物品固定
+    if (category === "其他") {
+      return [
+        { value: "洗澡床", label: "洗澡床" },
+        { value: "洗澡椅", label: "洗澡椅" },
+        { value: "輪椅", label: "輪椅" }
+      ];
+    }
+
+    // 1F/2F/3F
+    if (location === "護理站") {
+      return [{ value: "飲水機", label: "飲水機" }];
+    }
+
+    if (location === "房間") {
+      const beds = bedsByFloor[category] || [];
+      // 每床：床 + 叫人鈴
+      const opts = [];
+      beds.forEach(b => {
+        opts.push({ value: `${b}床`, label: `${b}床` });
+        opts.push({ value: `${b}叫人鈴`, label: `${b}叫人鈴` });
+      });
+      return opts;
+    }
+
+    return [];
+  }
+
+  function onCategoryChange() {
+    const cat = categorySel?.value || "";
+
+    if (!cat) {
+      setSelectOptions(locationSel, [], "請先選擇分類");
+      setSelectOptions(itemSel, [], "請先選擇位置");
+      return;
+    }
+
+    if (cat === "其他") {
+      setSelectOptions(locationSel, [{ value: "其他", label: "其他" }], "請選擇位置");
+      setSelectOptions(itemSel, buildItemOptions(cat, "其他"), "請選擇報修物品");
+      return;
+    }
+
+    // 1F/2F/3F
+    setSelectOptions(locationSel, [
+      { value: "護理站", label: "護理站" },
+      { value: "房間", label: "房間" }
+    ], "請選擇位置");
+    setSelectOptions(itemSel, [], "請先選擇位置");
+  }
+
+  async function onLocationChange() {
+    const cat = categorySel?.value || "";
+    const loc = locationSel?.value || "";
+
+    if (!cat || !loc) {
+      setSelectOptions(itemSel, [], "請先選擇位置");
+      return;
+    }
+
+    if (loc === "房間") {
+      await loadBedsOnce();
+    }
+
+    setSelectOptions(itemSel, buildItemOptions(cat, loc), "請選擇報修物品");
+  }
+
+  categorySel?.addEventListener("change", onCategoryChange);
+  locationSel?.addEventListener("change", onLocationChange);
+
+
   // 本機識別（用於限制「只可刪除自己新增」）
   function getClientId() {
     const KEY = "nm_client_id";
@@ -78,7 +216,7 @@ document.addEventListener("firebase-ready", async () => {
     tbody.innerHTML = "";
 
     if (allRequests.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">目前沒有報修單</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有報修單</td></tr>`;
       return;
     }
 
@@ -111,12 +249,15 @@ document.addEventListener("firebase-ready", async () => {
       tr.dataset.id = reqId;
 
       tr.innerHTML = `
+        <td>${req.category || ""}</td>
+        <td>${req.location || ""}</td>
         <td>${req.item || ""}</td>
         <td>${req.detail || ""}</td>
         <td>${req.reporter || ""}</td>
         <td><span class="badge" style="background:${color}">${req.status || "—"}</span></td>
         <td>${fmt(req.createdAt)}</td>
         <td style="min-width:260px;">
+
           <strong>註解：</strong>
           <div class="mb-2">${commentsHtml}</div>
 
@@ -188,25 +329,39 @@ document.addEventListener("firebase-ready", async () => {
   });
 
   // 原本新增報修單功能保持不變
-  addRequestBtn.onclick = () => {
-    document.getElementById("item").value = "";
+  addRequestBtn.onclick = async () => {
+    // 重置欄位
     document.getElementById("detail").value = "";
     document.getElementById("reporter").value = "";
+
+    if (categorySel) categorySel.value = "";
+    setSelectOptions(locationSel, [], "請先選擇分類");
+    setSelectOptions(itemSel, [], "請先選擇位置");
+
     addModal.show();
   };
 
   saveRequestBtn.onclick = async () => {
-    const item = document.getElementById("item").value.trim();
+    const category = (categorySel?.value || "").trim();
+    const location = (locationSel?.value || "").trim();
+    const item = (itemSel?.value || "").trim();
     const detail = document.getElementById("detail").value.trim();
     const reporter = document.getElementById("reporter").value.trim();
-    if (!item || !detail || !reporter) return alert("請輸入完整資料");
+
+    if (!category || !location || !item || !reporter) {
+      return alert("請選擇分類/位置/報修物品，並輸入報修人");
+    }
 
     await colReq.add({
-      item, detail, reporter,
+      category,
+      location,
+      item,
+      detail,
+      reporter,
       status: "待處理",
       note: "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      // 舊欄位保留以免既有流程依賴，但不再使用 arrayUnion
+      // 舊欄位保留（舊資料可能仍有），此系統目前以 subcollection comments 為主
       comments: []
     });
 
