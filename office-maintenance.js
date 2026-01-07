@@ -1049,6 +1049,52 @@
           return;
         }
 
+        // 重複申請偵測：比對「分類 + 位置 + 報修物品」，若已有未完成/未紀錄的相同申請，提醒確認
+        try {
+          var dupSnap = await colReq
+            .where("category", "==", category)
+            .where("location", "==", location)
+            .where("item", "==", item)
+            .orderBy("createdAt", "desc")
+            .limit(10)
+            .get();
+
+          var isClosedStatus = function (s) {
+            var v = String(s || "").trim();
+            return v === "已完成" || v === "紀錄";
+          };
+
+          var dupDoc = null;
+          dupSnap.forEach(function (d) {
+            if (dupDoc) return;
+            var data = d.data() || {};
+            if (!isClosedStatus(data.status)) dupDoc = data;
+          });
+
+          if (dupDoc) {
+            var dayText = "某天";
+            try {
+              if (dupDoc.createdAt && dupDoc.createdAt.toDate) {
+                var dt = dupDoc.createdAt.toDate();
+                var y = dt.getFullYear();
+                var m = String(dt.getMonth() + 1).padStart(2, "0");
+                var dd = String(dt.getDate()).padStart(2, "0");
+                dayText = y + "-" + m + "-" + dd;
+              }
+            } catch (_) {}
+            var ok = confirm(
+              "偵測到 " +
+                dayText +
+                " 有一筆相同的報修資料（且狀態未結案），請確認是否重複申請。\n\n按「確定」仍要送出；按「取消」返回檢查。"
+            );
+            if (!ok) return;
+          }
+        } catch (err) {
+          console.warn("duplicate check failed:", err);
+          // 不中斷送出流程
+        }
+
+
         await colReq.add({
           category: category,
           location: location,
