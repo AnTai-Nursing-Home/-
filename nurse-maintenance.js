@@ -13,6 +13,49 @@ document.addEventListener("firebase-ready", async () => {
   // 暫存未送出的輸入
   const tempInputs = new Map();
 
+  // 取得登入者資訊（依你系統常用的 localStorage 內容自動判斷）
+  function getLoggedUser() {
+    // 1) 其他頁面若有掛全域
+    if (window.loginUser && typeof window.loginUser === "object") return window.loginUser;
+    if (window.currentUser && typeof window.currentUser === "object") return window.currentUser;
+
+    // 2) 嘗試從 localStorage 讀取常見 key（JSON）
+    const jsonKeys = ["loginUser", "currentUser", "loggedInUser", "nurseUser", "user", "userInfo", "authUser"];
+    for (const k of jsonKeys) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object") return obj;
+      } catch {}
+    }
+
+    // 3) 嘗試從 localStorage 讀取分散欄位
+    const empId = localStorage.getItem("employeeId") || localStorage.getItem("empId") || localStorage.getItem("staffId") || "";
+    const name = localStorage.getItem("employeeName") || localStorage.getItem("name") || localStorage.getItem("staffName") || "";
+    if (empId || name) return { empId, employeeId: empId, id: empId, name };
+
+    return {};
+  }
+
+  const loggedUser = getLoggedUser();
+  const loggedEmpId = (loggedUser.empId || loggedUser.employeeId || loggedUser.id || "").toString().trim();
+  const loggedName = (loggedUser.name || loggedUser.employeeName || loggedUser.displayName || loggedUser.username || "").toString().trim();
+
+  function getLoggedUserLabel() {
+    if (loggedEmpId && loggedName) return `${loggedEmpId} ${loggedName}`;
+    if (loggedName) return loggedName;
+    if (loggedEmpId) return loggedEmpId;
+    return "未登入";
+  }
+
+  // 右上角顯示登入者
+  const loginUserInfoEl = document.getElementById("loginUserInfo");
+  if (loginUserInfoEl) {
+    loginUserInfoEl.textContent = `登入者：${getLoggedUserLabel()}`;
+  }
+
+
 
   // === 新版新增報修單：分類/位置/物品下拉 ===
   const categorySel = document.getElementById("category");
@@ -241,8 +284,6 @@ document.addEventListener("firebase-ready", async () => {
           </div>
         `;
       }).join("") || `<span class="text-muted">—</span>`;
-
-      const savedAuthor = tempInputs.get(reqId+"-author") || "";
       const savedMsg = tempInputs.get(reqId+"-msg") || "";
 
       const tr = document.createElement("tr");
@@ -260,9 +301,7 @@ document.addEventListener("firebase-ready", async () => {
 
           <strong>註解：</strong>
           <div class="mb-2">${commentsHtml}</div>
-
-          <input type="text" class="form-control form-control-sm comment-author mb-1"
-            placeholder="留言者名稱" value="${savedAuthor}">
+          <div class="small text-muted mb-1">留言者：${getLoggedUserLabel()}</div>
           <textarea class="form-control form-control-sm comment-input mb-1"
             placeholder="輸入註解...">${savedMsg}</textarea>
           <button class="btn btn-sm btn-secondary btn-add-comment">新增註解</button>
@@ -272,13 +311,10 @@ document.addEventListener("firebase-ready", async () => {
     });
 
     // 保留未送出內容
-    document.querySelectorAll(".comment-author, .comment-input").forEach(input => {
+    document.querySelectorAll(".comment-input").forEach(input => {
       input.addEventListener("input", e => {
         const id = e.target.closest("tr").dataset.id;
-        tempInputs.set(
-          id + (e.target.classList.contains("comment-author") ? "-author" : "-msg"),
-          e.target.value
-        );
+        tempInputs.set(id + "-msg", e.target.value);
       });
     });
   }
@@ -290,19 +326,19 @@ document.addEventListener("firebase-ready", async () => {
     const row = e.target.closest("tr");
     const id = row.dataset.id;
 
-    const authorInput = row.querySelector(".comment-author");
     const msgInput = row.querySelector(".comment-input");
-    const author = authorInput.value.trim();
     const message = msgInput.value.trim();
 
-    if (!author) return alert("請輸入留言者名稱！");
     if (!message) return alert("請輸入註解內容！");
 
-    tempInputs.delete(id+"-author");
+    const author = getLoggedUserLabel();
+
     tempInputs.delete(id+"-msg");
 
     await colReq.doc(id).collection("comments").add({
       author,
+      authorEmpId: loggedEmpId || null,
+      authorName: loggedName || null,
       message,
       role: "nurse",
       clientId, // 用於限制刪除權限
@@ -332,7 +368,7 @@ document.addEventListener("firebase-ready", async () => {
   addRequestBtn.onclick = async () => {
     // 重置欄位
     document.getElementById("detail").value = "";
-    document.getElementById("reporter").value = "";
+    document.getElementById("reporter").value = getLoggedUserLabel();
 
     if (categorySel) categorySel.value = "";
     setSelectOptions(locationSel, [], "請先選擇分類");
@@ -346,7 +382,8 @@ document.addEventListener("firebase-ready", async () => {
     const location = (locationSel?.value || "").trim();
     const item = (itemSel?.value || "").trim();
     const detail = document.getElementById("detail").value.trim();
-    const reporter = document.getElementById("reporter").value.trim();
+    const reporter = getLoggedUserLabel();
+    document.getElementById("reporter").value = reporter;
 
     if (!category || !location || !item || !reporter) {
       return alert("請選擇分類/位置/報修物品，並輸入報修人");
