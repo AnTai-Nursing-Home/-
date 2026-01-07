@@ -23,6 +23,27 @@ window.COL_SWAP  = "nurse_shift_requests";
 
   // ===== 登入者顯示（右上角）=====
   function getLoggedInUserName() {
+    // ✅ 優先抓辦公室登入（office.html / office.js）使用的 sessionStorage: officeAuth
+    // officeAuth 內容形如：{ staffId, displayName, username, canOffice, ... }
+    try {
+      const raw = sessionStorage.getItem('officeAuth');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
+        if (n && n.trim()) return n.trim();
+      }
+    } catch (e) {}
+
+    // ✅ 其次抓護理端登入（如果此頁也會從護理端入口開）
+    try {
+      const raw = sessionStorage.getItem('nurseAuth');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
+        if (n && n.trim()) return n.trim();
+      }
+    } catch (e) {}
+
     // 盡量兼容你其他系統可能用的命名（不確定就多抓幾個）
     const candidates = [
       window.CURRENT_USER_NAME,
@@ -84,7 +105,6 @@ window.COL_SWAP  = "nurse_shift_requests";
     if (leaveSel) leaveSel.innerHTML = opts;
     if (swapSel)  swapSel.innerHTML  = opts;
   }
-
   // ========= Utilities =========
   function ymd(dLike) {
     if (!dLike) return "";
@@ -195,14 +215,14 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><input class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}" readonly></td>
+          <td class="supervisor-sign-cell" data-id="${doc.id}">${d.supervisorSign || ""}</td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-leave" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     });
     leaveBody.innerHTML = rows || `<tr><td colspan="11" class="text-center text-muted">沒有符合的資料</td></tr>`;
-    initSupervisorDropdowns();
+
   }
 
   async function loadSwapRequests() {
@@ -234,14 +254,14 @@ window.COL_SWAP  = "nurse_shift_requests";
               ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
             </select>
           </td>
-          <td><input class="form-control form-control-sm supervisor-sign" data-id="${doc.id}" value="${d.supervisorSign || ""}" readonly></td>
+          <td class="supervisor-sign-cell" data-id="${doc.id}">${d.supervisorSign || ""}</td>
           <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
           <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-swap" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
 <button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     });
     swapBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
-    initSupervisorDropdowns();
+
   }
 
   // ========= Create Leave/Swap (with mixed duration support if fields exist) =========
@@ -435,18 +455,25 @@ window.COL_SWAP  = "nurse_shift_requests";
       }
     });
 
-    document.addEventListener("change", async (e) => {
-`, 100, async () => {
-          await updateRequestFieldSmart(id, { supervisorSign: value });
-        });
-      }
-      if (e.target.classList.contains("status-select")) {
+    document.addEventListener("change", async (e) => {      if (e.target.classList.contains("status-select")) {
         const id = e.target.dataset.id;
         const value = e.target.value;
         const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
         e.target.style.background = color;
         e.target.style.color = "#fff";
-        await updateRequestFieldSmart(id, { status: value });
+
+        // ✅ 狀態變更後，自動帶入主管簽名＝登入者姓名（若有登入者）
+        const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
+        const patch = { status: value };
+        if (loginName) patch.supervisorSign = loginName;
+
+        await updateRequestFieldSmart(id, patch);
+
+        // ✅ 同步更新畫面上的主管簽名欄位（無下拉選單，直接顯示文字）
+        if (loginName) {
+          const cell = document.querySelector(`.supervisor-sign-cell[data-id="${id}"]`);
+          if (cell) cell.textContent = loginName;
+        }
       }
     });
   }
@@ -626,23 +653,23 @@ $("#printLeaveTable")?.addEventListener("click", () => {
       });
       const content = clone.outerHTML;
       const w = window.open("", "_blank");
-      w.document.write(`
-        <html><head><title>請假紀錄</title>
-        <style>
-          @page { size: A4 landscape; margin: 15mm; }
-          body { font-family:"Microsoft JhengHei"; font-size:13px; }
-          table { border-collapse:collapse; width:100%; }
-          th,td { border:1px solid #000; padding:6px; text-align:center; }
-          h2,h4,p { text-align:center; margin:0; }
-        </style></head>
-        <body>
-          <h2>安泰護理之家</h2>
-          <h4>請假紀錄表</h4>
-          <p>列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
-          ${content}
-        </body></html>
-      `);
-      w.document.close();
+      w.document.write([
+  '<html><head><title>請假紀錄</title>',
+  '<style>',
+  '@page { size: A4 landscape; margin: 15mm; }',
+  'body { font-family:"Microsoft JhengHei"; font-size:13px; }',
+  'table { border-collapse:collapse; width:100%; }',
+  'th,td { border:1px solid #000; padding:6px; text-align:center; }',
+  'h2,h4,p { text-align:center; margin:0; }',
+  '</style></head>',
+  '<body>',
+  '<h2>安泰護理之家</h2>',
+  '<h4>請假紀錄表</h4>',
+  '<p>列印日期：' + new Date().toLocaleDateString('zh-TW') + '</p>',
+  content,
+  '</body></html>'
+].join(''));
+w.document.close();
       w.print();
     });
 
@@ -655,23 +682,23 @@ $("#printLeaveTable")?.addEventListener("click", () => {
       });
       const content = clone.outerHTML;
       const w = window.open("", "_blank");
-      w.document.write(`
-        <html><head><title>調班紀錄</title>
-        <style>
-          @page { size: A4 landscape; margin: 15mm; }
-          body { font-family:"Microsoft JhengHei"; font-size:13px; }
-          table { border-collapse:collapse; width:100%; }
-          th,td { border:1px solid #000; padding:6px; text-align:center; }
-          h2,h4,p { text-align:center; margin:0; }
-        </style></head>
-        <body>
-          <h2>安泰護理之家</h2>
-          <h4>調班紀錄表</h4>
-          <p>列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
-          ${content}
-        </body></html>
-      `);
-      w.document.close();
+      w.document.write([
+  '<html><head><title>調班紀錄</title>',
+  '<style>',
+  '@page { size: A4 landscape; margin: 15mm; }',
+  'body { font-family:"Microsoft JhengHei"; font-size:13px; }',
+  'table { border-collapse:collapse; width:100%; }',
+  'th,td { border:1px solid #000; padding:6px; text-align:center; }',
+  'h2,h4,p { text-align:center; margin:0; }',
+  '</style></head>',
+  '<body>',
+  '<h2>安泰護理之家</h2>',
+  '<h4>調班紀錄表</h4>',
+  '<p>列印日期：' + new Date().toLocaleDateString('zh-TW') + '</p>',
+  content,
+  '</body></html>'
+].join(''));
+w.document.close();
       w.print();
     });
   }
