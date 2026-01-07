@@ -324,8 +324,15 @@ const translations = {
         'care_form_saved': '照護單已成功儲存！',
         'confirm_delete_care_form': '您確定要永久刪除此張照護單嗎？\n此操作無法復原！',
         'care_form_deleted': '照護單已成功刪除！',
-        'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
         
+'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
+
+// --- 未儲存變更提示 ---
+'unsaved_changes_title': '偵測到未儲存變更',
+'unsaved_changes_message': '系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？',
+'unsaved_save': '儲存',
+'unsaved_discard': '不儲存',
+'unsaved_cancel': '取消',
         // --- 辦公室系統 ---
         'office_system': '辦公室系統', 'enter_office_password': '請輸入辦公室密碼',
         'auto_temp_system': '自動化體溫紀錄系統', 'auto_clockin_system': '自動化打卡紀錄系統',
@@ -485,8 +492,15 @@ const translations = {
         'back_to_list': 'Back to List', 'load_care_form_failed': 'Failed to load care form, please try again later.',
         'fill_form_first': 'Please select a resident and fill in the placement date first!', 'care_form_saved': 'Care form has been saved successfully!',
         'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\nThis action cannot be undone!',
-        'care_form_deleted': 'Care form has been deleted successfully!', 'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
         
+'care_form_deleted': 'Care form has been deleted successfully!', 'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
+
+// --- Unsaved changes prompt ---
+'unsaved_changes_title': 'Unsaved Changes Detected',
+'unsaved_changes_message': 'We detected changes you made but haven\'t saved yet. Do you want to save your changes?',
+'unsaved_save': 'Save',
+'unsaved_discard': 'Don\'t Save',
+'unsaved_cancel': 'Cancel',
         // --- Office System ---
         'office_system': 'Office System', 'enter_office_password': 'Please enter office password',
         'auto_temp_system': 'Automated Temperature Log System', 'auto_clockin_system': 'Automated Clock-in/out System',
