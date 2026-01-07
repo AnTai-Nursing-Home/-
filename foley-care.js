@@ -134,27 +134,29 @@ function markDirty() {
 
 function ensureUnsavedModal() {
     if (unsavedModal) return;
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-    <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">偵測到未儲存變更</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">取消</button>
-            <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">不儲存</button>
-            <button type="button" class="btn btn-primary" id="unsaved-save-btn">儲存</button>
-          </div>
-        </div>
+    
+const wrapper = document.createElement('div');
+const _t = (key, fallback) => (typeof getText === 'function' ? getText(key) : fallback);
+wrapper.innerHTML = `
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">${_t('unsaved_changes_title','偵測到未儲存變更')}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-    </div>`;
-    document.body.appendChild(wrapper.firstElementChild);
+      <div class="modal-body">
+        ${_t('unsaved_changes_message','系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？')}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">${_t('unsaved_cancel','取消')}</button>
+        <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">${_t('unsaved_discard','不儲存')}</button>
+        <button type="button" class="btn btn-primary" id="unsaved-save-btn">${_t('unsaved_save','儲存')}</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+        document.body.appendChild(wrapper.firstElementChild);
 
     const modalEl = document.getElementById('unsavedChangesModal');
     if (modalEl && window.bootstrap) {
