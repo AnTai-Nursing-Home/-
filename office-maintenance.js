@@ -1048,51 +1048,47 @@
           alert("請輸入完整資料（分類/位置/報修物品/詳細資訊/報修人）");
           return;
         }
+    // 重複申請偵測：比對「分類 + 位置 + 報修物品」
+    // 只要找到相同三項且狀態不是「已完成/紀錄」，就提示並阻擋送出。
+    // ※不使用 orderBy，避免 Firestore 需要額外複合索引導致查詢直接失效
+    try {
+      const dupSnap = await colReq
+        .where("category", "==", category)
+        .where("location", "==", location)
+        .where("item", "==", item)
+        .limit(20)
+        .get();
 
-        // 重複申請偵測：比對「分類 + 位置 + 報修物品」，若已有未完成/未紀錄的相同申請，提醒確認
+      const isClosedStatus = (s) => {
+        const v = String(s || "").trim();
+        return v === "已完成" || v === "紀錄";
+      };
+
+      let dupDoc = null;
+      dupSnap.forEach((d) => {
+        if (dupDoc) return;
+        const data = d.data() || {};
+        if (!isClosedStatus(data.status)) dupDoc = { id: d.id, ...data };
+      });
+
+      if (dupDoc) {
+        let dayText = "某天";
         try {
-          var dupSnap = await colReq
-            .where("category", "==", category)
-            .where("location", "==", location)
-            .where("item", "==", item)
-            .orderBy("createdAt", "desc")
-            .limit(10)
-            .get();
-
-          var isClosedStatus = function (s) {
-            var v = String(s || "").trim();
-            return v === "已完成" || v === "紀錄";
-          };
-
-          var dupDoc = null;
-          dupSnap.forEach(function (d) {
-            if (dupDoc) return;
-            var data = d.data() || {};
-            if (!isClosedStatus(data.status)) dupDoc = data;
-          });
-
-          if (dupDoc) {
-            var dayText = "某天";
-            try {
-              if (dupDoc.createdAt && dupDoc.createdAt.toDate) {
-                var dt = dupDoc.createdAt.toDate();
-                var y = dt.getFullYear();
-                var m = String(dt.getMonth() + 1).padStart(2, "0");
-                var dd = String(dt.getDate()).padStart(2, "0");
-                dayText = y + "-" + m + "-" + dd;
-              }
-            } catch (_) {}
-            var ok = confirm(
-              "偵測到 " +
-                dayText +
-                " 有一筆相同的報修資料（且狀態未結案），請確認是否重複申請。\n\n按「確定」仍要送出；按「取消」返回檢查。"
-            );
-            if (!ok) return;
+          if (dupDoc.createdAt && dupDoc.createdAt.toDate) {
+            const dt = dupDoc.createdAt.toDate();
+            const y = dt.getFullYear();
+            const mm = String(dt.getMonth() + 1).padStart(2, "0");
+            const dd = String(dt.getDate()).padStart(2, "0");
+            dayText = `${y}-${mm}-${dd}`;
           }
-        } catch (err) {
-          console.warn("duplicate check failed:", err);
-          // 不中斷送出流程
-        }
+        } catch (_) {}
+
+        alert(`偵測到${dayText}有一筆相同的報修資料（分類/位置/報修物品相同），且狀態尚未「已完成/紀錄」。\n\n為避免重複申請，本次送出已被系統阻擋，請先確認或改在原單補充註解。`);
+        return; // 阻擋送出
+      }
+    } catch (err) {
+      console.warn("duplicate check failed:", err);
+    }
 
 
         await colReq.add({
