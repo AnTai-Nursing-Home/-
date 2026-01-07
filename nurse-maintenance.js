@@ -13,69 +13,94 @@ document.addEventListener("firebase-ready", async () => {
   // 暫存未送出的輸入
   const tempInputs = new Map();
 
-  // ===== 登入者（同 office / office-request 的 sessionStorage 規則） =====
-  function readAuthFromSession(key) {
-    try {
-      const raw = sessionStorage.getItem(key);
-      if (!raw) return null;
-      const u = JSON.parse(raw);
-      return (u && typeof u === 'object') ? u : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
+  // 取得登入者資訊（依你系統常用的 localStorage 內容自動判斷）
   function getLoggedUser() {
-    // ✅ 先依序嘗試 sessionStorage 常用登入 key
-    const sessionKeys = ['nurseAuth','officeAuth','adminAuth','auth','userAuth','loginAuth'];
+    // 0) 其他頁面若有掛全域
+    if (window.loginUser && typeof window.loginUser === "object") return window.loginUser;
+    if (window.currentUser && typeof window.currentUser === "object") return window.currentUser;
+
+    // helper: 安全 JSON 解析
+    const safeParse = (raw) => {
+      try { return JSON.parse(raw); } catch (_) { return null; }
+    };
+
+    // 1) ✅ 先從 sessionStorage 讀（你們的登入頁多數使用 sessionStorage）
+    const sessionKeys = [
+      "nurseAuth",
+      "officeAuth",
+      "adminAuth",
+      "auth",
+      "userAuth",
+      "loginAuth"
+    ];
+
     for (const k of sessionKeys) {
-      const u = readAuthFromSession(k);
-      if (u) return u;
-    }
-
-    // 其他頁面若有掛全域
-    if (window.loginUser && typeof window.loginUser === 'object') return window.loginUser;
-    if (window.currentUser && typeof window.currentUser === 'object') return window.currentUser;
-
-    // 兼容：localStorage 可能有 JSON
-    const jsonKeys = ['loginUser','currentUser','loggedInUser','nurseUser','user','userInfo','authUser'];
-    for (const k of jsonKeys) {
-      const raw = localStorage.getItem(k);
-      if (!raw) continue;
       try {
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === 'object') return obj;
+        const raw = sessionStorage.getItem(k);
+        if (!raw) continue;
+        const u = safeParse(raw);
+        if (u && typeof u === "object") return u;
       } catch (_) {}
     }
 
-    // 兼容：分散欄位
-    const empId = localStorage.getItem('employeeId') || localStorage.getItem('empId') || localStorage.getItem('staffId') || '';
-    const name  = localStorage.getItem('employeeName') || localStorage.getItem('name') || localStorage.getItem('staffName') || '';
-    if (empId || name) return { empId, employeeId: empId, staffId: empId, name, displayName: name };
+    // 1b) ✅ 兼容你截圖看到的 antai_session* 這種命名：直接掃描 sessionStorage keys
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (!key) continue;
+        const lk = key.toLowerCase();
+        if (lk.startsWith("antai_session") || lk.startsWith("antai_sess") || lk.includes("antai_session")) {
+          const raw = sessionStorage.getItem(key);
+          if (!raw) continue;
+          const u = safeParse(raw);
+          if (u && typeof u === "object") return u;
+        }
+      }
+    } catch (_) {}
+
+    // 2) 再嘗試從 localStorage 讀取常見 key（JSON）
+    const jsonKeys = ["loginUser", "currentUser", "loggedInUser", "nurseUser", "user", "userInfo", "authUser"];
+    for (const k of jsonKeys) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const obj = safeParse(raw);
+      if (obj && typeof obj === "object") return obj;
+    }
+
+    // 3) 再嘗試直接從 localStorage 常見欄位 key 組合
+    const empId =
+      localStorage.getItem("empId") ||
+      localStorage.getItem("employeeId") ||
+      localStorage.getItem("staffId") ||
+      localStorage.getItem("username") ||
+      localStorage.getItem("employeeNo") ||
+      "";
+
+    const name =
+      localStorage.getItem("employeeName") ||
+      localStorage.getItem("displayName") ||
+      localStorage.getItem("name") ||
+      localStorage.getItem("staffName") ||
+      "";
+
+    if (empId || name) return { empId, employeeId: empId, id: empId, staffId: empId, name, displayName: name };
 
     return {};
   }
 
-  function getLoggedEmpId(u) {
-    return String(u?.staffId || u?.empId || u?.employeeId || u?.id || '').trim();
-  }
-  function getLoggedName(u) {
-    return String(u?.displayName || u?.name || u?.username || '').trim();
-  }
-
   const loggedUser = getLoggedUser();
-  const loggedEmpId = getLoggedEmpId(loggedUser);
-  const loggedName  = getLoggedName(loggedUser);
+  const loggedEmpId = (loggedUser.empId || loggedUser.employeeId || loggedUser.staffId || loggedUser.staffNo || loggedUser.empNo || loggedUser.id || "").toString().trim();
+  const loggedName = (loggedUser.name || loggedUser.employeeName || loggedUser.displayName || loggedUser.username || "").toString().trim();
 
   function getLoggedUserLabel() {
     if (loggedEmpId && loggedName) return `${loggedEmpId} ${loggedName}`;
     if (loggedName) return loggedName;
     if (loggedEmpId) return loggedEmpId;
-    return '未登入';
+    return "未登入";
   }
 
-  // 右上角顯示登入者（員編 + 姓名）
-  const loginUserInfoEl = document.getElementById('loginUserInfo');
+  // 右上角顯示登入者
+  const loginUserInfoEl = document.getElementById("loginUserInfo");
   if (loginUserInfoEl) {
     loginUserInfoEl.textContent = `登入者：${getLoggedUserLabel()}`;
   }
@@ -309,8 +334,6 @@ document.addEventListener("firebase-ready", async () => {
           </div>
         `;
       }).join("") || `<span class="text-muted">—</span>`;
-
-      const savedAuthor = tempInputs.get(reqId+"-author") || "";
       const savedMsg = tempInputs.get(reqId+"-msg") || "";
 
       const tr = document.createElement("tr");
@@ -328,8 +351,7 @@ document.addEventListener("firebase-ready", async () => {
 
           <strong>註解：</strong>
           <div class="mb-2">${commentsHtml}</div>
-
-          <div class="small text-muted mb-1">留言者：${(loggedName || getLoggedUserLabel())}</div>
+          <div class="small text-muted mb-1">留言者：${getLoggedUserLabel()}</div>
           <textarea class="form-control form-control-sm comment-input mb-1"
             placeholder="輸入註解...">${savedMsg}</textarea>
           <button class="btn btn-sm btn-secondary btn-add-comment">新增註解</button>
@@ -342,10 +364,7 @@ document.addEventListener("firebase-ready", async () => {
     document.querySelectorAll(".comment-input").forEach(input => {
       input.addEventListener("input", e => {
         const id = e.target.closest("tr").dataset.id;
-        tempInputs.set(
-          id + "-msg",
-          e.target.value
-        );
+        tempInputs.set(id + "-msg", e.target.value);
       });
     });
   }
@@ -358,15 +377,18 @@ document.addEventListener("firebase-ready", async () => {
     const id = row.dataset.id;
 
     const msgInput = row.querySelector(".comment-input");
-    const author = (loggedName || getLoggedUserLabel()).trim();
     const message = msgInput.value.trim();
 
     if (!message) return alert("請輸入註解內容！");
+
+    const author = getLoggedUserLabel();
 
     tempInputs.delete(id+"-msg");
 
     await colReq.doc(id).collection("comments").add({
       author,
+      authorEmpId: loggedEmpId || null,
+      authorName: loggedName || null,
       message,
       role: "nurse",
       clientId, // 用於限制刪除權限
@@ -396,8 +418,7 @@ document.addEventListener("firebase-ready", async () => {
   addRequestBtn.onclick = async () => {
     // 重置欄位
     document.getElementById("detail").value = "";
-    // 報修人：自動帶入登入者（姓名為主）
-    document.getElementById("reporter").value = (loggedName || getLoggedUserLabel());
+    document.getElementById("reporter").value = getLoggedUserLabel();
 
     if (categorySel) categorySel.value = "";
     setSelectOptions(locationSel, [], "請先選擇分類");
@@ -411,10 +432,11 @@ document.addEventListener("firebase-ready", async () => {
     const location = (locationSel?.value || "").trim();
     const item = (itemSel?.value || "").trim();
     const detail = document.getElementById("detail").value.trim();
-    const reporter = document.getElementById("reporter").value.trim();
+    const reporter = getLoggedUserLabel();
+    document.getElementById("reporter").value = reporter;
 
     if (!category || !location || !item || !reporter) {
-      return alert("請選擇分類 / 位置 / 報修物品");
+      return alert("請選擇分類/位置/報修物品，並輸入報修人");
     }
 
     await colReq.add({
