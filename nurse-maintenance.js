@@ -428,15 +428,15 @@ document.addEventListener("firebase-ready", async () => {
     if (!category || !location || !item || !reporter) {
       return alert("請選擇分類 / 位置 / 報修物品");
     }
-
-    // 重複申請偵測：比對「分類 + 位置 + 報修物品」，若已有未完成/未紀錄的相同申請，提醒確認
+    // 重複申請偵測：比對「分類 + 位置 + 報修物品」
+    // 只要找到相同三項且狀態不是「已完成/紀錄」，就提示並阻擋送出。
+    // ※不使用 orderBy，避免 Firestore 需要額外複合索引導致查詢直接失效
     try {
       const dupSnap = await colReq
         .where("category", "==", category)
         .where("location", "==", location)
         .where("item", "==", item)
-        .orderBy("createdAt", "desc")
-        .limit(10)
+        .limit(20)
         .get();
 
       const isClosedStatus = (s) => {
@@ -457,17 +457,17 @@ document.addEventListener("firebase-ready", async () => {
           if (dupDoc.createdAt && dupDoc.createdAt.toDate) {
             const dt = dupDoc.createdAt.toDate();
             const y = dt.getFullYear();
-            const m = String(dt.getMonth() + 1).padStart(2, "0");
+            const mm = String(dt.getMonth() + 1).padStart(2, "0");
             const dd = String(dt.getDate()).padStart(2, "0");
-            dayText = `${y}-${m}-${dd}`;
+            dayText = `${y}-${mm}-${dd}`;
           }
         } catch (_) {}
-        const ok = confirm(`偵測到 ${dayText} 有一筆相同的報修資料（且狀態未結案），請確認是否重複申請。\n\n按「確定」仍要送出；按「取消」返回檢查。`);
-        if (!ok) return;
+
+        alert(`偵測到${dayText}有一筆相同的報修資料（分類/位置/報修物品相同），且狀態尚未「已完成/紀錄」。\n\n為避免重複申請，本次送出已被系統阻擋，請先確認或改在原單補充註解。`);
+        return; // 阻擋送出
       }
     } catch (err) {
       console.warn("duplicate check failed:", err);
-      // 不中斷送出流程
     }
 
 
