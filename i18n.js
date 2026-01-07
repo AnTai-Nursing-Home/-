@@ -224,7 +224,11 @@ const translations = {
         'stay_comment_modal_title': '案件註解',
         'stay_comment_edit_label': '新增 / 編輯註解',
         'stay_save_comment_button': '儲存註解',
-
+        'stay_view_my': '我的',
+        'stay_view_all': '全部',
+        'stay_all_records_title': '所有人的外宿申請（僅摘要）',
+        'stay_table_apply_date': '申請日期',
+        
         // 動態訊息
         'stay_submit_success': '外宿申請已送出',
         'stay_submit_failed': '申請失敗，請稍後再試',
@@ -425,6 +429,10 @@ const translations = {
         'stay_comment_modal_title': 'Case Comments',
         'stay_comment_edit_label': 'Add / Edit Comment',
         'stay_save_comment_button': 'Save Comment',
+        'stay_view_my': 'My',
+        'stay_view_all': 'All',
+        'stay_all_records_title': 'All Stay Applications (Summary Only)',
+        'stay_table_apply_date': 'Application Date',
 
         // Dynamic messages
         'stay_submit_success': 'Stay application submitted.',
