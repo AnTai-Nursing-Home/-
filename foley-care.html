@@ -24,6 +24,18 @@
                 print-color-adjust: exact;
             }
         }
+    
+        /* ✅ 修正：手機版簽名欄被擠到看不到（不改欄位順序） */
+        .care-table {
+            min-width: 1200px; /* 讓表格保持合理總寬度，改由橫向滑動呈現 */
+        }
+        .care-table th:last-child,
+        .care-table td:last-child {
+            min-width: 160px;  /* 簽名欄至少要看得到 */
+            width: 160px;
+            white-space: nowrap;
+        }
+
     </style>
 </head>
 <body>
