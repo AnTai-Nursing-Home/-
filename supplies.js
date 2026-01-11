@@ -72,26 +72,57 @@ document.addEventListener('firebase-ready', () => {
     const collectionName = 'supplies_inventory';
 
 function getLoginDisplayName() {
-    // 與辦公室/護理師系統一致：優先讀 sessionStorage.officeAuth / nurseAuth
-    try {
-        const officeAuthRaw = sessionStorage.getItem('officeAuth');
-        if (officeAuthRaw) {
-            const a = JSON.parse(officeAuthRaw);
-            if (a && a.displayName) return String(a.displayName).trim();
+    // 1) sessionStorage / localStorage：officeAuth / nurseAuth / caregiverAuth（JSON）
+    const authKeys = ['officeAuth', 'nurseAuth', 'caregiverAuth'];
+    // 你系統的登入資訊 key（全系統共用）
+    const antaiKey = 'antai_session_user';
+
+    for (const store of [sessionStorage, localStorage]) {
+// 先讀 antai_session_user（最常用）
+try {
+    const rawAntai = store.getItem(antaiKey);
+    if (rawAntai) {
+        const a = JSON.parse(rawAntai);
+        if (a && a.displayName) return String(a.displayName).trim();
+        if (a && a.name) return String(a.name).trim();
+        if (a && a.staffName) return String(a.staffName).trim();
+    }
+} catch (e) {}
+
+        for (const k of authKeys) {
+            try {
+                const raw = store.getItem(k);
+                if (!raw) continue;
+                const a = JSON.parse(raw);
+                if (a && a.displayName) return String(a.displayName).trim();
+                if (a && a.name) return String(a.name).trim();
+                if (a && a.staffName) return String(a.staffName).trim();
+            } catch (e) {}
         }
-    } catch (e) {}
-    try {
-        const nurseAuthRaw = sessionStorage.getItem('nurseAuth');
-        if (nurseAuthRaw) {
-            const a = JSON.parse(nurseAuthRaw);
-            if (a && a.displayName) return String(a.displayName).trim();
-        }
-    } catch (e) {}
-    const keys = ['loginName','userName','displayName','currentUserName','staffName'];
+    }
+
+    // 2) 常見單值 key
+    const keys = [
+        'loginName','userName','displayName','currentUserName','staffName',
+        'officeName','nurseName','caregiverName'
+    ];
     for (const k of keys) {
         const v = sessionStorage.getItem(k) || localStorage.getItem(k);
         if (v) return String(v).trim();
     }
+
+    // 3) Firebase Auth 保底（若有）
+    try {
+        if (window.firebase && window.firebase.auth) {
+            const u = window.firebase.auth().currentUser;
+            if (u) return (u.displayName || u.email || '').trim();
+        }
+    } catch (e) {}
+    try {
+        const u = window.__auth?.currentUser;
+        if (u) return (u.displayName || u.email || '').trim();
+    } catch (e) {}
+
     return '';
 }
 
