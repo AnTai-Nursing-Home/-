@@ -2,8 +2,6 @@ document.addEventListener('firebase-ready', () => {
     const inventoryTableBody = document.getElementById('inventory-table-body');
     if (!inventoryTableBody) return;
 
-    const loginName = renderLoginUser();
-
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral && document.referrer.includes('admin.html')) {
         backButtonGeneral.href = 'admin.html?view=dashboard';
@@ -71,67 +69,109 @@ document.addEventListener('firebase-ready', () => {
     const generateReportBtn = document.getElementById('generate-report-btn');
     const collectionName = 'supplies_inventory';
 
-function getLoginDisplayName() {
-    // 1) sessionStorage / localStorage：officeAuth / nurseAuth / caregiverAuth（JSON）
-    const authKeys = ['officeAuth', 'nurseAuth', 'caregiverAuth'];
-    // 你系統的登入資訊 key（全系統共用）
-    const antaiKey = 'antai_session_user';
+    const loginName = renderLoginUser();
 
-    for (const store of [sessionStorage, localStorage]) {
-// 先讀 antai_session_user（最常用）
-try {
-    const rawAntai = store.getItem(antaiKey);
-    if (rawAntai) {
-        const a = JSON.parse(rawAntai);
-        if (a && a.displayName) return String(a.displayName).trim();
-        if (a && a.name) return String(a.name).trim();
-        if (a && a.staffName) return String(a.staffName).trim();
-    }
-} catch (e) {}
-
-        for (const k of authKeys) {
+    function getLoginDisplayName() {
+        // 系統共用登入資訊
+        for (const store of [sessionStorage, localStorage]) {
+            // antai_session_user（你目前用到的）
             try {
-                const raw = store.getItem(k);
-                if (!raw) continue;
-                const a = JSON.parse(raw);
-                if (a && a.displayName) return String(a.displayName).trim();
-                if (a && a.name) return String(a.name).trim();
-                if (a && a.staffName) return String(a.staffName).trim();
+                const raw = store.getItem('antai_session_user');
+                if (raw) {
+                    const a = JSON.parse(raw);
+                    if (a && a.displayName) return String(a.displayName).trim();
+                    if (a && a.name) return String(a.name).trim();
+                    if (a && a.staffName) return String(a.staffName).trim();
+                }
             } catch (e) {}
+
+            // 其他可能的 auth JSON
+            for (const k of ['officeAuth','nurseAuth','caregiverAuth']) {
+                try {
+                    const raw = store.getItem(k);
+                    if (!raw) continue;
+                    const a = JSON.parse(raw);
+                    if (a && a.displayName) return String(a.displayName).trim();
+                    if (a && a.name) return String(a.name).trim();
+                    if (a && a.staffName) return String(a.staffName).trim();
+                } catch (e) {}
+            }
         }
+
+        // 常見單值 key
+        for (const k of ['loginName','userName','displayName','currentUserName','staffName','caregiverName','nurseName','officeName']) {
+            const v = sessionStorage.getItem(k) || localStorage.getItem(k);
+            if (v) return String(v).trim();
+        }
+
+        // Firebase Auth 保底（若有）
+        try {
+            if (window.firebase && window.firebase.auth) {
+                const u = window.firebase.auth().currentUser;
+                if (u) return (u.displayName || u.email || '').trim();
+            }
+        } catch (e) {}
+        return '';
     }
 
-    // 2) 常見單值 key
-    const keys = [
-        'loginName','userName','displayName','currentUserName','staffName',
-        'officeName','nurseName','caregiverName'
-    ];
-    for (const k of keys) {
-        const v = sessionStorage.getItem(k) || localStorage.getItem(k);
-        if (v) return String(v).trim();
+    function renderLoginUser() {
+        const name = getLoginDisplayName();
+        const el = document.getElementById('loginUserNameSupplies');
+        if (el) el.textContent = name ? `登入者：${name}` : '登入者：未登入';
+        return name;
     }
 
-    // 3) Firebase Auth 保底（若有）
-    try {
-        if (window.firebase && window.firebase.auth) {
-            const u = window.firebase.auth().currentUser;
-            if (u) return (u.displayName || u.email || '').trim();
-        }
-    } catch (e) {}
-    try {
-        const u = window.__auth?.currentUser;
-        if (u) return (u.displayName || u.email || '').trim();
-    } catch (e) {}
+    function escapeHtml(str) {
+        return String(str || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
 
-    return '';
-}
+    // 本日列印：用目前畫面表格輸出（與你這版 UI 相容）
+    function generateExportHTML() {
+        const dateVal = document.getElementById('inventory-date')?.value || '';
+        const nurseVal = document.getElementById('inventory-nurse')?.value || '';
+        const restockerVal = document.getElementById('inventory-restocker')?.value || '';
 
-function renderLoginUser() {
-    const name = getLoginDisplayName();
-    const el = document.getElementById('loginUserNameSupplies');
-    if (el) el.textContent = name ? `登入者：${name}` : '登入者：未登入';
-    return name;
-}
+        const printable = document.getElementById('printable-area');
+        const table = printable?.querySelector('table');
+        const tableHTML = table ? table.outerHTML : '<div>(no table)</div>';
+
+        return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>衛材盤點表</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    body { font-family: "Microsoft JhengHei", Arial, sans-serif; font-size: 12px; }
+    h1 { font-size: 18px; margin: 0 0 6px 0; text-align:center; }
+    h2 { font-size: 14px; margin: 0 0 10px 0; text-align:center; }
+    .meta { margin: 10px 0 12px 0; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+    .meta div { border: 1px solid #ddd; padding: 6px 10px; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #000; padding: 6px; vertical-align: middle; }
+    thead th { background: #f3f3f3; }
+    select, input { border: none !important; outline: none !important; background: transparent !important; appearance: none; -webkit-appearance: none; box-shadow:none !important; }
+    .d-print-none, .btn, .modal, .toast-container { display:none !important; }
+  </style>
+</head>
+<body>
+  <h1>安泰醫療社團法人附設安泰護理之家</h1>
+  <h2>衛材盤點表</h2>
+  <div class="meta">
+    <div>盤點日期：${escapeHtml(dateVal)}</div>
+    <div>盤點者：${escapeHtml(nurseVal)}</div>
+    <div>補齊者：${escapeHtml(restockerVal)}</div>
+  </div>
+  ${tableHTML}
+</body>
+</html>`;
+    }
 
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
