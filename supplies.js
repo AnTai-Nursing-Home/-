@@ -2,6 +2,8 @@ document.addEventListener('firebase-ready', () => {
     const inventoryTableBody = document.getElementById('inventory-table-body');
     if (!inventoryTableBody) return;
 
+    const loginName = renderLoginUser();
+
     const backButtonGeneral = document.querySelector('.btn-back-menu');
     if (backButtonGeneral && document.referrer.includes('admin.html')) {
         backButtonGeneral.href = 'admin.html?view=dashboard';
@@ -69,12 +71,45 @@ document.addEventListener('firebase-ready', () => {
     const generateReportBtn = document.getElementById('generate-report-btn');
     const collectionName = 'supplies_inventory';
 
+function getLoginDisplayName() {
+    // 與辦公室/護理師系統一致：優先讀 sessionStorage.officeAuth / nurseAuth
+    try {
+        const officeAuthRaw = sessionStorage.getItem('officeAuth');
+        if (officeAuthRaw) {
+            const a = JSON.parse(officeAuthRaw);
+            if (a && a.displayName) return String(a.displayName).trim();
+        }
+    } catch (e) {}
+    try {
+        const nurseAuthRaw = sessionStorage.getItem('nurseAuth');
+        if (nurseAuthRaw) {
+            const a = JSON.parse(nurseAuthRaw);
+            if (a && a.displayName) return String(a.displayName).trim();
+        }
+    } catch (e) {}
+    const keys = ['loginName','userName','displayName','currentUserName','staffName'];
+    for (const k of keys) {
+        const v = sessionStorage.getItem(k) || localStorage.getItem(k);
+        if (v) return String(v).trim();
+    }
+    return '';
+}
+
+function renderLoginUser() {
+    const name = getLoginDisplayName();
+    const el = document.getElementById('loginUserNameSupplies');
+    if (el) el.textContent = name ? `登入者：${name}` : '登入者：未登入';
+    return name;
+}
+
     async function loadAndRenderDataForDate(date) {
         tableBody.innerHTML = '<tr><td colspan="3" class="text-center">讀取中...</td></tr>';
         try {
             const doc = await db.collection(collectionName).doc(date).get();
             const dailyData = doc.exists ? doc.data() : {};
             nurseInput.value = dailyData.header?.nurse || '';
+            // 若該日尚未填盤點者，預設帶入目前登入者
+            if (!nurseInput.value.trim() && loginName) nurseInput.value = loginName;
             restockerInput.value = dailyData.header?.restocker || '';
             const itemsStatus = dailyData.items || {};
             tableBody.innerHTML = '';
@@ -216,7 +251,7 @@ document.addEventListener('firebase-ready', () => {
         setTimeout(()=>win.print(),500);
     }
     
-    dateInput.addEventListener('change',()=>loadAndRenderDataForDate(dateInput.value));
+    dateInput.addEventListener('change',()=>{ renderLoginUser(); loadAndRenderDataForDate(dateInput.value); });
     saveButton.addEventListener('click',saveTodaysData);
     resetButton.addEventListener('click',async()=>{
         const date=dateInput.value;
