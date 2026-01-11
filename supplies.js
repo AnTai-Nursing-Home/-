@@ -121,6 +121,53 @@ document.addEventListener('firebase-ready', () => {
         return name;
     }
 
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function generateExportWordHTML() {
+        // Word：可直接用 HTML（.doc）開啟
+        return generateExportHTML();
+    }
+
+    function generateExportExcelHTML() {
+        // Excel：用 HTML Table（.xls）格式輸出，Excel 可直接開
+        const dateVal = document.getElementById('inventory-date')?.value || '';
+        const nurseVal = document.getElementById('inventory-nurse')?.value || '';
+        const restockerVal = document.getElementById('inventory-restocker')?.value || '';
+
+        const printable = document.getElementById('printable-area');
+        const table = printable?.querySelector('table');
+        const tableHTML = table ? table.outerHTML : '<table><tr><td>(no table)</td></tr></table>';
+
+        return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>衛材盤點表</title>
+<style>
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #000; padding: 6px; }
+  thead th { background: #f3f3f3; }
+</style>
+</head>
+<body>
+  <div>盤點日期：${escapeHtml(dateVal)}</div>
+  <div>盤點者：${escapeHtml(nurseVal)}</div>
+  <div>補齊者：${escapeHtml(restockerVal)}</div>
+  <br/>
+  ${tableHTML}
+</body>
+</html>`;
+    }
+
     function escapeHtml(str) {
         return String(str || '')
             .replaceAll('&', '&amp;')
@@ -338,7 +385,24 @@ document.addEventListener('firebase-ready', () => {
         win.document.close();
         setTimeout(()=>win.print(),500);
     });
-    exportRangeBtn.addEventListener('click',()=>reportModal.show());
+    
+
+// 匯出本日 Word
+exportWordButton.addEventListener('click', () => {
+    const html = generateExportWordHTML();
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    const fname = `衛材盤點_${(dateInput.value || '').replaceAll('-','')}.doc`;
+    downloadBlob(blob, fname);
+});
+
+// 匯出本日 Excel（.xls，Excel 可直接開）
+exportExcelButton.addEventListener('click', () => {
+    const html = generateExportExcelHTML();
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const fname = `衛材盤點_${(dateInput.value || '').replaceAll('-','')}.xls`;
+    downloadBlob(blob, fname);
+});
+exportRangeBtn.addEventListener('click',()=>reportModal.show());
     generateReportBtn.addEventListener('click',generateReport);
 
     const today = new Date().toISOString().split('T')[0];
