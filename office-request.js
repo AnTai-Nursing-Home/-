@@ -99,11 +99,25 @@ window.COL_SWAP  = "nurse_shift_requests";
   function fillApplicantDropdowns() {
     const leaveSel = document.getElementById("leaveApplicant");
     const swapSel  = document.getElementById("swapApplicant");
-    const opts = ['<option value="">請選擇申請人</option>']
+
+    // ✅ 新增：篩選用員工下拉
+    const leaveFilterSel = document.getElementById("leaveApplicantFilter");
+    const swapFilterSel  = document.getElementById("swapApplicantFilter");
+
+    const baseOption = '<option value="">請選擇申請人</option>';
+    const opts = [baseOption]
       .concat(EMP_NAMES.map(n => `<option value="${n}">${n}</option>`))
       .join("");
+
+    const filterOpts = ['<option value="">全部</option>']
+      .concat(EMP_NAMES.map(n => `<option value="${n}">${n}</option>`))
+      .join("");
+
     if (leaveSel) leaveSel.innerHTML = opts;
     if (swapSel)  swapSel.innerHTML  = opts;
+
+    if (leaveFilterSel) leaveFilterSel.innerHTML = filterOpts;
+    if (swapFilterSel)  swapFilterSel.innerHTML  = filterOpts;
   }
   // ========= Utilities =========
   function ymd(dLike) {
@@ -192,13 +206,15 @@ window.COL_SWAP  = "nurse_shift_requests";
     const start = $("#leaveStartDate")?.value;
     const end   = $("#leaveEndDate")?.value;
     const filterStatus = $("#leaveStatusFilter")?.value;
+    const filterApplicant = $("#leaveApplicantFilter")?.value;
 
     let rows = "";
     snap.forEach(doc => {
       const d = doc.data() || {};
       if (!inDateRange(d.leaveDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status || "", STATUS_LIST);
+            if (filterApplicant && (d.applicant || "") !== filterApplicant) return;
+const color = getStatusColor(d.status || "", STATUS_LIST);
       const hoursText = getDisplayHoursText(d); // "" if not available
 
       rows += `
@@ -234,13 +250,15 @@ window.COL_SWAP  = "nurse_shift_requests";
     const start = $("#swapStartDate")?.value;
     const end   = $("#swapEndDate")?.value;
     const filterStatus = $("#swapStatusFilter")?.value;
+    const filterApplicant = $("#swapApplicantFilter")?.value;
 
     let rows = "";
     snap.forEach(doc => {
       const d = doc.data() || {};
       if (!inDateRange(d.swapDate, start, end)) return;
       if (filterStatus && d.status !== filterStatus) return;
-      const color = getStatusColor(d.status || "", STATUS_LIST);
+            if (filterApplicant && (d.applicant || "") !== filterApplicant) return;
+const color = getStatusColor(d.status || "", STATUS_LIST);
       rows += `
         <tr data-id="${doc.id}">
           <td>${d.applyDate || ""}</td>
