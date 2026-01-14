@@ -13,6 +13,172 @@ function escapeHtml(input) {
 
 
 
+
+/* ===== 即時通知（參考照會系統） ===== */
+const LS_NOTIFY_ENABLED = 'officeStay_notify_enabled';
+const LS_LAST_SEEN = 'officeStay_last_seen';
+let unsubStayRealtime = null;
+
+function tsToDate(ts) {
+  if (!ts) return null;
+  if (ts.toDate) return ts.toDate();
+  if (ts instanceof Date) return ts;
+  try { return new Date(ts); } catch(_) { return null; }
+}
+
+function toast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const id = 't_' + Math.random().toString(16).slice(2);
+  const html = `
+    <div class="toast align-items-center text-bg-${type} border-0 mb-2" id="${id}" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(message)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+  const el = document.getElementById(id);
+  const t = new bootstrap.Toast(el, { delay: 4500 });
+  t.show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+function bumpLastSeen() {
+  localStorage.setItem(LS_LAST_SEEN, new Date().toISOString());
+}
+function getLastSeenDate() {
+  const s = localStorage.getItem(LS_LAST_SEEN);
+  const d = s ? new Date(s) : new Date(0);
+  return isNaN(d.getTime()) ? new Date(0) : d;
+}
+
+function updateNotifyHint() {
+  const hint = document.getElementById('notifyHint');
+  if (!hint) return;
+  if (!('Notification' in window)) {
+    hint.textContent = '（此瀏覽器不支援通知）';
+    return;
+  }
+  const p = Notification.permission;
+  if (p === 'granted') hint.textContent = '（瀏覽器通知：已啟用）';
+  else if (p === 'denied') hint.textContent = '（瀏覽器通知：已封鎖，可至瀏覽器設定解除）';
+  else hint.textContent = '（瀏覽器通知：尚未授權）';
+}
+
+function initRealtimeNotificationUI() {
+  const toggle = document.getElementById('notifyToggle');
+  const btnAsk = document.getElementById('btnAskNotification');
+
+  if (!toggle) return;
+
+  // restore
+  const saved = localStorage.getItem(LS_NOTIFY_ENABLED);
+  toggle.checked = (saved === '1');
+  if (toggle.checked && !localStorage.getItem(LS_LAST_SEEN)) bumpLastSeen();
+
+  updateNotifyHint();
+
+  if (btnAsk) {
+    btnAsk.addEventListener('click', async () => {
+      if (!('Notification' in window)) {
+        toast('此瀏覽器不支援通知', 'warning');
+        return;
+      }
+      try {
+        const perm = await Notification.requestPermission();
+        updateNotifyHint();
+        if (perm === 'granted') toast('已啟用瀏覽器通知', 'success');
+        else toast('未授權瀏覽器通知（仍可使用頁面右上角 Toast）', 'info');
+      } catch (e) {
+        console.error(e);
+        toast('啟用通知失敗：' + (e.message || e), 'danger');
+      }
+    });
+  }
+
+  toggle.addEventListener('change', () => {
+    localStorage.setItem(LS_NOTIFY_ENABLED, toggle.checked ? '1' : '0');
+
+    // 避免「第一次開啟」把既有舊單當新單狂跳：開啟時先把 lastSeen 置為現在
+    if (toggle.checked) bumpLastSeen();
+
+    startRealtimeIfEnabled(true);
+    toast(toggle.checked ? '已開啟新外宿申請通知' : '已關閉通知', toggle.checked ? 'success' : 'secondary');
+  });
+
+  // start once
+  startRealtimeIfEnabled(false);
+}
+
+function startRealtimeIfEnabled(forceRestart = false) {
+  const toggle = document.getElementById('notifyToggle');
+  const enabled = !!toggle?.checked;
+
+  if (!enabled) {
+    if (unsubStayRealtime) { try { unsubStayRealtime(); } catch(_) {} unsubStayRealtime = null; }
+    return;
+  }
+  if (unsubStayRealtime && !forceRestart) return;
+
+  if (unsubStayRealtime) { try { unsubStayRealtime(); } catch(_) {} unsubStayRealtime = null; }
+
+  const lastSeen = getLastSeenDate();
+
+  unsubStayRealtime = db.collection('stayApplications')
+    .orderBy('createdAt', 'desc')
+    .limit(50)
+    .onSnapshot((snap) => {
+      let shouldReload = false;
+
+      snap.docChanges().forEach((chg) => {
+        if (chg.type !== 'added') return;
+
+        const doc = { id: chg.doc.id, ...chg.doc.data() };
+
+        // createdAt 優先，沒有就用 updatedAt；再沒有就跳過
+        const created = tsToDate(doc.createdAt) || tsToDate(doc.updatedAt);
+        if (!created) return;
+
+        // 只通知：在 lastSeen 之後的新單，且不是辦公室自己新增的
+        const createdByRole = (doc.createdByRole || '').toLowerCase();
+        if (created > lastSeen && createdByRole !== 'office') {
+          const start = tsToDate(doc.startDateTime);
+          const end = tsToDate(doc.endDateTime);
+
+          const title = '護理之家外宿系統通知：有新的外宿申請單';
+          const body = `${doc.applicantName || ''}｜${formatDateTime(start)} ～ ${formatDateTime(end)}`;
+
+          toast(`${title}：${body}`, 'info');
+
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(title, {
+                body,
+                icon: '/icons/notify-512.png',
+                badge: '/icons/badge-72.png',
+                tag: 'office-stay-notify',
+                renotify: true
+              });
+            } catch (_) {}
+          }
+
+          shouldReload = true;
+        }
+      });
+
+      if (shouldReload) {
+        // 重新整理列表（讓辦公室立刻看到新單）
+        loadApplicationsByFilter().catch(console.error);
+      }
+    }, (err) => {
+      console.error('stayApplications realtime error:', err);
+      toast('即時通知監聽失敗：' + (err.message || err), 'danger');
+    });
+}
+/* ===== 即時通知 END ===== */
+
 /** 按鈕載入狀態（避免使用者以為沒反應、避免重複送出） */
 function setButtonLoading(btn, isLoading, loadingText = '儲存中...') {
   if (!btn) return;
@@ -44,6 +210,7 @@ document.addEventListener('firebase-ready', async () => {
     initTabs();
     setDefaultFilterRange();
     await loadApplicationsByFilter();
+    initRealtimeNotificationUI();
 });
 let statusMapOffice = {}; // id -> {id,name,color,order}
 let allEmployees = [];    // {id,name}
@@ -427,7 +594,7 @@ function initConflictForm() {
 // ---------- 外宿案件管理 ----------
 
 function initAppSection() {
-    document.getElementById('btnFilter').addEventListener('click', loadApplicationsByFilter);
+    document.getElementById('btnFilter').addEventListener('click', async () => { await loadApplicationsByFilter(); try{ bumpLastSeen(); }catch(_){} });
     document.getElementById('btnNewApp').addEventListener('click', () => openAppModal());
     document.getElementById('btnSaveApp').addEventListener('click', saveAppFromModal);
 
@@ -582,6 +749,7 @@ async function loadApplicationsByFilter() {
         titleText = `${startROC}-${endROC} 外宿申請單`;
     }
     titleEl.textContent = `安泰醫療社團法人附設安泰護理之家  ${titleText}`;
+    try { bumpLastSeen(); } catch (_) {}
 }
 
 function toROCDate(isoDateStr) {
