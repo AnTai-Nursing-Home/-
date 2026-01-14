@@ -795,6 +795,9 @@ firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
 
 
 
+  });
+})();
+
 // ========= Edit Modal (full edit with dropdown leaveType) =========
 let editModal;
 
