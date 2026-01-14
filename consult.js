@@ -450,9 +450,11 @@ await loadResidents();
 
         const uploaded = await uploadFilesIfAny(currentModalId, 'nutritionist', files);
 
+
+        const c = consults.find(x => x.id === currentModalId) || {};
         const update = {
           nutritionistReply: reply,
-      senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
+          senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
           status: 'replied',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           lastActionBy: 'nutritionist',
@@ -830,7 +832,7 @@ await loadResidents();
       subject: c.subject || '',
       description: c.description || '',
       nutritionistReply: reply,
-      senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
+          senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
       createdAt: created,
       nurseAttachments: nurseAttach,
       nutritionistAttachments: nutAttach,
