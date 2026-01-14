@@ -1,150 +1,103 @@
 // nutritionist-auth.js
-// 使用 userAccounts/{staffId} 進行登入，並檢查 canNutritionist 權限（或 canOffice 可作為管理者備援）。
+// 營養師系統：不改版面樣式，使用瀏覽器 prompt 做帳密登入
+// 依賴 firebase-init.js 提供 db 與 firebase-ready 事件（與辦公室系統一致）
+
 (function () {
   const AUTH_KEY = 'nutritionistAuth';
-
-  const elLogin = document.getElementById('login');
-  const elApp = document.getElementById('app');
-  const elU = document.getElementById('loginUsername');
-  const elP = document.getElementById('loginPassword');
-  const elBtn = document.getElementById('btnLogin');
-  const elMsg = document.getElementById('loginMsg');
-
-  const elAuthInfo = document.getElementById('authInfo');
-  const elLogout = document.getElementById('btnLogout');
-
-  function setMsg(s) { if (elMsg) elMsg.textContent = s || ''; }
-
-  function safeJsonParse(s) {
-    try { return JSON.parse(s); } catch (e) { return null; }
-  }
+  const FALLBACK_REDIRECT = '../affairs.html?view=dashboard';
 
   function getAuth() {
-    return safeJsonParse(sessionStorage.getItem(AUTH_KEY) || 'null');
+    try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
   }
-
-  function setAuth(auth) {
-    sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth || null));
+  function setAuth(obj) {
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(obj));
   }
 
   async function waitForDbReady() {
     if (typeof db !== 'undefined' && db) return;
     await new Promise((resolve) => {
       document.addEventListener('firebase-ready', () => resolve(), { once: true });
-      setTimeout(resolve, 2000);
+      setTimeout(resolve, 2500);
     });
   }
 
-  function showApp(auth) {
-    if (elLogin) elLogin.style.display = 'none';
-    if (elApp) elApp.style.display = '';
-    if (elLogout) elLogout.style.display = '';
-    if (elAuthInfo) {
-      const name = auth?.displayName || auth?.name || auth?.staffId || '';
-      const id = auth?.staffId || '';
-      elAuthInfo.textContent = id && name ? `${id} ${name}` : (name || id || '已登入');
-    }
+  async function findAccountByUsername(username) {
+    const snap = await db.collection('userAccounts')
+      .where('username', '==', username)
+      .limit(1)
+      .get();
+
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() };
   }
 
-  function showLogin() {
-    if (elApp) elApp.style.display = 'none';
-    if (elLogin) elLogin.style.display = '';
-    if (elLogout) elLogout.style.display = 'none';
-    if (elAuthInfo) elAuthInfo.textContent = '';
+  function hasNutritionistAccess(acc) {
+    // 管控：可進營養師 或 可進辦公室（管理者備援）
+    return acc?.canNutritionist === true || acc?.canOffice === true;
   }
 
-  async function doLogin() {
-    const username = (elU?.value || '').trim();
-    const password = (elP?.value || '').trim();
+  async function promptLogin() {
+    const username = (prompt('營養師系統登入\n\n請輸入帳號：') || '').trim();
+    if (!username) return null;
 
-    if (!username || !password) {
-      setMsg('請輸入帳號與密碼。');
-      return;
-    }
+    const password = (prompt('請輸入密碼：') || '').trim();
+    if (!password) return null;
 
-    elBtn.disabled = true;
-    setMsg('登入中...');
-
-    try {
-      await waitForDbReady();
-
-      // 從 userAccounts 以 username 查找（你原本設計是 staffId 為 docId，但 username 可能不同）
-      // 這裡採用全表掃描 + 比對（資料量通常不大）；若你之後想優化可改成建立 username 索引集合。
-      const snap = await db.collection('userAccounts').get();
-
-      let found = null;
-      snap.forEach(doc => {
-        const d = doc.data() || {};
-        if ((d.username || '').trim() === username) found = { id: doc.id, ...d };
-      });
-
-      if (!found) {
-        setMsg('帳號不存在或輸入錯誤。');
-        return;
-      }
-      if ((found.password || '').toString() !== password) {
-        setMsg('密碼錯誤。');
-        return;
-      }
-
-      const allowed = (found.canNutritionist === true) || (found.canOffice === true);
-      if (!allowed) {
-        setMsg('此帳號沒有營養師系統權限，請洽管理員。');
-        return;
-      }
-
-      const auth = {
-        staffId: found.staffId || found.id || '',
-        displayName: found.displayName || '',
-        username: found.username || '',
-        source: found.source || '',
-        canNutritionist: !!found.canNutritionist,
-        canOffice: !!found.canOffice,
-        loginAt: Date.now()
-      };
-
-      setAuth(auth);
-      showApp(auth);
-      setMsg('');
-    } catch (e) {
-      console.error(e);
-      setMsg('登入失敗，請稍後再試。');
-    } finally {
-      elBtn.disabled = false;
-    }
-  }
-
-  function bind() {
-    if (elBtn) elBtn.addEventListener('click', doLogin);
-    if (elP) elP.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doLogin();
-    });
-    if (elU) elU.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doLogin();
-    });
-
-    if (elLogout) {
-      elLogout.addEventListener('click', () => {
-        if (!confirm('確定要登出嗎？')) return;
-        sessionStorage.removeItem(AUTH_KEY);
-        showLogin();
-        if (elU) elU.value = '';
-        if (elP) elP.value = '';
-        setMsg('');
-      });
-    }
-  }
-
-  (async function boot() {
-    bind();
     await waitForDbReady();
+    const acc = await findAccountByUsername(username);
 
-    const auth = getAuth();
-    if (auth) {
-      // 重新整理後維持登入
-      showApp(auth);
-    } else {
-      showLogin();
+    if (!acc) {
+      alert('查無此帳號，請確認後再試。');
+      return null;
     }
-  })();
+    if ((acc.password || '') !== password) {
+      alert('密碼錯誤，請再試一次。');
+      return null;
+    }
+    if (!hasNutritionistAccess(acc)) {
+      alert('此帳號沒有營養師系統權限。');
+      return null;
+    }
+
+    const auth = {
+      staffId: acc.staffId || acc.id || '',
+      displayName: acc.displayName || acc.name || username,
+      username: acc.username || username,
+      source: acc.source || '',
+      canNutritionist: acc.canNutritionist === true,
+      canOffice: acc.canOffice === true,
+      loginAt: Date.now()
+    };
+    setAuth(auth);
+    return auth;
+  }
+
+  async function ensureLogin() {
+    const existing = getAuth();
+    if (existing && (existing.canNutritionist === true || existing.canOffice === true)) {
+      return existing;
+    }
+
+    // 不改版面：先暫時把頁面隱藏，登入成功才顯示
+    const prevDisplay = document.body.style.display;
+    document.body.style.display = 'none';
+
+    for (let i = 0; i < 3; i++) {
+      const auth = await promptLogin();
+      if (auth) {
+        document.body.style.display = prevDisplay || '';
+        return auth;
+      }
+    }
+
+    // 失敗或取消 → 回到事務系統
+    window.location.href = FALLBACK_REDIRECT;
+    return null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // 啟動登入檢查（不新增任何 UI 元件）
+    ensureLogin();
+  });
 })();
