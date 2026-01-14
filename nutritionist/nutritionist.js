@@ -1,55 +1,30 @@
-// nutritionist-auth.js - 營養師系統個人帳號密碼登入（參考 office.js）
-// 依賴 firebase-init.js 提供 db 與 firebase-ready 事件
+// nutritionist-auth.js
+// 使用 userAccounts/{staffId} 進行登入，並檢查 canNutritionist 權限（或 canOffice 可作為管理者備援）。
 (function () {
   const AUTH_KEY = 'nutritionistAuth';
 
-  const loginSection = document.getElementById('login-section-nutritionist');
-  const dashboardSection = document.getElementById('dashboard-section-nutritionist');
+  const elLogin = document.getElementById('login');
+  const elApp = document.getElementById('app');
+  const elU = document.getElementById('loginUsername');
+  const elP = document.getElementById('loginPassword');
+  const elBtn = document.getElementById('btnLogin');
+  const elMsg = document.getElementById('loginMsg');
 
-  if (!loginSection || !dashboardSection) return;
+  const elAuthInfo = document.getElementById('authInfo');
+  const elLogout = document.getElementById('btnLogout');
 
-  const usernameInput = document.getElementById('usernameInput-nutritionist');
-  const passwordInput = document.getElementById('passwordInput-nutritionist');
-  const loginButton = document.getElementById('loginButton-nutritionist');
-  const errorMessage = document.getElementById('errorMessage-nutritionist');
-  const privacyCheck = document.getElementById('privacyCheck-nutritionist');
+  function setMsg(s) { if (elMsg) elMsg.textContent = s || ''; }
 
-  const headerLoginBox = document.getElementById('loginInfoNutritionist');
-  const headerStaffId = document.getElementById('loginStaffId-nutritionist');
-  const headerStaffName = document.getElementById('loginStaffName-nutritionist');
-  const logoutBtn = document.getElementById('logoutBtnNutritionist');
-
-  function setVisible(el, visible) {
-    if (!el) return;
-    el.classList.toggle('d-none', !visible);
-  }
-
-  function showError(msg) {
-    if (!errorMessage) return;
-    errorMessage.textContent = msg || '帳號或密碼錯誤，請重試！';
-    errorMessage.classList.remove('d-none');
-  }
-
-  function hideError() {
-    if (!errorMessage) return;
-    errorMessage.classList.add('d-none');
-  }
-
-  function setAuth(user) {
-    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(user)); } catch (_) {}
+  function safeJsonParse(s) {
+    try { return JSON.parse(s); } catch (e) { return null; }
   }
 
   function getAuth() {
-    try {
-      const raw = sessionStorage.getItem(AUTH_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (_) {
-      return null;
-    }
+    return safeJsonParse(sessionStorage.getItem(AUTH_KEY) || 'null');
   }
 
-  function clearAuth() {
-    try { sessionStorage.removeItem(AUTH_KEY); } catch (_) {}
+  function setAuth(auth) {
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth || null));
   }
 
   async function waitForDbReady() {
@@ -60,143 +35,116 @@
     });
   }
 
-  function renderHeaderUser(user) {
-    if (!headerLoginBox) return;
-    if (headerStaffId) headerStaffId.textContent = user?.staffId || '';
-    if (headerStaffName) headerStaffName.textContent = user?.displayName || '';
-    headerLoginBox.classList.remove('d-none');
-  }
-
-  function clearHeaderUser() {
-    if (headerLoginBox) headerLoginBox.classList.add('d-none');
-    if (headerStaffId) headerStaffId.textContent = '';
-    if (headerStaffName) headerStaffName.textContent = '';
+  function showApp(auth) {
+    if (elLogin) elLogin.style.display = 'none';
+    if (elApp) elApp.style.display = '';
+    if (elLogout) elLogout.style.display = '';
+    if (elAuthInfo) {
+      const name = auth?.displayName || auth?.name || auth?.staffId || '';
+      const id = auth?.staffId || '';
+      elAuthInfo.textContent = id && name ? `${id} ${name}` : (name || id || '已登入');
+    }
   }
 
   function showLogin() {
-    setVisible(loginSection, true);
-    setVisible(dashboardSection, false);
-    hideError();
-    clearHeaderUser();
+    if (elApp) elApp.style.display = 'none';
+    if (elLogin) elLogin.style.display = '';
+    if (elLogout) elLogout.style.display = 'none';
+    if (elAuthInfo) elAuthInfo.textContent = '';
   }
 
-  function showDashboard(user) {
-    setVisible(loginSection, false);
-    setVisible(dashboardSection, true);
-    hideError();
-    renderHeaderUser(user);
-  }
-
-  async function findAccountByUsername(username) {
-    const snap = await db.collection('userAccounts')
-      .where('username', '==', username)
-      .limit(1)
-      .get();
-
-    if (snap.empty) return null;
-    const doc = snap.docs[0];
-    return { id: doc.id, ...doc.data() };
-  }
-
-  function hasNutritionistPermission(acc) {
-    // ✅ 兼容多種欄位命名（你之後可以在 userAccounts 加 canNutritionist）
-    if (acc?.canNutritionist === true) return true;
-    if (acc?.role === 'nutritionist') return true;
-    if (acc?.canOffice === true) return true;   // 若你希望只有辦公室可進，保留這行即可
-    if (acc?.canNurse === true) return true;    // 若護理師也需要進營養師系統，保留這行
-    return false;
-  }
-
-  async function handleLogin() {
-    if (privacyCheck && !privacyCheck.checked) {
-      alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
-      return;
-    }
-
-    const username = (usernameInput?.value || '').trim();
-    const password = (passwordInput?.value || '').trim();
+  async function doLogin() {
+    const username = (elU?.value || '').trim();
+    const password = (elP?.value || '').trim();
 
     if (!username || !password) {
-      showError('請輸入帳號與密碼');
+      setMsg('請輸入帳號與密碼。');
       return;
     }
 
-    if (loginButton) loginButton.disabled = true;
-    hideError();
+    elBtn.disabled = true;
+    setMsg('登入中...');
 
     try {
       await waitForDbReady();
 
-      const acc = await findAccountByUsername(username);
-      if (!acc) { showError('帳號或密碼錯誤，請重試！'); return; }
+      // 從 userAccounts 以 username 查找（你原本設計是 staffId 為 docId，但 username 可能不同）
+      // 這裡採用全表掃描 + 比對（資料量通常不大）；若你之後想優化可改成建立 username 索引集合。
+      const snap = await db.collection('userAccounts').get();
 
-      if (!hasNutritionistPermission(acc)) { showError('此帳號沒有營養師系統權限'); return; }
-      if ((acc.password || '') !== password) { showError('帳號或密碼錯誤，請重試！'); return; }
+      let found = null;
+      snap.forEach(doc => {
+        const d = doc.data() || {};
+        if ((d.username || '').trim() === username) found = { id: doc.id, ...d };
+      });
 
-      const user = {
-        staffId: acc.staffId || acc.id || acc.username || '',
-        displayName: acc.displayName || acc.name || '',
-        username: acc.username || '',
-        source: acc.source || '',
-        canOffice: acc.canOffice === true,
-        canNurse: acc.canNurse === true,
-        canNutritionist: acc.canNutritionist === true,
-        role: 'nutritionist',
+      if (!found) {
+        setMsg('帳號不存在或輸入錯誤。');
+        return;
+      }
+      if ((found.password || '').toString() !== password) {
+        setMsg('密碼錯誤。');
+        return;
+      }
+
+      const allowed = (found.canNutritionist === true) || (found.canOffice === true);
+      if (!allowed) {
+        setMsg('此帳號沒有營養師系統權限，請洽管理員。');
+        return;
+      }
+
+      const auth = {
+        staffId: found.staffId || found.id || '',
+        displayName: found.displayName || '',
+        username: found.username || '',
+        source: found.source || '',
+        canNutritionist: !!found.canNutritionist,
+        canOffice: !!found.canOffice,
         loginAt: Date.now()
       };
 
-      setAuth(user);
-      showDashboard(user);
+      setAuth(auth);
+      showApp(auth);
+      setMsg('');
     } catch (e) {
-      console.error('營養師登入錯誤：', e);
-      showError('登入時發生錯誤，請稍後再試');
+      console.error(e);
+      setMsg('登入失敗，請稍後再試。');
     } finally {
-      if (loginButton) loginButton.disabled = false;
+      elBtn.disabled = false;
     }
   }
 
-  function bindUI() {
-    if (loginButton) loginButton.addEventListener('click', handleLogin);
+  function bind() {
+    if (elBtn) elBtn.addEventListener('click', doLogin);
+    if (elP) elP.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+    if (elU) elU.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
 
-    if (usernameInput) {
-      usernameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (passwordInput) passwordInput.focus();
-        }
-      });
-    }
-    if (passwordInput) {
-      passwordInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleLogin();
-        }
-      });
-    }
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
+    if (elLogout) {
+      elLogout.addEventListener('click', () => {
         if (!confirm('確定要登出嗎？')) return;
-        clearAuth();
-        if (usernameInput) usernameInput.value = '';
-        if (passwordInput) passwordInput.value = '';
+        sessionStorage.removeItem(AUTH_KEY);
         showLogin();
+        if (elU) elU.value = '';
+        if (elP) elP.value = '';
+        setMsg('');
       });
     }
   }
 
-  function boot() {
-    bindUI();
+  (async function boot() {
+    bind();
+    await waitForDbReady();
 
-    const sess = getAuth();
-    if (sess && (sess.canNutritionist === true || sess.canOffice === true || sess.canNurse === true || sess.role === 'nutritionist')) {
-      showDashboard(sess);
-      return;
+    const auth = getAuth();
+    if (auth) {
+      // 重新整理後維持登入
+      showApp(auth);
+    } else {
+      showLogin();
     }
-
-    showLogin();
-  }
-
-  document.addEventListener('DOMContentLoaded', boot);
+  })();
 })();
