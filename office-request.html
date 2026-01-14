@@ -113,14 +113,73 @@
 
             <!-- 篩選 -->
             <div class="row g-2 align-items-end mb-3 no-print">
-              <div class="col-md-2"><label class="form-label">開始日期</label><input type="date" id="swapStartDate" class="form-control"></div>
-              <div class="col-md-2"><label class="form-label">結束日期</label><input type="date" id="swapEndDate" class="form-control"></div>
-              <div class="col-md-3"><label class="form-label">狀態</label><select id="swapStatusFilter" class="form-select"><option value="">全部</option></select></div>
-              <div class="col-md-3"><label class="form-label">員工</label><select id="swapApplicantFilter" class="form-select"><option value="">全部</option></select></div>
-              <div class="col-md-2 d-flex"><button class="btn btn-secondary w-100" id="filterSwap">套用篩選</button></div>
+              <div class="col-md-3"><label class="form-label">開始日期</label><input type="date" id="leaveStartDate" class="form-control"></div>
+              <div class="col-md-3"><label class="form-label">結束日期</label><input type="date" id="leaveEndDate" class="form-control"></div>
+              <div class="col-md-3"><label class="form-label">狀態</label><select id="leaveStatusFilter" class="form-select"><option value="">全部</option></select></div>
+              <div class="col-md-3"><label class="form-label">員工</label><select id="leaveApplicantFilter" class="form-select"><option value="">全部</option></select></div>
+              <div class="col-md-3 d-flex"><button class="btn btn-secondary w-100" id="filterLeave">套用篩選</button></div>
             </div>
+
+            <!-- ✅ 表格（已新增請假時數欄位） -->
+            <div class="table-responsive">
+              <table class="table table-bordered align-middle" id="leaveTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>申請日期</th>
+                    <th>申請人</th>
+                    <th>假別</th>
+                    <th>請假日期</th>
+                    <th>班別</th>
+                    <th>請假時數(小時)</th>
+                    <th>理由</th>
+                    <th>狀態</th>
+                    <th>主管簽名</th>
+                    <th>註解</th>
+                    <th class="no-print">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="leaveTableBody">
+                  <tr><td colspan="11" class="text-center text-muted">讀取中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 🟩 調班管理 -->
+          <div class="tab-pane fade" id="swapTab">
+            <div class="no-print d-flex justify-content-end mb-3">
+              <button class="btn btn-sm btn-outline-success me-2" id="exportSwapExcel">
+                <i class="fa-solid fa-file-excel me-1"></i>匯出調班紀錄
+              </button>
+              <button class="btn btn-sm btn-outline-dark" id="printSwapTable">
+                <i class="fa-solid fa-print me-1"></i>列印調班紀錄
+              </button>
+            </div>
+
+            <!-- 新增調班單 -->
+            <div class="card mb-4 border-success no-print">
+              <div class="card-header bg-success text-white"><i class="fa-solid fa-plus-circle me-2"></i>新增調班單</div>
+              <div class="card-body">
+                <form id="addSwapForm" class="row g-3">
+                  <div class="col-md-2"><label class="form-label">申請人</label><select name="applicant" id="swapApplicant" class="form-select" required><option value="">請選擇申請人</option></select></div>
+                  <div class="col-md-2"><label class="form-label">調班日期</label><input type="date" name="swapDate" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">原班別</label><input type="text" name="originalShift" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">欲換班別</label><input type="text" name="newShift" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">理由</label><input type="text" name="reason" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">狀態</label><select name="status" id="swapStatusSelect" class="form-select" required></select></div>
+                  <div class="col-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-success px-4"><i class="fa-solid fa-paper-plane me-1"></i>新增</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- 篩選 -->
+            <div class="row g-2 align-items-end mb-3 no-print">
+              <div class="col-md-3"><label class="form-label">開始日期</label><input type="date" id="swapStartDate" class="form-control"></div>
               <div class="col-md-3"><label class="form-label">結束日期</label><input type="date" id="swapEndDate" class="form-control"></div>
               <div class="col-md-3"><label class="form-label">狀態</label><select id="swapStatusFilter" class="form-select"><option value="">全部</option></select></div>
+              <div class="col-md-3"><label class="form-label">員工</label><select id="swapApplicantFilter" class="form-select"><option value="">全部</option></select></div>
               <div class="col-md-3 d-flex"><button class="btn btn-secondary w-100" id="filterSwap">套用篩選</button></div>
             </div>
 
