@@ -120,7 +120,7 @@
   function render(rows){
     tbody.innerHTML = '';
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">沒有資料</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">沒有資料</td></tr>`;
       return;
     }
 
@@ -146,7 +146,11 @@
         <td class="text-center">
           <input type="checkbox" class="form-check-input" data-k="canNurse" ${acc.canNurse===true?'checked':''}>
         </td>
+        
         <td class="text-center">
+          <input type="checkbox" class="form-check-input" data-k="canNutritionist" ${acc.canNutritionist===true?'checked':''}>
+        </td>
+<td class="text-center">
           <input type="checkbox" class="form-check-input" data-k="canAnnualLeave" ${acc.canAnnualLeave===true?'checked':''}>
         </td>
         <td>
@@ -188,6 +192,7 @@
       password: v.password,
       canOffice: !!v.canOffice,
       canNurse: !!v.canNurse,
+      canNutritionist: !!v.canNutritionist,
       canAnnualLeave: !!v.canAnnualLeave,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
@@ -246,6 +251,7 @@
         password: r.staffId,
         canOffice: (r.source === 'adminStaff' || r.source === 'localCaregivers'), // 你可自行調整預設
         canNurse: (r.source === 'nurses'),
+        canNutritionist: (r.source === 'adminStaff' || r.source === 'nurses'), // 你可自行調整預設
         canAnnualLeave: false,
         createdAt: now,
         updatedAt: now
@@ -265,7 +271,7 @@
   let allRows = [];
 
   async function refresh(){
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
     msg.textContent = '';
 
     await waitForDbReady();
