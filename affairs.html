@@ -63,31 +63,10 @@
 
           <div class="card-body">
 
-            <!-- 登入區 -->
-            <div id="password-section" style="max-width:720px;" class="mx-auto">
-              <h5 class="card-title fw-bold">請輸入事務系統密碼</h5>
-
-              <div class="input-group mb-3">
-                <input type="password" id="passwordInput" class="form-control" placeholder="請輸入密碼" />
-                <button class="btn btn-primary" id="loginButton">登入</button>
-              </div>
-
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="privacyCheck" />
-                <label class="form-check-label">
-                  我同意 <a href="privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
-                </label>
-              </div>
-
-              <div id="errorMessage" class="text-danger d-none">密碼錯誤，請重試！</div>
-
-              <a href="./index.html" data-logout="1" class="btn btn-sm btn-outline-secondary mt-3">
-                <i class="fas fa-home me-2"></i>返回首頁
-              </a>
-            </div>
+            <!-- 登入區（已移除：事務系統不再需要密碼） -->
 
             <!-- 儀表板 -->
-            <div id="dashboard-section" class="d-none">
+            <div id="dashboard-section">
               <div class="menu-grid">
 
                 <a href="./nutritionist/nutritionist.html" class="menu-item">
@@ -118,13 +97,6 @@
   </footer>
 
   <script src="./affairs.js"></script>
-  <script>
-    // 點「離開事務系統」時，清除登入狀態（確保下次要重新登入）
-    document.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-logout="1"]');
-      if (!a) return;
-      try { sessionStorage.removeItem('affairs_authed'); } catch (_) {}
-    });
-  </script>
+  
 </body>
 </html>
