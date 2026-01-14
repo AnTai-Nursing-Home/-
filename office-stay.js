@@ -126,10 +126,19 @@ function startRealtimeIfEnabled(forceRestart = false) {
 
   const lastSeen = getLastSeenDate();
 
+  let isFirstSnapshot = true;
+
   unsubStayRealtime = db.collection('stayApplications')
     .orderBy('createdAt', 'desc')
     .limit(50)
     .onSnapshot((snap) => {
+      // Firestore 會先送一包「目前已有資料」的 snapshot。
+      // 為避免第一次開啟就把舊單當新單狂跳：第一包只做初始化，不發通知。
+      if (isFirstSnapshot) {
+        isFirstSnapshot = false;
+        return;
+      }
+
       let shouldReload = false;
 
       snap.docChanges().forEach((chg) => {
@@ -143,7 +152,7 @@ function startRealtimeIfEnabled(forceRestart = false) {
 
         // 只通知：在 lastSeen 之後的新單，且不是辦公室自己新增的
         const createdByRole = (doc.createdByRole || '').toLowerCase();
-        if (created > lastSeen && createdByRole !== 'office') {
+        if (((created && created > lastSeen) || !created) && createdByRole !== 'office') {
           const start = tsToDate(doc.startDateTime);
           const end = tsToDate(doc.endDateTime);
 
