@@ -30,9 +30,18 @@
         white-space: nowrap;
     }
 
+    
+    /* ===== 即時通知（Toast / Browser Notification） ===== */
+    .toast-container{ position: fixed; top: 84px; right: 16px; z-index: 2000; }
+    @media (max-width: 576px){ .toast-container{ top: 72px; right: 10px; } }
+    .small-muted{ color:#6b7280; font-size:.9rem; }
+
     </style>
 </head>
 <body>
+    <!-- Toast 通知容器（右上角） -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="container my-4">
         <div class="row justify-content-center">
             <div class="col-lg-11">
@@ -42,6 +51,25 @@
                         <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回儀表板</a>
                         </a>
                     </div>
+
+                    <!-- 即時通知設定（參考照會系統） -->
+                    <div class="px-3 py-2 border-bottom no-print" style="background: rgba(0,0,0,.04);">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="notifyToggle">
+                                <label class="form-check-label" for="notifyToggle">接收新外宿申請通知</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnAskNotification" type="button">
+                                <i class="fa-regular fa-bell me-1"></i>啟用瀏覽器通知
+                            </button>
+                            <span class="small-muted" id="notifyHint"></span>
+
+                            <div class="ms-auto small-muted">
+                                提示：通知僅在此頁面開著時即時跳出（Toast / Browser Notification）。
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card-body">
 
                         <!-- 分頁導覽 -->
