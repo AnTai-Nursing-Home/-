@@ -1,9 +1,6 @@
 // nutritionist-auth.js
 // 營養師系統：不改版面樣式，使用瀏覽器 prompt 做帳密登入
-// 權限來源：Firestore userAccounts/{staffId}
-// 放行條件：canNutritionist===true 或 canOffice===true（辦公室備援）
-//
-// 小技巧：若想強制重新輸入帳密，在網址加上 ?logout=1
+// 依賴 firebase-init.js 提供 db 與 firebase-ready 事件（與辦公室系統一致）
 
 (function () {
   const AUTH_KEY = 'nutritionistAuth';
@@ -15,112 +12,92 @@
   function setAuth(obj) {
     sessionStorage.setItem(AUTH_KEY, JSON.stringify(obj));
   }
-  function clearAuth() {
-    sessionStorage.removeItem(AUTH_KEY);
-  }
 
   async function waitForDbReady() {
-    // 你專案的 firebase-init.js 會 dispatch 'firebase-ready'
-    if (typeof db !== 'undefined' && db) return true;
-
-    return await new Promise((resolve) => {
-      let done = false;
-      const finish = (v) => { if (done) return; done = true; resolve(v); };
-
-      document.addEventListener('firebase-ready', () => finish(true), { once: true });
-
-      // 退一步：最多等 2 秒，避免卡死
-      setTimeout(() => finish(typeof db !== 'undefined' && !!db), 2000);
+    if (typeof db !== 'undefined' && db) return;
+    await new Promise((resolve) => {
+      document.addEventListener('firebase-ready', () => resolve(), { once: true });
+      setTimeout(resolve, 2500);
     });
   }
 
-  async function promptLogin() {
-    const username = (window.prompt('請輸入帳號') || '').trim();
-    if (!username) return null;
-
-    const password = (window.prompt('請輸入密碼') || '').trim();
-    if (!password) return null;
-
-    return { username, password };
-  }
-
   async function findAccountByUsername(username) {
-    // userAccounts 文件 id 通常是 staffId，所以用 where 查 username
-    try {
-      const snap = await db.collection('userAccounts').where('username', '==', username).limit(1).get();
-      if (snap.empty) return null;
-      const doc = snap.docs[0];
-      return { staffId: doc.id, ...(doc.data() || {}) };
-    } catch (e) {
-      console.error('查詢帳號失敗:', e);
-      return null;
-    }
+    const snap = await db.collection('userAccounts')
+      .where('username', '==', username)
+      .limit(1)
+      .get();
+
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() };
   }
 
   function hasNutritionistAccess(acc) {
-    return (acc && (acc.canNutritionist === true || acc.canOffice === true));
+    // 管控：可進營養師 或 可進辦公室（管理者備援）
+    return acc?.canNutritionist === true || acc?.canOffice === true;
   }
 
-  async function ensureLogin() {
-    // 強制登出模式（不改 UI）
-    const params = new URLSearchParams(window.location.search || '');
-    if (params.get('logout') === '1') clearAuth();
+  async function promptLogin() {
+    const username = (prompt('營養師系統登入\n\n請輸入帳號：') || '').trim();
+    if (!username) return null;
 
-    // 已登入就直接放行（避免每次都跳 prompt）
-    const existing = getAuth();
-    if (existing && (existing.canNutritionist === true || existing.canOffice === true)) {
-      return existing;
-    }
+    const password = (prompt('請輸入密碼：') || '').trim();
+    if (!password) return null;
 
-    // 等 Firebase 初始化
-    const ok = await waitForDbReady();
-    if (!ok) {
-      alert('系統初始化失敗（Firebase 尚未就緒），請重新整理頁面。');
-      return null;
-    }
+    await waitForDbReady();
+    const acc = await findAccountByUsername(username);
 
-    // 要求輸入帳密（prompt 不影響版面）
-    const cred = await promptLogin();
-    if (!cred) {
-      // 使用者取消
-      window.location.href = FALLBACK_REDIRECT;
-      return null;
-    }
-
-    const acc = await findAccountByUsername(cred.username);
     if (!acc) {
-      alert('帳號不存在或尚未建立。');
-      window.location.href = FALLBACK_REDIRECT;
+      alert('查無此帳號，請確認後再試。');
       return null;
     }
-
-    if ((acc.password || '') !== cred.password) {
-      alert('密碼錯誤。');
-      window.location.href = FALLBACK_REDIRECT;
+    if ((acc.password || '') !== password) {
+      alert('密碼錯誤，請再試一次。');
       return null;
     }
-
     if (!hasNutritionistAccess(acc)) {
       alert('此帳號沒有營養師系統權限。');
-      window.location.href = FALLBACK_REDIRECT;
       return null;
     }
 
     const auth = {
-      staffId: acc.staffId || acc.staffId === '' ? acc.staffId : (acc.staffId || ''),
-      displayName: acc.displayName || acc.fullName || acc.name || cred.username,
-      username: acc.username || cred.username,
+      staffId: acc.staffId || acc.id || '',
+      displayName: acc.displayName || acc.name || username,
+      username: acc.username || username,
       source: acc.source || '',
       canNutritionist: acc.canNutritionist === true,
       canOffice: acc.canOffice === true,
       loginAt: Date.now()
     };
-
     setAuth(auth);
     return auth;
   }
 
+  async function ensureLogin() {
+    const existing = getAuth();
+    if (existing && (existing.canNutritionist === true || existing.canOffice === true)) {
+      return existing;
+    }
+
+    // 不改版面：先暫時把頁面隱藏，登入成功才顯示
+    const prevDisplay = document.body.style.display;
+    document.body.style.display = 'none';
+
+    for (let i = 0; i < 3; i++) {
+      const auth = await promptLogin();
+      if (auth) {
+        document.body.style.display = prevDisplay || '';
+        return auth;
+      }
+    }
+
+    // 失敗或取消 → 回到事務系統
+    window.location.href = FALLBACK_REDIRECT;
+    return null;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    // 啟動登入檢查（不新增任何 UI 元件）
     ensureLogin();
   });
 })();
