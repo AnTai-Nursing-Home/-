@@ -445,38 +445,43 @@ window.COL_SWAP  = "nurse_shift_requests";
   }
 
   function bindInlineEditors() {
-    document.addEventListener("input", (e) => {
-      if (e.target.classList.contains("note-area")) {
-        const id = e.target.dataset.id;
-        const value = e.target.value;
-        debounceUpdate(`note-${id}`, 800, async () => {
-          await updateRequestFieldSmart(id, { note: value });
-        });
+  // ✅ 註解欄位：改成「離開輸入框（blur）」才儲存，避免打字中途就自動存
+  document.addEventListener("blur", async (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains("note-area")) {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      try {
+        await updateRequestFieldSmart(id, { note: value });
+      } catch (err) {
+        console.error("save note failed:", err);
       }
-    });
+    }
+  }, true); // capture=true 讓 blur 可在 document 層被捕捉到
 
-    document.addEventListener("change", async (e) => {      if (e.target.classList.contains("status-select")) {
-        const id = e.target.dataset.id;
-        const value = e.target.value;
-        const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
-        e.target.style.background = color;
-        e.target.style.color = "#fff";
+  // 狀態下拉：維持即時儲存
+  document.addEventListener("change", async (e) => {
+    if (e.target.classList.contains("status-select")) {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
+      e.target.style.background = color;
+      e.target.style.color = "#fff";
 
-        // ✅ 狀態變更後，自動帶入主管簽名＝登入者姓名（若有登入者）
-        const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
-        const patch = { status: value };
-        if (loginName) patch.supervisorSign = loginName;
+      // ✅ 狀態變更後，自動帶入主管簽名＝登入者姓名（若有登入者）
+      const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
+      const patch = { status: value };
+      if (loginName) patch.supervisorSign = loginName;
 
-        await updateRequestFieldSmart(id, patch);
+      await updateRequestFieldSmart(id, patch);
 
-        // ✅ 同步更新畫面上的主管簽名欄位（無下拉選單，直接顯示文字）
-        if (loginName) {
-          const cell = document.querySelector(`.supervisor-sign-cell[data-id="${id}"]`);
-          if (cell) cell.textContent = loginName;
-        }
+      // ✅ 同步更新畫面上的主管簽名欄位（無下拉選單，直接顯示文字）
+      if (loginName) {
+        const cell = document.querySelector(`.supervisor-sign-cell[data-id="${id}"]`);
+        if (cell) cell.textContent = loginName;
       }
-    });
-  }
+    }
+  });
+}
 
   // ========= Delete buttons =========
   function bindDeleteButtons() {
@@ -723,29 +728,74 @@ w.document.close();
     bindMirrorRealtime();
 
     // Realtime refresh (only when added/removed or status changed)
-    firebase.firestore().collection(COL_LEAVE).onSnapshot((snap) => {
-      let shouldRefresh = false;
-      snap.docChanges().forEach(chg => {
-        if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
-        if (chg.type === "modified") {
-          const afterStatus = chg.doc.data().status;
-          // If status changed, refresh to update color
-          if (afterStatus !== undefined) shouldRefresh = true;
-        }
-      });
-      if (shouldRefresh) loadLeaveRequests();
+    // Realtime refresh：只在「新增/刪除」或「狀態」變更時才重刷，避免註解儲存造成跳回最上方
+const __leaveStatusCache = Object.create(null);
+
+firebase.firestore().collection(COL_LEAVE).onSnapshot((snap) => {
+  let shouldRefresh = false;
+
+  snap.docChanges().forEach(chg => {
+    const id = chg.doc.id;
+    const d = chg.doc.data() || {};
+    const newStatus = (d.status || "").trim();
+
+    if (chg.type === "added") {
+      __leaveStatusCache[id] = newStatus;
+      shouldRefresh = true;
+      return;
+    }
+
+    if (chg.type === "removed") {
+      delete __leaveStatusCache[id];
+      shouldRefresh = true;
+      return;
+    }
+
+    if (chg.type === "modified") {
+      const oldStatus = (__leaveStatusCache[id] || "").trim();
+      __leaveStatusCache[id] = newStatus;
+      // ✅ 只有狀態真的變了才重刷（註解 note 更新不會觸發重刷）
+      if (newStatus !== oldStatus) shouldRefresh = true;
+    }
+  });
+
+  if (shouldRefresh) loadLeaveRequests();
+});
+if (shouldRefresh) loadLeaveRequests();
     });
 
-    firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
-      let shouldRefresh = false;
-      snap.docChanges().forEach(chg => {
-        if (chg.type === "added" || chg.type === "removed") shouldRefresh = true;
-        if (chg.type === "modified") {
-          const afterStatus = chg.doc.data().status;
-          if (afterStatus !== undefined) shouldRefresh = true;
-        }
-      });
-      if (shouldRefresh) loadSwapRequests();
+    const __swapStatusCache = Object.create(null);
+
+firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
+  let shouldRefresh = false;
+
+  snap.docChanges().forEach(chg => {
+    const id = chg.doc.id;
+    const d = chg.doc.data() || {};
+    const newStatus = (d.status || "").trim();
+
+    if (chg.type === "added") {
+      __swapStatusCache[id] = newStatus;
+      shouldRefresh = true;
+      return;
+    }
+
+    if (chg.type === "removed") {
+      delete __swapStatusCache[id];
+      shouldRefresh = true;
+      return;
+    }
+
+    if (chg.type === "modified") {
+      const oldStatus = (__swapStatusCache[id] || "").trim();
+      __swapStatusCache[id] = newStatus;
+      if (newStatus !== oldStatus) shouldRefresh = true;
+    }
+  });
+
+  if (shouldRefresh) loadSwapRequests();
+});
+if (shouldRefresh) loadSwapRequests();
     });
   });
 })();
