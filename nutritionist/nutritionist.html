@@ -16,8 +16,26 @@
     }
     .header-bar h1{ margin:0; font-weight:800; font-size:1.5rem; }
     .header-right{
-      position:absolute; right:16px; top:50%; transform: translateY(-50%);
-      text-align:right; line-height:1.25; white-space:nowrap;
+      position:absolute;
+      right:16px;
+      top:50%;
+      transform: translateY(-50%);
+      text-align:right;
+      line-height:1.25;
+
+      /* ✅ 讓右上角登入資訊不要「擠成一團」 */
+      white-space:normal;
+      max-width:260px;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:4px;
+    }
+    .header-right > div{
+      word-break:break-word;
+    }
+    #logoutBtnNutritionist{
+      margin-top:2px !important;
     }
     @media (max-width: 576px){
       .header-right{ position: static; transform:none; margin-top:10px; text-align:center; white-space:normal; }
@@ -155,6 +173,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="../firebase-init.js"></script>
-  <script src="./nutritionist.js"></script>
+  <script src="./nutritionist-auth.js"></script>
 </body>
 </html>
