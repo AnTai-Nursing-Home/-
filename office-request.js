@@ -761,9 +761,6 @@ firebase.firestore().collection(COL_LEAVE).onSnapshot((snap) => {
 
   if (shouldRefresh) loadLeaveRequests();
 });
-if (shouldRefresh) loadLeaveRequests();
-    });
-
     const __swapStatusCache = Object.create(null);
 
 firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
@@ -795,10 +792,6 @@ firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
 
   if (shouldRefresh) loadSwapRequests();
 });
-if (shouldRefresh) loadSwapRequests();
-    });
-  });
-})();
 
 
 
