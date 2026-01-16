@@ -274,8 +274,15 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="firebase-init.js"></script>
+  <script src="access-control.js"></script>
+  <script>
+    (async () => {
+      await AccessControl.init();
+      AccessControl.guardInsideOnly(); // 不是 211.20.249.25 就擋掉
+    })();
+  </script>
   <script src="residents-admin.js"></script>
 </body>
 </html>
