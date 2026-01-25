@@ -588,15 +588,16 @@ function renderStats(){
 <meta charset="utf-8">
 <title>列印床頭牌</title>
 <style>
-  @page { size: A4; margin: 12mm; }
+  /* Full-bleed A4 */
+  @page { size: A4; margin: 8mm; }
   html, body { height: 100%; }
   body { margin: 0; font-family: "DFKai-SB","BiauKai","KaiTi","Microsoft JhengHei", Arial, sans-serif; }
-  .page { width: 100%; height: calc(297mm - 24mm); display:flex; align-items:flex-start; justify-content:center; page-break-after: always; }
+  .page { width: 100%; height: calc(297mm - 16mm); display:flex; align-items:flex-start; justify-content:flex-start; page-break-after: always; }
   .card {
-    width: 170mm;
-    min-height: 92mm;
+    width: 100%;
+    min-height: 100%;
     border: 3px solid #000;
-    padding: 14mm 12mm;
+    padding: 10mm 10mm;
     box-sizing: border-box;
   }
   .row { display:flex; gap: 8mm; margin: 4mm 0; align-items:flex-start; }
