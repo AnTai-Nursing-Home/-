@@ -600,9 +600,9 @@ function renderStats(){
     box-sizing: border-box;
   }
   .row { display:flex; gap: 8mm; margin: 2mm 0; align-items:flex-start; }
-  .lbl { font-weight: 700; font-size: 28pt; white-space: nowrap; }
-  .val { font-weight: 700; font-size: 28pt; flex: 1; }
-  .en { text-align:center; font-size: 30pt; font-weight: 700; margin: 6mm 0 2mm; }
+  .lbl { font-weight: 700; font-size: 22pt; white-space: nowrap; }
+  .val { font-weight: 700; font-size: 22pt; flex: 1; }
+  .en { text-align:center; font-size: 24pt; font-weight: 700; margin: 6mm 0 2mm; }
   .diag-row .val { line-height: 1.15; }
   .bottom { margin-top: 3mm; }
   .half { width: 50%; }
