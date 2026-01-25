@@ -593,16 +593,16 @@ function renderStats(){
   body { margin: 0; font-family: "DFKai-SB","BiauKai","KaiTi","Microsoft JhengHei", Arial, sans-serif; }
   .page { width: 100%; height: calc(297mm - 24mm); display:flex; align-items:flex-start; justify-content:center; page-break-after: always; }
   .card {
-    width: 170mm;
-    min-height: 92mm;
+    width: 130mm;
+    min-height: 95mm;
     border: 3px solid #000;
     padding: 6mm 6mm;
     box-sizing: border-box;
   }
   .row { display:flex; gap: 8mm; margin: 2mm 0; align-items:flex-start; }
-  .lbl { font-weight: 700; font-size: 22pt; white-space: nowrap; }
-  .val { font-weight: 700; font-size: 22pt; flex: 1; }
-  .en { text-align:center; font-size: 24pt; font-weight: 700; margin: 6mm 0 2mm; }
+  .lbl { font-weight: 700; font-size: 28pt; white-space: nowrap; }
+  .val { font-weight: 700; font-size: 28pt; flex: 1; }
+  .en { text-align:center; font-size: 30pt; font-weight: 700; margin: 6mm 0 2mm; }
   .diag-row .val { line-height: 1.15; }
   .bottom { margin-top: 3mm; }
   .half { width: 50%; }
