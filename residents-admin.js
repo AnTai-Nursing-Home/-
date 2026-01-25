@@ -588,24 +588,23 @@ function renderStats(){
 <meta charset="utf-8">
 <title>列印床頭牌</title>
 <style>
-  /* Full-bleed A4 */
-  @page { size: A4; margin: 8mm; }
+  @page { size: A4; margin: 12mm; }
   html, body { height: 100%; }
   body { margin: 0; font-family: "DFKai-SB","BiauKai","KaiTi","Microsoft JhengHei", Arial, sans-serif; }
-  .page { width: 100%; height: calc(297mm - 16mm); display:flex; align-items:flex-start; justify-content:flex-start; page-break-after: always; }
+  .page { width: 100%; height: calc(297mm - 24mm); display:flex; align-items:flex-start; justify-content:center; page-break-after: always; }
   .card {
-    width: 100%;
-    min-height: 100%;
+    width: 170mm;
+    min-height: 92mm;
     border: 3px solid #000;
-    padding: 10mm 10mm;
+    padding: 6mm 6mm;
     box-sizing: border-box;
   }
-  .row { display:flex; gap: 8mm; margin: 4mm 0; align-items:flex-start; }
+  .row { display:flex; gap: 8mm; margin: 2mm 0; align-items:flex-start; }
   .lbl { font-weight: 700; font-size: 22pt; white-space: nowrap; }
   .val { font-weight: 700; font-size: 22pt; flex: 1; }
   .en { text-align:center; font-size: 24pt; font-weight: 700; margin: 6mm 0 2mm; }
   .diag-row .val { line-height: 1.15; }
-  .bottom { margin-top: 6mm; }
+  .bottom { margin-top: 3mm; }
   .half { width: 50%; }
   .text-end { text-align: right; }
 </style>
