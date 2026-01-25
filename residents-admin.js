@@ -374,6 +374,9 @@ function renderStats(){
     +         '<button id="export-xls-styled" class="btn btn-success w-100 mb-3">'
     +           '<i class="fa-solid fa-file-excel me-1"></i>匯出 Excel（V1.0）'
     +         '</button>'
+    +         '<button id="print-headcards" class="btn btn-outline-dark w-100 mb-3">'
+    +           '<i class="fa-solid fa-print me-1"></i>列印床頭牌'
+    +         '</button>'
     +         '<ul class="list-group list-group-flush">'
     +           '<li class="list-group-item d-flex justify-content-between align-items-center">'
     +             '<span>下載目前資料的完整報表（基本資料 / 各樓層床位配置 / 總人數統計）。</span>'
@@ -463,6 +466,194 @@ function renderStats(){
       // 重新渲染樓層（不刷新 Firestore）
       renderFloors(tpl);
     });
+  }
+
+
+  // === 床頭牌列印 ===
+  const headcardModalEl = document.getElementById('headcard-modal');
+  const headcardListEl  = document.getElementById('headcard-list');
+  const headcardSearchEl = document.getElementById('headcard-search');
+  const headcardSelectAllEl = document.getElementById('headcard-select-all');
+  const headcardPrintBtn = document.getElementById('headcard-print-btn');
+  let headcardModal = null;
+  if (window.bootstrap && headcardModalEl) headcardModal = new bootstrap.Modal(headcardModalEl);
+
+  function fmtYMDCompact(v){
+    const s = parseDateSmart(v);
+    if(!s) return '';
+    return s.replace(/-/g,'');
+  }
+
+  function getSortedCache(){
+    return (cache || []).slice().sort((a,b)=> bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
+  }
+
+  function buildHeadcardList(){
+    if(!headcardListEl) return;
+    const q = (headcardSearchEl && headcardSearchEl.value) ? String(headcardSearchEl.value).trim().toLowerCase() : '';
+    const rows = getSortedCache().filter(r=>{
+      const name = String(r.residentName||'').toLowerCase();
+      const en   = String(r.englishName||'').toLowerCase();
+      const bed  = String(r.bedNumber||'').toLowerCase();
+      const rn   = String(r.residentNumber||'').toLowerCase();
+      if(!q) return true;
+      return name.includes(q) || en.includes(q) || bed.includes(q) || rn.includes(q);
+    });
+
+    let html = '';
+    rows.forEach(r=>{
+      const id = r.id;
+      const bed = r.bedNumber || '';
+      const name = r.residentName || r.id || '';
+      const en = r.englishName || '';
+      const status = normalizeLeaveStatus(r);
+      const badge = status ? `<span class="badge bg-secondary-subtle text-dark ms-2">${status}</span>` : '';
+      html += `
+        <label class="list-group-item d-flex align-items-center gap-2">
+          <input class="form-check-input me-1 headcard-check" type="checkbox" value="${String(id).replace(/"/g,'&quot;')}">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">${bed}　${name}${badge}</div>
+            <div class="small text-muted">${en}</div>
+          </div>
+        </label>
+      `;
+    });
+
+    headcardListEl.innerHTML = html || '<div class="text-muted small p-3">沒有符合的住民</div>';
+  }
+
+  function openHeadcardDialog(){
+    if(!headcardModal) { alert('列印視窗初始化失敗（找不到 headcard-modal）。'); return; }
+    buildHeadcardList();
+    if(headcardSearchEl) headcardSearchEl.value = '';
+    if(headcardSelectAllEl) headcardSelectAllEl.checked = false;
+    headcardModal.show();
+    // reset after show
+    setTimeout(()=>{ buildHeadcardList(); }, 0);
+  }
+
+  async function handleHeadcardPrint(){
+    // 取選取
+    const checks = Array.from(document.querySelectorAll('.headcard-check:checked'));
+    if(!checks.length){ alert('請先選擇要列印的床頭牌。'); return; }
+    const idSet = new Set(checks.map(c=>String(c.value)));
+    const selected = getSortedCache().filter(r=> idSet.has(String(r.id)));
+
+    if(headcardModal) headcardModal.hide();
+    printHeadcards(selected);
+  }
+
+  function printHeadcards(items){
+    const w = window.open('', '_blank');
+    if(!w){ alert('瀏覽器阻擋彈出視窗，請允許後再試一次。'); return; }
+
+    const pages = (items||[]).map(r=>{
+      const checkin = fmtYMDCompact(r.checkinDate);
+      const name = (r.residentName || r.id || '');
+      const en = (r.englishName || '');
+      const diag = (r.diagnosis || '');
+      const birth = fmtYMDCompact(r.birthday);
+      const gender = (r.gender || '');
+      const bed = (r.bedNumber || '');
+      // 依示意圖排版：診斷放中段、下方左右為性別/床號
+      return `
+        <div class="page">
+          <div class="card">
+            <div class="row">
+              <div class="lbl">入住日期：</div><div class="val">${checkin}</div>
+            </div>
+            <div class="row">
+              <div class="lbl">姓名：</div><div class="val">${name}</div>
+            </div>
+            <div class="en">${en}</div>
+            <div class="row diag-row">
+              <div class="lbl">診斷：</div><div class="val diag">${diag}</div>
+            </div>
+            <div class="row">
+              <div class="lbl">出生年月日：</div><div class="val">${birth}</div>
+            </div>
+            <div class="row bottom">
+              <div class="half"><span class="lbl">性別：</span><span class="val">${gender}</span></div>
+              <div class="half text-end"><span class="lbl">床號：</span><span class="val">${bed}</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const doc = `
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>列印床頭牌</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: "DFKai-SB","BiauKai","KaiTi","Microsoft JhengHei", Arial, sans-serif; }
+  .page { width: 100%; height: calc(297mm - 24mm); display:flex; align-items:flex-start; justify-content:center; page-break-after: always; }
+  .card {
+    width: 170mm;
+    min-height: 92mm;
+    border: 3px solid #000;
+    padding: 14mm 12mm;
+    box-sizing: border-box;
+  }
+  .row { display:flex; gap: 8mm; margin: 4mm 0; align-items:flex-start; }
+  .lbl { font-weight: 700; font-size: 22pt; white-space: nowrap; }
+  .val { font-weight: 700; font-size: 22pt; flex: 1; }
+  .en { text-align:center; font-size: 24pt; font-weight: 700; margin: 6mm 0 2mm; }
+  .diag-row .val { line-height: 1.15; }
+  .bottom { margin-top: 6mm; }
+  .half { width: 50%; }
+  .text-end { text-align: right; }
+</style>
+</head>
+<body>
+${pages}
+<script>
+(function(){
+  function fit(el, min, max){
+    if(!el) return;
+    var size = max;
+    el.style.fontSize = size + 'pt';
+    // shrink until fits
+    while (size > min && el.scrollHeight > el.clientHeight + 1) {
+      size -= 1;
+      el.style.fontSize = size + 'pt';
+    }
+  }
+  // 讓診斷欄位高度固定（以便自動縮字）
+  var diags = document.querySelectorAll('.diag');
+  diags.forEach(function(d){
+    d.style.maxHeight = '36mm';
+    d.style.overflow = 'hidden';
+    fit(d, 10, 22);
+  });
+
+  // 直接觸發列印
+  setTimeout(function(){ window.print(); }, 200);
+})();
+</script>
+</body>
+</html>`;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // headcard modal events
+  if(headcardSearchEl){
+    headcardSearchEl.addEventListener('input', ()=> buildHeadcardList());
+  }
+  if(headcardSelectAllEl){
+    headcardSelectAllEl.addEventListener('change', ()=>{
+      const checks = Array.from(document.querySelectorAll('.headcard-check'));
+      checks.forEach(c=>{ c.checked = headcardSelectAllEl.checked; });
+    });
+  }
+  if(headcardPrintBtn){
+    headcardPrintBtn.addEventListener('click', handleHeadcardPrint);
   }
 
   function tableCss(){
@@ -1555,6 +1746,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     document.addEventListener('click', (e)=>{
       const t=e.target;
       if(t.closest('#export-xls-styled')) exportStyledXls();
+      if(t.closest('#print-headcards')) openHeadcardDialog();
     });
   }
 
