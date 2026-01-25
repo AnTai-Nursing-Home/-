@@ -399,8 +399,8 @@ function renderStats(){
       st.textContent='\
         .stats-card .card-body{gap:8px;}\
         .stats-card .table-responsive{flex:1; min-height:0;}\
-        .stats-scroll{max-height:220px; overflow:auto;}\
-        @media (min-width: 992px){ .stats-scroll{max-height:260px;} }\
+        .stats-scroll{max-height:42vh; max-height:min(42vh, 420px); overflow:auto; -webkit-overflow-scrolling:touch;}\
+        @media (min-width: 992px){ .stats-scroll{max-height:360px;} }\
       ';
       document.head.appendChild(st);
     }
