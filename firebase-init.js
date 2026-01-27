@@ -2,16 +2,34 @@
 let db;       // Firestore 連線
 let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
 
-/** 解析目前登入資訊（你原本存的 antai_session_user） */
+/** 解析目前登入資訊（你原本存的 antai_session_user）
+ *  兼容兩種格式：
+ *  1) localStorage = JSON.stringify({staffId, displayName, ...})
+ *  2) localStorage = JSON.stringify(JSON.stringify({staffId, displayName, ...}))  // 你之前貼的就是這種「雙層字串」
+ */
 function getSessionUser() {
   try {
     const raw = localStorage.getItem('antai_session_user');
     if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    // 常見欄位：staffId / username / displayName
-    if (!obj.staffId && !obj.username && !obj.displayName) return null;
-    return obj;
+
+    let v = raw;
+
+    // 第一次解析
+    try { v = JSON.parse(v); } catch (_) {}
+
+    // 若解析後仍是字串，代表是「雙層字串」，再解析一次
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v); } catch (_) {}
+    }
+
+    if (!v || typeof v !== 'object') return null;
+
+    // 常見欄位：staffId / username / displayName / role
+    // 只要像是個 session object 就算登入
+    const hasAnyKey = Object.keys(v).length > 0;
+    if (!hasAnyKey) return null;
+
+    return v;
   } catch (_) {
     return null;
   }
