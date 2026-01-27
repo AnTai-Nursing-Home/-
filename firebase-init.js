@@ -8,14 +8,8 @@ let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
  *  2) localStorage = JSON.stringify(JSON.stringify({staffId, displayName, ...}))  // 你之前貼的就是這種「雙層字串」
  */
 function getSessionUser() {
-  try {
-    // 有些系統把 session 存在 sessionStorage（同分頁有效），有些存 localStorage（跨分頁/重開仍有效）
-    const raw =
-      sessionStorage.getItem('antai_session_user') ||
-      localStorage.getItem('antai_session_user');
-
+  const parseMaybe = (raw) => {
     if (!raw) return null;
-
     let v = raw;
 
     // 第一次解析
@@ -28,19 +22,97 @@ function getSessionUser() {
 
     if (!v || typeof v !== 'object') return null;
 
-    // 常見欄位：staffId / username / displayName / role
-    // 只要像是個 session object 就算登入
+    // 常見欄位：staffId / username / displayName / role / canNurse / canOffice
     const hasAnyKey = Object.keys(v).length > 0;
     if (!hasAnyKey) return null;
 
-    return v;
-  } catch (_) {
+    // 粗略判定像不像使用者物件（避免誤抓到其它 JSON）
+    const looksLikeUser =
+      ('staffId' in v) ||
+      ('displayName' in v) ||
+      ('username' in v) ||
+      ('role' in v) ||
+      ('canNurse' in v) ||
+      ('canOffice' in v);
+
+    return looksLikeUser ? v : null;
+  };
+
+  try {
+    // 1) 先看明確 key（你主要的兩種存法：sessionStorage / localStorage）
+    const raw =
+      sessionStorage.getItem('antai_session_user') ||
+      localStorage.getItem('antai_session_user');
+
+    const direct = parseMaybe(raw);
+    if (direct) return direct;
+
+    // 2) 掃描所有 storage key（有些頁面會用不同 key 存使用者）
+    const scanStores = [sessionStorage, localStorage];
+    for (const store of scanStores) {
+      try {
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (!k) continue;
+          const v = store.getItem(k);
+          const obj = parseMaybe(v);
+          if (obj) return obj;
+        }
+      } catch (_) {}
+    }
+
     return null;
+  } catch (_) {
+
+    // 3) 兼容「分散存 key」的頁面（例如 office-maintenance.js 只存 empId/employeeName 之類）
+    const pickFirst = (store, keys) => {
+      for (const k of keys) {
+        try {
+          const v = store.getItem(k);
+          if (v && String(v).trim()) return String(v).trim();
+        } catch (_) {}
+      }
+      return '';
+    };
+
+    const idKeys = ['empId','employeeId','staffId','employeeNo','empNo','username'];
+    const nameKeys = ['employeeName','displayName','name','staffName'];
+
+    const empId =
+      pickFirst(sessionStorage, idKeys) || pickFirst(localStorage, idKeys);
+    const name =
+      pickFirst(sessionStorage, nameKeys) || pickFirst(localStorage, nameKeys);
+
+    if (empId || name) {
+      const u = { staffId: empId || '', username: empId || '', displayName: name || '', name: name || '', source: 'legacy_keys' };
+      // 同步到 sessionStorage，讓其它頁面/共用防護能一致判定（不動 localStorage，避免跨入口污染）
+      try { sessionStorage.setItem('antai_session_user', JSON.stringify(u)); } catch (_) {}
+      return u;
+    }
+
+    return null;
+
+  }
+}
+
+
+function domSeemsLoggedIn() {
+  try {
+    // 有些頁面沒有把 session 存到 storage，但 UI 已經顯示登入者。
+    // 我們用「登入者：xxx」且不是「未登入」當作保守判斷，避免誤鎖。
+    const text = (document.body && document.body.innerText) ? document.body.innerText : '';
+    if (!text) return false;
+    if (text.includes('登入者') && !text.includes('未登入')) return true;
+    return false;
+  } catch (_) {
+    return false;
   }
 }
 
 function isLoggedIn() {
-  return !!getSessionUser();
+  const u = getSessionUser();
+  if (u) return true;
+  return domSeemsLoggedIn();
 }
 
 /** 判斷目前頁面屬於哪個入口（護理/辦公室/營養/照服…）；用來決定導向與是否需要強制登入 */
