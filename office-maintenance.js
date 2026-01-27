@@ -142,49 +142,6 @@
     }
     setTopRightLoginInfo();
 
-    // -------------------- Ensure unified session key for global guards (firebase-init.js) --------------------
-    // Some legacy pages can display logged-in user without storing it in session/localStorage.
-    // To make global access-control consistent across systems, we normalize into:
-    //   sessionStorage["antai_session_user"] = JSON string of {staffId, displayName, username, role, loginAt, ...}
-    (function ensureUnifiedAntaiSessionUser() {
-      try {
-        const KEY = "antai_session_user";
-        const has = !!(sessionStorage.getItem(KEY) || localStorage.getItem(KEY));
-        const label = getLoggedUserLabel();
-        if (has || !label || label === "未登入") return;
-
-        const staffId = (loggedEmpId || "").trim();
-        const displayName = (loggedName || "").trim();
-
-        // Best-effort role inference by current page path
-        const path = (location.pathname || "").toLowerCase();
-        let role = "office";
-        if (path.includes("nurse")) role = "nurse";
-        else if (path.includes("caregiver")) role = "caregiver";
-        else if (path.includes("nutrition")) role = "nutritionist";
-        else if (path.includes("admin")) role = "admin";
-        else if (path.includes("office")) role = "office";
-
-        const payload = {
-          staffId: staffId || undefined,
-          displayName: displayName || undefined,
-          username: staffId || undefined,
-          role,
-          loginAt: Date.now(),
-          // Keep compatibility with your older flags if present
-          canOffice: loggedUser?.canOffice,
-          canNurse: loggedUser?.canNurse,
-        };
-
-        sessionStorage.setItem(KEY, JSON.stringify(payload));
-      } catch (e) {
-        // non-fatal
-        console.warn("ensureUnifiedAntaiSessionUser failed:", e);
-      }
-    })();
-
-
-
     // -------------------- Top: Status Admin --------------------
     // 狀態管理 UI 元素（對應 HTML 正確 ID）
     const $statusName = document.getElementById("new-status");
