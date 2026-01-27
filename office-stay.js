@@ -670,11 +670,7 @@ async function loadApplicationsByFilter() {
             
 
             // === 沒簽名標示 ===
-            const noSign =
-                !app.signName ||
-                app.signName === '—' ||
-                app.signName === '-';
-            
+            const noSign = (!('signName' in (app || {}))) || (app.signName === null) || (app.signName === undefined) || (String(app.signName).trim() === '') || (String(app.signName).trim() === '—') || (String(app.signName).trim() === '-');
             if (noSign) {
                 tr.classList.add('tr-no-signature');
             }
@@ -742,11 +738,7 @@ const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
                     if (span) span.textContent = newSign || '';
 
                     // === 即時切換顏色 ===
-                    const noSign =
-                        !newSign ||
-                        newSign === '—' ||
-                        newSign === '-';
-                    
+                    const noSign = (newSign === null) || (newSign === undefined) || (String(newSign).trim() === '') || (String(newSign).trim() === '—') || (String(newSign).trim() === '-');
                     if (noSign) {
                         tr.classList.add('tr-no-signature');
                     } else {
