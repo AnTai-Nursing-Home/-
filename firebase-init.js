@@ -152,11 +152,20 @@ function isPublicPage() {
 }
 
 /** 是否要在此頁面啟用「未登入鎖定 + 禁止寫入」 */
+function isLegacyUnprotectedPage() {
+  // ✅ 若你有「尚未導入登入」但仍需可操作的舊系統，把路徑（檔名）加在這裡
+  // 例：if (p.endsWith('/some-legacy.html')) return true;
+  const p = (location.pathname || '').toLowerCase();
+  // 目前先不放任何舊系統白名單：預設所有非入口頁都必須登入
+  return false;
+}
+
+/** 是否要在此頁面啟用「未登入鎖定 + 禁止寫入」 */
 function shouldEnforceLoginGuard() {
   if (isPublicPage()) return false;
-  // 只對「可推斷出入口」的系統啟用（避免你那些尚未導入登入的系統被全面鎖死）
-  const portal = inferPortal();
-  return !!portal;
+  if (isLegacyUnprotectedPage()) return false;
+  // ✅ 預設：所有非入口頁都啟用（避免「複製網址開新分頁仍可操作」的漏洞）
+  return true;
 }
 
 /** 依入口回推正確的儀表板與登入頁（集中在這裡改一次就好） */
@@ -178,8 +187,8 @@ function getPortalLinks() {
 
   return {
     portal,
-    dashboardUrl: dashboards[portal] || 'office.html?view=dashboard',
-    loginUrl: logins[portal] || 'login.html'
+    dashboardUrl: dashboards[portal] || 'index.html',
+    loginUrl: logins[portal] || 'index.html'
   };
 }
 
