@@ -2,195 +2,6 @@
 let db;       // Firestore 連線
 let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
 
-/** 解析目前登入資訊（你原本存的 antai_session_user） */
-function getSessionUser() {
-  try {
-    const raw = localStorage.getItem('antai_session_user');
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    // 常見欄位：staffId / username / displayName
-    if (!obj.staffId && !obj.username && !obj.displayName) return null;
-    return obj;
-  } catch (_) {
-    return null;
-  }
-}
-
-function isLoggedIn() {
-  return !!getSessionUser();
-}
-
-/** 未登入時：鎖住 UI（仍保留 <a> 連結可返回儀表板/登入） */
-function lockUIIfNotLoggedIn() {
-  if (isLoggedIn()) return;
-
-  // 1) 覆蓋式提示（不阻擋你返回/登入的 <a> 連結）
-  if (!document.getElementById('antaiSecurityOverlay')) {
-    const overlay = document.createElement('div');
-    overlay.id = 'antaiSecurityOverlay';
-    overlay.style.position = 'fixed';
-    overlay.style.left = '0';
-    overlay.style.top = '0';
-    overlay.style.right = '0';
-    overlay.style.zIndex = '9999';
-    overlay.style.padding = '10px 12px';
-    overlay.style.background = '#fff3cd';
-    overlay.style.borderBottom = '1px solid rgba(0,0,0,.15)';
-    overlay.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang TC", "Microsoft JhengHei", sans-serif';
-    overlay.innerHTML = `
-      <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-        <div style="font-weight:700;">⚠️ 未登入：此頁面已鎖定（禁止操作 / 禁止寫入）。</div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <a href="office.html?view=dashboard" style="text-decoration:none; padding:6px 10px; border-radius:8px; background:#0d6efd; color:#fff;">返回儀表板</a>
-          <a href="login.html" style="text-decoration:none; padding:6px 10px; border-radius:8px; background:#6c757d; color:#fff;">重新登入</a>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    // 避免遮住原本內容
-    document.body.style.paddingTop = '52px';
-  }
-
-  // 2) 禁用所有表單控制項與按鈕（保留 a 連結可點）
-  const disableAll = () => {
-    const nodes = document.querySelectorAll('input, select, textarea, button');
-    nodes.forEach(el => {
-      // 若你有某些按鈕要在未登入也能使用，可加 data-no-lock="1"
-      if (el.getAttribute('data-no-lock') === '1') return;
-      el.disabled = true;
-      el.setAttribute('aria-disabled', 'true');
-      el.classList.add('antai-locked');
-    });
-  };
-
-  // 初次鎖
-  disableAll();
-
-  // 避免動態插入的控制項繞過：監聽 DOM 變更再鎖一次（很輕量）
-  if (!window.__antai_lock_observer) {
-    const obs = new MutationObserver(() => disableAll());
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-    window.__antai_lock_observer = obs;
-  }
-
-  // 3) 防止表單送出（即便 disabled 也再保險）
-  if (!window.__antai_block_submit) {
-    window.__antai_block_submit = true;
-    document.addEventListener('submit', (e) => {
-      if (isLoggedIn()) return;
-      e.preventDefault();
-      e.stopPropagation();
-      alert('未登入：禁止送出/寫入。請從儀表板重新進入或登入。');
-    }, true);
-  }
-}
-
-/** 未登入時：阻擋 Firestore/Storage 寫入（最後一道前端防線） */
-function installWriteGuardsIfNotLoggedIn() {
-  if (isLoggedIn()) return;
-  if (window.__antai_write_guards_installed) return;
-  window.__antai_write_guards_installed = true;
-
-  const deny = (op) => {
-    const err = new Error('未登入：禁止執行寫入操作（' + op + '）。');
-    err.code = 'antai/not-authenticated';
-    throw err;
-  };
-
-  // Firestore: Collection.add / Doc.set/update/delete
-  try {
-    const fs = firebase?.firestore;
-    if (fs) {
-      const DocRefProto = fs.DocumentReference && fs.DocumentReference.prototype;
-      const ColRefProto = fs.CollectionReference && fs.CollectionReference.prototype;
-      const BatchProto = fs.WriteBatch && fs.WriteBatch.prototype;
-      const TxProto = fs.Transaction && fs.Transaction.prototype;
-      const FirestoreProto = fs.Firestore && fs.Firestore.prototype;
-
-      if (ColRefProto && !ColRefProto.__antai_patched_add) {
-        const origAdd = ColRefProto.add;
-        ColRefProto.add = function(...args) { deny('collection.add'); };
-        ColRefProto.__antai_patched_add = true;
-        ColRefProto.__antai_orig_add = origAdd;
-      }
-
-      if (DocRefProto) {
-        ['set','update','delete'].forEach((m) => {
-          const key = '__antai_patched_' + m;
-          if (DocRefProto[m] && !DocRefProto[key]) {
-            const orig = DocRefProto[m];
-            DocRefProto[m] = function(...args) { deny('doc.' + m); };
-            DocRefProto[key] = true;
-            DocRefProto['__antai_orig_' + m] = orig;
-          }
-        });
-      }
-
-      if (BatchProto && !BatchProto.__antai_patched_commit) {
-        const origCommit = BatchProto.commit;
-        BatchProto.commit = function(...args) { deny('batch.commit'); };
-        BatchProto.__antai_patched_commit = true;
-        BatchProto.__antai_orig_commit = origCommit;
-      }
-
-      if (TxProto) {
-        ['set','update','delete'].forEach((m) => {
-          const key = '__antai_patched_tx_' + m;
-          if (TxProto[m] && !TxProto[key]) {
-            const orig = TxProto[m];
-            TxProto[m] = function(...args) { deny('transaction.' + m); };
-            TxProto[key] = true;
-            TxProto['__antai_orig_tx_' + m] = orig;
-          }
-        });
-      }
-
-      if (FirestoreProto && FirestoreProto.runTransaction && !FirestoreProto.__antai_patched_runTransaction) {
-        const origRT = FirestoreProto.runTransaction;
-        FirestoreProto.runTransaction = function(...args) { deny('firestore.runTransaction'); };
-        FirestoreProto.__antai_patched_runTransaction = true;
-        FirestoreProto.__antai_orig_runTransaction = origRT;
-      }
-    }
-  } catch (e) {
-    console.warn('installWriteGuardsIfNotLoggedIn (firestore) failed:', e);
-  }
-
-  // Storage: ref.put / ref.putString / ref.delete
-  try {
-    const st = firebase?.storage;
-    if (st) {
-      const RefProto = st.Reference && st.Reference.prototype;
-      if (RefProto) {
-        ['put','putString','delete'].forEach((m) => {
-          const key = '__antai_patched_st_' + m;
-          if (RefProto[m] && !RefProto[key]) {
-            const orig = RefProto[m];
-            RefProto[m] = function(...args) { deny('storage.' + m); };
-            RefProto[key] = true;
-            RefProto['__antai_orig_st_' + m] = orig;
-          }
-        });
-      }
-    }
-  } catch (e) {
-    console.warn('installWriteGuardsIfNotLoggedIn (storage) failed:', e);
-  }
-}
-
-/** 統一套用安全護欄（先鎖 UI，再裝寫入守門） */
-function applySecurityGuards() {
-  // 等 DOM 有了再鎖 UI（但我們也會先試一次）
-  try { lockUIIfNotLoggedIn(); } catch (_) {}
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      try { lockUIIfNotLoggedIn(); } catch (_) {}
-    });
-  }
-  try { installWriteGuardsIfNotLoggedIn(); } catch (_) {}
-}
-
 async function initializeFirebase() {
   try {
     // 1. 從後端 API 安全地取得 Firebase 設定
@@ -211,10 +22,7 @@ async function initializeFirebase() {
     storage = firebase.storage();
     window.storage = storage;
 
-    // ✅ 5. 套用安全護欄（未登入就鎖 UI + 阻擋寫入）
-    applySecurityGuards();
-
-    // 6. 通知其他系統 Firebase 已就緒
+    // 5. 通知其他系統 Firebase 已就緒
     document.dispatchEvent(new Event('firebase-ready'));
   } catch (error) {
     console.error("Firebase 初始化失敗:", error);
@@ -224,8 +32,6 @@ async function initializeFirebase() {
 
 // ✅ 保留你原本的保險邏輯：若已初始化成功（window.db 已存在），就直接發出 firebase-ready
 if (window.db) {
-  // ✅ 既然已有 db，仍要補上安全護欄（避免某些頁面繞過）
-  applySecurityGuards();
   document.dispatchEvent(new Event("firebase-ready"));
 } else {
   // 否則執行初始化
