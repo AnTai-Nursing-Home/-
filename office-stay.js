@@ -667,7 +667,13 @@ async function loadApplicationsByFilter() {
             const app = doc.data();
             const tr = document.createElement('tr');
 
-            const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
+            
+
+            // === 沒簽名標示 ===
+            if (!app.signName) {
+                tr.classList.add('tr-no-signature');
+            }
+const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
             const end = app.endDateTime?.toDate?.() || new Date(app.endDateTime);
             const status = statusMapOffice[app.statusId] || { name: app.statusId || '—', color: '#6c757d' };
 
@@ -729,6 +735,13 @@ async function loadApplicationsByFilter() {
                     });
                     const span = tr.querySelector('.sign-display');
                     if (span) span.textContent = newSign || '';
+
+                    // === 即時切換顏色 ===
+                    if (!newSign) {
+                        tr.classList.add('tr-no-signature');
+                    } else {
+                        tr.classList.remove('tr-no-signature');
+                    }
                 });
             }
 
