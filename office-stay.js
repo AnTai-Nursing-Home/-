@@ -670,7 +670,12 @@ async function loadApplicationsByFilter() {
             
 
             // === 沒簽名標示 ===
-            if (!app.signName) {
+            const noSign =
+                !app.signName ||
+                app.signName === '—' ||
+                app.signName === '-';
+            
+            if (noSign) {
                 tr.classList.add('tr-no-signature');
             }
 const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
@@ -737,7 +742,12 @@ const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
                     if (span) span.textContent = newSign || '';
 
                     // === 即時切換顏色 ===
-                    if (!newSign) {
+                    const noSign =
+                        !newSign ||
+                        newSign === '—' ||
+                        newSign === '-';
+                    
+                    if (noSign) {
                         tr.classList.add('tr-no-signature');
                     } else {
                         tr.classList.remove('tr-no-signature');
