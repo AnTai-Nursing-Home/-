@@ -221,6 +221,19 @@ function lockUIIfNotLoggedIn() {
       </div>
     `;
     document.body.appendChild(overlay);
+
+    // ✅ 強制阻擋所有互動（避免某些元件繞過 disabled）
+    // 只允許提示列（overlay）上的按鈕可點
+    if (!document.getElementById('antaiLockStyle')) {
+      const st = document.createElement('style');
+      st.id = 'antaiLockStyle';
+      st.textContent = `
+        body * { pointer-events: none !important; }
+        #antaiSecurityOverlay, #antaiSecurityOverlay * { pointer-events: auto !important; }
+      `;
+      document.head.appendChild(st);
+    }
+
     // 避免遮住原本內容
     document.body.style.paddingTop = '52px';
   }
