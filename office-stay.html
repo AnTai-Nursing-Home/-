@@ -39,7 +39,15 @@
     
 
     /* 未簽名案件標示 */
-    .tr-no-signature{ background: #fff3cd !important; }
+    .tr-no-signature > td,
+    .tr-no-signature > th{
+        background-color:#fff3cd !important;
+    }
+    /* Bootstrap table uses CSS variables for cell backgrounds; set them too */
+    .tr-no-signature > *{
+        --bs-table-bg: #fff3cd !important;
+        --bs-table-accent-bg: #fff3cd !important;
+    }
 
     </style>
 </head>
