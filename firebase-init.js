@@ -9,7 +9,11 @@ let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
  */
 function getSessionUser() {
   try {
-    const raw = localStorage.getItem('antai_session_user');
+    // 有些系統把 session 存在 sessionStorage（同分頁有效），有些存 localStorage（跨分頁/重開仍有效）
+    const raw =
+      sessionStorage.getItem('antai_session_user') ||
+      localStorage.getItem('antai_session_user');
+
     if (!raw) return null;
 
     let v = raw;
