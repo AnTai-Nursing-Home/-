@@ -659,7 +659,7 @@ function renderCurrentSheetHeader() {
 
   const title = currentSheetMeta.title ? currentSheetMeta.title : '（未命名）';
   const date = currentSheetMeta.date || '—';
-  const residentTotal = currentSheetMeta.residentTotal || '—';
+  const residentTotal = (residents && residents.length) ? String(residents.length) : (currentSheetMeta.residentTotal || '—');
   const primaryCaseCount = String(computePrimaryCaseCount());
   const maker = currentSheetMeta.maker || '—';
 
