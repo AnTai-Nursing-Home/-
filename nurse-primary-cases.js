@@ -23,6 +23,9 @@ let currentSheetMeta = {              // 會顯示在清單的欄位
   maker: ''
 };
 
+// 編輯頁下方備註（可自行輸入）
+let currentNotes = { note1: '', note2: '', note3: '' };
+
 let sheetMetaModal = null;
 let saving = false;
 
@@ -232,6 +235,35 @@ function renderCaseTable() {
   setPrimaryCaseCountCell(computePrimaryCaseCount());
 }
 
+// ========== 備註（備註一/二/三） ==========
+function setNotesToUI(notes) {
+  const n = notes || {};
+  currentNotes = {
+    note1: (n.note1 ?? '').toString(),
+    note2: (n.note2 ?? '').toString(),
+    note3: (n.note3 ?? '').toString()
+  };
+
+  const el1 = document.getElementById('note1');
+  const el2 = document.getElementById('note2');
+  const el3 = document.getElementById('note3');
+  if (el1) el1.value = currentNotes.note1;
+  if (el2) el2.value = currentNotes.note2;
+  if (el3) el3.value = currentNotes.note3;
+}
+
+function readNotesFromUI() {
+  const el1 = document.getElementById('note1');
+  const el2 = document.getElementById('note2');
+  const el3 = document.getElementById('note3');
+  currentNotes = {
+    note1: (el1 ? el1.value : (currentNotes.note1 || '')).toString(),
+    note2: (el2 ? el2.value : (currentNotes.note2 || '')).toString(),
+    note3: (el3 ? el3.value : (currentNotes.note3 || '')).toString()
+  };
+  return { ...currentNotes };
+}
+
 // ========== 收集/套用表格資料 ==========
 function collectCaseTableData() {
   const rows = [];
@@ -352,7 +384,8 @@ function isEditorVisible() {
 function computeSnapshot() {
   if (!isEditorVisible()) return '';
   const rows = collectCaseTableData();
-  const snapObj = { id: currentSheetId || '', meta: currentSheetMeta || {}, rows };
+  const notes = readNotesFromUI();
+  const snapObj = { id: currentSheetId || '', meta: currentSheetMeta || {}, notes, rows };
   try { return JSON.stringify(snapObj); } catch (e) { return String(Date.now()); }
 }
 
@@ -576,6 +609,8 @@ async function openNewSheet(copyFromId = '') {
   currentSheetMeta = defaultMetaForNewSheet();
 
   renderCaseTable();
+  // 新表預設備註清空
+  setNotesToUI({ note1: '', note2: '', note3: '' });
   // 新表：住民總人數=目前住民總數；主責個案數依表格計算
   currentSheetMeta.residentTotal = String(residents.length || '');
   setPrimaryCaseCountCell(computePrimaryCaseCount());
@@ -587,6 +622,11 @@ async function openNewSheet(copyFromId = '') {
         const data = snap.data() || {};
         const rows = Array.isArray(data.rows) ? data.rows : [];
         applyCaseTableRows(rows);
+        setNotesToUI({
+          note1: safeText(data.note1),
+          note2: safeText(data.note2),
+          note3: safeText(data.note3)
+        });
       }
     } catch (e) {
       console.error('延用表單讀取失敗：', e);
@@ -630,6 +670,13 @@ async function openEditorById(id) {
       primaryCaseCount: safeText(data.primaryCaseCount) || '',
       maker: safeText(data.maker) || ''
     };
+
+    // 備註（舊資料沒有就顯示空白）
+    setNotesToUI({
+      note1: safeText(data.note1),
+      note2: safeText(data.note2),
+      note3: safeText(data.note3)
+    });
 
     const rows = Array.isArray(data.rows) ? data.rows : [];
     applyCaseTableRows(rows);
@@ -756,6 +803,9 @@ async function saveSheetWithMeta(meta) {
       residentTotal: meta.residentTotal,
       primaryCaseCount: meta.primaryCaseCount,
       maker: meta.maker,
+      note1: safeText(readNotesFromUI().note1),
+      note2: safeText(readNotesFromUI().note2),
+      note3: safeText(readNotesFromUI().note3),
       rows: filteredRows,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -807,6 +857,8 @@ async function exportCaseAssignExcel() {
   const residentTotal = meta.residentTotal || '';
   const primaryCaseCount = String(computePrimaryCaseCount());
   const maker = meta.maker || '';
+
+  const notes = readNotesFromUI();
 
   const titleInfo = `日期：${rocDate || isoDate} 製表人：${maker || ''} 住民總人數：${residentTotal || ''} 主責個案數：${primaryCaseCount || ''}`;
 
@@ -924,6 +976,26 @@ async function exportCaseAssignExcel() {
   ws.getRow(totalRowIndex).getCell(10).font = fontHeader;
   ws.getRow(totalRowIndex).getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
   ws.getRow(totalRowIndex).getCell(10).border = borderThin;
+
+  // 備註一/二/三（可空白）
+  const noteLines = [
+    { label: '備註一', text: (notes.note1 || '').trim() },
+    { label: '備註二', text: (notes.note2 || '').trim() },
+    { label: '備註三', text: (notes.note3 || '').trim() }
+  ];
+
+  let noteRowIdx = totalRowIndex + 1;
+  noteLines.forEach(nl => {
+    if (!nl.text) return;
+    ws.mergeCells(noteRowIdx, 1, noteRowIdx, 10);
+    const c = ws.getRow(noteRowIdx).getCell(1);
+    c.value = `${nl.label}：${nl.text}`;
+    c.font = fontCell;
+    c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    c.border = borderThin;
+    ws.getRow(noteRowIdx).height = 28;
+    noteRowIdx += 1;
+  });
 
   // 列印設定
   ws.pageSetup = {
@@ -1073,6 +1145,15 @@ function bindUI() {
   // export excel
   const exportBtn = document.getElementById('exportExcelButton');
   if (exportBtn) exportBtn.addEventListener('click', exportCaseAssignExcel);
+
+  // 備註一/二/三：輸入就視為變更
+  ['note1', 'note2', 'note3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      markDirty();
+    });
+  });
 
   // warn before close tab
   window.addEventListener('beforeunload', (e) => {
