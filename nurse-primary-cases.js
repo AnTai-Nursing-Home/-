@@ -1,5 +1,5 @@
 // 主責個案分配（清單 + 編輯）
-// - 清單：顯示日期、標題、週次、住民總人數、製表人
+// - 清單：顯示日期、標題、住民總人數、主責個案數、製表人
 // - 編輯：表格同舊版，但不再顯示上方日期/週次/製表人欄位；儲存時用 Modal 填寫
 // - 右上角顯示登入者（員編 + 姓名），登入邏輯參考 supplies.js
 
@@ -18,166 +18,23 @@ let currentSheetId = '';              // Firestore doc id
 let currentSheetMeta = {              // 會顯示在清單的欄位
   date: '',
   title: '',
-  week: '',
-  totalResidents: '',
+  residentTotal: '',
+  primaryCaseCount: '',
   maker: ''
 };
 
 let sheetMetaModal = null;
 let saving = false;
 
-// --- 未儲存變更偵測（Dirty Check，參考導尿系統 foley-care.js 的做法） ---
+let copyFromModal = null;
+let sheetsCache = []; // for copy-from dropdown
+
+// --- 未儲存變更偵測（Dirty Check，參考導尿系統做法） ---
 let isDirty = false;
 let lastSavedSnapshot = '';
 let unsavedModal = null;
 let pendingResolveAfterSave = null;
 
-function isEditorVisible() {
-  const editor = document.getElementById('editorSection');
-  return !!editor && !editor.classList.contains('d-none');
-}
-
-function computeSnapshot() {
-  if (!isEditorVisible()) return '';
-  const rows = collectCaseTableData();
-  const snapObj = {
-    currentSheetId: currentSheetId || '',
-    meta: currentSheetMeta || {},
-    rows
-  };
-  try { return JSON.stringify(snapObj); } catch (e) { return String(Date.now()); }
-}
-
-function markClean() {
-  lastSavedSnapshot = computeSnapshot();
-  isDirty = false;
-}
-
-function markDirty() {
-  if (!isEditorVisible()) return;
-  const now = computeSnapshot();
-  if (now !== lastSavedSnapshot) isDirty = true;
-}
-
-function ensureUnsavedModal() {
-  if (unsavedModal) return;
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `
-  <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">偵測到未儲存變更</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">不儲存</button>
-          <button type="button" class="btn btn-primary" id="unsaved-save-btn">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(wrapper.firstElementChild);
-
-  const modalEl = document.getElementById('unsavedChangesModal');
-  if (modalEl && window.bootstrap) {
-    unsavedModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
-  }
-}
-
-function showUnsavedChangesDialog() {
-  // Promise<'save'|'discard'|'cancel'>
-  return new Promise((resolve) => {
-    ensureUnsavedModal();
-    if (!unsavedModal) {
-      const ok = confirm('系統偵測到您有做更改但尚未儲存。\n按「確定」=儲存，按「取消」=不儲存');
-      resolve(ok ? 'save' : 'discard');
-      return;
-    }
-
-    const btnSave = document.getElementById('unsaved-save-btn');
-    const btnDiscard = document.getElementById('unsaved-discard-btn');
-    const btnCancel = document.getElementById('unsaved-cancel-btn');
-
-    const cleanup = () => {
-      btnSave?.removeEventListener('click', onSave);
-      btnDiscard?.removeEventListener('click', onDiscard);
-      btnCancel?.removeEventListener('click', onCancel);
-    };
-    const onSave = () => { cleanup(); unsavedModal.hide(); resolve('save'); };
-    const onDiscard = () => { cleanup(); unsavedModal.hide(); resolve('discard'); };
-    const onCancel = () => { cleanup(); unsavedModal.hide(); resolve('cancel'); };
-
-    btnSave?.addEventListener('click', onSave);
-    btnDiscard?.addEventListener('click', onDiscard);
-    btnCancel?.addEventListener('click', onCancel);
-
-    unsavedModal.show();
-  });
-}
-
-function openSaveModalAndWait() {
-  // 讓 guardUnsavedChanges 在使用者「真的存成功」後才繼續
-  return new Promise((resolve) => {
-    pendingResolveAfterSave = resolve;
-    ensureModal();
-    fillModalFromMeta();
-
-    const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-    if (!maker) {
-      alert('未偵測到登入者，無法自動帶入製表人。請先完成登入。');
-      pendingResolveAfterSave = null;
-      resolve(false);
-      return;
-    }
-
-    const modalEl = document.getElementById('sheetMetaModal');
-    const onHidden = () => {
-      modalEl?.removeEventListener('hidden.bs.modal', onHidden);
-      // 若尚未由儲存流程 resolve，視為取消
-      if (pendingResolveAfterSave) {
-        const r = pendingResolveAfterSave;
-        pendingResolveAfterSave = null;
-        r(false);
-      }
-    };
-    modalEl?.addEventListener('hidden.bs.modal', onHidden);
-
-    sheetMetaModal?.show();
-  });
-}
-
-async function guardUnsavedChanges(nextAction) {
-  if (!isEditorVisible()) {
-    await nextAction();
-    return true;
-  }
-
-  markDirty();
-  if (!isDirty) {
-    await nextAction();
-    return true;
-  }
-
-  const choice = await showUnsavedChangesDialog();
-  if (choice === 'cancel') return false;
-
-  if (choice === 'save') {
-    const ok = await openSaveModalAndWait();
-    if (!ok) return false;
-    markDirty();
-    if (isDirty) return false;
-  } else {
-    isDirty = false;
-  }
-
-  await nextAction();
-  return true;
-}
 
 // ========== Login（參考 supplies.js） ==========
 function getLoginUser() {
@@ -275,32 +132,8 @@ function updateCaseCountForGroup(groupIndex) {
   });
   const span = document.querySelector(`.case-count[data-group="${groupIndex}"]`);
   if (span) span.textContent = count > 0 ? String(count) : '';
-
-  // 同步更新底部「總人數」（所有護理師個案數加總）
-  updateTotalCaseCount();
 }
 
-function getTotalCaseCount() {
-  let total = 0;
-  for (let i = 0; i < ROW_COUNT; i++) {
-    const groupIndex = String(i);
-    const span = document.querySelector(`.case-count[data-group="${groupIndex}"]`);
-    const n = parseInt((span?.textContent || '').trim(), 10);
-    if (!Number.isNaN(n)) total += n;
-  }
-  return total;
-}
-
-function updateTotalCaseCount() {
-  setTotalResidentsCell(getTotalCaseCount());
-}
-
-function setTotalResidentsCell(val) {
-  const cell = document.getElementById('totalResidentsCell');
-  if (!cell) return;
-  const v = String(val ?? '').trim();
-  cell.textContent = v ? v : '—';
-}
 
 // ========== 表格渲染 ==========
 function renderCaseTable() {
@@ -378,7 +211,6 @@ function renderCaseTable() {
       const nurse = nurses.find(n => n.id === nurseId);
       const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
       if (idSpan) idSpan.textContent = nurse ? nurse.id : '';
-
       markDirty();
     });
   });
@@ -391,16 +223,13 @@ function renderCaseTable() {
       const groupIndex = target.getAttribute('data-group');
       updateCaseCountForGroup(groupIndex);
       refreshResidentOptions();
-
-      // 有改動就標記 Dirty
+      setPrimaryCaseCountCell(computePrimaryCaseCount());
       markDirty();
     });
   });
 
   refreshResidentOptions();
-
-  // 初始總人數
-  updateTotalCaseCount();
+  setPrimaryCaseCountCell(computePrimaryCaseCount());
 }
 
 // ========== 收集/套用表格資料 ==========
@@ -458,9 +287,7 @@ function applyCaseTableRows(rows) {
     updateCaseCountForGroup(groupIndex);
   }
   refreshResidentOptions();
-
-  // 套用完成後同步總人數
-  updateTotalCaseCount();
+  setPrimaryCaseCountCell(computePrimaryCaseCount());
 }
 
 // ========== Base lists（護理師/住民） ==========
@@ -500,6 +327,152 @@ function safeText(v) {
   return String(v ?? '').trim();
 }
 
+
+function computePrimaryCaseCount() {
+  const selects = document.querySelectorAll('.case-select');
+  const set = new Set();
+  selects.forEach(sel => {
+    const v = (sel.value || '').trim();
+    if (v) set.add(v);
+  });
+  return set.size;
+}
+
+function setPrimaryCaseCountCell(n) {
+  const el = document.getElementById('primaryCaseCountCell');
+  if (el) el.textContent = (n === '' || n === null || typeof n === 'undefined') ? '—' : String(n);
+}
+
+// dirty snapshot (only editor)
+function isEditorVisible() {
+  const editor = document.getElementById('editorSection');
+  return !!editor && !editor.classList.contains('d-none');
+}
+
+function computeSnapshot() {
+  if (!isEditorVisible()) return '';
+  const rows = collectCaseTableData();
+  const snapObj = { id: currentSheetId || '', meta: currentSheetMeta || {}, rows };
+  try { return JSON.stringify(snapObj); } catch (e) { return String(Date.now()); }
+}
+
+function markClean() {
+  lastSavedSnapshot = computeSnapshot();
+  isDirty = false;
+}
+
+function markDirty() {
+  if (!isEditorVisible()) return;
+  const now = computeSnapshot();
+  if (now !== lastSavedSnapshot) isDirty = true;
+}
+
+function ensureUnsavedModal() {
+  if (unsavedModal) return;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+  <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">偵測到未儲存變更</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">不儲存</button>
+          <button type="button" class="btn btn-primary" id="unsaved-save-btn">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(wrapper.firstElementChild);
+  const modalEl = document.getElementById('unsavedChangesModal');
+  if (modalEl && window.bootstrap) {
+    unsavedModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+  }
+}
+
+function showUnsavedChangesDialog() {
+  return new Promise((resolve) => {
+    ensureUnsavedModal();
+    if (!unsavedModal) {
+      const ok = confirm('系統偵測到您有做更改但尚未儲存。\n按「確定」=儲存，按「取消」=不儲存');
+      resolve(ok ? 'save' : 'discard');
+      return;
+    }
+    const btnSave = document.getElementById('unsaved-save-btn');
+    const btnDiscard = document.getElementById('unsaved-discard-btn');
+    const btnCancel = document.getElementById('unsaved-cancel-btn');
+
+    const cleanup = () => {
+      btnSave?.removeEventListener('click', onSave);
+      btnDiscard?.removeEventListener('click', onDiscard);
+      btnCancel?.removeEventListener('click', onCancel);
+    };
+    const onSave = () => { cleanup(); unsavedModal.hide(); resolve('save'); };
+    const onDiscard = () => { cleanup(); unsavedModal.hide(); resolve('discard'); };
+    const onCancel = () => { cleanup(); unsavedModal.hide(); resolve('cancel'); };
+
+    btnSave?.addEventListener('click', onSave);
+    btnDiscard?.addEventListener('click', onDiscard);
+    btnCancel?.addEventListener('click', onCancel);
+    unsavedModal.show();
+  });
+}
+
+function openSaveModalAndWait() {
+  return new Promise((resolve) => {
+    pendingResolveAfterSave = resolve;
+    ensureModal();
+    fillModalFromMeta();
+
+    const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
+    if (!maker) {
+      alert('未偵測到登入者，無法自動帶入製表人。請先完成登入。');
+      pendingResolveAfterSave = null;
+      resolve(false);
+      return;
+    }
+
+    const modalEl = document.getElementById('sheetMetaModal');
+    const onHidden = () => {
+      modalEl?.removeEventListener('hidden.bs.modal', onHidden);
+      if (pendingResolveAfterSave) {
+        const r = pendingResolveAfterSave;
+        pendingResolveAfterSave = null;
+        r(false);
+      }
+    };
+    modalEl?.addEventListener('hidden.bs.modal', onHidden);
+    sheetMetaModal?.show();
+  });
+}
+
+async function guardUnsavedChanges(nextAction) {
+  if (!isEditorVisible()) { await nextAction(); return true; }
+  markDirty();
+  if (!isDirty) { await nextAction(); return true; }
+
+  const choice = await showUnsavedChangesDialog();
+  if (choice === 'cancel') return false;
+
+  if (choice === 'save') {
+    const ok = await openSaveModalAndWait();
+    if (!ok) return false;
+    markDirty();
+    if (isDirty) return false;
+  } else {
+    isDirty = false;
+  }
+
+  await nextAction();
+  return true;
+}
+
 async function loadSheetsList() {
   const tbody = document.getElementById('sheetsTbody');
   if (!tbody) return;
@@ -517,6 +490,7 @@ async function loadSheetsList() {
     }
 
     const docs = snap.docs.map(d => ({ id: d.id, ...((d.data() || {})) }));
+    sheetsCache = docs;
     if (!docs.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">目前沒有任何個案分配表。</td></tr>';
       return;
@@ -526,8 +500,8 @@ async function loadSheetsList() {
     docs.forEach(d => {
       const date = safeText(d.date) || safeText(d.id);
       const title = safeText(d.title) || '(未命名)';
-      const week = safeText(d.week);
-      const totalResidents = safeText(d.totalResidents);
+      const residentTotal = safeText(d.residentTotal || d.totalResidents);
+      const primaryCaseCount = safeText(d.primaryCaseCount);
       const maker = safeText(d.maker);
       const updated = fmtTime(d.updatedAt);
 
@@ -535,14 +509,14 @@ async function loadSheetsList() {
       tr.innerHTML = `
         <td class="text-center">${date}</td>
         <td>${escapeHtml(title)}</td>
-        <td class="text-center">${escapeHtml(week)}</td>
-        <td class="text-center">${escapeHtml(totalResidents)}</td>
+        <td class="text-center">${escapeHtml(residentTotal)}</td>
+        <td class="text-center">${escapeHtml(primaryCaseCount)}</td>
         <td class="text-center">${escapeHtml(maker)}</td>
         <td class="text-center">${escapeHtml(updated)}</td>
         <td class="text-center">
-          <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <div class="d-flex gap-1 justify-content-center">
             <button class="btn btn-sm btn-primary open-sheet-btn" data-id="${d.id}">開啟</button>
-            <button class="btn btn-sm btn-outline-danger delete-sheet-btn" data-id="${d.id}" data-title="${escapeHtml(title)}">刪除</button>
+            <button class="btn btn-sm btn-outline-danger delete-sheet-btn" data-id="${d.id}">刪除</button>
           </div>
         </td>
       `;
@@ -552,20 +526,15 @@ async function loadSheetsList() {
     tbody.querySelectorAll('.open-sheet-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-id');
-        // 清單頁開啟（通常不會有 dirty，但保護一下）
-        guardUnsavedChanges(async () => {
-          await openEditorById(id);
-          markClean();
-        });
+        openEditorById(id);
       });
     });
 
     tbody.querySelectorAll('.delete-sheet-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        const title = btn.getAttribute('data-title') || '';
-        const ok = confirm(`確定要刪除這張個案分配表嗎？\n\n${title || id}`);
-        if (!ok) return;
+        if (!id) return;
+        if (!confirm('確定要刪除這張個案分配表嗎？刪除後無法復原。')) return;
         try {
           await db.collection(COLLECTION).doc(id).delete();
           await loadSheetsList();
@@ -585,7 +554,7 @@ function showListView() {
   document.getElementById('listSection')?.classList.remove('d-none');
   document.getElementById('editorSection')?.classList.add('d-none');
   currentSheetId = '';
-  currentSheetMeta = { date: '', title: '', week: '', totalResidents: '', maker: '' };
+  currentSheetMeta = { date: '', title: '', residentTotal: '', primaryCaseCount: '', maker: '' };
 }
 
 function showEditorView() {
@@ -597,23 +566,39 @@ function showEditorView() {
 function defaultMetaForNewSheet() {
   const today = new Date().toISOString().slice(0, 10);
   const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-  return { date: today, title: '', week: '', totalResidents: '', maker };
+  return { date: today, title: '', residentTotal: String(residents.length || ''), primaryCaseCount: '0', maker };
 }
 
-async function openNewSheet() {
+async function openNewSheet(copyFromId = '') {
   if (!baseListsLoaded) return;
 
   currentSheetId = '';
   currentSheetMeta = defaultMetaForNewSheet();
 
   renderCaseTable();
-  updateTotalCaseCount();
+  // 新表：住民總人數=目前住民總數；主責個案數依表格計算
+  currentSheetMeta.residentTotal = String(residents.length || '');
+  setPrimaryCaseCountCell(computePrimaryCaseCount());
+
+  if (copyFromId) {
+    try {
+      const snap = await db.collection(COLLECTION).doc(copyFromId).get();
+      if (snap.exists) {
+        const data = snap.data() || {};
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        applyCaseTableRows(rows);
+      }
+    } catch (e) {
+      console.error('延用表單讀取失敗：', e);
+      alert('延用表單讀取失敗，將建立空白表。');
+    }
+  }
+
+  // 重新計算 footer
+  setPrimaryCaseCountCell(computePrimaryCaseCount());
 
   renderCurrentSheetHeader();
   showEditorView();
-
-  // 新表初始狀態視為乾淨
-  markClean();
   // URL 標示（不一定需要）
   try {
     const url = new URL(window.location.href);
@@ -641,20 +626,19 @@ async function openEditorById(id) {
     currentSheetMeta = {
       date: safeText(data.date) || '',
       title: safeText(data.title) || '',
-      week: safeText(data.week) || '',
-      totalResidents: safeText(data.totalResidents) || '',
+      residentTotal: safeText(data.residentTotal || data.totalResidents) || '',
+      primaryCaseCount: safeText(data.primaryCaseCount) || '',
       maker: safeText(data.maker) || ''
     };
 
     const rows = Array.isArray(data.rows) ? data.rows : [];
     applyCaseTableRows(rows);
-    updateTotalCaseCount();
+    // footer 以表格內容即時計算
+    setPrimaryCaseCountCell(computePrimaryCaseCount());
 
     renderCurrentSheetHeader();
-    showEditorView();
-
-    // 開啟既有表後，先記錄快照
     markClean();
+    showEditorView();
 
     try {
       const url = new URL(window.location.href);
@@ -675,12 +659,12 @@ function renderCurrentSheetHeader() {
 
   const title = currentSheetMeta.title ? currentSheetMeta.title : '（未命名）';
   const date = currentSheetMeta.date || '—';
-  const week = currentSheetMeta.week || '—';
-  const totalResidents = currentSheetMeta.totalResidents || '—';
+  const residentTotal = currentSheetMeta.residentTotal || '—';
+  const primaryCaseCount = String(computePrimaryCaseCount());
   const maker = currentSheetMeta.maker || '—';
 
   if (titleEl) titleEl.textContent = `${title}`;
-  if (metaEl) metaEl.textContent = `日期：${date}　週次：${week}　住民總人數：${totalResidents}　製表人：${maker}`;
+  if (metaEl) metaEl.textContent = `日期：${date}　住民總人數：${residentTotal}　主責個案數：${primaryCaseCount}　製表人：${maker}`;
 }
 
 // ========== 儲存（先開 Modal） ==========
@@ -691,30 +675,64 @@ function ensureModal() {
   }
 }
 
+
+function ensureCopyFromModal() {
+  if (!copyFromModal) {
+    const el = document.getElementById('copyFromModal');
+    if (el) copyFromModal = new bootstrap.Modal(el);
+  }
+}
+
+function populateCopyFromOptions() {
+  const sel = document.getElementById('copyFromSelect');
+  if (!sel) return;
+  // keep first option
+  const keep = sel.querySelector('option[value=""]');
+  sel.innerHTML = '';
+  if (keep) sel.appendChild(keep);
+  // newest first
+  (sheetsCache || []).forEach(d => {
+    const date = safeText(d.date) || safeText(d.id);
+    const title = safeText(d.title) || '(未命名)';
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = `${date}｜${title}`;
+    sel.appendChild(opt);
+  });
+}
+
+function openCopyFromModal() {
+  ensureCopyFromModal();
+  populateCopyFromOptions();
+  copyFromModal?.show();
+}
+
 function fillModalFromMeta() {
   const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
 
   const dateEl = document.getElementById('metaDate');
   const titleEl = document.getElementById('metaTitle');
-  const weekEl = document.getElementById('metaWeek');
-  const totalEl = document.getElementById('metaTotalResidents');
+  const residentTotalEl = document.getElementById('metaResidentTotal');
+  const primaryCountEl = document.getElementById('metaPrimaryCaseCount');
   const makerEl = document.getElementById('metaMaker');
 
   if (dateEl) dateEl.value = currentSheetMeta.date || new Date().toISOString().slice(0, 10);
   if (titleEl) titleEl.value = currentSheetMeta.title || '';
-  if (weekEl) weekEl.value = currentSheetMeta.week || '';
-  if (totalEl) totalEl.value = currentSheetMeta.totalResidents || '';
+  const residentTotal = String(residents.length || '');
+  const primaryCount = String(computePrimaryCaseCount());
+  if (residentTotalEl) residentTotalEl.value = residentTotal;
+  if (primaryCountEl) primaryCountEl.value = primaryCount;
   if (makerEl) makerEl.value = currentSheetMeta.maker || maker;
 }
 
 function readMetaFromModal() {
   const date = document.getElementById('metaDate')?.value || '';
   const title = document.getElementById('metaTitle')?.value?.trim() || '';
-  const week = document.getElementById('metaWeek')?.value?.trim() || '';
-  const totalResidents = document.getElementById('metaTotalResidents')?.value?.trim() || '';
+  const residentTotal = String(residents.length || '');
+  const primaryCaseCount = String(computePrimaryCaseCount());
   const maker = ([currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ') || '').trim();
 
-  return { date, title, week, totalResidents, maker };
+  return { date, title, residentTotal, primaryCaseCount, maker };
 }
 
 async function saveSheetWithMeta(meta) {
@@ -724,7 +742,7 @@ async function saveSheetWithMeta(meta) {
   try {
     if (!meta.date) return alert('請填寫日期');
     if (!meta.title) return alert('請填寫標題');
-    if (meta.totalResidents === '') return alert('請填寫住民總人數');
+    
 
     const rows = collectCaseTableData();
     const filteredRows = rows.filter(r => {
@@ -735,8 +753,8 @@ async function saveSheetWithMeta(meta) {
     const data = {
       date: meta.date,
       title: meta.title,
-      week: meta.week,
-      totalResidents: meta.totalResidents,
+      residentTotal: meta.residentTotal,
+      primaryCaseCount: meta.primaryCaseCount,
       maker: meta.maker,
       rows: filteredRows,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -750,21 +768,11 @@ async function saveSheetWithMeta(meta) {
     await db.collection(COLLECTION).doc(currentSheetId).set(data, { merge: true });
 
     currentSheetMeta = { ...meta };
+    setPrimaryCaseCountCell(computePrimaryCaseCount());
     renderCurrentSheetHeader();
-    updateTotalCaseCount();
 
     alert('主責個案分配表已儲存完成。');
     await loadSheetsList();
-
-    // 儲存後視為乾淨
-    markClean();
-
-    // 若有等待儲存完成的 guard，通知它可以繼續
-    if (pendingResolveAfterSave) {
-      const r = pendingResolveAfterSave;
-      pendingResolveAfterSave = null;
-      r(true);
-    }
   } catch (err) {
     console.error('儲存失敗：', err);
     alert('儲存失敗，請稍後再試。');
@@ -796,11 +804,11 @@ async function exportCaseAssignExcel() {
   const isoDate = meta.date || '';
   const rocDate = toRocDotDate(isoDate);
   const title = meta.title || '主責個案分配表';
-  const weekText = meta.week || '';
-  const totalResidents = meta.totalResidents || '';
+  const residentTotal = meta.residentTotal || '';
+  const primaryCaseCount = String(computePrimaryCaseCount());
   const maker = meta.maker || '';
 
-  const titleInfo = `日期：${rocDate || isoDate} ${weekText ? `(${weekText}) ` : ''}製表人：${maker || ''} 住民總人數：${totalResidents || ''}`;
+  const titleInfo = `日期：${rocDate || isoDate} 製表人：${maker || ''} 住民總人數：${residentTotal || ''} 主責個案數：${primaryCaseCount || ''}`;
 
   const rows = collectCaseTableData();
   const filteredRows = rows.filter(r => {
@@ -904,15 +912,15 @@ async function exportCaseAssignExcel() {
     excelRowIndex += 2;
   });
 
-  // 底部總人數（對應你要的「備註欄最下面那格」= 依分配計算的個案數加總）
+  // 底部總人數（對應你要的「備註欄最下面那格」）
   const totalRowIndex = excelRowIndex + 1;
   ws.mergeCells(totalRowIndex, 1, totalRowIndex, 9);
-  ws.getRow(totalRowIndex).getCell(1).value = '總人數';
+  ws.getRow(totalRowIndex).getCell(1).value = '主責個案數';
   ws.getRow(totalRowIndex).getCell(1).font = fontHeader;
   ws.getRow(totalRowIndex).getCell(1).alignment = { vertical: 'middle', horizontal: 'right' };
   ws.getRow(totalRowIndex).getCell(1).border = borderThin;
 
-  ws.getRow(totalRowIndex).getCell(10).value = String(getTotalCaseCount());
+  ws.getRow(totalRowIndex).getCell(10).value = primaryCaseCount || '';
   ws.getRow(totalRowIndex).getCell(10).font = fontHeader;
   ws.getRow(totalRowIndex).getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
   ws.getRow(totalRowIndex).getCell(10).border = borderThin;
@@ -956,21 +964,28 @@ function escapeHtml(str) {
 
 // ========== 事件綁定 ==========
 function bindUI() {
-  // list -> new
+  // list -> new (open copy modal)
   const newBtn = document.getElementById('newSheetBtn');
-  if (newBtn) newBtn.addEventListener('click', () => {
-    guardUnsavedChanges(async () => {
-      await openNewSheet();
-      markClean();
+  if (newBtn) newBtn.addEventListener('click', async () => {
+    await guardUnsavedChanges(async () => {
+      openCopyFromModal();
     });
+  });
+
+  const confirmCopyBtn = document.getElementById('confirmCopyFromBtn');
+  if (confirmCopyBtn) confirmCopyBtn.addEventListener('click', async () => {
+    const copyFromId = document.getElementById('copyFromSelect')?.value || '';
+    copyFromModal?.hide();
+    await openNewSheet(copyFromId);
+    markClean();
   });
 
   // editor -> back
   const backBtn = document.getElementById('backToListBtn');
-  if (backBtn) backBtn.addEventListener('click', () => {
-    guardUnsavedChanges(async () => {
+  if (backBtn) backBtn.addEventListener('click', async () => {
+    await guardUnsavedChanges(async () => {
       showListView();
-      await loadSheetsList();
+      loadSheetsList();
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete('id');
@@ -980,36 +995,33 @@ function bindUI() {
     });
   });
 
-  // editor -> delete sheet
-  const deleteBtn = document.getElementById('deleteSheetBtn');
-  if (deleteBtn) {
-    deleteBtn.addEventListener('click', async () => {
-      const id = currentSheetId;
-      if (!id) {
-        alert('此表單尚未儲存，無需刪除。');
-        return;
-      }
+  // delete sheet
+  const delBtn = document.getElementById('deleteSheetBtn');
+  if (delBtn) delBtn.addEventListener('click', async () => {
+    if (!currentSheetId) {
+      alert('此表尚未儲存，無需刪除。');
+      return;
+    }
+    if (!confirm('確定要刪除這張個案分配表嗎？刪除後無法復原。')) return;
 
-      const title = currentSheetMeta?.title || '';
-      const ok = confirm(`確定要刪除這張個案分配表嗎？\n\n${title || id}`);
-      if (!ok) return;
-
-      try {
-        await db.collection(COLLECTION).doc(id).delete();
-        isDirty = false;
-        showListView();
-        await loadSheetsList();
-      } catch (e) {
-        console.error('刪除失敗：', e);
-        alert('刪除失敗，請稍後再試。');
-      }
-    });
-  }
+    try {
+      await db.collection(COLLECTION).doc(currentSheetId).delete();
+      alert('已刪除。');
+      await loadSheetsList();
+      showListView();
+      isDirty = false;
+      markClean();
+    } catch (e) {
+      console.error('刪除失敗：', e);
+      alert('刪除失敗，請稍後再試。');
+    }
+  });
 
   // save (open modal)
   const saveBtn = document.getElementById('saveButton');
   if (saveBtn) {
     const originalHtml = saveBtn.innerHTML;
+
     saveBtn.addEventListener('click', () => {
       if (saveBtn.disabled) return;
 
@@ -1031,8 +1043,6 @@ function bindUI() {
         if (saveBtn.disabled) return;
 
         const meta = readMetaFromModal();
-        // 表格底部總人數會自動依分配計算（不用被住民總人數覆蓋）
-        updateTotalCaseCount();
 
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>儲存中...';
@@ -1041,6 +1051,12 @@ function bindUI() {
         try {
           await saveSheetWithMeta(meta);
           sheetMetaModal?.hide();
+          markClean();
+          if (pendingResolveAfterSave) {
+            const r = pendingResolveAfterSave;
+            pendingResolveAfterSave = null;
+            r(true);
+          }
         } finally {
           saveBtn.disabled = false;
           saveBtn.innerHTML = originalHtml;
@@ -1058,7 +1074,7 @@ function bindUI() {
   const exportBtn = document.getElementById('exportExcelButton');
   if (exportBtn) exportBtn.addEventListener('click', exportCaseAssignExcel);
 
-  // 關閉/刷新/跳頁保護
+  // warn before close tab
   window.addEventListener('beforeunload', (e) => {
     if (!isEditorVisible()) return;
     markDirty();
@@ -1068,20 +1084,12 @@ function bindUI() {
   });
 }
 
+
 // ========== 初始化 ==========
 async function initPage() {
   renderLoginUserBadge();
   ensureModal();
   bindUI();
-
-  // 離開頁面提示
-  window.addEventListener('beforeunload', (e) => {
-    if (!isEditorVisible()) return;
-    markDirty();
-    if (!isDirty) return;
-    e.preventDefault();
-    e.returnValue = '';
-  });
 
   await loadCaseAssignBaseLists();
   await loadSheetsList();
@@ -1095,6 +1103,7 @@ async function initPage() {
       openEditorById(id);
     } else if (mode === 'new') {
       openNewSheet();
+      markClean();
     } else {
       showListView();
     }
