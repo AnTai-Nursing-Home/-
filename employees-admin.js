@@ -782,7 +782,17 @@ async function generateReportHTML() {
           children: headers.map(h => new TableCell({
             borders: border,
             width: { size: 100/headers.length, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: h, bold: true })] })]
+            children: [new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: h,
+                  bold: true,
+                  font: "DFKai-SB",
+                  size: 22   // 11pt
+                })
+              ]
+            })]
           }))
         });
 
@@ -791,7 +801,16 @@ async function generateReportHTML() {
           return new TableRow({
             children: vals.map(v => new TableCell({
               borders: border,
-              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun(String(v ?? ''))] })]
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: String(v ?? ''),
+                    font: "DFKai-SB",
+                    size: 20   // 10pt
+                  })
+                ]
+              })]
             }))
           });
         });
@@ -809,7 +828,12 @@ async function generateReportHTML() {
       children.push(new Paragraph({
         heading: HeadingLevel.TITLE,
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: '安泰醫療社團法人附設安泰護理之家', bold: true })]
+        children: [new TextRun({
+          text: '安泰醫療社團法人附設安泰護理之家',
+          bold: true,
+          font: "DFKai-SB",
+          size: 32
+        })]
       }));
       children.push(new Paragraph({
         heading: HeadingLevel.HEADING_1,
