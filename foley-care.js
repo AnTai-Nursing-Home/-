@@ -522,7 +522,7 @@ async function guardUnsavedChanges(nextAction) {
         if (isCurrentFormClosed) {
             caregiverEnabled = isNurseLoggedIn;
         } else {
-            caregiverEnabled = (currentTime >= 8 && currentTime < 22) || isNurseLoggedIn;
+            caregiverEnabled = (currentTime >= 8 && currentTime < 24) || isNurseLoggedIn;
         }
 
         // radio + 簽名欄位（先依時間 / 身份開關）
