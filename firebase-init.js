@@ -8,8 +8,10 @@ let storage;  // Firebase Storage 連線（照會附件上傳/下載會用到）
  *  2) localStorage = JSON.stringify(JSON.stringify({staffId, displayName, ...}))  // 你之前貼的就是這種「雙層字串」
  */
 function getSessionUser() {
-  const parseMaybe = (raw) => {
+  try {
+    const raw = localStorage.getItem('antai_session_user');
     if (!raw) return null;
+
     let v = raw;
 
     // 第一次解析
@@ -22,97 +24,19 @@ function getSessionUser() {
 
     if (!v || typeof v !== 'object') return null;
 
-    // 常見欄位：staffId / username / displayName / role / canNurse / canOffice
+    // 常見欄位：staffId / username / displayName / role
+    // 只要像是個 session object 就算登入
     const hasAnyKey = Object.keys(v).length > 0;
     if (!hasAnyKey) return null;
 
-    // 粗略判定像不像使用者物件（避免誤抓到其它 JSON）
-    const looksLikeUser =
-      ('staffId' in v) ||
-      ('displayName' in v) ||
-      ('username' in v) ||
-      ('role' in v) ||
-      ('canNurse' in v) ||
-      ('canOffice' in v);
-
-    return looksLikeUser ? v : null;
-  };
-
-  try {
-    // 1) 先看明確 key（你主要的兩種存法：sessionStorage / localStorage）
-    const raw =
-      sessionStorage.getItem('antai_session_user') ||
-      localStorage.getItem('antai_session_user');
-
-    const direct = parseMaybe(raw);
-    if (direct) return direct;
-
-    // 2) 掃描所有 storage key（有些頁面會用不同 key 存使用者）
-    const scanStores = [sessionStorage, localStorage];
-    for (const store of scanStores) {
-      try {
-        for (let i = 0; i < store.length; i++) {
-          const k = store.key(i);
-          if (!k) continue;
-          const v = store.getItem(k);
-          const obj = parseMaybe(v);
-          if (obj) return obj;
-        }
-      } catch (_) {}
-    }
-
-    return null;
+    return v;
   } catch (_) {
-
-    // 3) 兼容「分散存 key」的頁面（例如 office-maintenance.js 只存 empId/employeeName 之類）
-    const pickFirst = (store, keys) => {
-      for (const k of keys) {
-        try {
-          const v = store.getItem(k);
-          if (v && String(v).trim()) return String(v).trim();
-        } catch (_) {}
-      }
-      return '';
-    };
-
-    const idKeys = ['empId','employeeId','staffId','employeeNo','empNo','username'];
-    const nameKeys = ['employeeName','displayName','name','staffName'];
-
-    const empId =
-      pickFirst(sessionStorage, idKeys) || pickFirst(localStorage, idKeys);
-    const name =
-      pickFirst(sessionStorage, nameKeys) || pickFirst(localStorage, nameKeys);
-
-    if (empId || name) {
-      const u = { staffId: empId || '', username: empId || '', displayName: name || '', name: name || '', source: 'legacy_keys' };
-      // 同步到 sessionStorage，讓其它頁面/共用防護能一致判定（不動 localStorage，避免跨入口污染）
-      try { sessionStorage.setItem('antai_session_user', JSON.stringify(u)); } catch (_) {}
-      return u;
-    }
-
     return null;
-
-  }
-}
-
-
-function domSeemsLoggedIn() {
-  try {
-    // 有些頁面沒有把 session 存到 storage，但 UI 已經顯示登入者。
-    // 我們用「登入者：xxx」且不是「未登入」當作保守判斷，避免誤鎖。
-    const text = (document.body && document.body.innerText) ? document.body.innerText : '';
-    if (!text) return false;
-    if (text.includes('登入者') && !text.includes('未登入')) return true;
-    return false;
-  } catch (_) {
-    return false;
   }
 }
 
 function isLoggedIn() {
-  const u = getSessionUser();
-  if (u) return true;
-  return domSeemsLoggedIn();
+  return !!getSessionUser();
 }
 
 /** 判斷目前頁面屬於哪個入口（護理/辦公室/營養/照服…）；用來決定導向與是否需要強制登入 */
@@ -152,20 +76,11 @@ function isPublicPage() {
 }
 
 /** 是否要在此頁面啟用「未登入鎖定 + 禁止寫入」 */
-function isLegacyUnprotectedPage() {
-  // ✅ 若你有「尚未導入登入」但仍需可操作的舊系統，把路徑（檔名）加在這裡
-  // 例：if (p.endsWith('/some-legacy.html')) return true;
-  const p = (location.pathname || '').toLowerCase();
-  // 目前先不放任何舊系統白名單：預設所有非入口頁都必須登入
-  return false;
-}
-
-/** 是否要在此頁面啟用「未登入鎖定 + 禁止寫入」 */
 function shouldEnforceLoginGuard() {
   if (isPublicPage()) return false;
-  if (isLegacyUnprotectedPage()) return false;
-  // ✅ 預設：所有非入口頁都啟用（避免「複製網址開新分頁仍可操作」的漏洞）
-  return true;
+  // 只對「可推斷出入口」的系統啟用（避免你那些尚未導入登入的系統被全面鎖死）
+  const portal = inferPortal();
+  return !!portal;
 }
 
 /** 依入口回推正確的儀表板與登入頁（集中在這裡改一次就好） */
@@ -187,8 +102,8 @@ function getPortalLinks() {
 
   return {
     portal,
-    dashboardUrl: dashboards[portal] || 'index.html',
-    loginUrl: logins[portal] || 'index.html'
+    dashboardUrl: dashboards[portal] || 'office.html?view=dashboard',
+    loginUrl: logins[portal] || 'login.html'
   };
 }
 
@@ -221,19 +136,6 @@ function lockUIIfNotLoggedIn() {
       </div>
     `;
     document.body.appendChild(overlay);
-
-    // ✅ 強制阻擋所有互動（避免某些元件繞過 disabled）
-    // 只允許提示列（overlay）上的按鈕可點
-    if (!document.getElementById('antaiLockStyle')) {
-      const st = document.createElement('style');
-      st.id = 'antaiLockStyle';
-      st.textContent = `
-        body * { pointer-events: none !important; }
-        #antaiSecurityOverlay, #antaiSecurityOverlay * { pointer-events: auto !important; }
-      `;
-      document.head.appendChild(st);
-    }
-
     // 避免遮住原本內容
     document.body.style.paddingTop = '52px';
   }
