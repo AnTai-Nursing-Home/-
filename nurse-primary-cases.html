@@ -49,7 +49,7 @@
                   <th style="min-width:120px;">住民總人數</th>
                   <th style="min-width:120px;">製表人</th>
                   <th style="min-width:120px;">更新時間</th>
-                  <th style="min-width:90px;">操作</th>
+                  <th style="min-width:160px;">操作</th>
                 </tr>
               </thead>
               <tbody id="sheetsTbody">
@@ -70,6 +70,9 @@
             </button>
 
             <div class="d-flex gap-2">
+              <button id="deleteSheetBtn" class="btn btn-outline-danger">
+                <i class="fas fa-trash me-2"></i>刪除
+              </button>
               <button id="saveButton" class="btn btn-success">
                 <i class="fas fa-save me-2"></i>儲存
               </button>
@@ -179,6 +182,6 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- 主責個案 JS -->
-  <script src="nurse-primary-cases.js"></script>
+  <script src="nurse-primary-cases.js?v=2026-01-28a"></script>
 </body>
 </html>
