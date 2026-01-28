@@ -31,6 +31,47 @@ let saving = false;
 
 let copyFromModal = null;
 let sheetsCache = []; // for copy-from dropdown
+let selectedYear = 'all';
+
+// 依日期字串抓年份（支援 YYYY-MM-DD / YYYY/MM/DD / 其他含年份的格式）
+function extractYear(dateStr) {
+  const s = String(dateStr || '').trim();
+  const m = s.match(/^(\d{4})[\/\-]/) || s.match(/(\d{4})/);
+  return m ? m[1] : '';
+}
+
+function updateYearFilterOptions(docs) {
+  const sel = document.getElementById('yearFilter');
+  if (!sel) return;
+
+  // 綁定 change 事件（只綁一次）
+  if (!sel.dataset.bound) {
+    sel.addEventListener('change', async () => {
+      selectedYear = sel.value || 'all';
+      await loadSheetsList(); // 重新載入/重繪清單
+    });
+    sel.dataset.bound = '1';
+  }
+
+  const years = Array.from(new Set((docs || [])
+    .map(d => extractYear(safeText(d.date) || safeText(d.id)))
+    .filter(Boolean)))
+    .sort((a, b) => b.localeCompare(a));
+
+  const keep = sel.value || selectedYear || 'all';
+  sel.innerHTML = '<option value="all">全部</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  // 還原選取
+  if (years.includes(keep)) sel.value = keep;
+  else sel.value = 'all';
+  selectedYear = sel.value;
+}
+
+function applyYearFilter(docs) {
+  if (!docs || !docs.length) return [];
+  if (!selectedYear || selectedYear === 'all') return docs;
+  return docs.filter(d => extractYear(safeText(d.date) || safeText(d.id)) === selectedYear);
+}
+
 
 // --- 未儲存變更偵測（Dirty Check，參考導尿系統做法） ---
 let isDirty = false;
@@ -524,13 +565,20 @@ async function loadSheetsList() {
 
     const docs = snap.docs.map(d => ({ id: d.id, ...((d.data() || {})) }));
     sheetsCache = docs;
+    updateYearFilterOptions(docs);
+    const filteredDocs = applyYearFilter(docs);
     if (!docs.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">目前沒有任何個案分配表。</td></tr>';
       return;
     }
 
+    if (!filteredDocs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">此年份沒有任何個案分配表。</td></tr>';
+      return;
+    }
+
     tbody.innerHTML = '';
-    docs.forEach(d => {
+    filteredDocs.forEach(d => {
       const date = safeText(d.date) || safeText(d.id);
       const title = safeText(d.title) || '(未命名)';
       const residentTotal = safeText(d.residentTotal || d.totalResidents);
