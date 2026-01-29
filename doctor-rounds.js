@@ -418,14 +418,22 @@ document.addEventListener("firebase-ready", () => {
       { key: 'G', width: 27.29 }
     ];
 
-    for (let r = 1; r <= 19; r++) ws.getRow(r).height = 60;
+    const MIN_EXPORT_ROWS = 15;
+
+    // 動態列數：至少維持 15 列版面，但可依實際看診人數向下延伸
+    const exportRows = (data.entries || []);
+    const rowCount = Math.max(MIN_EXPORT_ROWS, exportRows.length);
+    const startRow = 4; // 資料起始列（第3列是欄位標題）
+    const signRow = startRow + rowCount; // 簽名列
+
+    for (let r = 1; r <= signRow; r++) ws.getRow(r).height = 60;
 
     ws.mergeCells('A1:G1');
     ws.mergeCells('A2:C2');
     ws.mergeCells('D2:E2');
     ws.mergeCells('F2:G2');
-    ws.mergeCells('A19:E19');
-    ws.mergeCells('F19:G19');
+    ws.mergeCells(`A${signRow}:E${signRow}`);
+    ws.mergeCells(`F${signRow}:G${signRow}`);
 
     const fontTitle = { name: '標楷體', size: 16, bold: true };
     const fontInfo  = { name: '標楷體', size: 12, bold: true };
@@ -461,9 +469,9 @@ document.addEventListener("firebase-ready", () => {
       setCell(`${col}3`, headers[i], { font: fontHead, fill: fillHeader, border: borderThinBlack });
     });
 
-    const body = (data.entries || []).slice(0, 15);
-    for (let i = 0; i < 15; i++) {
-      const r = 4 + i;
+    const body = exportRows;
+    for (let i = 0; i < rowCount; i++) {
+      const r = startRow + i;
       const e = body[i] || {};
       setCell(`A${r}`, (body[i] ? (i + 1) : ''), { font: fontBody, border: borderThinBlack, wrap: true });
       setCell(`B${r}`, e.bedNumber || '', { font: fontBody, border: borderThinBlack, wrap: true });
@@ -474,10 +482,10 @@ document.addEventListener("firebase-ready", () => {
       setCell(`G${r}`, e.doctorNote || '', { font: fontBody, border: borderThinBlack, wrap: true });
     }
 
-    setCell('A19', '醫巡醫師簽章:', { font: fontInfo, align: { horizontal: 'left' }, border: borderThinBlack, wrap: true });
-    setCell('F19', '跟診護理師簽章:', { font: fontInfo, align: { horizontal: 'left' }, border: borderThinBlack, wrap: true });
+    setCell(`A${signRow}`, '醫巡醫師簽章:', { font: fontInfo, align: { horizontal: 'left' }, border: borderThinBlack, wrap: true });
+    setCell(`F${signRow}`, '跟診護理師簽章:', { font: fontInfo, align: { horizontal: 'left' }, border: borderThinBlack, wrap: true });
 
-    applyBorderToRange('A1', 'G19');
+    applyBorderToRange('A1', `G${signRow}`);
 
     // Sheet 2
     const ws2 = wb.addWorksheet('摘要');
