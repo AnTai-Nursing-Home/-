@@ -344,99 +344,84 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    // 🔄 改為從 Firestore 的 `residents` 集合載入住民名單與床號
-    let residentDatabase = {};
-    async function loadResidents() {
-        try {
-            const snap = await db.collection('residents').get();
-            const map = {};
-            snap.forEach(doc => {
-                const data = doc.data() || {};
-                const name = doc.id; // 目前文件ID作為姓名
-                const bed = data.bedNumber || '';
-                if (name) map[name] = bed;
-            });
-            residentDatabase = map;
+    // 🔒 隱私版：不載入住民名單、不提供下拉選單
+    // 住民資訊需由家屬輸入「姓名(完全相符)」或「身分證字號」進行單筆驗證
+    let verifiedResident = null;
 
-            // 若輸入框已有值，嘗試即時補齊床號
-            const rn = document.getElementById('residentName');
-            const bn = document.getElementById('bedNumber');
-            const fb = document.getElementById('nameFeedback');
-            if (rn && bn && rn.value && rn.value.trim()) {
-                const val = rn.value.trim();
-                if (residentDatabase[val]) {
-                    rn.classList.remove('is-invalid');
-                    rn.classList.add('is-valid');
-                    bn.value = residentDatabase[val];
-                    if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+    function setVerifyUI(ok, msg) {
+        const input = document.getElementById('residentLookup');
+        const fb = document.getElementById('nameFeedback');
+        const bn = document.getElementById('bedNumber');
+        if (!input) return;
+
+        input.classList.remove('is-valid', 'is-invalid');
+        if (ok) input.classList.add('is-valid');
+        else input.classList.add('is-invalid');
+
+        if (fb) {
+            fb.textContent = msg || (ok ? getText('name_validation_success') : getText('name_validation_fail'));
+            fb.className = ok ? 'valid-feedback' : 'invalid-feedback';
+            fb.style.display = 'block';
+        }
+        if (!ok && bn) bn.value = '';
+    }
+
+    async function verifyResident() {
+        const input = document.getElementById('residentLookup');
+        if (!input) return null;
+        const q = (input.value || '').trim();
+
+        verifiedResident = null;
+        if (!q) {
+            setVerifyUI(false, '請輸入住民姓名或身分證字號。');
+            return null;
+        }
+
+        try {
+            // 1) 優先以「姓名=文件ID」嘗試（需完全相符）
+            const byNameSnap = await db.collection('residents').doc(q).get();
+            if (byNameSnap.exists) {
+                const d = byNameSnap.data() || {};
+                verifiedResident = {
+                    name: q,
+                    bedNumber: d.bedNumber || '',
+                    idNumber: d.idNumber || ''
+                };
+            } else {
+                // 2) 以身分證字號查詢（只回傳 1 筆）
+                const byIdSnap = await db.collection('residents')
+                    .where('idNumber', '==', q)
+                    .limit(1)
+                    .get();
+
+                if (!byIdSnap.empty) {
+                    const doc = byIdSnap.docs[0];
+                    const d = doc.data() || {};
+                    verifiedResident = {
+                        name: doc.id || d.name || '',
+                        bedNumber: d.bedNumber || '',
+                        idNumber: d.idNumber || q
+                    };
                 }
             }
-            // 將名單填入下拉選單
-            const sel = document.getElementById('residentName');
-            if (sel) {
-                // 先清空保留第一個 placeholder
-                sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
-                // 依床位排序 (如 "205-2")
-                const entries = Object.entries(residentDatabase); // [name, bed]
-                
-                // 依床位排序，嚴格數字排序 (支援 221-1 / 308-2 / 111-1A 等格式)
-                const normalizeDash = s => String(s).replace(/[－—–ｰ‒﹣－]/g, '-');
-                const parseBed = (bed) => {
-                    if (!bed) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: ''};
-                    const s = normalizeDash(String(bed).trim());
-                    // 支援數字-數字 或 數字-英文字母 (如 111-1A)，沒有 - 時 pos=0
-                    const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
-                    if (!m) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: s};
-                    const floor = parseInt(m[1], 10);
-                    let pos = 0;
-                    if (m[2]) {
-                        if (/^[A-Za-z]$/.test(m[2])) {
-                            // 字母床位：轉為數字排序，但排在數字之後（+1000）
-                            pos = (m[2].toUpperCase().charCodeAt(0) - 64) + 1000; // A=1001, B=1002...
-                        } else {
-                            pos = parseInt(m[2], 10);
-                        }
-                    }
-                    return {floor, pos, raw: s};
-                };
-                entries
-                  .sort((a, b) => {
-                      const A = parseBed(a[1]);
-                      const B = parseBed(b[1]);
-                      if (A.floor !== B.floor) return A.floor - B.floor;
-                      if (A.pos !== B.pos) return A.pos - B.pos;
-                      // 最後才以姓名排序（中文友善）
-                      return String(a[0]).localeCompare(String(b[0]), 'zh-Hant-u-kn-true');
-                  })
-                  .forEach(([name, bed]) => {
-                      const opt = document.createElement('option');
-                      opt.value = name;
-                      opt.textContent = (bed ? bed + '｜' : '') + name;
-                      sel.appendChild(opt);
-                  });
-// 當選擇變更時，自動帶出床號與驗證樣式
-                sel.addEventListener('change', ()=>{
-                    const val = sel.value;
-                    const bn = document.getElementById('bedNumber');
-                    const fb = document.getElementById('nameFeedback');
-                    if (val && residentDatabase[val]) {
-                        sel.classList.remove('is-invalid'); sel.classList.add('is-valid');
-                        if (bn) bn.value = residentDatabase[val] || '';
-                        if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
-                    } else {
-                        sel.classList.remove('is-valid'); sel.classList.add('is-invalid');
-                        if (bn) bn.value = '';
-                        if (fb) { fb.textContent = getText('name_not_found'); fb.className = 'invalid-feedback'; }
-                    }
-                });
-            }
 
+            if (verifiedResident && verifiedResident.name) {
+                const bn = document.getElementById('bedNumber');
+                if (bn) bn.value = verifiedResident.bedNumber || '';
+                setVerifyUI(true, getText('name_validation_success'));
+                return verifiedResident;
+            } else {
+                setVerifyUI(false, getText('name_validation_fail'));
+                return null;
+            }
         } catch (e) {
-            console.error('讀取 residents 失敗：', e);
+            console.error('verifyResident failed:', e);
+            setVerifyUI(false, getText('query_failed'));
+            return null;
         }
     }
 
-    const adminNotice = document.getElementById('admin-mode-notice');
+const adminNotice = document.getElementById('admin-mode-notice');
     const visitDateInput = document.getElementById('visitDate');
     const timeSlotsContainer = document.getElementById('time-slots');
     const bookingNotice = document.getElementById('booking-notice');
@@ -445,22 +430,34 @@ document.addEventListener('firebase-ready', () => {
     const backButton = document.getElementById('backButton');
     const successMessage = document.getElementById('successMessage');
     const selectedTimeDisplay = document.getElementById('selected-time-display');
-    const residentNameInput = document.getElementById('residentName');
+    const residentLookupInput = document.getElementById('residentLookup');
     const bedNumberInput = document.getElementById('bedNumber');
     const nameFeedback = document.getElementById('nameFeedback');
     const confirmationModalElement = document.getElementById('confirmationModal');
     const confirmationModal = new bootstrap.Modal(confirmationModalElement);
     const finalSubmitButton = document.getElementById('final-submit-button');
 
-    // 先載入住民資料
-    loadResidents();
+    // 不預載名單：需手動驗證住民資料（姓名或身分證）
     
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminMode = urlParams.get('mode') === 'admin';
     if (isAdminMode) {
         adminNotice.classList.remove('d-none');
     }
-    
+
+    // 🔎 住民驗證按鈕（姓名 / 身分證字號）
+    const verifyBtn = document.getElementById('verifyResidentBtn');
+    if (verifyBtn) verifyBtn.addEventListener('click', verifyResident);
+    if (residentLookupInput) {
+        residentLookupInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); verifyResident(); }
+        });
+        residentLookupInput.addEventListener('blur', () => {
+            // 失焦時若有輸入就嘗試驗證（不會暴露名單）
+            if ((residentLookupInput.value || '').trim()) verifyResident();
+        });
+    }
+
     let pendingBookingData = {};
     // Flag: booking completed => freeze UI updates
     let completed = false;
@@ -567,7 +564,7 @@ document.addEventListener('firebase-ready', () => {
         step1.classList.remove('d-none');
         bookingForm.reset();
         bookingForm.classList.remove('was-validated');
-        residentNameInput.classList.remove('is-valid', 'is-invalid');
+        residentLookupInput.classList.remove('is-valid', 'is-invalid');
         bedNumberInput.value = '';
     });
 
@@ -578,16 +575,15 @@ document.addEventListener('firebase-ready', () => {
         bookingForm.classList.add('was-validated');
         if (!bookingForm.checkValidity()) { return; }
 
-        const residentName = residentNameInput.value.trim();
-        if (!residentDatabase[residentName]) {
+        // 住民資料需先驗證（姓名或身分證字號）
+        const v = await verifyResident();
+        if (!v) {
             bookingForm.classList.remove('was-validated');
-            residentNameInput.classList.add('is-invalid');
-            if(nameFeedback) nameFeedback.textContent = getText('name_validation_fail');
-            if(nameFeedback) nameFeedback.style.display = 'block';
+            // verifyResident 已負責顯示錯誤訊息
             return;
         }
 
-        // 檢查本週預約次數（週一~週日）
+        const residentName = v.name;// 檢查本週預約次數（週一~週日）
         const { start, end } = getWeekRange(selectedDate);
         const submitBtn = bookingForm.querySelector('button[type="submit"]');
         const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
