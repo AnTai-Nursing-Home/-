@@ -1,0 +1,652 @@
+const translations = {
+    'zh-TW': {
+        // --- 通用 ---
+        'lang_switch': 'English',
+        'back_to_dashboard': '返回儀表板',
+        'back_to_main_menu': '返回首頁選單',
+        'back_to_caregiver_system': '返回照服員系統',
+        'back_to_office_system': '返回辦公室系統',
+        'save': '儲存',
+        'confirm': '確認',
+        'cancel': '取消',
+        'error_enter_name_first': '請先輸入您的姓名！',
+        'loading': '讀取中...',
+        'confirm_submission': '確認送出',
+        'return_to_modify': '返回修改',
+        'admin_settings': '管理員設定',
+        'please_enter_password': '請輸入密碼',
+        'login': '登入',
+        'password_error': '密碼錯誤，請重試！',
+        'back_to_home': '返回首頁',
+        'querying': '查詢中...',
+        'no_records_found': '查無相關預約紀錄。',
+        'query_failed': '查詢失敗，請稍後再試。',
+        'confirm_cancel_booking': '您確定要取消這個預約嗎？',
+        'booking_cancelled_success': '預約已成功取消！',
+        'delete_failed': '刪除失敗，請稍後再試。',
+        'please_enter_phone': '請輸入電話號碼！',
+        'start_query': '開始查詢',
+        'read_failed': '讀取失敗',
+        'status_ongoing': '進行中',
+        'status_closed': '已結案',
+        'not_set': '未設定',
+        'read_list_failed': '讀取列表失敗。',
+        'save_failed': '儲存失敗，請稍後再試。',
+
+        // --- 主選單 ---
+        'main_title_full': '安泰醫療社團法人附設安泰護理之家',
+        'main_menu_title': '服務選單',
+        'booking_visit': '預約探視',
+        'query_cancel_booking': '查詢/取消預約',
+        'hospital_booking': '安泰醫院門診掛號',
+        'hospital_query': '安泰醫院掛號查詢',
+        'visit_rules': '探視規範',
+        'contact_us': '聯絡我們',
+        'nurse_login': '護理師登入',
+        'caregiver_login': '照服員登入',
+        'office_login': '辦公室登入',
+        
+        // --- 預約系統 ---
+        'booking_system_title': '預約探視系統',
+        'admin_mode_notice': '管理員模式：您現在可以預約今天已過中午的時段。',
+        'step1_title': '步驟一：選擇探視日期與時段',
+        'choose_date': '選擇日期',
+        'today_past_noon': '今日已過中午12點，無法預約當天時段，請選擇其他日期。',
+        'reading_slots': '讀取中...',
+        'please_select': '請選擇',
+        'read_slots_failed': '讀取時段失敗，請重新整理頁面。',
+        'slot_full': '已額滿',
+        'slot_past': '已逾時',
+        'slot_remaining': '剩餘 {remaining} 組',
+        'step2_title': '步驟二：填寫預約資料',
+        'resident_name': '住民姓名',
+        'bed_number': '床號',
+        'visitor_name': '家屬姓名',
+        'visitor_relationship': '與住民關係',
+        'contact_phone': '聯絡電話',
+        'confirm_booking': '確認預約',
+        'back_to_time_select': '返回選擇時段',
+        'booking_success_title': '✔ 預約成功！',
+        'booking_success_info': '感謝您的預約，以下是您的預約資訊：',
+        'date': '日期',
+        'time': '時間',
+        'important_notice': '重要提醒：未來若需查詢或取消預約，請使用「住民名稱」用於查尋。',
+        'error_resident_name_invalid': '住民姓名不正確，無法提交預約！',
+        'name_validation_success': '姓名驗證成功！',
+        'name_validation_fail': '查無此住民姓名，請確認輸入是否正確。',
+        'booking_failed': '預約失敗，請稍後再試。',
+        'enter_phone_to_query': '請輸入您預約時使用的電話號碼：',
+        'please_fill_resident_name': '請填寫住民姓名。',
+        'please_fill_visitor_name': '請填寫您的姓名。',
+        'please_fill_visitor_relationship': '請填寫您與住民的關係。',
+        'please_fill_contact_phone': '請填寫您的聯絡電話。',
+        'confirm_booking_info_title': '請確認您的預約資訊',
+
+        // --- 新增：每週上限相關 ---
+        'checking_quota': '正在檢查本週預約次數…',
+        'weekly_limit_exceeded': '此住民在該週的預約已達 3 次上限，請改選其他週期。',
+
+        // --- 員工系統 (通用) ---
+        'nurse_system': '護理師系統',
+        'enter_nurse_password': '請輸入護理師密碼',
+        'booking_list_query': '預約名單查詢',
+        'proxy_booking': '代客預約',
+        'supplies_inventory': '衛材點班',
+        'leave_system': '預假系統',
+        'all_booking_records': '所有預約紀錄',
+        'resident_data_management': '住民資料管理',
+        'employee_data_management': '員工資料管理',
+        'temperature_log': '體溫登錄',
+        'save_today_temps': '儲存今日體溫',
+        'caregiver_system': '照服員系統',
+        'enter_caregiver_password': '請輸入照服員密碼',
+        'temperature_log_caregiver': '照服員體溫登錄',
+        'caregiver_temperature_log_title': '照服員每日體溫登錄',
+        'temperature_log_nurse': '護理師體溫登錄',
+        'nurse_temperature_log_title': '護理師每日體溫登錄',
+        'caregiver_leave_system_menu': '預假系統',
+        'login_network_error': '登入時發生網路錯誤，請稍後再試。',
+        'foley_care_assessment_menu': '導尿管照護評估',
+        'temperature_record_menu': '體溫登錄',
+        'caregiver_leave_system': '照服員 預假/預班系統',
+
+        // --- 預假/預班系統 ---
+        'your_name': '您的姓名',
+        'enter_your_name_to_book': '請輸入您的姓名以預排',
+        'calendar_title_prefix': '年',
+        'calendar_title_suffix': '月',
+        'leave_period_open': '預假/預班開放中！期間：',
+        'leave_period_closed': '目前非預假/預班開放期間。下次開放：',
+        'week_sun': '日', 'week_mon': '一', 'week_tue': '二', 'week_wed': '三', 'week_thu': '四', 'week_fri': '五', 'week_sat': '六',
+        'next_month_overview': '下個月預假/預班總覽',
+        'export_word': '匯出 Word',
+        'export_excel': '匯出 Excel',
+        'print_report': '列印報表',
+        'employee_id': '員編',
+        'admin_verification': '管理員驗證',
+        'enter_admin_password_for_settings': '請輸入管理員密碼以設定預假期間。',
+        'set_next_month_leave_period': '設定下個月的預假/預班開放期間',
+        'start_date': '開始日期與時間',
+        'end_date': '結束日期與時間',
+        'verification_failed': '驗證時發生網路錯誤，請檢查網路連線或稍後再試。',
+        'set_start_end_date': '請設定開始與結束日期',
+        'end_date_cannot_be_earlier': '結束日期不可早於開始日期',
+        'settings_saved': '預假期間已儲存！頁面將會重新載入以套用新設定。',
+        'settings_save_failed': '儲存設定失敗，請稍後再試。',
+        'read_calendar_failed': '讀取日曆失敗，請重新整理。',
+        'select_shift_for': '選擇 {date} 的班別',
+        'clear_this_day': '清除此日',
+        'no_leave_requests_next_month': '下個月尚無預假/預班紀錄。',
+        'load_summary_failed': '讀取總覽資料失敗。',
+        'shift_d': 'D (白班)', 'shift_n': 'N (大夜)', 'shift_off': 'OFF (休假)',
+
+        // --- 導尿管照護評估 ---
+        'foley_care_assessment': '導尿管照護評估表',
+        'foley_care_title': '照護機構預防導尿管相關泌尿道感染每日照護評估表',
+        'please_select_resident': '請選擇住民',
+        'all_residents': '全部住民',
+        'please_select_resident_first': '請先從上方選擇一位住民！',
+        'ongoing_care_forms': '進行中的照護單',
+        'closed_care_forms': '已結案的照護單',
+        'add_new_form': '新增照護單',
+        'no_care_forms_found': '找不到符合條件的照護單紀錄。',
+        'resident_basic_info': '住民基本資料',
+        'placement_date': '置放日期',
+        'closing_date': '結案日期',
+        'care_period': '照護期間',
+        'ongoing': '持續中',
+        'assessment_items': '每日評估項目',
+        'signature': '簽章',
+        'caregiver': '照服員',
+        'nurse': '護理師',
+        'hand_hygiene': '1. 手部衛生',
+        'fixed_position': '2. 固定位置',
+        'unobstructed_drainage': '3. 無菌暢通',
+        'avoid_overfill': '4. 避免過滿',
+        'urethral_cleaning': '5. 尿道口清潔',
+        'single_use_container': '6. 單一非共用容器',
+        'yes': 'Yes',
+        'no': 'No',
+        'save_this_care_form': '儲存此張照護單',
+        'delete_this_care_form': '刪除此張照護單',
+        'back_to_list': '返回列表',
+        'load_care_form_failed': '載入照護單失敗，請稍後再試。',
+        'fill_form_first': '請先選擇住民並填寫置放日期！',
+        'care_form_saved': '照護單已成功儲存！',
+        'confirm_delete_care_form': '您確定要永久刪除此張照護單嗎？\n此操作無法復原！',
+        'care_form_deleted': '照護單已成功刪除！',
+        'index_building_warning': '系統正在建立新的資料庫索引以支援查詢，請等待幾分鐘後再試。',
+        
+        // --- 辦公室系統 ---
+        'office_system': '辦公室系統', 'enter_office_password': '請輸入辦公室密碼',
+        'auto_temp_system': '自動化體溫紀錄系統', 'auto_clockin_system': '自動化打卡紀錄系統',
+        'temperature_system': '體溫系統','temperature_label': '體溫','clockin_system': '打卡系統',
+        'select_month': '選擇月份', 'upload_schedule': '上傳班表',
+        'upload_and_generate': '上傳班表並生成紀錄', 'reading_schedule_and_generating': '正在讀取班表並生成紀錄...',
+        'error_select_month_first': '請先選擇月份！', 'error_read_excel': '讀取 Excel 檔案失敗，請確認檔案格式是否正確。',
+        'export_word': '匯出 Word', 'export_excel': '匯出 Excel', 'print_report': '列印報表',
+        'no_report_generated': '請先選擇月份並上傳當月份的 Excel 班表檔案。',
+        'temp_report_title': '員工體溫紀錄總表', 'clockin_report_title': '員工打卡紀錄總表',
+        'clock_in': '上班', 'clock_out': '下班',
+    },
+    'en': {
+        // --- Common ---
+        'lang_switch': 'Chinese', 'back_to_dashboard': 'Back to Dashboard', 'back_to_main_menu': 'Back to Main Menu',
+        'back_to_caregiver_system': 'Back to Caregiver System', 'back_to_office_system': 'Back to Office System', 'save': 'Save',
+        'confirm': 'Confirm', 'cancel': 'Cancel', 'error_enter_name_first': 'Please enter your name first!', 'loading': 'Loading...',
+        'confirm_submission': 'Confirm Submission', 'return_to_modify': 'Return to Modify', 'admin_settings': 'Admin Settings',
+        'please_enter_password': 'Please enter password', 'login': 'Login', 'password_error': 'Password incorrect, please try again!',
+        'back_to_home': 'Back to Home', 'querying': 'Querying...', 'no_records_found': 'No relevant booking records found.',
+        'query_failed': 'Query failed, please try again later.', 'confirm_cancel_booking': 'Are you sure you want to cancel this booking?',
+        'booking_cancelled_success': 'Booking has been cancelled successfully!', 'delete_failed': 'Delete failed, please try again later.',
+        'please_enter_phone': 'Please enter phone number!', 'start_query': 'Start Query', 'read_failed': 'Read failed',
+        'status_ongoing': 'Ongoing', 'status_closed': 'Closed', 'not_set': 'Not set', 'read_list_failed': 'Failed to load list.',
+        'save_failed': 'Save failed, please try again later.',
+
+        // --- Main Menu ---
+        'main_title_full': 'Antai Medical Corporation Antai Nursing Home', 'main_menu_title': 'Service Menu',
+        'booking_visit': 'Visit Booking', 'query_cancel_booking': 'Query/Cancel Booking', 'hospital_booking': 'Hospital Appointment',
+        'hospital_query': 'Appointment Query', 'visit_rules': 'Visitation Rules', 'contact_us': 'Contact Us',
+        'nurse_login': 'Nurse Login', 'caregiver_login': 'Caregiver Login', 'office_login': 'Office Login',
+
+        // --- Booking System ---
+        'booking_system_title': 'Visit Booking System', 'admin_mode_notice': 'Admin Mode: You can now book slots for today after 12:00 PM.',
+        'step1_title': 'Step 1: Select Date and Time', 'choose_date': 'Select Date',
+        'today_past_noon': 'Booking for today is closed after 12:00 PM. Please select another date.', 'reading_slots': 'Loading...',
+        'please_select': 'Please select',
+        'read_slots_failed': 'Failed to load time slots, please refresh the page.', 'slot_full': 'Full', 'slot_past': 'Past',
+        'slot_remaining': 'Remaining: {remaining}', 'step2_title': 'Step 2: Fill in Information', 'resident_name': 'Resident\'s Name',
+        'bed_number': 'Bed Number', 'visitor_name': 'Visitor\'s Name', 'visitor_relationship': 'Relationship to Resident',
+        'contact_phone': 'Contact Phone', 'confirm_booking': 'Confirm Booking', 'back_to_time_select': 'Back to Time Selection',
+        'booking_success_title': '✔ Booking Successful!', 'booking_success_info': 'Thank you for your booking. Here is your information:',
+        'date': 'Date', 'time': 'Time', 'important_notice': 'Important: To query or cancel your booking in the future, please use your phone number.',
+        'error_resident_name_invalid': 'Resident name is incorrect, cannot submit booking!', 'name_validation_success': 'Name verification successful!',
+        'name_validation_fail': 'Resident name not found, please check your input.', 'booking_failed': 'Booking failed, please try again later.',
+        'enter_phone_to_query': 'Please enter the phone number used for the booking:', 'please_fill_resident_name': 'Please fill in resident\'s name.',
+        'please_fill_visitor_name': 'Please fill in your name.', 'please_fill_visitor_relationship': 'Please fill in your relationship to the resident.',
+        'please_fill_contact_phone': 'Please fill in your contact phone.', 'confirm_booking_info_title': 'Please confirm your booking information',
+
+        // --- NEW: Weekly quota ---
+        'checking_quota': 'Checking weekly booking quota…',
+        'weekly_limit_exceeded': 'This resident has already reached the weekly limit of 3 bookings. Please choose another week.',
+
+        // --- Employee Systems (Common) ---
+        'nurse_system': 'Nurse System', 'enter_nurse_password': 'Please enter nurse password', 'booking_list_query': 'Booking List Query',
+        'proxy_booking': 'Proxy Booking', 'supplies_inventory': 'Supplies Inventory', 'leave_system': 'Leave Request System',
+        'all_booking_records': 'All Booking Records', 'resident_data_management': 'Resident Data Management',
+        'employee_data_management': 'Employee Data Management', 'temperature_log': 'Temperature Log', 'caregiver_system': 'Caregiver System',
+        'enter_caregiver_password': 'Please enter caregiver password', 'caregiver_leave_system_menu': 'Leave Request System','temperature_log_caregiver': 'Caregiver Temperature Log',
+        'caregiver_temperature_log_title': 'Daily Temperature Log for Caregivers','temperature_log_nurse': 'Nurse Temperature Log',
+        'nurse_temperature_log_title': 'Daily Temperature Log for Nurses',
+        'login_network_error': 'A network error occurred during login, please try again later.', 'foley_care_assessment_menu': 'Foley Care Assessment',
+        'temperature_record_menu': 'Temperature Recording','caregiver_leave_system': 'Caregiver Leave/Shift System','save_today_temps': 'Save Today\'s Temperatures',
+
+        // --- Leave Request System ---
+        'your_name': 'Your Name', 'enter_your_name_to_book': 'Please enter your name to request', 'calendar_title_prefix': '',
+        'calendar_title_suffix': '', 'leave_period_open': 'Leave/Shift request period is open! From',
+        'leave_period_closed': 'Leave/Shift request period is currently closed. Next period:','leave_period_open': 'Leave scheduling period open! Period:',
+        'week_sun': 'Sun', 'week_mon': 'Mon', 'week_tue': 'Tue', 'week_wed': 'Wed', 'week_thu': 'Thu', 'week_fri': 'Fri', 'week_sat': 'Sat',
+        'admin_verification': 'Admin Verification', 'enter_admin_password_for_settings': 'Please enter admin password to set the leave/shift request period.',
+        'set_next_month_leave_period': 'Set Leave/Shift Request Period for Next Month', 'start_date': 'Start Date & Time', 'end_date': 'End Date & Time',
+        'verification_failed': 'A network error occurred during verification, please check your connection or try again later.',
+        'set_start_end_date': 'Please set both start and end dates', 'end_date_cannot_be_earlier': 'End date cannot be earlier than start date',
+        'settings_saved': 'Leave request period has been saved! The page will now reload to apply the new settings.',
+        'settings_save_failed': 'Failed to save settings, please try again later.', 'read_calendar_failed': 'Failed to load calendar data. Please refresh.',
+        'select_shift_for': 'Select shift for {date}', 'clear_this_day': 'Clear This Day', 'no_leave_requests_next_month': 'No leave/shift requests for next month yet.',
+        'load_summary_failed': 'Failed to load summary data.', 'shift_d': 'D (Day)', 'shift_n': 'N (Night)', 'shift_off': 'OFF',
+        'next_month_overview': 'Next Month Leave/Shift Overview',
+        'export_word': 'Export Word',
+        'export_excel': 'Export Excel',
+        'print_report': 'Print Report',
+        'employee_id': 'Employee ID',
+
+
+        // --- Foley Care Assessment ---
+        'foley_care_assessment': 'Foley Care Assessment Form', 'foley_care_title': 'Daily Care Assessment Form for Preventing Catheter-Associated Urinary Tract Infections',
+        'please_select_resident': 'Please select a resident', 'all_residents': 'All Residents', 'please_select_resident_first': 'Please select a resident from the top menu first!',
+        'ongoing_care_forms': 'Ongoing Care Forms', 'closed_care_forms': 'Closed Care Forms', 'add_new_form': 'Add New Care Form',
+        'no_care_forms_found': 'No matching care form records found.', 'resident_basic_info': 'Resident\'s Basic Information',
+        'placement_date': 'Placement Date', 'closing_date': 'Closing Date', 'care_period': 'Care Period', 'ongoing': 'Ongoing',
+        'assessment_items': 'Daily Assessment Items', 'signature': 'Signature', 'caregiver': 'Caregiver', 'nurse': 'Nurse',
+        'hand_hygiene': '1. Hand Hygiene', 'fixed_position': '2. Fixed Position', 'unobstructed_drainage': '3. Unobstructed Drainage',
+        'avoid_overfill': '4. Avoid Overfill', 'urethral_cleaning': '5. Urethral Cleaning', 'single_use_container': '6. Single Use Container',
+        'yes': 'Yes', 'no': 'No', 'save_this_care_form': 'Save This Care Form', 'delete_this_care_form': 'Delete This Care Form',
+        'back_to_list': 'Back to List', 'load_care_form_failed': 'Failed to load care form, please try again later.',
+        'fill_form_first': 'Please select a resident and fill in the placement date first!', 'care_form_saved': 'Care form has been saved successfully!',
+        'confirm_delete_care_form': 'Are you sure you want to permanently delete this care form?\\nThis action cannot be undone!',
+        'care_form_deleted': 'Care form has been deleted successfully!', 'index_building_warning': 'The system is building a new index to support this query. Please wait a few minutes and try again.',
+        
+        // --- Office System ---
+        'office_system': 'Office System', 'enter_office_password': 'Please enter office password',
+        'auto_temp_system': 'Automated Temperature Log System', 'auto_clockin_system': 'Automated Clock-in/out System',
+        'temperature_label': 'Temperature','temperature_system': 'Temperature System', 'clockin_system': 'Clock-in/out System', 'select_month': 'Select Month',
+        'upload_schedule': 'Upload Schedule', 'upload_and_generate': 'Upload Schedule & Generate Records',
+        'reading_schedule_and_generating': 'Reading schedule and generating records...', 'error_select_month_first': 'Please select a month first!',
+        'error_read_excel': 'Failed to read Excel file. Please check the file format.', 'export_word': 'Export Word',
+        'export_excel': 'Export Excel', 'print_report': 'Print Report', 'no_report_generated': 'Please select a month and upload the corresponding Excel schedule file.',
+        'temp_report_title': 'Employee Temperature Log', 'clockin_report_title': 'Employee Clock-in/out Log',
+        'clock_in': 'Clock In', 'clock_out': 'Clock Out',
+    }
+};
+
+function setLanguage(lang) {
+    localStorage.setItem('language', lang);
+    document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
+}
+
+function getLanguage() {
+    return localStorage.getItem('language') || 'zh-TW';
+}
+
+function getText(key, replacements = {}) {
+    const lang = getLanguage();
+    const langDict = translations[lang] || translations['zh-TW'];
+    let text = langDict[key] || key;
+    
+    for (const placeholder in replacements) {
+        text = text.replace(`{${placeholder}}`, replacements[placeholder]);
+    }
+    return text;
+}
+
+function applyTranslations() {
+    const lang = getLanguage();
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = getText(key);
+        if (el.placeholder !== undefined && el.tagName === 'INPUT') {
+            el.placeholder = text;
+        } else {
+            el.textContent = text;
+        }
+    });
+}
+
+
+// (embedded) Apply translations immediately on load if DOM is ready
+try { applyTranslations(); } catch (e) { /* ignore until DOM ready */ }
+
+document.addEventListener('firebase-ready', () => {
+    // 透過尋找 bookingForm 來判斷是否在預約頁面
+    const bookingForm = document.getElementById('bookingForm');
+    if (!bookingForm) return;
+
+    // --- 智慧返回按鈕邏輯 ---
+    const backButtonGeneral = document.querySelector('.btn-back-menu');
+    if (backButtonGeneral) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (document.referrer.includes('admin.html') || urlParams.get('mode') === 'admin') {
+            backButtonGeneral.href = 'admin.html?view=dashboard';
+            const icon = backButtonGeneral.querySelector('i');
+            backButtonGeneral.innerHTML = ''; // 清空按鈕內容
+            if(icon) backButtonGeneral.appendChild(icon); // 把圖示加回去
+            backButtonGeneral.append(` ${getText('back_to_dashboard')}`); // 加上新文字
+        }
+    }
+
+    // 🔄 改為從 Firestore 的 `residents` 集合載入住民名單與床號
+    let residentDatabase = {};
+    async function loadResidents() {
+        try {
+            const snap = await db.collection('residents').get();
+            const map = {};
+            snap.forEach(doc => {
+                const data = doc.data() || {};
+                const name = doc.id; // 目前文件ID作為姓名
+                const bed = data.bedNumber || '';
+                if (name) map[name] = bed;
+            });
+            residentDatabase = map;
+
+            // 若輸入框已有值，嘗試即時補齊床號
+            const rn = document.getElementById('residentName');
+            const bn = document.getElementById('bedNumber');
+            const fb = document.getElementById('nameFeedback');
+            if (rn && bn && rn.value && rn.value.trim()) {
+                const val = rn.value.trim();
+                if (residentDatabase[val]) {
+                    rn.classList.remove('is-invalid');
+                    rn.classList.add('is-valid');
+                    bn.value = residentDatabase[val];
+                    if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+                }
+            }
+            // 將名單填入下拉選單
+            const sel = document.getElementById('residentName');
+            if (sel) {
+                // 先清空保留第一個 placeholder
+                sel.innerHTML = '<option value="" disabled selected data-i18n="please_select"></option>';
+                // 依床位排序 (如 "205-2")
+                const entries = Object.entries(residentDatabase); // [name, bed]
+                
+                // 依床位排序，嚴格數字排序 (支援 221-1 / 308-2 / 111-1A 等格式)
+                const normalizeDash = s => String(s).replace(/[－—–ｰ‒﹣－]/g, '-');
+                const parseBed = (bed) => {
+                    if (!bed) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: ''};
+                    const s = normalizeDash(String(bed).trim());
+                    // 支援數字-數字 或 數字-英文字母 (如 111-1A)，沒有 - 時 pos=0
+                    const m = s.match(/^(\d{1,4})(?:-([A-Za-z]|\d{1,3}))?$/);
+                    if (!m) return {floor: Number.MAX_SAFE_INTEGER, pos: Number.MAX_SAFE_INTEGER, raw: s};
+                    const floor = parseInt(m[1], 10);
+                    let pos = 0;
+                    if (m[2]) {
+                        if (/^[A-Za-z]$/.test(m[2])) {
+                            // 字母床位：轉為數字排序，但排在數字之後（+1000）
+                            pos = (m[2].toUpperCase().charCodeAt(0) - 64) + 1000; // A=1001, B=1002...
+                        } else {
+                            pos = parseInt(m[2], 10);
+                        }
+                    }
+                    return {floor, pos, raw: s};
+                };
+                entries
+                  .sort((a, b) => {
+                      const A = parseBed(a[1]);
+                      const B = parseBed(b[1]);
+                      if (A.floor !== B.floor) return A.floor - B.floor;
+                      if (A.pos !== B.pos) return A.pos - B.pos;
+                      // 最後才以姓名排序（中文友善）
+                      return String(a[0]).localeCompare(String(b[0]), 'zh-Hant-u-kn-true');
+                  })
+                  .forEach(([name, bed]) => {
+                      const opt = document.createElement('option');
+                      opt.value = name;
+                      opt.textContent = (bed ? bed + '｜' : '') + name;
+                      sel.appendChild(opt);
+                  });
+// 當選擇變更時，自動帶出床號與驗證樣式
+                sel.addEventListener('change', ()=>{
+                    const val = sel.value;
+                    const bn = document.getElementById('bedNumber');
+                    const fb = document.getElementById('nameFeedback');
+                    if (val && residentDatabase[val]) {
+                        sel.classList.remove('is-invalid'); sel.classList.add('is-valid');
+                        if (bn) bn.value = residentDatabase[val] || '';
+                        if (fb) { fb.textContent = getText('name_validation_success'); fb.className = 'valid-feedback'; }
+                    } else {
+                        sel.classList.remove('is-valid'); sel.classList.add('is-invalid');
+                        if (bn) bn.value = '';
+                        if (fb) { fb.textContent = getText('name_not_found'); fb.className = 'invalid-feedback'; }
+                    }
+                });
+            }
+
+        } catch (e) {
+            console.error('讀取 residents 失敗：', e);
+        }
+    }
+
+    const adminNotice = document.getElementById('admin-mode-notice');
+    const visitDateInput = document.getElementById('visitDate');
+    const timeSlotsContainer = document.getElementById('time-slots');
+    const bookingNotice = document.getElementById('booking-notice');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const backButton = document.getElementById('backButton');
+    const successMessage = document.getElementById('successMessage');
+    const selectedTimeDisplay = document.getElementById('selected-time-display');
+    const residentNameInput = document.getElementById('residentName');
+    const bedNumberInput = document.getElementById('bedNumber');
+    const nameFeedback = document.getElementById('nameFeedback');
+    const confirmationModalElement = document.getElementById('confirmationModal');
+    const confirmationModal = new bootstrap.Modal(confirmationModalElement);
+    const finalSubmitButton = document.getElementById('final-submit-button');
+
+    // 先載入住民資料
+    loadResidents();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdminMode = urlParams.get('mode') === 'admin';
+    if (isAdminMode) {
+        adminNotice.classList.remove('d-none');
+    }
+    
+    let pendingBookingData = {};
+    // Flag: booking completed => freeze UI updates
+    let completed = false;
+    const availableTimes = ["14:30", "15:00", "15:30", "16:00", "16:30"];
+    const maxBookingsPerSlot = 4;
+    let selectedDate = '';
+    let selectedTime = '';
+    const today = new Date().toISOString().split('T')[0];
+    visitDateInput.setAttribute('min', today);
+    visitDateInput.value = today;
+    selectedDate = today;
+
+    // 工具：取得以「週一為一週起始」的週起訖（本地時間）
+    function getWeekRange(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00'); // local
+        const day = d.getDay(); // 0=Sun..6=Sat
+        // 將週一視為一週的第一天：偏移 = (day+6)%7
+        const offsetToMonday = (day + 6) % 7;
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - offsetToMonday);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const pad = n => String(n).padStart(2,'0');
+        const toYMD = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+        return { start: toYMD(weekStart), end: toYMD(weekEnd) };
+    }
+
+    async function renderTimeSlots() {
+        timeSlotsContainer.innerHTML = getText('reading_slots');
+        bookingNotice.classList.add('d-none');
+        const now = new Date();
+        const todayString = now.toISOString().split('T')[0];
+        if (selectedDate === todayString && now.getHours() >= 12 && !isAdminMode) {
+            bookingNotice.textContent = getText('today_past_noon');
+            bookingNotice.classList.remove('d-none');
+            timeSlotsContainer.innerHTML = '';
+            return;
+        }
+        try {
+            const snapshot = await db.collection('bookings').where('date', '==', selectedDate).get();
+            const bookingsForDate = {};
+            snapshot.forEach(doc => {
+                const booking = doc.data();
+                if (!bookingsForDate[booking.time]) bookingsForDate[booking.time] = 0;
+                bookingsForDate[booking.time]++;
+            });
+            timeSlotsContainer.innerHTML = '';
+            availableTimes.forEach(time => {
+                const count = bookingsForDate[time] || 0;
+                const remaining = maxBookingsPerSlot - count;
+                const isFull = remaining <= 0;
+                let isPast = false;
+                if (selectedDate === todayString) {
+                    const [slotHour, slotMinute] = time.split(':').map(Number);
+                    const slotTime = new Date();
+                    slotTime.setHours(slotHour, slotMinute, 0, 0);
+                    if (now > slotTime) isPast = true;
+                }
+                const button = document.createElement('button');
+                button.className = `btn ${isFull||isPast?'btn-outline-secondary full':'btn-outline-primary'} time-slot`;
+                button.dataset.time = time;
+                button.disabled = isFull || isPast;
+                if (isFull) button.textContent = `${time} (${getText('slot_full')})`;
+                else if (isPast) button.textContent = `${time} (${getText('slot_past')})`;
+                else button.textContent = `${time} (${getText('slot_remaining', { remaining: remaining })})`;
+                timeSlotsContainer.appendChild(button);
+            });
+        } catch (error) {
+            console.error('讀取時段資料失敗:', error);
+            timeSlotsContainer.innerHTML = `<div class="alert alert-danger">${getText('read_slots_failed')}</div>`;
+        }
+    }
+
+    function displaySuccessMessage(bookingData) {
+        document.getElementById('confirmDate').textContent = selectedDate;
+        document.getElementById('confirmTime').textContent = selectedTime;
+        document.getElementById('confirmResidentName').textContent = bookingData.residentName;
+        document.getElementById('confirmBedNumber').textContent = bookingData.bedNumber;
+        document.getElementById('confirmVisitorRelationship').textContent = bookingData.visitorRelationship;
+        step1.classList.add('d-none');
+        step2.classList.add('d-none');
+        successMessage.classList.remove('d-none');
+        // Lock UI so other events won't redraw the page
+        completed = true;
+    }
+
+    visitDateInput.addEventListener('change', (e) => {
+        if (completed) return;
+        selectedDate = e.target.value;
+        renderTimeSlots();
+    });
+    timeSlotsContainer.addEventListener('click', (e) => {
+        if (completed) return;
+        if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
+            selectedTime = e.target.dataset.time;
+            selectedTimeDisplay.textContent = `${selectedDate} ${selectedTime}`;
+            step1.classList.add('d-none');
+            step2.classList.remove('d-none');
+        }
+    });
+    backButton.addEventListener('click', () => {
+        completed = false;
+        step2.classList.add('d-none');
+        step1.classList.remove('d-none');
+        bookingForm.reset();
+        bookingForm.classList.remove('was-validated');
+        residentNameInput.classList.remove('is-valid', 'is-invalid');
+        bedNumberInput.value = '';
+    });
+
+    // 每週 3 次上限：提交前檢查
+    bookingForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        bookingForm.classList.add('was-validated');
+        if (!bookingForm.checkValidity()) { return; }
+
+        const residentName = residentNameInput.value.trim();
+        if (!residentDatabase[residentName]) {
+            bookingForm.classList.remove('was-validated');
+            residentNameInput.classList.add('is-invalid');
+            if(nameFeedback) nameFeedback.textContent = getText('name_validation_fail');
+            if(nameFeedback) nameFeedback.style.display = 'block';
+            return;
+        }
+
+        // 檢查本週預約次數（週一~週日）
+        const { start, end } = getWeekRange(selectedDate);
+        const submitBtn = bookingForm.querySelector('button[type="submit"]');
+        const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
+        try {
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = getText('checking_quota'); }
+
+            // 避免建立 composite index：先以住民姓名抓，再在前端篩選週期
+            const snap = await db.collection('bookings').where('residentName', '==', residentName).get();
+            let weeklyCount = 0;
+            snap.forEach(doc => {
+                const d = (doc.data() || {}).date || '';
+                if (d >= start && d <= end) weeklyCount++;
+            });
+
+            if (weeklyCount >= 3) {
+                alert(getText('weekly_limit_exceeded'));
+                return;
+            }
+        } catch (err) {
+            console.error('檢查每週上限時發生錯誤：', err);
+            // 若檢查失敗，保守處理：阻擋此次預約以避免超過上限
+            alert(getText('query_failed'));
+            return;
+        } finally {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHTML; }
+        }
+
+        // 進入確認視窗
+        pendingBookingData = {
+            residentName,
+            bedNumber: bedNumberInput.value,
+            visitorRelationship: document.getElementById('visitorRelationship').value,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        document.getElementById('modal-confirm-date').textContent = selectedDate;
+        document.getElementById('modal-confirm-time').textContent = selectedTime;
+        document.getElementById('modal-confirm-residentName').textContent = pendingBookingData.residentName;
+        document.getElementById('modal-confirm-visitorRelationship').textContent = pendingBookingData.visitorRelationship;
+        confirmationModal.show();
+    });
+
+    const finalSubmitButtonHandler = async function() {
+        finalSubmitButton.disabled = true;
+        try {
+            await db.collection('bookings').add({
+                date: selectedDate,
+                time: selectedTime,
+                ...pendingBookingData
+            });
+            confirmationModal.hide();
+            displaySuccessMessage(pendingBookingData);
+        } catch (error) {
+            console.error('預約儲存失敗:', error);
+            alert(getText('booking_failed'));
+        } finally {
+            finalSubmitButton.disabled = false;
+        }
+    };
+    finalSubmitButton.addEventListener('click', finalSubmitButtonHandler);
+
+    renderTimeSlots();
+});
