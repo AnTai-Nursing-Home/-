@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="booking_visit">預約探視</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+<style>
+  .modal .modal-title { font-size: 1.15rem; font-weight: 700; }
+  .confirm-list .list-group-item { padding: .85rem 1rem; }
+  .confirm-list .list-group-item + .list-group-item { border-top: 1px solid rgba(0,0,0,.06); }
+  @media (min-width: 576px) {
+    .confirm-list .list-group-item span.fw-semibold { text-align: right; min-width: 180px; }
+  }
+</style>
+
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h2 data-i18n="booking_system_title">預約探視系統</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="admin-mode-notice" class="alert alert-info d-none" role="alert">
+                            <i class="fas fa-user-shield me-2"></i>
+                            <strong data-i18n="admin_mode_notice"></strong>
+                        </div>
+                        <div class="mb-4">
+                            <a href="index.html" class="btn btn-back-menu">
+                                <i class="fas fa-arrow-left me-2"></i><span data-i18n="back_to_main_menu"></span>
+                            </a>
+                        </div>
+                        <div id="step1">
+                            <h4 class="mb-3" data-i18n="step1_title"></h4>
+                            <div class="mb-3">
+                                <label for="visitDate" class="form-label" data-i18n="choose_date"></label>
+                                <input type="date" id="visitDate" class="form-control">
+                            </div>
+                            <div id="booking-notice" class="alert alert-warning d-none" role="alert"></div>
+                            <div id="time-slots" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                        <div id="step2" class="d-none mt-4">
+                            <h4 class="mb-3" data-i18n="step2_title"></h4>
+                            <p>您選擇的時段：<strong id="selected-time-display"></strong></p>
+                            <form id="bookingForm" novalidate>
+                                <div class="mb-3">
+                                    <label for="residentName" class="form-label" data-i18n="resident_name"></label>
+                                    <select class="form-select" id="residentName" required><option value="" selected disabled data-i18n="please_select"></option></select>
+                                    <div class="invalid-feedback" data-i18n="please_fill_resident_name"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="bedNumber" class="form-label" data-i18n="bed_number"></label>
+                                    <input type="text" class="form-control" id="bedNumber" readonly style="background-color: #e9ecef;">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="visitorRelationship" class="form-label" data-i18n="visitor_relationship"></label>
+                                    <input type="text" class="form-control" id="visitorRelationship" data-i18n-placeholder="visitor_relationship">
+                                    <div class="invalid-feedback" data-i18n="please_fill_visitor_relationship"></div>
+                                </div>
+<button type="submit" class="btn btn-success w-100" data-i18n="confirm_booking"></button>
+                                <button type="button" id="backButton" class="btn btn-secondary w-100 mt-2" data-i18n="back_to_time_select"></button>
+</form>
+                        </div>
+                        <div id="successMessage" class="d-none text-center mt-4 p-4 border rounded bg-light">
+                            <h3 class="text-success" data-i18n="booking_success_title"></h3>
+                            <p data-i18n="booking_success_info"></p>
+                            <ul class="list-unstyled text-start mx-auto" style="max-width: 300px;">
+                                <li><strong data-i18n="date"></strong> <span id="confirmDate"></span></li>
+                                <li><strong data-i18n="time"></strong> <span id="confirmTime"></span></li>
+                                <li><strong data-i18n="resident_name"></strong> <span id="confirmResidentName"></span></li>
+                                <li><strong data-i18n="bed_number"></strong> <span id="confirmBedNumber"></span></li>
+                                <li><strong data-i18n="visitor_relationship"></strong> <span id="confirmVisitorRelationship"></span></li>
+                            </ul>
+                            <hr>
+                            <p class="fw-bold text-danger" data-i18n="important_notice"></p>
+                            <a href="index.html" class="btn btn-primary mt-3" data-i18n="back_to_main_menu"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmationModalLabel" data-i18n="confirm_booking">確認預約</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="p-3 pb-2 border-bottom">
+          <div class="text-muted" style="font-size:.9rem;" data-i18n="booking_success_info">以下為您的預約資訊：</div>
+        </div>
+        <ul class="list-group list-group-flush confirm-list">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span class="text-muted small" data-i18n="date">日期</span>
+            <span id="modal-confirm-date" class="fw-semibold"></span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span class="text-muted small" data-i18n="time">時段</span>
+            <span id="modal-confirm-time" class="fw-semibold"></span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span class="text-muted small" data-i18n="resident_name">住民姓名</span>
+            <span id="modal-confirm-residentName" class="fw-semibold"></span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span class="text-muted small" data-i18n="visitor_relationship">與住民關係</span>
+            <span id="modal-confirm-visitorRelationship" class="fw-semibold"></span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="return_to_modify">返回修改</button>
+        <button type="button" id="final-submit-button" class="btn btn-primary" data-i18n="confirm_submission">確認送出</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="main.js"></script>
+    <script src="booking.js"></script>
+</body>
+</html>
