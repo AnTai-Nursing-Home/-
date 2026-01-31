@@ -782,6 +782,48 @@ function exportStyledXls(){
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MSICAO';
   wb.created = new Date();
+  // ===== 匯出報表人（右下角頁尾）=====
+  function getExportUserForFooter(){
+    // 盡量沿用其他系統的登入儲存格式
+    for (const store of [sessionStorage, localStorage]) {
+      try{
+        const raw = store.getItem('antai_session_user');
+        if(raw){
+          const a = JSON.parse(raw);
+          const staffId = String(a?.staffId || a?.username || a?.id || '').trim();
+          const displayName = String(a?.displayName || a?.name || a?.staffName || '').trim();
+          const t = [staffId, displayName].filter(Boolean).join(' ').trim();
+          if(t) return t;
+        }
+      }catch(_e){}
+      for (const k of ['officeAuth','nurseAuth','caregiverAuth']) {
+        try{
+          const raw = store.getItem(k);
+          if(!raw) continue;
+          const a = JSON.parse(raw);
+          const staffId = String(a?.staffId || a?.username || a?.id || '').trim();
+          const displayName = String(a?.displayName || a?.name || a?.staffName || '').trim();
+          const t = [staffId, displayName].filter(Boolean).join(' ').trim();
+          if(t) return t;
+        }catch(_e){}
+      }
+    }
+    return '';
+  }
+
+  const __exportUserText = getExportUserForFooter();
+  const __footerText = __exportUserText ? `&R&"Microsoft JhengHei,Regular"&8匯出報表人:${__exportUserText}` : '';
+
+  function applyPrintFooter(ws){
+    if(!ws || !__footerText) return;
+    // ExcelJS headerFooter：&L 左、&C 中、&R 右
+    ws.headerFooter = {
+      oddFooter: __footerText,
+      evenFooter: __footerText,
+      firstFooter: __footerText
+    };
+  }
+
 
   // ===== 共用樣式 =====
   const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
@@ -901,6 +943,7 @@ function exportStyledXls(){
     fitToHeight: 0, // 不強制塞一頁，允許多頁
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
+  applyPrintFooter(ws);
 })();
   // ===== 消防用名冊（第二張） =====
   (function addFireSheet(){
@@ -993,6 +1036,7 @@ function exportStyledXls(){
     fitToHeight: 0,
     margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
   };
+  applyPrintFooter(ws);
 })();
 
 // ===== 樓層表（每房：房號｜床號｜姓名｜性別/年齡｜(空白)，x3；確保每列正好14格） =====
@@ -1081,6 +1125,7 @@ function exportStyledXls(){
 
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0.1,footer:0.1} };
+                     applyPrintFooter(ws);
   }
 
   addFloorSheet('1樓床位配置', 1);
@@ -1293,6 +1338,7 @@ function exportStyledXls(){
       horizontalCentered:true,
       margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05}
     };
+    applyPrintFooter(ws);
   }
 
   function addVitalSheet_2F(){
@@ -1398,6 +1444,7 @@ function exportStyledXls(){
     ws.pageSetup = { paperSize:9, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true,
                      margins:{left:0.12,right:0.12,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
+                     applyPrintFooter(ws);
   }
 
   // ===== 各樓層人數統計 =====
@@ -1510,6 +1557,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1,
                      horizontalCentered:true, verticalCentered:false,
                      margins:{left:0.15,right:0.15,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
+                     applyPrintFooter(ws);
 })()
 
   // ===== 生命徵象（直式、各 1 頁）===== 
@@ -1529,6 +1577,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0,
                        horizontalCentered:true,
                        margins:{left:0.1,right:0.1,top:0.15,bottom:0.15,header:0.05,footer:0.05} };
+                       applyPrintFooter(ws);
       ws.columns = [
         {header:'序號', key:'no', width:13.25},
         {header:'職稱', key:'title', width:13.25},
@@ -1723,6 +1772,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       ws.pageSetup = { paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0,
                        horizontalCentered:true,
                        margins:{left:0.2,right:0.2,top:0.25,bottom:0.25,header:0.1,footer:0.1} };
+                       applyPrintFooter(ws);
     }catch(e){
       console.warn('匯出時建立「照服員名冊」分頁失敗：', e);
     }
