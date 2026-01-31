@@ -1052,7 +1052,7 @@ async function exportCaseAssignExcel() {
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
-    margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 }
+    margins: { left: 0.3, right: 0.3, top: 0.2, bottom: 0.4, header: 0.1, footer: 0.1 }
   };
   ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
 
