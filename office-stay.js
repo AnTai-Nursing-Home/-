@@ -906,23 +906,16 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
     const days = enumerateDates(data.startDateTime, data.endDateTime);
     const limitCheck = await checkTwoPerDayLimitOfficeDetailed(days, appIdSelf);
     if (limitCheck && limitCheck.overLimit) {
-        const lines = (limitCheck.conflicts || []).map(c => {
+        const detail = (limitCheck.conflicts || []).map(c => {
             const apps = (c.apps || []).map(a => {
                 const s = a.start ? formatDateTime(a.start) : '—';
                 const e = a.end ? formatDateTime(a.end) : '—';
                 const st = statusMapOffice[a.statusId]?.name || a.statusId || '—';
                 return `- ${a.applicantName || '(未填姓名)'}（${st}）｜${s} ～ ${e}`;
-            }).join('
-');
-            return `【${c.date}】
-${apps}`;
-        }).join('
-
-');
-        throw new Error('同一天外宿人數已達兩人上限，無法再申請。
-
-原因：
-' + (lines || '(查無明細)'));
+            }).join('\n');
+            return `【${c.date}】\n${apps}`;
+        }).join('\n\n');
+        throw new Error(`同一天外宿人數已達兩人上限，無法再申請。\n\n原因：\n${detail || '(查無明細)'}`);
     }
 
     const conflictMsg = await checkConflictRulesOffice(data.applicantId, days, appIdSelf);
