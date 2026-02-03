@@ -889,7 +889,7 @@ async function saveAppFromModal() {
         alert('外宿申請已儲存');
     } catch (err) {
         console.error('saveAppFromModal failed:', err);
-        alert('儲存失敗，請稍後再試或檢查網路連線');
+        alert(err?.message ? err.message : '儲存失敗，請稍後再試或檢查網路連線');
     } finally {
         setButtonLoading(saveBtn, false);
     }
@@ -903,8 +903,7 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
         throw new Error('外宿需提前三天申請，起始日期須在三天後');
     }
 
-    const days = enumerateDates(data.startDateTime, data.endDateTime);
-    const limitCheck = await checkTwoPerDayLimitOfficeDetailed(days, appIdSelf);
+    const limitCheck = await checkMaxConcurrentLimitOfficeDetailed(data.startDateTime, data.endDateTime, appIdSelf);
     if (limitCheck && limitCheck.overLimit) {
         const detail = (limitCheck.conflicts || []).map(c => {
             const apps = (c.apps || []).map(a => {
@@ -913,10 +912,14 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
                 const st = statusMapOffice[a.statusId]?.name || a.statusId || '—';
                 return `- ${a.applicantName || '(未填姓名)'}（${st}）｜${s} ～ ${e}`;
             }).join('\n');
-            return `【${c.date}】\n${apps}`;
+            const at = c.at ? `（${c.at}）` : '';
+            return `【${c.date}${at}】
+${apps}`;
         }).join('\n\n');
         throw new Error(`同一天外宿人數已達兩人上限，無法再申請。\n\n原因：\n${detail || '(查無明細)'}`);
     }
+
+    const days = enumerateDates(data.startDateTime, data.endDateTime);
 
     const conflictMsg = await checkConflictRulesOffice(data.applicantId, days, appIdSelf);
     if (conflictMsg) {
@@ -926,6 +929,120 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
 
 
 // 回傳：{ overLimit: boolean, conflicts: [{ date: 'YYYY/MM/DD', apps: [{id, applicantName, start, end, statusId}] }] }
+
+// 回傳：{ overLimit: boolean, conflicts: [{ date: 'YYYY/MM/DD', at: 'HH:MM', apps: [{id, applicantName, start, end, statusId}] }] }
+// 規則：同一時間點(同一天內)外宿同時在外者不可超過兩人（「接續不重疊」不算衝突；例如 12:00 結束、16:00 開始 OK）
+async function checkMaxConcurrentLimitOfficeDetailed(newStart, newEnd, appIdSelf, limit = 2) {
+    const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const fmtDay = (d) => `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+    const fmtHM = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+    // 只枚舉「有可能發生重疊」的日期範圍
+    const days = enumerateDates(newStart, newEnd);
+
+    const conflicts = [];
+    const newStartDate = toDate(newStart);
+    const newEndDate = toDate(newEnd);
+
+    for (const d of days) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const nextDayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+
+        // 新單在當天的有效區間（以「半開區間」[start, end) 判斷，避免 12:00-12:00 這種邊界問題）
+        const ns = new Date(Math.max(newStartDate.getTime(), dayStart.getTime()));
+        const ne = new Date(Math.min(newEndDate.getTime(), nextDayStart.getTime()));
+        if (ne.getTime() <= ns.getTime()) continue; // 新單在這一天沒有時間交集
+
+        // Firestore：只用 startDateTime 做不等式查詢，endDateTime 前端過濾（避免 Invalid query）
+        const snap = await db.collection('stayApplications')
+            .where('startDateTime', '<', firebase.firestore.Timestamp.fromDate(nextDayStart))
+            .orderBy('startDateTime', 'asc')
+            .get();
+
+        const candidates = [];
+        snap.forEach(doc => {
+            if (appIdSelf && doc.id === appIdSelf) return;
+            const data = doc.data() || {};
+            if (data.statusId === 'rejected') return; // 退回不算
+            const s = toDate(data.startDateTime);
+            const e = toDate(data.endDateTime);
+            if (!s || !e) return;
+
+            // 以半開區間 [s, e) 判斷與當日是否有交集
+            if (e.getTime() <= dayStart.getTime()) return;
+            if (s.getTime() >= nextDayStart.getTime()) return;
+
+            // 與新單在「這一天」是否有時間交集（也用半開區間）
+            const cs = new Date(Math.max(s.getTime(), dayStart.getTime()));
+            const ce = new Date(Math.min(e.getTime(), nextDayStart.getTime()));
+            // 這筆在當天有存在時間
+            if (ce.getTime() <= cs.getTime()) return;
+
+            // 先收集，等會 sweep-line 算同時在外人數
+            candidates.push({
+                id: doc.id,
+                applicantName: data.applicantName || '',
+                start: s,
+                end: e,
+                statusId: data.statusId || '',
+                _cs: cs,
+                _ce: ce
+            });
+        });
+
+        // 建事件：end 先於 start（同一時間點）=> 接續不算重疊
+        const events = [];
+        // existing apps
+        for (const a of candidates) {
+            events.push({ t: a._cs.getTime(), delta: +1, id: a.id });
+            events.push({ t: a._ce.getTime(), delta: -1, id: a.id });
+        }
+        // new app
+        const NEW_ID = '__new__';
+        events.push({ t: ns.getTime(), delta: +1, id: NEW_ID });
+        events.push({ t: ne.getTime(), delta: -1, id: NEW_ID });
+
+        events.sort((x, y) => (x.t - y.t) || (x.delta - y.delta)); // -1 會先於 +1
+
+        const active = new Set();
+        let count = 0;
+
+        // 建一個 map 方便取出詳細資訊
+        const infoById = new Map(candidates.map(a => [a.id, a]));
+
+        for (const ev of events) {
+            if (ev.delta === -1) {
+                if (active.has(ev.id)) { active.delete(ev.id); count--; }
+                continue;
+            }
+
+            // start event
+            active.add(ev.id); count++;
+
+            if (count > limit && active.has(NEW_ID)) {
+                // 取出當下造成超限的「既有」兩筆
+                const others = Array.from(active).filter(x => x !== NEW_ID);
+                // 若同一瞬間有 >2 既有，挑前兩筆即可（主要是顯示原因用）
+                const culpritIds = others.slice(0, limit);
+                const apps = culpritIds.map(id => {
+                    const a = infoById.get(id);
+                    return a ? { id: a.id, applicantName: a.applicantName, start: a.start, end: a.end, statusId: a.statusId } : { id };
+                });
+
+                conflicts.push({
+                    date: fmtDay(d),
+                    at: fmtHM(new Date(ev.t)),
+                    apps
+                });
+                break; // 這一天已經確定超限，不用再算
+            }
+        }
+    }
+
+    return { overLimit: conflicts.length > 0, conflicts };
+}
+
 async function checkTwoPerDayLimitOfficeDetailed(days, appIdSelf) {
     // Firestore 規則：不等式(where <=, >= ...) 不能同時用在兩個不同欄位
     // 這裡改成只用 startDateTime 做不等式查詢，endDateTime 用前端再過濾（避免 Invalid query）
