@@ -904,9 +904,25 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
     }
 
     const days = enumerateDates(data.startDateTime, data.endDateTime);
-    const overLimit = await checkTwoPerDayLimitOffice(days, appIdSelf);
-    if (overLimit) {
-        throw new Error('同一天外宿人數已達兩人上限，無法再申請');
+    const limitCheck = await checkTwoPerDayLimitOfficeDetailed(days, appIdSelf);
+    if (limitCheck && limitCheck.overLimit) {
+        const lines = (limitCheck.conflicts || []).map(c => {
+            const apps = (c.apps || []).map(a => {
+                const s = a.start ? formatDateTime(a.start) : '—';
+                const e = a.end ? formatDateTime(a.end) : '—';
+                const st = statusMapOffice[a.statusId]?.name || a.statusId || '—';
+                return `- ${a.applicantName || '(未填姓名)'}（${st}）｜${s} ～ ${e}`;
+            }).join('
+');
+            return `【${c.date}】
+${apps}`;
+        }).join('
+
+');
+        throw new Error('同一天外宿人數已達兩人上限，無法再申請。
+
+原因：
+' + (lines || '(查無明細)'));
     }
 
     const conflictMsg = await checkConflictRulesOffice(data.applicantId, days, appIdSelf);
@@ -915,10 +931,18 @@ async function validateBusinessRulesForNewApplicationOffice(data, appIdSelf) {
     }
 }
 
-async function checkTwoPerDayLimitOffice(days, appIdSelf) {
+
+// 回傳：{ overLimit: boolean, conflicts: [{ date: 'YYYY/MM/DD', apps: [{id, applicantName, start, end, statusId}] }] }
+async function checkTwoPerDayLimitOfficeDetailed(days, appIdSelf) {
     // Firestore 規則：不等式(where <=, >= ...) 不能同時用在兩個不同欄位
     // 這裡改成只用 startDateTime 做不等式查詢，endDateTime 用前端再過濾（避免 Invalid query）
     const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+    const fmtDay = (d) => {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
+    };
+
+    const conflicts = [];
 
     for (const d of days) {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
@@ -929,7 +953,7 @@ async function checkTwoPerDayLimitOffice(days, appIdSelf) {
             .orderBy('startDateTime', 'asc')
             .get();
 
-        let count = 0;
+        const hits = [];
         snap.forEach(doc => {
             if (appIdSelf && doc.id === appIdSelf) return; // 排除自己（編輯中）
             const data = doc.data() || {};
@@ -937,16 +961,37 @@ async function checkTwoPerDayLimitOffice(days, appIdSelf) {
             if (data.statusId === 'rejected') return;
 
             const end = toDate(data.endDateTime);
+            const start = toDate(data.startDateTime);
             if (!end) return;
 
             // 與當天有交集：startDateTime <= dayEnd 已在查詢保證；只要 endDateTime >= dayStart 即成立
-            if (end >= dayStart) count++;
+            if (end >= dayStart) {
+                hits.push({
+                    id: doc.id,
+                    applicantName: data.applicantName || '',
+                    start,
+                    end,
+                    statusId: data.statusId || ''
+                });
+            }
         });
 
-        if (count >= 2) return true;
+        if (hits.length >= 2) {
+            // 依 startDateTime 排序，取最早的兩筆作為「已佔用名額」的原因
+            hits.sort((a, b) => (a.start?.getTime?.() || 0) - (b.start?.getTime?.() || 0));
+            conflicts.push({ date: fmtDay(d), apps: hits.slice(0, 2) });
+        }
     }
-    return false;
+
+    return { overLimit: conflicts.length > 0, conflicts };
 }
+
+// 舊版相容：只回傳 boolean
+async function checkTwoPerDayLimitOffice(days, appIdSelf) {
+    const r = await checkTwoPerDayLimitOfficeDetailed(days, appIdSelf);
+    return !!r?.overLimit;
+}
+
 
 async function checkConflictRulesOffice(applicantId, days, appIdSelf) {
     const rulesSnap = await db.collection('stayConflictRules')
