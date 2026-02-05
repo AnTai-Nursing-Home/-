@@ -65,6 +65,9 @@
 <span id="nurse-login-label">護理師登入</span>
 </button>
 <span class="text-danger small" id="nurse-login-status"></span>
+<button class="btn btn-outline-primary d-none" id="audit-btn" type="button">
+  <i class="fas fa-clipboard-check me-1"></i> 一鍵查核
+</button>
 <button class="btn btn-success" id="add-new-form-btn">
 <i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
 </button>
@@ -177,6 +180,61 @@
 </div>
 </div>
 </div>
+</div>
+<div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">一鍵查核（未結案單）</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">查核起日</label>
+            <input type="date" class="form-control" id="audit-start-date">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">查核迄日</label>
+            <input type="date" class="form-control" id="audit-end-date">
+          </div>
+          <div class="col-12 col-md-6 d-flex gap-2">
+            <button class="btn btn-primary" id="audit-run-btn" type="button">
+              <i class="fas fa-play me-1"></i> 開始查核
+            </button>
+            <button class="btn btn-outline-secondary" id="audit-only-issues-btn" type="button">
+              只看有缺漏
+            </button>
+            <div class="ms-auto text-muted small" id="audit-summary"></div>
+          </div>
+        </div>
+
+        <div class="alert alert-info py-2 small">
+          會掃描「未結案」的所有導尿管照護單，並檢查您選的日期區間中：照服員簽名是否有填、7 個勾選項目是否都有 Yes/No。
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle">
+            <thead>
+              <tr class="table-light">
+                <th style="width: 90px;">床號</th>
+                <th style="width: 180px;">住民</th>
+                <th style="width: 120px;">日期</th>
+                <th>缺漏</th>
+                <th style="width: 140px;">快速開啟</th>
+              </tr>
+            </thead>
+            <tbody id="audit-results-body">
+              <tr><td colspan="5" class="text-muted">請先設定日期區間後按「開始查核」</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+      </div>
+    </div>
+  </div>
 </div>
 </body>
 </html>
