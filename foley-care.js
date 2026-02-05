@@ -39,6 +39,18 @@ document.addEventListener('firebase-ready', () => {
     const nurseLoginStatus = document.getElementById('nurse-login-status');
     const nurseLoginLabel = document.getElementById('nurse-login-label');
 
+    const auditBtn = document.getElementById('audit-btn');
+    const auditStartInput = document.getElementById('audit-start-date');
+    const auditEndInput = document.getElementById('audit-end-date');
+    const auditRunBtn = document.getElementById('audit-run-btn');
+    const auditResultsBody = document.getElementById('audit-results-body');
+    const auditSummary = document.getElementById('audit-summary');
+    const auditOnlyIssuesBtn = document.getElementById('audit-only-issues-btn');
+    let auditModal = null;
+    let auditShowOnlyIssues = false;
+    let pendingAuditScrollDate = null;
+
+
     // --- 變數 ---
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
@@ -261,7 +273,13 @@ async function guardUnsavedChanges(nextAction) {
             nurseLoginBtn.classList.add('btn-outline-danger');
             nurseLoginBtn.classList.remove('btn-outline-secondary');
         }
-        if (batchDeleteBtn) {
+        
+        // 一鍵查核按鈕：僅護理師登入後顯示
+        if (auditBtn) {
+            auditBtn.classList.toggle('d-none', !isNurseLoggedIn);
+        }
+
+if (batchDeleteBtn) {
             if (currentView === 'closed') {
                 batchDeleteBtn.classList.remove('d-none');
             } else {
@@ -506,7 +524,19 @@ async function guardUnsavedChanges(nextAction) {
             });
         });
         checkTimePermissions();
-    }
+
+        // 若從「一鍵查核」開啟，則自動捲動到指定日期
+        if (pendingAuditScrollDate) {
+            const targetRow = careTableBody.querySelector(`tr[data-date="${pendingAuditScrollDate}"]`);
+            if (targetRow) {
+                targetRow.classList.add('table-warning');
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => targetRow.classList.remove('table-warning'), 2500);
+            }
+            pendingAuditScrollDate = null;
+        }
+
+}
 
     function checkTimePermissions() {
         const now = new Date();
@@ -553,7 +583,175 @@ async function guardUnsavedChanges(nextAction) {
     }
 
 
-    function generateReportHTML() {
+    
+    // --- 一鍵查核（未結案） ---
+    function toISODate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function parseISODate(str) {
+        if (!str) return null;
+        const d = new Date(str + 'T00:00:00');
+        return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function maxDate(a, b) { return (a && b) ? (a > b ? a : b) : (a || b); }
+    function minDate(a, b) { return (a && b) ? (a < b ? a : b) : (a || b); }
+
+    function getCareItemLabel(key) {
+        const map = {
+            handHygiene: getText?.('hand_hygiene') || '洗手',
+            fixedPosition: getText?.('fixed_position') || '固定位置',
+            urineBagPosition: getText?.('urine_bag_position') || '尿袋位置',
+            unobstructedDrainage: getText?.('unobstructed_drainage') || '引流通暢',
+            avoidOverfill: getText?.('avoid_overfill') || '避免過滿',
+            urethralCleaning: getText?.('urethral_cleaning') || '尿道口清潔',
+            singleUseContainer: getText?.('single_use_container') || '單次容器'
+        };
+        return map[key] || key;
+    }
+
+    function computeFormDateRange(docData) {
+        const baseStr = docData.recordStartDate || docData.placementDate;
+        if (!baseStr) return null;
+        const base = new Date(baseStr + 'T00:00:00');
+        const start = new Date(base);
+        start.setDate(start.getDate() + 1);
+
+        let end;
+        if (docData.closingDate) {
+            end = new Date(docData.closingDate + 'T00:00:00');
+        } else {
+            // 與 renderCareTable 一致：到「開始日的次月月底」
+            end = new Date(start.getFullYear(), start.getMonth() + 2, 0);
+        }
+        return { start, end };
+    }
+
+    async function runAudit() {
+        if (!db) return;
+        if (!isNurseLoggedIn) {
+            alert('請先以護理師登入後再使用一鍵查核');
+            return;
+        }
+        if (!auditStartInput || !auditEndInput || !auditResultsBody) return;
+
+        const start = parseISODate(auditStartInput.value);
+        const end = parseISODate(auditEndInput.value);
+        if (!start || !end) {
+            alert('請先選擇查核起日與迄日');
+            return;
+        }
+        if (start > end) {
+            alert('查核起日不可晚於迄日');
+            return;
+        }
+
+        auditResultsBody.innerHTML = `<tr><td colspan="5" class="text-muted">查核中…</td></tr>`;
+        if (auditSummary) auditSummary.textContent = '';
+
+        const snapshot = await db.collection(careFormsCollection).where('closingDate', '==', null).get();
+        let scannedForms = 0;
+        let checkedDays = 0;
+        let issueDays = 0;
+
+        const results = [];
+
+        snapshot.forEach(doc => {
+            scannedForms += 1;
+            const data = doc.data() || {};
+            const range = computeFormDateRange(data);
+            if (!range) return;
+
+            const overlapStart = maxDate(start, range.start);
+            const overlapEnd = minDate(end, range.end);
+            if (!overlapStart || !overlapEnd || overlapStart > overlapEnd) return;
+
+            const residentId = data.residentName || '';
+            const rData = residentsData[residentId] || {};
+            const bed = rData.bedNumber || '';
+            const residentDisplay = getResidentDisplayName(residentId, rData);
+
+            const dailyData = data.dailyData || {};
+
+            for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
+                const dateStr = toISODate(d);
+                checkedDays += 1;
+
+                const rec = dailyData[dateStr];
+                const missing = [];
+
+                if (!rec) {
+                    careItems.forEach(k => missing.push(getCareItemLabel(k)));
+                    missing.push('簽名');
+                } else {
+                    careItems.forEach(k => {
+                        const v = rec[k];
+                        if (!(v === 'Yes' || v === 'No')) missing.push(getCareItemLabel(k));
+                    });
+                    const sign = (rec.caregiverSign || '').trim();
+                    if (!sign) missing.push('簽名');
+                }
+
+                if (missing.length > 0) issueDays += 1;
+
+                results.push({
+                    docId: doc.id,
+                    residentId,
+                    residentDisplay,
+                    bed,
+                    dateStr,
+                    missing
+                });
+            }
+        });
+
+        // 渲染
+        const filtered = auditShowOnlyIssues ? results.filter(r => r.missing.length > 0) : results;
+
+        if (auditSummary) {
+            auditSummary.textContent = `掃描 ${scannedForms} 張｜檢查 ${checkedDays} 天｜缺漏 ${issueDays} 天`;
+        }
+
+        if (filtered.length === 0) {
+            auditResultsBody.innerHTML = `<tr><td colspan="5" class="text-muted">沒有任何資料（可能日期區間與未結案單無交集）</td></tr>`;
+            return;
+        }
+
+        auditResultsBody.innerHTML = filtered.map(r => {
+            const missingText = r.missing.length
+                ? r.missing.map(x => `<span class="badge bg-danger me-1 mb-1">${x}</span>`).join(' ')
+                : `<span class="badge bg-success">OK</span>`;
+            const openBtn = `<button type="button" class="btn btn-sm btn-outline-primary audit-open-btn" data-id="${r.docId}" data-date="${r.dateStr}">開啟並定位</button>`;
+            return `
+                <tr>
+                  <td>${r.bed || ''}</td>
+                  <td>${r.residentDisplay || r.residentId || ''}</td>
+                  <td>${r.dateStr}</td>
+                  <td>${missingText}</td>
+                  <td class="text-center">${openBtn}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function openFormFromAudit(docId, dateStr) {
+        if (!docId) return;
+        try {
+            const doc = await db.collection(careFormsCollection).doc(docId).get();
+            if (!doc.exists) return;
+            pendingAuditScrollDate = dateStr || null;
+            await guardUnsavedChanges(async () => { switchToFormView(false, doc.data(), doc.id); });
+        } catch (e) {
+            console.error('openFormFromAudit failed', e);
+            alert('開啟照護單失敗，請稍後再試');
+        }
+    }
+
+function generateReportHTML() {
         const residentId = residentNameSelectForm.value;
         const residentData = residentsData[residentId] || {};
         const displayName = getResidentDisplayName(residentId, residentData);
@@ -919,6 +1117,54 @@ async function guardUnsavedChanges(nextAction) {
     if (nurseLoginBtn) {
         nurseLoginBtn.addEventListener('click', handleNurseLogin);
     }
+
+    // --- 一鍵查核：事件 ---
+    if (auditBtn) {
+        auditBtn.addEventListener('click', () => {
+            const modalEl = document.getElementById('auditModal');
+            if (!auditModal && modalEl && window.bootstrap) {
+                auditModal = new bootstrap.Modal(modalEl);
+            }
+            // 預設填入今天
+            const today = new Date();
+            const todayStr = toISODate(today);
+            if (auditStartInput && !auditStartInput.value) auditStartInput.value = todayStr;
+            if (auditEndInput && !auditEndInput.value) auditEndInput.value = todayStr;
+
+            auditShowOnlyIssues = false;
+            if (auditOnlyIssuesBtn) auditOnlyIssuesBtn.textContent = '只看有缺漏';
+            if (auditResultsBody) auditResultsBody.innerHTML = `<tr><td colspan="5" class="text-muted">請先設定日期區間後按「開始查核」</td></tr>`;
+            if (auditSummary) auditSummary.textContent = '';
+            auditModal?.show();
+        });
+    }
+
+    if (auditRunBtn) {
+        auditRunBtn.addEventListener('click', async () => {
+            await runAudit();
+        });
+    }
+
+    if (auditOnlyIssuesBtn) {
+        auditOnlyIssuesBtn.addEventListener('click', async () => {
+            auditShowOnlyIssues = !auditShowOnlyIssues;
+            auditOnlyIssuesBtn.textContent = auditShowOnlyIssues ? '顯示全部' : '只看有缺漏';
+            await runAudit();
+        });
+    }
+
+    if (auditResultsBody) {
+        auditResultsBody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.audit-open-btn');
+            if (!btn) return;
+            const id = btn.getAttribute('data-id');
+            const dateStr = btn.getAttribute('data-date');
+            auditModal?.hide();
+            await openFormFromAudit(id, dateStr);
+        });
+    }
+
+
     backToListBtn.addEventListener('click', async () => {
         await guardUnsavedChanges(async () => { switchToListView(); });
     });
