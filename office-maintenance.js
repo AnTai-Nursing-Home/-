@@ -405,6 +405,7 @@
         beds.forEach((b) => {
           items.push(`${b}床`);
           items.push(`${b}叫人鈴`);
+          items.push(`${b}中央氣體牆`);
         });
         setOptions($itemSelect, items, items.length ? "請選擇" : "此樓層無床號");
         return;
