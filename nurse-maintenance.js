@@ -181,7 +181,7 @@ document.addEventListener("firebase-ready", async () => {
       beds.forEach(b => {
         opts.push({ value: `${b}床`, label: `${b}床` });
         opts.push({ value: `${b}叫人鈴`, label: `${b}叫人鈴` });
-        opts.push({ value: `${b}叫人鈴`, label: `${b}中央氣體牆` });
+        opts.push({ value: `${b}中央氣體牆`, label: `${b}中央氣體牆` });
       });
       return opts;
     }
