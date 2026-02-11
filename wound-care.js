@@ -12,7 +12,7 @@
 
   const $ = els([
     'tabOpen','tabClosed','btnNew','loginBadge','btnDelete',
-    'viewList','viewForm','listBox','listEmpty',
+    'listSection','editorSection','listBox','listEmpty',
     'btnBack','btnSave','btnCloseCase','btnExportDocx','btnPrint',
     'facilityName','recordDate','recordTime','recorderName',
     'residentSelect','bedNumber','residentNumber',
@@ -90,12 +90,12 @@
   }
 
   function showList() {
-    $.viewForm.classList.add('d-none');
-    $.viewList.classList.remove('d-none');
+    $.editorSection.classList.add('d-none');
+    $.listSection.classList.remove('d-none');
   }
   function showForm() {
-    $.viewList.classList.add('d-none');
-    $.viewForm.classList.remove('d-none');
+    $.listSection.classList.add('d-none');
+    $.editorSection.classList.remove('d-none');
   }
 
   function resetFormForNew() {
