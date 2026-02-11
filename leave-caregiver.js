@@ -1,5 +1,14 @@
 // ✅ V3-Full-Sync — leave-caregiver.js (Fixed)
 document.addEventListener('firebase-ready', () => {
+
+  const SESSION_KEY = 'antai_session_user';
+  function loadSessionUser() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
   const calendarDiv = document.getElementById('leave-calendar');
   if (!calendarDiv) return;
 
@@ -121,6 +130,28 @@ function escapeHtmlSafe(s) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 }
+
+
+  
+  function autoFillFromSession() {
+    const sess = loadSessionUser();
+    if (!sess) return false;
+    const name = sess.displayName || sess.name || '';
+    const id = sess.staffId || sess.employeeId || '';
+    if (employeeIdDisplay && id) employeeIdDisplay.value = id;
+
+    if (employeeNameSelect && name) {
+      // try to select matching option
+      const opt = [...employeeNameSelect.options].find(o => o.value === name);
+      if (opt) {
+        employeeNameSelect.value = name;
+        employeeNameSelect.disabled = true;
+        employeeNameSelect.classList.add('bg-light');
+        return true;
+      }
+    }
+    return false;
+  }
 
 
   async function loadEmployeesDropdown() {
@@ -609,7 +640,7 @@ if (blockedListDiv) {
   if (printAdminReportBtn) { printAdminReportBtn.addEventListener('click', printCaregiverReport); }
 
   // Init
-  loadEmployeesDropdown();
-  renderCalendar();
+  loadEmployeesDropdown().then(() => { autoFillFromSession(); renderCalendar(); });
+  return;
   if (typeof applyTranslations === 'function') applyTranslations();
 });
