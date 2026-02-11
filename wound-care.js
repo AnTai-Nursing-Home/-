@@ -11,8 +11,8 @@
   const els = (ids) => Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
 
   const $ = els([
-    'tabOpen','tabClosed','btnNew','loginBadge','btnDelete',
-    'listSection','editorSection','listBox','listEmpty',
+    'tabOpen','tabClosed','btnNew','loginBadge','btnDelete','btnDashBack',
+    'listSection','editorSection','listBox','loadingText','listEmpty',
     'btnBack','btnSave','btnCloseCase','btnExportDocx','btnPrint',
     'facilityName','recordDate','recordTime','recorderName',
     'residentSelect','bedNumber','residentNumber',
@@ -89,13 +89,25 @@
     }
   }
 
+
+  function updateDashBackVisibility() {
+    // 只有在「清單頁」才顯示返回儀表板按鈕；在新增/編輯單張（表單頁）隱藏
+    const show = !($.editorSection && !$.editorSection.classList.contains('d-none'));
+    if (!$.btnDashBack) return;
+    if (show) $.btnDashBack.classList.remove('d-none');
+    else $.btnDashBack.classList.add('d-none');
+  }
+
+
   function showList() {
     $.editorSection.classList.add('d-none');
     $.listSection.classList.remove('d-none');
+    updateDashBackVisibility();
   }
   function showForm() {
     $.listSection.classList.add('d-none');
     $.editorSection.classList.remove('d-none');
+    updateDashBackVisibility();
   }
 
   function resetFormForNew() {
@@ -262,22 +274,32 @@
   }
 
   async function loadList() {
-    setTabs();
-    $.listBox.innerHTML = '';
-    $.listEmpty.classList.add('d-none');
-
-    const q = db.collection('woundCareRecords')
-      .where('status','==', currentStatus)
-      .orderBy('updatedAt','desc');
-
-    const snap = await q.get();
-    if (snap.empty) {
-      $.listEmpty.classList.remove('d-none');
-      return;
+    try {
+          setTabs();
+          $.listBox.innerHTML = '';
+          $.listEmpty.classList.add('d-none');
+          if ($.loadingText) $.loadingText.classList.remove('d-none');
+      
+          const q = db.collection('woundCareRecords')
+            .where('status','==', currentStatus)
+            .orderBy('updatedAt','desc');
+      
+          const snap = await q.get();
+      
+          if ($.loadingText) $.loadingText.classList.add('d-none');
+          if (snap.empty) {
+            $.listEmpty.classList.remove('d-none');
+            return;
+          }
+          snap.forEach(doc => {
+            $.listBox.appendChild(buildListItem(doc.id, doc.data() || {}));
+          });
+    } catch (e) {
+      if ($.loadingText) $.loadingText.classList.add('d-none');
+      console.error(e);
+      alert('讀取資料失敗，請稍後再試');
     }
-    snap.forEach(doc => {
-      $.listBox.appendChild(buildListItem(doc.id, doc.data() || {}));
-    });
+
   }
 
   // --- Export / Print ---
@@ -463,6 +485,7 @@
     $.recorderName.value = recorder.displayName || '';
     await loadResidents();
     wire();
+    updateDashBackVisibility();
     await loadList();
   });
 })();
