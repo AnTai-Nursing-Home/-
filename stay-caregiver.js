@@ -20,6 +20,37 @@ function getTextSafe(key, fallback) {
 }
 
 
+const SESSION_KEY = 'antai_session_user';
+function loadSessionUser() {
+    try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function pickApplicantFromSession(employees) {
+    const sess = loadSessionUser();
+    if (!sess) return null;
+
+    const staffId = (sess.staffId || sess.employeeId || sess.username || '').trim();
+    const displayName = (sess.displayName || sess.name || '').trim();
+
+    // 先用 id 比對（常見：caregivers/{staffId}）
+    if (staffId) {
+        const byId = employees.find(e => e.id === staffId);
+        if (byId) return byId;
+    }
+    // 再用姓名比對
+    if (displayName) {
+        const byName = employees.find(e => (e.name || '').trim() === displayName);
+        if (byName) return byName;
+    }
+    return null;
+}
+
+
 // ---- i18n fallback patch (stay-caregiver specific) ----
 // 有些 key 在 i18n.js 裡若尚未補齊，applyTranslations() 可能會把中文預設文字覆蓋成 key（例如 stay_location_label）。
 // 這段會在 getText 回傳 key 本身時，改用本頁的中/英文備援文字。
@@ -257,17 +288,32 @@ async function loadApplicants(selectEl) {
         selectEl.appendChild(opt);
     });
 
-    const savedId = localStorage.getItem('stayApplicantId');
-    if (savedId && employees.some(e => e.id === savedId)) {
-        selectEl.value = savedId;
+    // 依登入者自動帶入（優先），若未登入才使用 localStorage 記錄
+    const picked = pickApplicantFromSession(employees);
+    if (picked) {
+        selectEl.value = picked.id;
+        // 鎖定只能選自己（避免誤選造成資料/權限問題）
+        selectEl.disabled = true;
+        selectEl.classList.add('bg-light');
+        const hint = document.getElementById('stayApplicantHint');
+        if (hint) {
+            hint.classList.remove('text-muted');
+            hint.classList.add('text-success');
+            hint.textContent = getTextSafe('stay_applicant_autofilled', '已自動帶入登入者姓名');
+        }
+    } else {
+        const savedId = localStorage.getItem('stayApplicantId');
+        if (savedId && employees.some(e => e.id === savedId)) {
+            selectEl.value = savedId;
+        }
+        // 仍允許手動選擇
+        selectEl.addEventListener('change', () => {
+            updateCurrentApplicant(selectEl);
+            loadMyApps(document.querySelector('#stayTable tbody'));
+        });
     }
 
     updateCurrentApplicant(selectEl);
-
-    selectEl.addEventListener('change', () => {
-        updateCurrentApplicant(selectEl);
-        loadMyApps(document.querySelector('#stayTable tbody'));
-    });
 }
 
 function updateCurrentApplicant(selectEl) {
