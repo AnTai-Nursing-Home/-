@@ -8,26 +8,91 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+  <style>
+.app-header-grid{
+      display:grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items:center;
+      gap:12px;
+      padding: 14px 16px;
+    }
+    .app-header-title{
+      grid-column:2;
+      margin:0;
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.08em;
+    }
+    .app-header-right{
+      grid-column:3;
+      justify-self:end;
+      text-align:right;
+      font-size:.875rem;
+      line-height:1.2;
+      min-width: 170px;
+    }
+    .app-header-right .btn{
+      padding:.25rem .5rem;
+      font-size:.8rem;
+    }
+    .menu-item-text{ margin-top: 10px; display:inline-block; }
+  </style>
 </head>
 <body>
     <div class="container my-5">
         <div class="row justify-content-center">
             <div class="col-lg-10">
                 <div class="card shadow">
-                    <div class="card-header text-center bg-dark text-white">
-                        <h2 data-i18n="caregiver_system">照服員系統</h2>
-                    </div>
-                    <div class="card-body">
+                    <div class="card-header bg-dark text-white">
+  <div class="app-header-grid">
+    <div></div>
+    <h2 class="app-header-title" data-i18n="caregiver_system">照服員系統</h2>
+
+    <div id="loginInfoCaregiver" class="app-header-right d-none">
+      <div class="fw-semibold">登入者名稱:</div>
+      <div>
+        <span id="loginStaffId"></span>
+        <span id="loginStaffName"></span>
+      </div>
+      <button id="logoutBtnCaregiver" class="btn btn-sm btn-outline-light mt-2">
+        <i class="fas fa-right-from-bracket me-1"></i>登出
+      </button>
+    </div>
+  </div>
+</div>
+<div class="card-body">
                         <div id="password-section-caregiver">
-                            <h5 class="card-title" data-i18n="enter_caregiver_password">請輸入照服員密碼</h5>
-                            <div class="input-group mb-3">
-                                <input type="password" id="passwordInput-caregiver" class="form-control" data-i18n="please_enter_password" placeholder="請輸入密碼">
-                                <button id="loginButton-caregiver" class="btn btn-primary" data-i18n="login">登入</button>
-                            </div>
-                            <div id="errorMessage-caregiver" class="text-danger d-none" data-i18n="password_error">密碼錯誤，請重試！</div>
-                            <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
-                        </div>
-                        <div id="dashboard-section-caregiver" class="d-none">
+  <h5 class="card-title">請輸入個人帳號密碼</h5>
+
+  <div class="row g-2 align-items-center mb-3">
+    <div class="col-md-6">
+      <input type="text" id="usernameInput" class="form-control" placeholder="帳號（員工編號）" autocomplete="username" />
+    </div>
+    <div class="col-md-6">
+      <input type="password" id="passwordInput" class="form-control" placeholder="密碼" autocomplete="current-password" />
+    </div>
+  </div>
+
+  <button id="loginButtonCaregiver" class="btn btn-primary">
+    <i class="fas fa-right-to-bracket me-1"></i>登入
+  </button>
+
+  <div class="form-check mt-3 mb-2">
+    <input class="form-check-input" type="checkbox" id="privacyCheckCaregiver" />
+    <label class="form-check-label" for="privacyCheckCaregiver">
+      我同意 <a href="privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
+    </label>
+  </div>
+
+  <div class="text-muted small mb-3">
+    ※ 若新員工尚未建立帳號請告知主任。
+  </div>
+
+  <div id="errorMessageCaregiver" class="text-danger d-none">帳號或密碼錯誤，請重試！</div>
+  <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
+</div>
+<div id="dashboard-section-caregiver" class="d-none">
                             <div class="menu-grid admin-menu-grid">
                                 <a href="leave-caregiver.html" class="menu-item">
                                     <i class="fas fa-calendar-days fa-3x"></i>
@@ -65,8 +130,20 @@
         <div class="mb-2"><button id="lang-switcher" class="btn btn-sm btn-outline-secondary"></button></div>
         © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
     </footer>
-    <script src="i18n.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <script src="firebase-init.js"></script>
+  <script src="i18n.js"></script>
     <script src="main.js"></script>
     <script src="caregiver.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof applyTranslations === 'function') applyTranslations();
+    });
+  </script>
 </body>
 </html>
