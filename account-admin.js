@@ -182,6 +182,7 @@
     for (const r of rows) {
       const acc = r.account || {};
       const tr = document.createElement('tr');
+      tr.setAttribute('data-id', r.staffId);
 
       const sourceText = SOURCE_LABEL[r.source] || r.source;
 
@@ -244,6 +245,13 @@
     setMsg('正在批次儲存中...');
 
     const rows = document.querySelectorAll('#tbody tr[data-id]');
+
+    if (!rows.length){
+      setButtonBusy(btn, false);
+      setMsg('目前沒有可儲存的資料列');
+      showToast('目前沒有可儲存的資料列', 'warning');
+      return;
+    }
     let ok = 0, fail = 0;
 
     for (const tr of rows){
@@ -283,39 +291,45 @@
     const saveBtn = tr.querySelector('[data-act="save"]');
     setButtonBusy(saveBtn, true, '儲存中...');
 
-    const v = readRowInputs(tr);
-
-    if (!v.username) { alert('請輸入帳號'); return; }
-    if (!v.password) { alert('請輸入密碼'); return; }
-
-    // 基本資訊同步寫入，方便查詢與顯示
-    const payload = {
-      staffId: r.staffId,
-      displayName: r.name,
-      source: r.source,
-      username: v.username,
-      password: v.password,
-      canOffice: !!v.canOffice,
-      canNurse: !!v.canNurse,
-      canNutritionist: !!v.canNutritionist,
-      canCaregiver: !!v.canCaregiver,
-      canAnnualLeave: !!v.canAnnualLeave,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
-
     try {
+      const v = readRowInputs(tr);
+
+      if (!v.username) { showToast('請輸入帳號', 'warning'); return; }
+      if (!v.password) { showToast('請輸入密碼', 'warning'); return; }
+
+      // 基本資訊同步寫入，方便查詢與顯示
+      const payload = {
+        staffId: r.staffId,
+        displayName: r.name,
+        source: r.source,
+        username: v.username,
+        password: v.password,
+        canOffice: !!v.canOffice,
+        canNurse: !!v.canNurse,
+        canNutritionist: !!v.canNutritionist,
+        canCaregiver: !!v.canCaregiver,
+        canAnnualLeave: !!v.canAnnualLeave,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
       const ref = db.collection('userAccounts').doc(r.staffId);
       const snap = await ref.get();
       if (!snap.exists) {
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       }
+
       await ref.set(payload, { merge: true });
-      msg.textContent = `已儲存：${r.staffId} ${r.name}`;
+
+      setMsg(`已儲存：${r.staffId} ${r.name}`);
+      showToast(`已儲存：${r.staffId} ${r.name}`, 'success');
+
       // 更新內存
       r.account = payload;
     } catch (e) {
       console.error(e);
       showToast('儲存失敗，請稍後再試', 'danger');
+    } finally {
+      setButtonBusy(saveBtn, false);
     }
   }
 
