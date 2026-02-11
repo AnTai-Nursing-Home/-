@@ -7,10 +7,18 @@
   function qs(id) { return document.getElementById(id); }
   function setVisible(el, visible) { if (el) el.classList.toggle('d-none', !visible); }
 
+  function t(key, fallback) {
+    try {
+      if (typeof getText === 'function') return getText(key);
+    } catch (e) {}
+    return fallback || key;
+  }
+
+
   function showError(msg) {
     const el = qs('errorMessageCaregiver');
     if (!el) return;
-    el.textContent = msg || '帳號或密碼錯誤，請重試！';
+    el.textContent = msg || t('password_error','帳號或密碼錯誤，請重試！');
     el.classList.remove('d-none');
   }
   function hideError() { const el = qs('errorMessageCaregiver'); if (el) el.classList.add('d-none'); }
@@ -61,14 +69,14 @@
   async function handleLogin() {
     const privacyCheck = qs('privacyCheckCaregiver');
     if (privacyCheck && !privacyCheck.checked) {
-      alert('請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》');
+      alert(t('agree_terms_alert','請先勾選同意《安泰醫療社團法人附設安泰護理之家服務系統使用協議》'));
       return;
     }
 
     const username = (qs('usernameInput')?.value || '').trim();
     const password = (qs('passwordInput')?.value || '').trim();
     if (!username || !password) {
-      showError('請輸入帳號與密碼');
+      showError(t('enter_username_password','請輸入帳號與密碼'));
       return;
     }
 
@@ -80,7 +88,7 @@
       const acc = await findAccountByUsername(username);
       if (!acc) { showError('帳號或密碼錯誤，請重試！'); return; }
 
-      if (!hasCaregiverPermission(acc)) { showError('此帳號沒有照服員系統權限'); return; }
+      if (!hasCaregiverPermission(acc)) { showError(t('no_caregiver_permission','此帳號沒有照服員系統權限')); return; }
       if ((acc.password || '') !== password) { showError('帳號或密碼錯誤，請重試！'); return; }
 
       const user = {
@@ -100,7 +108,7 @@
       showDashboard();
     } catch (e) {
       console.error('照服員登入錯誤：', e);
-      showError('登入時發生錯誤，請稍後再試');
+      showError(t('login_failed_try_later','登入時發生錯誤，請稍後再試'));
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -130,7 +138,7 @@
     const logoutBtn = qs('logoutBtnCaregiver');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        if (!confirm('確定要登出嗎？')) return;
+        if (!confirm(t('confirm_logout','確定要登出嗎？'))) return;
 
         clearSession();
         hideLoginInfo();
