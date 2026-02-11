@@ -50,46 +50,46 @@
     <h2 class="app-header-title" data-i18n="caregiver_system">照服員系統</h2>
 
     <div id="loginInfoCaregiver" class="app-header-right d-none">
-      <div class="fw-semibold">登入者名稱:</div>
+      <div class="fw-semibold" data-i18n="login_user_label">登入者名稱:</div>
       <div>
         <span id="loginStaffId"></span>
         <span id="loginStaffName"></span>
       </div>
       <button id="logoutBtnCaregiver" class="btn btn-sm btn-outline-light mt-2">
-        <i class="fas fa-right-from-bracket me-1"></i>登出
+        <i class="fas fa-right-from-bracket me-1"></i><span data-i18n="logout">登出</span>
       </button>
     </div>
   </div>
 </div>
 <div class="card-body">
                         <div id="password-section-caregiver">
-  <h5 class="card-title">請輸入個人帳號密碼</h5>
+  <h5 class="card-title" data-i18n="caregiver_login_title">請輸入個人帳號密碼</h5>
 
   <div class="row g-2 align-items-center mb-3">
     <div class="col-md-6">
-      <input type="text" id="usernameInput" class="form-control" placeholder="帳號（員工編號）" autocomplete="username" />
+      <input type="text" id="usernameInput" class="form-control" data-i18n-placeholder="username_employee_id" placeholder="帳號（員工編號）" autocomplete="username" />
     </div>
     <div class="col-md-6">
-      <input type="password" id="passwordInput" class="form-control" placeholder="密碼" autocomplete="current-password" />
+      <input type="password" id="passwordInput" class="form-control" data-i18n-placeholder="password" placeholder="密碼" autocomplete="current-password" />
     </div>
   </div>
 
   <button id="loginButtonCaregiver" class="btn btn-primary">
-    <i class="fas fa-right-to-bracket me-1"></i>登入
+    <i class="fas fa-right-to-bracket me-1"></i><span data-i18n="login">登入</span>
   </button>
 
   <div class="form-check mt-3 mb-2">
     <input class="form-check-input" type="checkbox" id="privacyCheckCaregiver" />
     <label class="form-check-label" for="privacyCheckCaregiver">
-      我同意 <a href="privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
+      <span data-i18n="agree_terms">我同意</span> <a href="privacy-policy.html" target="_blank" data-i18n="service_agreement">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
     </label>
   </div>
 
   <div class="text-muted small mb-3">
-    ※ 若新員工尚未建立帳號請告知主任。
+    <span data-i18n="new_staff_notice">※ 若新員工尚未建立帳號請告知主任。</span>
   </div>
 
-  <div id="errorMessageCaregiver" class="text-danger d-none">帳號或密碼錯誤，請重試！</div>
+  <div id="errorMessageCaregiver" class="text-danger d-none" data-i18n="password_error">帳號或密碼錯誤，請重試！</div>
   <a href="index.html" class="btn btn-sm btn-outline-secondary mt-3" data-i18n="back_to_home">返回首頁</a>
 </div>
 <div id="dashboard-section-caregiver" class="d-none">
