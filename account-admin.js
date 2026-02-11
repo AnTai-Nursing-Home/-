@@ -152,7 +152,7 @@
         </td>
 
         <td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canCaregiver" ${acc.canCaregiver===true?\'checked\':\'\'}>
+          <input type="checkbox" class="form-check-input" data-k="canCaregiver" ${acc.canCaregiver===true?'checked':''}>
         </td>
 <td class="text-center">
           <input type="checkbox" class="form-check-input" data-k="canAnnualLeave" ${acc.canAnnualLeave===true?'checked':''}>
