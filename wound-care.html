@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>傷口照護｜護理師系統</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script src="firebase-init.js"></script>
+
+  <!-- docx export deps (no template) -->
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <style>
+    .app-header {background: linear-gradient(180deg,#1f2937,#111827); color:#fff; padding:22px 18px;}
+    .app-header h1{margin:0; font-size:28px; font-weight:800; letter-spacing:.08em; text-align:center;}
+    .pill {border-radius:999px;}
+    .list-item:hover{background:#f8fafc;}
+    .mono {font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    @media print {
+      .no-print {display:none !important;}
+      body {background:#fff;}
+      .print-page {width:210mm; margin:0 auto; padding:12mm;}
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <header class="app-header no-print">
+    <h1>傷口照護</h1>
+  </header>
+
+  <main class="container py-4">
+    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 no-print">
+      <div class="btn-group" role="group" aria-label="filter">
+        <button id="tabOpen" class="btn btn-dark pill">進行中</button>
+        <button id="tabClosed" class="btn btn-outline-dark pill">已結案</button>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <span id="loginBadge" class="badge text-bg-secondary"></span>
+        <button id="btnNew" class="btn btn-primary pill">
+          新增單張
+        </button>
+      </div>
+    </div>
+
+    <div id="viewList">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold">單張清單</div>
+            <div class="text-muted small">可切換「進行中 / 已結案」</div>
+          </div>
+
+          <div id="listEmpty" class="text-muted py-4 text-center d-none">目前沒有資料</div>
+          <div id="listBox" class="list-group"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewForm" class="d-none">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="fw-bold">護理之家傷口紀錄單</div>
+            <div class="d-flex gap-2 no-print">
+              <button id="btnBack" class="btn btn-outline-secondary pill">返回</button>
+              <button id="btnSave" class="btn btn-success pill">儲存</button>
+              <button id="btnCloseCase" class="btn btn-outline-danger pill">結案</button>
+              <button id="btnExportDocx" class="btn btn-outline-primary pill">匯出 Word</button>
+              <button id="btnPrint" class="btn btn-outline-dark pill">列印</button>
+            </div>
+          </div>
+
+          <div class="print-page" id="printArea">
+            <div class="mb-3">
+              <div class="fw-semibold">機構名稱</div>
+              <input id="facilityName" class="form-control" readonly>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <div class="fw-semibold">紀錄日期</div>
+                <input id="recordDate" type="date" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold">紀錄時間</div>
+                <input id="recordTime" type="time" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold">記錄人員</div>
+                <input id="recorderName" class="form-control" readonly>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <div class="fw-semibold">住民姓名</div>
+                <select id="residentSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold">床號</div>
+                <input id="bedNumber" class="form-control" readonly>
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold">病歷號</div>
+                <input id="residentNumber" class="form-control" readonly>
+              </div>
+            </div>
+
+            <hr>
+
+            <h5 class="mt-3">一、傷口基本資料</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">傷口類型</label>
+                <select id="woundType" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>壓力性損傷</option>
+                  <option>手術傷口</option>
+                  <option>擦傷</option>
+                  <option>撕裂傷</option>
+                  <option>糖尿病足</option>
+                  <option>其他</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">發生日期</label>
+                <input id="onsetDate" type="date" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">傷口位置</label>
+                <input id="woundLocation" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">壓力性損傷分期</label>
+                <select id="pressureStage" class="form-select">
+                  <option value="">—</option>
+                  <option>第1期</option>
+                  <option>第2期</option>
+                  <option>第3期</option>
+                  <option>第4期</option>
+                  <option>深部組織損傷</option>
+                  <option>不可分期</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">傷口數量（處）</label>
+                <input id="woundCount" type="number" min="0" class="form-control">
+              </div>
+            </div>
+
+            <h5 class="mt-4">二、傷口評估</h5>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">長度（cm）</label>
+                <input id="lengthCm" type="number" step="0.1" min="0" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">寬度（cm）</label>
+                <input id="widthCm" type="number" step="0.1" min="0" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">深度（cm）</label>
+                <input id="depthCm" type="number" step="0.1" min="0" class="form-control">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">滲出液量</label>
+                <select id="exudateAmount" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>無</option><option>少量</option><option>中量</option><option>多量</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">滲出液性質</label>
+                <select id="exudateNature" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>清澈</option><option>漿液性</option><option>血性</option><option>膿性</option><option>惡臭</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">傷口組織</label>
+                <select id="tissueType" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>紅色肉芽</option><option>黃色腐肉</option><option>黑色壞死</option><option>混合型</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">傷口邊緣</label>
+                <select id="woundEdge" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>整齊</option><option>不整齊</option><option>捲曲</option><option>浸潤</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">周圍皮膚</label>
+                <select id="surroundingSkin" class="form-select">
+                  <option value="">請選擇</option>
+                  <option>正常</option><option>紅腫</option><option>浸潤</option><option>乾裂</option><option>發熱</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">疼痛程度（0–10）</label>
+                <input id="painScore" type="number" min="0" max="10" class="form-control">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">感染徵象</label>
+                <input id="infectionSigns" class="form-control" placeholder="例如：無 / 紅腫 / 發熱 / 膿性分泌物 / 異味">
+              </div>
+            </div>
+
+            <h5 class="mt-4">三、處置措施</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">清潔方式</label>
+                <input id="cleaningMethod" class="form-control" placeholder="例如：生理食鹽水">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">使用敷料</label>
+                <input id="dressingUsed" class="form-control" placeholder="例如：泡棉敷料">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">是否清創</label>
+                <input id="debridement" class="form-control" placeholder="否 / 是（方式：...）">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">醫囑用藥</label>
+                <input id="medicationOrder" class="form-control" placeholder="無 / 有：...">
+              </div>
+              <div class="col-12">
+                <label class="form-label">翻身減壓措施</label>
+                <input id="repositioning" class="form-control" placeholder="例如：每2小時 / 減壓床墊">
+              </div>
+            </div>
+
+            <h5 class="mt-4">四、傷口變化評估</h5>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">傷口改善</label>
+                <select id="improved" class="form-select">
+                  <option value="">—</option><option>是</option><option>否</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">無明顯變化</label>
+                <select id="noChange" class="form-select">
+                  <option value="">—</option><option>是</option><option>否</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">傷口惡化</label>
+                <select id="worsened" class="form-select">
+                  <option value="">—</option><option>是</option><option>否</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">需通報醫師</label>
+                <select id="needNotifyDoctor" class="form-select">
+                  <option value="">—</option><option>是</option><option>否</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">需轉診</label>
+                <select id="needReferral" class="form-select">
+                  <option value="">—</option><option>是</option><option>否</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">護理長／主管覆核</label>
+                <input id="supervisorName" class="form-control" placeholder="（選填）">
+              </div>
+            </div>
+
+            <h5 class="mt-4">五、護理紀錄摘要</h5>
+            <textarea id="nursingSummary" class="form-control" rows="5"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="wound-care.js"></script>
+</body>
+</html>
