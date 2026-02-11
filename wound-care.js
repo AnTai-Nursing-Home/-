@@ -441,6 +441,14 @@
   function printNow() {
     window.print();
   }
+    } catch (e) {}
+
+    // fallback：可依你護理師儀表板檔名調整（先用 nurse.html，不存在再回 index.html）
+    fetch('nurse.html', { method: 'HEAD' })
+      .then(r => { location.href = r.ok ? 'nurse.html' : 'index.html'; })
+      .catch(() => { location.href = 'index.html'; });
+  }
+
 
   // --- Wiring ---
   function wire() {
