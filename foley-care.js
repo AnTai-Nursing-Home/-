@@ -824,10 +824,11 @@ function generateReportHTML() {
             closingDateInput.value = '';
             if (createdByInput) {
                 createdByInput.value = isNurse ? currentUserDisplay : '';
+            }
 
-        // 初始化快照（進入表單後視為乾淨狀態）
-        markClean();
-    }
+            // 初始化快照（進入表單後視為乾淨狀態）
+            markClean();
+
             renderCareTable(placementDateInput.value, null);
             deleteCareFormBtn.classList.add('d-none');
         } else {
@@ -901,26 +902,9 @@ function generateReportHTML() {
         } finally {
             saveCareFormBtn.disabled = false;
         }
-    }
-                updateRoleUI();
-                const filterRow = document.getElementById('closed-date-filter');
-                if (filterRow) {
-                    if (currentView === 'closed') {
-                        filterRow.classList.remove('d-none');
-                    } else {
-                        filterRow.classList.add('d-none');
-                    }
-                }
+}
 
-                updateFormPermissions();
-                checkTimePermissions();
-            }
-            return;
-        }
-
-        
-
-    // (已移除護理師手動登入流程，改由 session 判斷身分)
+// (已移除護理師手動登入流程，改由 session 判斷身分)
 
 // --- 事件監聽器 ---
 
