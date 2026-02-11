@@ -16,6 +16,7 @@
   const tbody = document.getElementById('tbody');
   const msg = document.getElementById('msg');
   const btnRefresh = document.getElementById('btnRefresh');
+  const saveAllBtn = document.getElementById('saveAllBtn');
   const qInput = document.getElementById('q');
   const sourceFilter = document.getElementById('sourceFilter');
   const statusFilter = document.getElementById('statusFilter');
@@ -41,6 +42,60 @@
       .replace(/"/g,'&quot;')
       .replace(/'/g,'&#039;');
   }
+
+  // ===== 通知/忙碌狀態（Bootstrap Toast + 文字提示） =====
+  function ensureToastContainer() {
+    let c = document.getElementById('toastContainer');
+    if (c) return c;
+    c = document.createElement('div');
+    c.id = 'toastContainer';
+    c.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    document.body.appendChild(c);
+    return c;
+  }
+
+  function showToast(message, variant = 'success') {
+    try {
+      const c = ensureToastContainer();
+      const el = document.createElement('div');
+      el.className = `toast align-items-center text-bg-${variant} border-0`;
+      el.setAttribute('role', 'alert');
+      el.setAttribute('aria-live', 'assertive');
+      el.setAttribute('aria-atomic', 'true');
+      el.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${escapeHtml(message)}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>`;
+      c.appendChild(el);
+      const t = new bootstrap.Toast(el, { delay: 2500 });
+      t.show();
+      el.addEventListener('hidden.bs.toast', () => el.remove());
+    } catch (e) {
+      // fallback
+      const msg = document.getElementById('msg');
+      if (msg) msg.textContent = message;
+    }
+  }
+
+  function setMsg(text) {
+    const msg = document.getElementById('msg');
+    if (msg) msg.textContent = text || '';
+  }
+
+  function setButtonBusy(btn, busy, busyText = '處理中...') {
+    if (!btn) return;
+    if (busy) {
+      if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>${busyText}`;
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
+    }
+  }
+
 
   async function ensureOfficeLogin(){
     const auth = getAuth();
@@ -181,7 +236,53 @@
     return out;
   }
 
+  async function saveAllAccounts(){
+    const btn = document.getElementById('saveAllBtn');
+    if (!confirm('確定要一次儲存所有帳號的變更嗎？')) return;
+
+    setButtonBusy(btn, true, '儲存中...');
+    setMsg('正在批次儲存中...');
+
+    const rows = document.querySelectorAll('#tbody tr[data-id]');
+    let ok = 0, fail = 0;
+
+    for (const tr of rows){
+      const id = tr.getAttribute('data-id');
+      if (!id) continue;
+
+      try{
+        const v = readRowInputs(tr);
+        if (!v.username || !v.password) { fail++; continue; }
+
+        const payload = {
+          username: v.username,
+          password: v.password,
+          canOffice: !!v.canOffice,
+          canNurse: !!v.canNurse,
+          canNutritionist: !!v.canNutritionist,
+          canCaregiver: !!v.canCaregiver,
+          canAnnualLeave: !!v.canAnnualLeave,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('userAccounts').doc(id).set(payload, { merge: true });
+        ok++;
+      }catch(e){
+        console.error('批次儲存失敗', id, e);
+        fail++;
+      }
+    }
+
+    setButtonBusy(btn, false);
+    const summary = `批次儲存完成：成功 ${ok} 筆，失敗 ${fail} 筆`;
+    setMsg(summary);
+    showToast(summary, fail > 0 ? 'warning' : 'success');
+  }
+
   async function saveRow(tr, r){
+    const saveBtn = tr.querySelector('[data-act="save"]');
+    setButtonBusy(saveBtn, true, '儲存中...');
+
     const v = readRowInputs(tr);
 
     if (!v.username) { alert('請輸入帳號'); return; }
@@ -214,7 +315,7 @@
       r.account = payload;
     } catch (e) {
       console.error(e);
-      alert('儲存失敗，請稍後再試');
+      showToast('儲存失敗，請稍後再試', 'danger');
     }
   }
 
@@ -297,7 +398,8 @@
 
   // 綁定事件
   btnRefresh.addEventListener('click', refresh);
-  qInput.addEventListener('input', () => render(applyFilters(allRows)));
+    if (saveAllBtn) saveAllBtn.addEventListener('click', () => saveAllAccounts());
+qInput.addEventListener('input', () => render(applyFilters(allRows)));
   sourceFilter.addEventListener('change', () => render(applyFilters(allRows)));
   statusFilter.addEventListener('change', () => render(applyFilters(allRows)));
   btnCreateMissing.addEventListener('click', () => createMissing(allRows));
