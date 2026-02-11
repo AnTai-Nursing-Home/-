@@ -53,13 +53,6 @@ document.addEventListener('firebase-ready', () => {
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
     const careFormsCollection = 'foley_care_records';
-        } catch (err) {
-            console.error('讀取護理師名單失敗：', err);
-            if (nurseNameSelect) {
-                nurseNameSelect.innerHTML = '<option value="">讀取護理師名單失敗</option>';
-            }
-        }
-    }
 
     let currentCareFormId = null;
 
