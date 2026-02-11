@@ -44,7 +44,7 @@
       return false;
     }
     recorder = { staffId: s.staffId || '', displayName: s.displayName || '' };
-    $.loginBadge.textContent = `護理師：${recorder.staffId} ${recorder.displayName}`.trim();
+    $.loginBadge.textContent = `登入者：${recorder.staffId} ${recorder.displayName}`.trim();
     return true;
   }
 
