@@ -35,9 +35,7 @@ document.addEventListener('firebase-ready', () => {
     const exportExcelBtn = document.getElementById('export-excel-btn');
     const printReportBtn = document.getElementById('print-report-btn');
     const createdByInput = document.getElementById('foley-created-by');
-    const nurseLoginBtn = document.getElementById('nurse-login-btn');
-    const nurseLoginStatus = document.getElementById('nurse-login-status');
-    const nurseLoginLabel = document.getElementById('nurse-login-label');
+    const loginRoleStatus = document.getElementById('login-role-status');
 
     const auditBtn = document.getElementById('audit-btn');
     const auditStartInput = document.getElementById('audit-start-date');
@@ -55,33 +53,6 @@ document.addEventListener('firebase-ready', () => {
     const careItems = ['handHygiene', 'fixedPosition', 'urineBagPosition', 'unobstructedDrainage', 'avoidOverfill', 'urethralCleaning', 'singleUseContainer'];
     const residentsCollection = 'residents';
     const careFormsCollection = 'foley_care_records';
-    const nursesCollection = 'nurses';
-    let nursesList = [];
-    const nurseNameSelect = document.getElementById('nurse-name-select');
-    const nurseNameConfirmBtn = document.getElementById('nurse-name-confirm-btn');
-    const nurseNameError = document.getElementById('nurse-name-error');
-    let nurseNameModal = null;
-
-    function buildNurseDisplay(nurseId, data) {
-        const name = data.name || '';
-        return `${nurseId} ${name}`.trim();
-    }
-
-    async function loadNursesList() {
-        if (!db) return;
-        try {
-            const snapshot = await db.collection(nursesCollection).orderBy('id').get();
-            nursesList = [];
-            let options = '<option value="">請選擇</option>';
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const display = buildNurseDisplay(doc.id, data);
-                nursesList.push({ id: doc.id, name: data.name || '', display });
-                options += `<option value="${display}">${display}</option>`;
-            });
-            if (nurseNameSelect) {
-                nurseNameSelect.innerHTML = options;
-            }
         } catch (err) {
             console.error('讀取護理師名單失敗：', err);
             if (nurseNameSelect) {
@@ -237,6 +208,26 @@ async function guardUnsavedChanges(nextAction) {
     let isCurrentFormClosed = false;
     let residentsData = {};
 
+    const SESSION_KEY = 'antai_session_user';
+
+    function loadSessionUser() {
+        try {
+            const raw = sessionStorage.getItem(SESSION_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function computeRoleFromSession(sess) {
+        if (!sess) return { isNurse: false, display: '' };
+        const display = [sess.staffId, sess.displayName].filter(Boolean).join(' ').trim();
+        const nurse = (sess.canNurse === true) || (sess.role === 'nurse') || (sess.source === 'nurses');
+        const caregiver = (sess.canCaregiver === true) || (sess.role === 'caregiver') || (sess.source === 'caregivers');
+        return { isNurse: !!nurse, isCaregiver: !!caregiver, display };
+    }
+
+
     function getResidentDisplayName(id, data = {}) {
         const lang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
         const english = (data.englishName || '').trim();
@@ -248,47 +239,30 @@ async function guardUnsavedChanges(nextAction) {
     }
 
     let currentView = 'ongoing';
-    let isNurseLoggedIn = false;
-    let currentNurseName = '';
+    let isNurse = false;
+    let currentUserDisplay = '';
 
 
-    function updateNurseUI() {
-        if (!nurseLoginBtn) return;
-        if (isNurseLoggedIn) {
-            if (nurseLoginLabel) nurseLoginLabel.textContent = '護理師登出';
-            if (nurseLoginStatus) {
-                nurseLoginStatus.textContent = currentNurseName ? `已登入：${currentNurseName}` : '已登入';
-                nurseLoginStatus.classList.remove('text-danger');
-                nurseLoginStatus.classList.add('text-success');
-            }
-            nurseLoginBtn.classList.remove('btn-outline-danger');
-            nurseLoginBtn.classList.add('btn-outline-secondary');
-        } else {
-            if (nurseLoginLabel) nurseLoginLabel.textContent = '護理師登入';
-            if (nurseLoginStatus) {
-                nurseLoginStatus.textContent = '';
-                nurseLoginStatus.classList.remove('text-success');
-                nurseLoginStatus.classList.add('text-danger');
-            }
-            nurseLoginBtn.classList.add('btn-outline-danger');
-            nurseLoginBtn.classList.remove('btn-outline-secondary');
+    function updateRoleUI() {
+        // 顯示目前登入身分（由 session 判斷）
+        if (loginRoleStatus) {
+            loginRoleStatus.textContent = isNurse
+                ? `已登入：護理師 ${currentUserDisplay}`
+                : (currentUserDisplay ? `已登入：照服員 ${currentUserDisplay}` : '未登入');
+            loginRoleStatus.classList.toggle('text-danger', !currentUserDisplay);
+            loginRoleStatus.classList.toggle('text-success', !!currentUserDisplay);
         }
-        
-        // 一鍵查核按鈕：僅護理師登入後顯示
-        if (auditBtn) {
-            auditBtn.classList.toggle('d-none', !isNurseLoggedIn);
-        }
+        // 一鍵查核按鈕：僅護理師顯示
+        if (auditBtn) auditBtn.classList.toggle('d-none', !isNurse);
 
-if (batchDeleteBtn) {
-            if (currentView === 'closed') {
-                batchDeleteBtn.classList.remove('d-none');
-            } else {
-                batchDeleteBtn.classList.add('d-none');
-            }
+        // 批次刪除按鈕：僅「結案」視圖顯示（實際權限在點擊時再檢查）
+        if (batchDeleteBtn) {
+            if (currentView === 'closed') batchDeleteBtn.classList.remove('d-none');
+            else batchDeleteBtn.classList.add('d-none');
         }
     }
-
-    function updateFormPermissions() {
+            
+function updateFormPermissions() {
         // 基本資料欄位：僅護理師可編輯
         const nurseOnlySelectors = [
             '#resident-name-select-form',
@@ -301,17 +275,17 @@ if (batchDeleteBtn) {
         nurseOnlySelectors.forEach(sel => {
             const el = document.querySelector(sel);
             if (el) {
-                el.disabled = !isNurseLoggedIn;
+                el.disabled = !isNurse;
             }
         });
 
         // 新增與刪除照護單：僅護理師可操作
         if (addNewFormBtn) {
-            addNewFormBtn.disabled = !isNurseLoggedIn;
-            addNewFormBtn.classList.toggle('disabled', !isNurseLoggedIn);
+            addNewFormBtn.disabled = !isNurse;
+            addNewFormBtn.classList.toggle('disabled', !isNurse);
         }
         if (deleteCareFormBtn) {
-            deleteCareFormBtn.disabled = !isNurseLoggedIn;
+            deleteCareFormBtn.disabled = !isNurse;
         }
     }
 
@@ -550,9 +524,9 @@ if (batchDeleteBtn) {
         let caregiverEnabled;
 
         if (isCurrentFormClosed) {
-            caregiverEnabled = isNurseLoggedIn;
+            caregiverEnabled = isNurse;
         } else {
-            caregiverEnabled = (currentTime >= 8 && currentTime < 24) || isNurseLoggedIn;
+            caregiverEnabled = (currentTime >= 8 && currentTime < 24) || isNurse;
         }
 
         // radio + 簽名欄位（先依時間 / 身份開關）
@@ -633,7 +607,7 @@ if (batchDeleteBtn) {
 
     async function runAudit() {
         if (!db) return;
-        if (!isNurseLoggedIn) {
+        if (!isNurse) {
             alert('請先以護理師登入後再使用一鍵查核');
             return;
         }
@@ -856,7 +830,7 @@ function generateReportHTML() {
             placementDateInput.value = new Date().toISOString().split('T')[0];
             closingDateInput.value = '';
             if (createdByInput) {
-                createdByInput.value = isNurseLoggedIn ? currentNurseName : '';
+                createdByInput.value = isNurse ? currentUserDisplay : '';
 
         // 初始化快照（進入表單後視為乾淨狀態）
         markClean();
@@ -935,20 +909,7 @@ function generateReportHTML() {
             saveCareFormBtn.disabled = false;
         }
     }
-
-
-    async function handleNurseLogin() {
-        if (!nurseLoginBtn) return;
-
-        // 登出
-        if (isNurseLoggedIn) {
-            if (confirm('確定要登出護理師嗎？')) {
-                isNurseLoggedIn = false;
-                currentNurseName = '';
-                if (createdByInput) {
-                    createdByInput.value = '';
-                }
-                updateNurseUI();
+                updateRoleUI();
                 const filterRow = document.getElementById('closed-date-filter');
                 if (filterRow) {
                     if (currentView === 'closed') {
@@ -964,81 +925,16 @@ function generateReportHTML() {
             return;
         }
 
-        const password = prompt('請輸入護理師密碼：');
-        if (!password) return;
+        
 
-        nurseLoginBtn.disabled = true;
-        try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
-            });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                // 密碼正確，改用 Modal 方式選護理師姓名
-                if (!nurseNameModal) {
-                    const modalEl = document.getElementById('nurseNameModal');
-                    if (modalEl && window.bootstrap) {
-                        nurseNameModal = new bootstrap.Modal(modalEl);
-                    }
-                }
-                if (nurseNameError) nurseNameError.classList.add('d-none');
-                if (nurseNameSelect) nurseNameSelect.value = '';
-                await loadNursesList();
-                if (nurseNameModal) {
-                    nurseNameModal.show();
-                } else {
-                    alert('登入成功，但護理師選擇視窗初始化失敗');
-                }
-            } else {
-                alert('密碼錯誤，登入失敗');
-            }
-        } catch (error) {
-            console.error('護理師登入時發生錯誤:', error);
-            alert('登入時發生錯誤，請稍後再試。');
-        } finally {
-            nurseLoginBtn.disabled = false;
-        }
-    }
+    // (已移除護理師手動登入流程，改由 session 判斷身分)
 
-    // --- 事件監聽器 ---
-
-    if (nurseNameConfirmBtn) {
-        nurseNameConfirmBtn.addEventListener('click', () => {
-            if (!nurseNameSelect) return;
-            const value = nurseNameSelect.value.trim();
-            if (!value) {
-                if (nurseNameError) nurseNameError.classList.remove('d-none');
-                return;
-            }
-            isNurseLoggedIn = true;
-            currentNurseName = value;
-            if (createdByInput && !createdByInput.value) {
-                createdByInput.value = value;
-            }
-            updateNurseUI();
-            const filterRow = document.getElementById('closed-date-filter');
-            if (filterRow) {
-                if (currentView === 'closed') {
-                    filterRow.classList.remove('d-none');
-                } else {
-                    filterRow.classList.add('d-none');
-                }
-            }
-
-            updateFormPermissions();
-            checkTimePermissions();
-            if (nurseNameModal) nurseNameModal.hide();
-            alert('護理師登入成功');
-        });
-    }
-
+// --- 事件監聽器 ---
 
 
     if (batchDeleteBtn) {
         batchDeleteBtn.addEventListener('click', async () => {
-            if (!isNurseLoggedIn) {
+            if (!isNurse) {
                 alert('僅限護理師登入後才能批次刪除結案單');
                 return;
             }
@@ -1106,16 +1002,12 @@ function generateReportHTML() {
 
     if (addNewFormBtn) {
         addNewFormBtn.addEventListener('click', async () => {
-            if (!isNurseLoggedIn) {
+            if (!isNurse) {
                 alert('僅限護理師登入後才能新增導尿管照護單');
                 return;
             }
             await guardUnsavedChanges(async () => { switchToFormView(true); });
         });
-    }
-
-    if (nurseLoginBtn) {
-        nurseLoginBtn.addEventListener('click', handleNurseLogin);
     }
 
     // --- 一鍵查核：事件 ---
@@ -1281,14 +1173,18 @@ window.addEventListener('beforeunload', (e) => {
 
     // --- 初始操作 ---
     async function initializePage() {
+        const sess = loadSessionUser();
+        const roleInfo = computeRoleFromSession(sess);
+        isNurse = roleInfo.isNurse;
+        currentUserDisplay = roleInfo.display || '';
+        // 若未登入，先鎖住所有操作（仍可看列表）
+        if (!currentUserDisplay) {
+            console.warn('[foley-care] no session user');
+        }
+
         await loadResidentsDropdowns();
         await loadCareFormList();
-        await loadNursesList();
-        const modalEl = document.getElementById('nurseNameModal');
-        if (modalEl && window.bootstrap) {
-            nurseNameModal = new bootstrap.Modal(modalEl);
-        }
-        updateNurseUI();
+        updateRoleUI();
         const filterRow = document.getElementById('closed-date-filter');
         if (filterRow) {
             if (currentView === 'closed') {
@@ -1298,6 +1194,10 @@ window.addEventListener('beforeunload', (e) => {
             }
         }
 
+        // 護理師身分：若建立護理師尚未有值，先帶入目前登入者
+        if (isNurse && createdByInput && !createdByInput.value) {
+            createdByInput.value = currentUserDisplay;
+        }
         updateFormPermissions();
         checkTimePermissions();
         setInterval(checkTimePermissions, 30 * 1000);
