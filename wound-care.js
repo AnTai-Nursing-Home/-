@@ -11,7 +11,7 @@
   const els = (ids) => Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
 
   const $ = els([
-    'tabOpen','tabClosed','btnNew','loginBadge',
+    'tabOpen','tabClosed','btnNew','loginBadge','btnDelete',
     'viewList','viewForm','listBox','listEmpty',
     'btnBack','btnSave','btnCloseCase','btnExportDocx','btnPrint',
     'facilityName','recordDate','recordTime','recorderName',
@@ -199,6 +199,21 @@
       currentDocId = ref.id;
     }
     alert('已儲存');
+    await loadList();
+  }
+
+  
+  async function deleteRecord() {
+    if (!currentDocId) {
+      alert('尚未儲存，無法刪除');
+      return;
+    }
+    if (!confirm('確定要刪除此單張？此動作無法復原。')) return;
+
+    await db.collection('woundCareRecords').doc(currentDocId).delete();
+    alert('已刪除');
+    currentDocId = null;
+    showList();
     await loadList();
   }
 
@@ -434,6 +449,7 @@
     $.btnNew.addEventListener('click', () => { currentStatus='open'; setTabs(); resetFormForNew(); showForm(); });
     $.btnBack.addEventListener('click', () => { showList(); });
     $.btnSave.addEventListener('click', saveRecord);
+    $.btnDelete.addEventListener('click', deleteRecord);
     $.btnCloseCase.addEventListener('click', closeCase);
     $.btnExportDocx.addEventListener('click', exportDocx);
     $.btnPrint.addEventListener('click', printNow);
