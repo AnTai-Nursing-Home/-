@@ -60,11 +60,7 @@
 </div>
 </div><div class="d-flex align-items-center gap-2 d-none" id="closed-date-filter" style="max-width: 600px;"><span>結案單篩選：</span><input class="form-control form-control-sm" id="closed-start-date" type="date"/><span>～</span><input class="form-control form-control-sm" id="closed-end-date" type="date"/></div>
 <div class="d-flex align-items-center gap-2">
-<button class="btn btn-sm btn-outline-danger" id="nurse-login-btn">
-<i class="fas fa-user-nurse me-1"></i>
-<span id="nurse-login-label">護理師登入</span>
-</button>
-<span class="text-danger small" id="nurse-login-status"></span>
+<span class="text-muted small" id="login-role-status"></span>
 <button class="btn btn-outline-primary d-none" id="audit-btn" type="button">
   <i class="fas fa-clipboard-check me-1"></i> 一鍵查核
 </button>
@@ -160,27 +156,7 @@
 <script src="i18n.js"></script>
 <script src="main.js"></script>
 <script src="foley-care.js"></script>
-<div aria-hidden="true" class="modal fade" id="nurseNameModal" tabindex="-1">
-<div class="modal-dialog">
-<div class="modal-content">
-<div class="modal-header">
-<h5 class="modal-title">選擇護理師姓名</h5>
-<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
-</div>
-<div class="modal-body">
-<label class="form-label" for="nurse-name-select">請選擇護理師姓名（將記錄在新建立的導尿管照護單上）</label>
-<select class="form-select" id="nurse-name-select">
-<option value="">請選擇</option>
-</select>
-<div class="text-danger small mt-2 d-none" id="nurse-name-error">請先選擇護理師姓名</div>
-</div>
-<div class="modal-footer">
-<button class="btn btn-secondary" data-bs-dismiss="modal" type="button">取消</button>
-<button class="btn btn-primary" id="nurse-name-confirm-btn" type="button">確定</button>
-</div>
-</div>
-</div>
-</div>
+
 <div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
