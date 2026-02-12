@@ -420,15 +420,10 @@
     if (btnLowerSettings) btnLowerSettings.addEventListener('click', () => openSettings('tab-pre'));
 
     // modal add: pre-admit
-    if (els.btnAddPre) els.btnAddPre.addEventListener('click', () => {
-      if (isReadonly) return;
-      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
-
       const date = els.preDate.value || '';
       const bed = (els.preBed.value || '').trim();
       const name = (els.preName.value || '').trim();
       if (!bed || !name) { alert('預入住：請填床號與姓名'); return; }
-
       boardData.preAdmits.push({ date, bed, name });
       els.preName.value = '';
       hint('已修改，請儲存');
@@ -446,12 +441,7 @@
       els.fromBed.addEventListener('change', onBedChange);
     }
 
-
     // modal add: move
-    if (els.btnAddMove) els.btnAddMove.addEventListener('click', () => {
-      if (isReadonly) return;
-      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
-
       const fromBed = (els.fromBed.value || '').trim();
       const toBed = (els.toBed.value || '').trim();
       if (!fromBed || !toBed) { alert('待轉床：請填原床與目標床'); return; }
@@ -460,24 +450,19 @@
       const sel = els.residentByBed;
       const opt = sel && sel.options ? sel.options[sel.selectedIndex] : null;
       if (opt && opt.value) name = decodeURIComponent(opt.getAttribute('data-name') || '');
-      if (!name) { alert('待轉床：請先從下拉選擇住民'); return; }
 
+      if (!name) { alert('待轉床：請先從下拉選擇住民'); return; }
       boardData.bedMoves.push({ fromBed, toBed, name });
       hint('已修改，請儲存');
       applyToUI();
     });
 
     // modal add: iso
-    if (els.btnAddIso) els.btnAddIso.addEventListener('click', () => {
-      if (isReadonly) return;
-      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
-
       const date = els.isoDate.value || '';
       const bed = (els.isoBed.value || '').trim();
       const toBed = (els.isoToBed.value || '').trim();
       const name = (els.isoName.value || '').trim();
       if (!date || !bed || !toBed || !name) { alert('預解隔：請填日期/床號/預到床/姓名'); return; }
-
       boardData.deIsos.push({ date, bed, toBed, name });
       els.isoName.value = '';
       hint('已修改，請儲存');
