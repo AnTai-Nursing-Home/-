@@ -378,6 +378,45 @@
       .wb-actions{ gap:6px; }
       .wb-actions .form-control{ width: 150px; }
     }
+
+    /* ===== v4.9.1 Night readability + layout polish ===== */
+
+    /* 夜班：標題（早/午/備註/探視等）文字顏色 */
+    body.night-mode .field-title span:first-child{
+      color:#f9fafb !important;
+    }
+    body.night-mode .field-title .hint{
+      color:#9ca3af !important;
+    }
+
+    /* 上方資訊方塊：更大、更像看板 */
+    .info-strip{ gap: 16px; }
+    .info-card{ padding: 14px 16px; border-radius: 16px; }
+    .info-label{ font-size: 13px; margin-bottom: 6px; }
+    .info-value{ font-size: 24px; }
+    .wx-emoji{ font-size: 24px; }
+
+    /* 早/午：列高更小、字稍大 */
+    #morningText, #noonText{
+      font-size: 30px !important;
+      line-height: 1.55 !important;
+      min-height: 200px !important;
+      height: 200px !important;
+    }
+
+    /* 備註：字小一點（不改框大小） */
+    #notesText{
+      font-size: 20px !important;
+      line-height: 1.6 !important;
+    }
+
+    /* 夜班：把可能被 inline 白底影響的 panel 強制轉暗 */
+    body.night-mode .shift-grid .panel,
+    body.night-mode .notes.panel{
+      background:#111827 !important;
+      border-color:#334155 !important;
+    }
+
   </style>
 </head>
 
@@ -431,11 +470,11 @@
 
             <!-- 早 / 午 -->
             <div class="shift-grid">
-              <div class="panel h-100" style="background:#fff;">
+              <div class="panel h-100">
                 <div class="field-title"><span>早</span><span class="hint">可打字</span></div>
                 <textarea id="morningText" class="wb-text" data-edit="1"></textarea>
               </div>
-              <div class="panel h-100" style="background:#fff;">
+              <div class="panel h-100">
                 <div class="field-title"><span>午</span><span class="hint">可打字</span></div>
                 <textarea id="noonText" class="wb-text" data-edit="1"></textarea>
               </div>
@@ -443,7 +482,7 @@
           </div>
 
           <!-- 上半右：備註 -->
-          <div class="panel notes" style="background:#fff;">
+          <div class="panel notes">
             <div class="field-title"><span>備註</span><span class="hint">可打字</span></div>
             <textarea id="notesText" class="wb-text" data-edit="1"></textarea>
           </div>
