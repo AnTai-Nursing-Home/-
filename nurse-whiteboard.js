@@ -1,21 +1,26 @@
-/* nurse-whiteboard.js
- * 護理師系統：電子白板
+/* nurse-whiteboard.v4.2.js
+ * 護理師系統：電子白板（修正語法錯誤、移除手動天氣、設定改彈窗）
  * - Firestore doc: nurse_whiteboards/{YYYY-MM-DD}
- * - 住民抓取：residents（用 bedNumber 查）
- * - 探視抓取：bookings（date==YYYY-MM-DD 且 time in 14:30..16:30）
+ * - residents：用 bedNumber 查住民（供待轉床選擇）
+ * - bookings：date==YYYY-MM-DD 且 time in 14:30..16:30（自動帶入探視）
  */
-
 (() => {
   const BOARD_COL = 'nurse_whiteboards';
   const RESIDENTS_COL = 'residents';
   const BOOKINGS_COL = 'bookings';
 
+  const BEISHI_LAT = 22.506545;
+  const BEISHI_LON = 120.50190; // 北勢村中正路附近（以 840 號周邊為基準）
+  const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+
   const $ = (id) => document.getElementById(id);
+  const safeEl = (id) => document.getElementById(id);
 
   const els = {
     boardRoot: $('boardRoot'),
     boardDate: $('boardDate'),
     btnToday: $('btnToday'),
+    btnSettings: $('btnSettings'),
     btnSave: $('btnSave'),
     btnFullscreen: $('btnFullscreen'),
     saveHint: $('saveHint'),
@@ -30,18 +35,12 @@
     noonText: $('noonText'),
     notesText: $('notesText'),
 
-    preDate: $('preDate'),
-    preBed: $('preBed'),
-    preName: $('preName'),
-    btnAddPre: $('btnAddPre'),
+    // Lists on main board
     preList: $('preList'),
-
-    fromBed: $('fromBed'),
-    toBed: $('toBed'),
-    residentByBed: $('residentByBed'),
-    btnAddMove: $('btnAddMove'),
     moveList: $('moveList'),
+    isoList: $('isoList'),
 
+    // Visits
     btnAutoVisits: $('btnAutoVisits'),
     visit1430: $('visit1430'),
     visit1500: $('visit1500'),
@@ -49,28 +48,45 @@
     visit1600: $('visit1600'),
     visit1630: $('visit1630'),
 
+    // Open modal buttons
+    btnOpenPre: $('btnOpenPre'),
+    btnOpenMove: $('btnOpenMove'),
+    btnOpenIso: $('btnOpenIso'),
+
+    // Modal inputs
+    preDate: $('preDate'),
+    preBed: $('preBed'),
+    preName: $('preName'),
+    btnAddPre: $('btnAddPre'),
+    preListModal: $('preListModal'),
+
+    fromBed: $('fromBed'),
+    toBed: $('toBed'),
+    residentByBed: $('residentByBed'),
+    btnAddMove: $('btnAddMove'),
+    moveListModal: $('moveListModal'),
+
     isoDate: $('isoDate'),
     isoBed: $('isoBed'),
     isoToBed: $('isoToBed'),
     isoName: $('isoName'),
     btnAddIso: $('btnAddIso'),
-    isoList: $('isoList'),
+    isoListModal: $('isoListModal'),
   };
 
   let db = null;
-
   let boardDate = null; // YYYY-MM-DD
-  let boardData = null; // loaded doc
+  let boardData = null;
   let isReadonly = false;
+  let bsModal = null;
+
+  const VISIT_SLOTS = ['14:30','15:00','15:30','16:00','16:30'];
 
   const pad2 = (n) => String(n).padStart(2, '0');
 
   function todayISO() {
     const d = new Date();
-    const y = d.getFullYear();
-    const m = pad2(d.getMonth() + 1);
-    const dd = pad2(d.getDate());
-    return `${y}-${m}-${dd}`;
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   }
 
   function dayOfWeekZH(d) {
@@ -96,18 +112,6 @@
     return arr.join('');
   }
 
-  function wxFromValue(v) {
-    const map = {
-      sunny: { e:'☀️', t:'晴' },
-      cloudy:{ e:'⛅', t:'多雲' },
-      rain:  { e:'🌧️', t:'雨' },
-      thunder:{ e:'⛈️', t:'雷雨' },
-      wind:  { e:'💨', t:'風' },
-      fog:   { e:'🌫️', t:'霧' },
-    };
-    return map[v] || map.sunny;
-  }
-
   function setReadonly(on) {
     isReadonly = !!on;
     if (isReadonly) els.boardRoot.classList.add('readonly');
@@ -122,18 +126,59 @@
     const div = document.createElement('div');
     div.className = 'pill';
     div.innerHTML = `<span>${text}</span><span class="x">×</span>`;
-    div.querySelector('.x').addEventListener('click', () => onRemove && onRemove());
+    const x = div.querySelector('.x');
+    x.addEventListener('click', () => onRemove && onRemove());
     return div;
   }
 
-  function safeEl(id){ return document.getElementById(id); }
-
   function renderPills(container, items, formatter, onRemoveAt) {
+    if (!container) return;
     container.innerHTML = '';
     (items || []).forEach((it, idx) => {
       const txt = formatter(it);
-      container.appendChild(pill(txt, () => onRemoveAt(idx)));
+      container.appendChild(pill(txt, () => onRemoveAt && onRemoveAt(idx)));
     });
+  }
+
+  function renderAllPills() {
+    // 預入住
+    const fmtPre = (it) => {
+      const d = it.date ? `${String(it.date).replace(/^\d{4}-/,'')}` : '';
+      return `${d} ${it.bed || ''} ${maskName(it.name || '')}`.trim();
+    };
+    const rmPre = (idx) => {
+      if (isReadonly) return;
+      boardData.preAdmits.splice(idx, 1);
+      applyToUI();
+      hint('已修改，請儲存');
+    };
+    renderPills(els.preList, boardData.preAdmits, fmtPre, rmPre);
+    renderPills(els.preListModal, boardData.preAdmits, fmtPre, rmPre);
+
+    // 待轉床
+    const fmtMove = (it) => `${it.fromBed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
+    const rmMove = (idx) => {
+      if (isReadonly) return;
+      boardData.bedMoves.splice(idx, 1);
+      applyToUI();
+      hint('已修改，請儲存');
+    };
+    renderPills(els.moveList, boardData.bedMoves, fmtMove, rmMove);
+    renderPills(els.moveListModal, boardData.bedMoves, fmtMove, rmMove);
+
+    // 預解隔
+    const fmtIso = (it) => {
+      const d = it.date ? `${String(it.date).replace(/^\d{4}-/,'')}` : '';
+      return `${d} ${it.bed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
+    };
+    const rmIso = (idx) => {
+      if (isReadonly) return;
+      boardData.deIsos.splice(idx, 1);
+      applyToUI();
+      hint('已修改，請儲存');
+    };
+    renderPills(els.isoList, boardData.deIsos, fmtIso, rmIso);
+    renderPills(els.isoListModal, boardData.deIsos, fmtIso, rmIso);
   }
 
   function docRef() {
@@ -142,8 +187,8 @@
 
   async function loadBoard(dateISO) {
     boardDate = dateISO;
-    els.boardDate.value = boardDate;
-    els.wbDateText.textContent = formatDateZH(boardDate);
+    if (els.boardDate) els.boardDate.value = boardDate;
+    if (els.wbDateText) els.wbDateText.textContent = formatDateZH(boardDate);
 
     hint('讀取中...');
     const snap = await docRef().get();
@@ -162,9 +207,7 @@
   }
 
   function applyToUI() {
-    els.wbWxEmoji.textContent = wx.e;
-    els.wbWxText.textContent = wx.t;
-
+    if (!boardData) return;
 
     els.morningText.value = boardData.morningText || '';
     els.noonText.value = boardData.noonText || '';
@@ -177,40 +220,10 @@
     els.visit1600.value = v['16:00'] || '';
     els.visit1630.value = v['16:30'] || '';
 
-    renderPills(els.preList, boardData.preAdmits, (it) => {
-      const d = it.date ? `${it.date.replace(/^\d{4}-/,'')}` : '';
-      return `${d} ${it.bed || ''} ${maskName(it.name || '')}`.trim();
-    const _m_preList = safeEl('preListModal');
-    if (_m_preList) {
-renderPills(_m_preList, boardData.preAdmits, (it) => {
-      const d = it.date ? `${it.date.replace(/^\d{4}-/,'')}` : '';
-      return `${d} ${it.bed || ''} ${maskName(it.name || '')}`.trim();
-    }
-    }, (idx) => { if (isReadonly) return; boardData.preAdmits.splice(idx,1); applyToUI(); hint('已修改，請儲存'); });
-
-    renderPills(els.moveList, boardData.bedMoves, (it) => {
-      return `${it.fromBed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
-    const _m_moveList = safeEl('moveListModal');
-    if (_m_moveList) {
-renderPills(_m_moveList, boardData.bedMoves, (it) => {
-      return `${it.fromBed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
-    }
-    }, (idx) => { if (isReadonly) return; boardData.bedMoves.splice(idx,1); applyToUI(); hint('已修改，請儲存'); });
-
-    renderPills(els.isoList, boardData.deIsos, (it) => {
-      const d = it.date ? `${it.date.replace(/^\d{4}-/,'')}` : '';
-      return `${d} ${it.bed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
-    const _m_isoList = safeEl('isoListModal');
-    if (_m_isoList) {
-renderPills(_m_isoList, boardData.deIsos, (it) => {
-      const d = it.date ? `${it.date.replace(/^\d{4}-/,'')}` : '';
-      return `${d} ${it.bed || ''} ${maskName(it.name || '')} ⮕ ${it.toBed || ''}`.trim();
-    }
-    }, (idx) => { if (isReadonly) return; boardData.deIsos.splice(idx,1); applyToUI(); hint('已修改，請儲存'); });
+    renderAllPills();
   }
 
   function collectFromUI() {
-
     boardData.morningText = els.morningText.value || '';
     boardData.noonText = els.noonText.value || '';
     boardData.notesText = els.notesText.value || '';
@@ -240,14 +253,60 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
     hint('已儲存');
   }
 
+  function weatherFromCode(code) {
+    // Open-Meteo weather_code mapping (簡化)
+    // 0 clear, 1/2/3 partly cloudy, 45/48 fog, 51/53/55 drizzle, 61/63/65 rain, 71/73/75 snow,
+    // 80/81/82 rain showers, 95 thunderstorm, 96/99 hail
+    const c = Number(code);
+    if (c === 0) return { e:'☀️', t:'晴' };
+    if ([1,2,3].includes(c)) return { e:'⛅', t:'多雲' };
+    if ([45,48].includes(c)) return { e:'🌫️', t:'霧' };
+    if ([51,53,55].includes(c)) return { e:'🌦️', t:'毛毛雨' };
+    if ([61,63,65].includes(c)) return { e:'🌧️', t:'雨' };
+    if ([80,81,82].includes(c)) return { e:'🌧️', t:'陣雨' };
+    if ([71,73,75].includes(c)) return { e:'🌨️', t:'雪' };
+    if (c === 95) return { e:'⛈️', t:'雷雨' };
+    if ([96,99].includes(c)) return { e:'⛈️', t:'雷雨' };
+    return { e:'⛅', t:'天氣' };
+  }
+
+  async function fetchAndApplyWeather() {
+    try {
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${BEISHI_LAT}&longitude=${BEISHI_LON}` +
+        `&current=temperature_2m,weather_code&timezone=Asia%2FTaipei`;
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+
+      const temp = data && data.current ? data.current.temperature_2m : null;
+      const code = data && data.current ? data.current.weather_code : null;
+
+      const wx = weatherFromCode(code);
+      els.wbWxEmoji.textContent = wx.e;
+      els.wbWxText.textContent = wx.t;
+
+      if (temp !== null && temp !== undefined && temp !== '') {
+        const t = Math.round(Number(temp));
+        els.wbTemp.textContent = `${t}℃`;
+      } else {
+        els.wbTemp.textContent = '—';
+      }
+    } catch (e) {
+      // 失敗就保持現有顯示
+      console.warn('[whiteboard] weather fetch failed', e);
+    }
+  }
+
   async function loadResidentsByBed(bed) {
-    if (!bed) {
+    if (!els.residentByBed) return;
+    const b = (bed || '').trim();
+    if (!b) {
       els.residentByBed.innerHTML = `<option value="">（先輸入原床，載入住民）</option>`;
       return;
     }
     els.residentByBed.innerHTML = `<option value="">載入中...</option>`;
     try {
-      const snap = await db.collection(RESIDENTS_COL).where('bedNumber','==', bed).get();
+      const snap = await db.collection(RESIDENTS_COL).where('bedNumber','==', b).get();
       if (snap.empty) {
         els.residentByBed.innerHTML = `<option value="">找不到此床住民</option>`;
         return;
@@ -255,18 +314,18 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
       const opts = [];
       snap.forEach(doc => {
         const d = doc.data() || {};
-        opts.push({ id: doc.id, name: d.residentName || '', bed: d.bedNumber || bed });
+        opts.push({ id: doc.id, name: d.residentName || '', bed: d.bedNumber || b });
       });
-      els.residentByBed.innerHTML = `<option value="">選擇住民（將自動遮罩顯示）</option>` + opts.map(o =>
-        `<option value="${o.id}" data-name="${encodeURIComponent(o.name)}" data-bed="${encodeURIComponent(o.bed)}">${o.bed}｜${maskName(o.name)}</option>`
-      ).join('');
+      els.residentByBed.innerHTML =
+        `<option value="">選擇住民（姓名已遮罩）</option>` +
+        opts.map(o => {
+          return `<option value="${o.id}" data-name="${encodeURIComponent(o.name)}" data-bed="${encodeURIComponent(o.bed)}">${o.bed}｜${maskName(o.name)}</option>`;
+        }).join('');
     } catch (e) {
       console.error(e);
       els.residentByBed.innerHTML = `<option value="">載入失敗</option>`;
     }
   }
-
-  const VISIT_SLOTS = ['14:30','15:00','15:30','16:00','16:30'];
 
   async function autoFillVisitsFromBookings() {
     if (isReadonly) return;
@@ -281,20 +340,18 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
 
       snap.forEach(doc => {
         const d = doc.data() || {};
-        const t = (d.time || '').trim();
+        const t = String(d.time || '').trim();
         if (!VISIT_SLOTS.includes(t)) return;
 
-        const bed = (d.bedNumber || '').trim();
+        const bed = String(d.bedNumber || '').trim();
         const rn = maskName(d.residentName || '');
-        const rel = (d.visitorRelationship || '').trim();
+        const rel = String(d.visitorRelationship || '').trim();
         const line = [bed, rn, rel].filter(Boolean).join(' ');
         grouped[t].push(line);
       });
 
       boardData.visits ||= {};
-      VISIT_SLOTS.forEach(t => {
-        boardData.visits[t] = grouped[t].join('\n');
-      });
+      VISIT_SLOTS.forEach(t => { boardData.visits[t] = grouped[t].join('\n'); });
 
       applyToUI();
       hint('已帶入探視（請記得儲存）');
@@ -305,47 +362,66 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
     }
   }
 
+  function ensureModal() {
+    const modalEl = safeEl('settingsModal');
+    if (!modalEl) return null;
+    if (bsModal) return bsModal;
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+      console.warn('[whiteboard] bootstrap Modal not ready');
+      return null;
+    }
+    bsModal = new window.bootstrap.Modal(modalEl);
+    return bsModal;
+  }
+
+  function openSettings(tabId) {
+    const m = ensureModal();
+    if (!m) return;
+    m.show();
+    if (tabId) {
+      const btn = safeEl(tabId);
+      if (btn) btn.click();
+    }
+  }
+
   function bindEvents() {
-    setInterval(() => {
+    // time ticker
+    const tick = () => {
       const d = new Date();
-      els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-    }, 1000);
+      if (els.wbTimeText) els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    };
+    tick();
+    setInterval(tick, 1000);
 
-    const d = new Date();
-    els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-
+    // date controls
     els.btnToday.addEventListener('click', () => loadBoard(todayISO()));
-
     els.boardDate.addEventListener('change', () => {
       const v = els.boardDate.value;
       if (v) loadBoard(v);
     });
 
-      els.wbWxEmoji.textContent = wx.e;
-      els.wbWxText.textContent = wx.t;
-      hint('已修改，請儲存');
-    });
-      els.wbTemp.textContent = v ? `${v}℃` : '—';
-      hint('已修改，請儲存');
-    });
-
+    // save
     els.btnSave.addEventListener('click', () => saveBoard());
 
+    // fullscreen read-only
     els.btnFullscreen.addEventListener('click', async () => {
-      if (!document.fullscreenElement) {
-        await els.boardRoot.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
+      if (!document.fullscreenElement) await els.boardRoot.requestFullscreen();
+      else await document.exitFullscreen();
     });
-
     document.addEventListener('fullscreenchange', () => {
       setReadonly(!!document.fullscreenElement);
       els.btnFullscreen.textContent = document.fullscreenElement ? '離開全螢幕' : '全螢幕';
       hint(document.fullscreenElement ? '全螢幕只讀' : '可編輯（別忘儲存）');
     });
 
-    els.btnAddPre.addEventListener('click', () => {
+    // settings buttons
+    if (els.btnSettings) els.btnSettings.addEventListener('click', () => openSettings('tab-pre'));
+    if (els.btnOpenPre) els.btnOpenPre.addEventListener('click', () => openSettings('tab-pre'));
+    if (els.btnOpenMove) els.btnOpenMove.addEventListener('click', () => openSettings('tab-move'));
+    if (els.btnOpenIso) els.btnOpenIso.addEventListener('click', () => openSettings('tab-iso'));
+
+    // modal add: pre-admit
+    if (els.btnAddPre) els.btnAddPre.addEventListener('click', () => {
       if (isReadonly) return;
       const date = els.preDate.value || '';
       const bed = (els.preBed.value || '').trim();
@@ -357,13 +433,19 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
       applyToUI();
     });
 
-    els.fromBed.addEventListener('input', () => {
-      const bed = (els.fromBed.value || '').trim();
-      if (bed.length >= 2) loadResidentsByBed(bed);
-      else loadResidentsByBed('');
-    });
+    // modal: load residents by bed
+    if (els.fromBed) {
+      const onBedChange = () => {
+        const bed = (els.fromBed.value || '').trim();
+        if (bed.length >= 1) loadResidentsByBed(bed);
+        else loadResidentsByBed('');
+      };
+      els.fromBed.addEventListener('input', onBedChange);
+      els.fromBed.addEventListener('change', onBedChange);
+    }
 
-    els.btnAddMove.addEventListener('click', () => {
+    // modal add: move
+    if (els.btnAddMove) els.btnAddMove.addEventListener('click', () => {
       if (isReadonly) return;
       const fromBed = (els.fromBed.value || '').trim();
       const toBed = (els.toBed.value || '').trim();
@@ -371,20 +453,17 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
 
       let name = '';
       const sel = els.residentByBed;
-      const opt = sel.options[sel.selectedIndex];
-      if (opt && opt.value) {
-        name = decodeURIComponent(opt.getAttribute('data-name') || '');
-      }
-      if (!name) {
-        alert('待轉床：請先從下拉選擇住民（依原床帶入）');
-        return;
-      }
+      const opt = sel && sel.options ? sel.options[sel.selectedIndex] : null;
+      if (opt && opt.value) name = decodeURIComponent(opt.getAttribute('data-name') || '');
+
+      if (!name) { alert('待轉床：請先從下拉選擇住民'); return; }
       boardData.bedMoves.push({ fromBed, toBed, name });
       hint('已修改，請儲存');
       applyToUI();
     });
 
-    els.btnAddIso.addEventListener('click', () => {
+    // modal add: iso
+    if (els.btnAddIso) els.btnAddIso.addEventListener('click', () => {
       if (isReadonly) return;
       const date = els.isoDate.value || '';
       const bed = (els.isoBed.value || '').trim();
@@ -397,11 +476,15 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
       applyToUI();
     });
 
-    els.btnAutoVisits.addEventListener('click', () => autoFillVisitsFromBookings());
+    // visits
+    if (els.btnAutoVisits) els.btnAutoVisits.addEventListener('click', () => autoFillVisitsFromBookings());
 
-    [els.morningText, els.noonText, els.notesText,
-     els.visit1430, els.visit1500, els.visit1530, els.visit1600, els.visit1630
+    // mark dirty on input
+    [
+      els.morningText, els.noonText, els.notesText,
+      els.visit1430, els.visit1500, els.visit1530, els.visit1600, els.visit1630
     ].forEach(t => {
+      if (!t) return;
       t.addEventListener('input', () => { if (!isReadonly) hint('已修改，請儲存'); });
     });
   }
@@ -410,12 +493,17 @@ renderPills(_m_isoList, boardData.deIsos, (it) => {
     try {
       db = firebase.firestore();
 
-      els.boardDate.value = todayISO();
-      els.wbDateText.textContent = formatDateZH(els.boardDate.value);
+      const initDate = todayISO();
+      els.boardDate.value = initDate;
+      els.wbDateText.textContent = formatDateZH(initDate);
 
       bindEvents();
-      await loadBoard(todayISO());
+      await loadBoard(initDate);
       setReadonly(false);
+
+      // weather
+      await fetchAndApplyWeather();
+      setInterval(fetchAndApplyWeather, WEATHER_REFRESH_MS);
     } catch (e) {
       console.error(e);
       alert('電子白板初始化失敗，請確認 firebase-init.js 與 Firestore 權限');
