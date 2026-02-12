@@ -1,4 +1,4 @@
-/* nurse-whiteboard.v4.2.js
+/* nurse-whiteboard.v4.9.js
  * 護理師系統：電子白板（修正語法錯誤、移除手動天氣、設定改彈窗）
  * - Firestore doc: nurse_whiteboards/{YYYY-MM-DD}
  * - residents：用 bedNumber 查住民（供待轉床選擇）
@@ -81,6 +81,22 @@
   let bsModal = null;
 
   const VISIT_SLOTS = ['14:30','15:00','15:30','16:00','16:30'];
+
+
+// ===== v4.9 Night mode (20:00-06:00) =====
+let nightModeTimer = null;
+
+function applyNightMode() {
+  const h = new Date().getHours();
+  const isNight = (h >= 20 || h < 6);
+  document.body.classList.toggle('night-mode', isNight);
+}
+
+function startNightModeWatcher() {
+  if (nightModeTimer) clearInterval(nightModeTimer);
+  applyNightMode();
+  nightModeTimer = setInterval(applyNightMode, 60 * 1000);
+}
 
 
 // ===== v4.8+ Info cards language toggle (Fullscreen only) =====
@@ -587,6 +603,7 @@ function stopInfoLangTicker() {
       els.wbDateText.textContent = formatDateZH(initDate);
 
       bindEvents();
+      startNightModeWatcher();
       await loadBoard(initDate);
       setReadonly(false);
 
