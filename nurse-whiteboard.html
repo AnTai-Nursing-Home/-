@@ -289,7 +289,6 @@
         <input type="date" id="boardDate" class="form-control" />
         <button class="btn btn-outline-secondary btn-sm" id="btnToday">今天</button>
         <button class="btn btn-outline-secondary btn-sm" id="btnSettings" data-edit="1">設定</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnLowerSettings" data-edit="1">設定</button>
         <button class="btn btn-primary btn-sm" id="btnSave" data-edit="1">儲存</button>
         <button class="btn btn-outline-primary btn-sm" id="btnFullscreen">全螢幕</button>
         <span class="text-muted small" id="saveHint">—</span>
@@ -424,8 +423,6 @@
   <!-- Bootstrap（Modal/Tab 需要） -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- 本頁 JS -->
-  <script src="nurse-whiteboard.js"></script>
 
   <!-- 設定視窗（新增/管理：預入住、待轉床、預解隔） -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
@@ -503,6 +500,9 @@
       </div>
     </div>
   </div>
+
+  <!-- 本頁 JS（放在 modal 之後，確保 btnAddPre/Move/Iso 能綁到事件） -->
+  <script src="nurse-whiteboard.js"></script>
 
 </body>
 </html>
