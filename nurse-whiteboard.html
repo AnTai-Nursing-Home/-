@@ -302,6 +302,27 @@
       .lower.lower-v44 .pill-list{ max-height: 160px; }
     }
 
+  
+    /* v4.6：非全螢幕可滾動，避免下半擠壓；早/午/備註字體放大 */
+    #boardRoot{
+      /* 預留上方工具列空間，整塊可滾動 */
+      max-height: calc(100vh - 90px);
+      overflow: auto;
+      padding-bottom: 12px;
+    }
+    /* 進全螢幕時：只讀且不出現滾動條（仍可用觸控板滾動視情況） */
+    #boardRoot:fullscreen{
+      max-height: none;
+      overflow: hidden;
+    }
+    /* textarea 字體放大（強制覆蓋） */
+    #morningText, #noonText{ font-size: 24px !important; line-height: 1.6 !important; }
+    #notesText{ font-size: 22px !important; line-height: 1.6 !important; }
+
+    /* 下半三格避免高度互相壓縮 */
+    .lower{ min-height: 0; }
+    .panel, .subpanel{ min-height: 0; }
+
   </style>
 </head>
 
@@ -452,7 +473,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- 本頁 JS -->
-  <script src="nurse-whiteboard.js"></script>
+  <script src="nurse-whiteboard.v4.6.js"></script>
 
   <!-- 設定視窗（新增/管理：預入住、待轉床、預解隔） -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
