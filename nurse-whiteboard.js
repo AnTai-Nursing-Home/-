@@ -12,7 +12,6 @@
   const BEISHI_LAT = 22.506545;
   const BEISHI_LON = 120.50190; // 北勢村中正路附近（以 840 號周邊為基準）
   const WEATHER_REFRESH_MS = 10 * 60 * 1000;
-  const INFO_LANG_TOGGLE_MS = 10 * 1000;
 
   const $ = (id) => document.getElementById(id);
   const safeEl = (id) => document.getElementById(id);
@@ -31,12 +30,6 @@
     wbWxEmoji: $('wbWxEmoji'),
     wbWxText: $('wbWxText'),
     wbTemp: $('wbTemp'),
-
-    // Info labels
-    lblDate: $('lblDate'),
-    lblTime: $('lblTime'),
-    lblWeather: $('lblWeather'),
-    lblTemp: $('lblTemp'),
 
     morningText: $('morningText'),
     noonText: $('noonText'),
@@ -87,11 +80,89 @@
   let isReadonly = false;
   let bsModal = null;
 
-  let infoLang = 'zh';
-  let infoLangTimer = null;
-  let lastWeather = null; // { temp, zh:{e,t}, en:{e,t} }
-
   const VISIT_SLOTS = ['14:30','15:00','15:30','16:00','16:30'];
+
+
+// ===== v4.8+ Info cards language toggle (Fullscreen only) =====
+let currentInfoLang = 'zh'; // 'zh' or 'en'
+let infoLangTimer = null;
+let lastWeatherCode = null;
+
+const INFO_LABELS = {
+  zh: { date: '日期', time: '時間', weather: '天氣', temp: '溫度' },
+  en: { date: 'Date', time: 'Time', weather: 'Weather', temp: 'Temp' },
+};
+
+const WX_ZH_TO_EN = {
+  '晴': 'Clear',
+  '多雲': 'Partly cloudy',
+  '霧': 'Fog',
+  '毛毛雨': 'Drizzle',
+  '雨': 'Rain',
+  '陣雨': 'Showers',
+  '雪': 'Snow',
+  '雷雨': 'Thunderstorm',
+  '天氣': 'Weather',
+};
+
+function getInfoLabelElByValueId(valueId) {
+  const v = safeEl(valueId);
+  if (!v) return null;
+  const card = v.closest ? v.closest('.info-card') : null;
+  if (!card) return null;
+  return card.querySelector('.info-label');
+}
+
+function getWeatherTextByCode(code, lang) {
+  const zh = weatherFromCode(code).t;
+  if (lang === 'en') return WX_ZH_TO_EN[zh] || 'Weather';
+  return zh;
+}
+
+// this function is referenced by init flow; must exist
+function applyInfoLang(lang) {
+  currentInfoLang = (lang === 'en') ? 'en' : 'zh';
+
+  // labels
+  const lz = INFO_LABELS[currentInfoLang];
+  const dLab = getInfoLabelElByValueId('wbDateText');
+  const tLab = getInfoLabelElByValueId('wbTimeText');
+  const wLab = getInfoLabelElByValueId('wbWxText');
+  const tempLab = getInfoLabelElByValueId('wbTemp');
+  if (dLab) dLab.textContent = lz.date;
+  if (tLab) tLab.textContent = lz.time;
+  if (wLab) wLab.textContent = lz.weather;
+  if (tempLab) tempLab.textContent = lz.temp;
+
+  // weather text
+  const wxTextEl = safeEl('wbWxText');
+  if (wxTextEl) {
+    if (lastWeatherCode !== null && lastWeatherCode !== undefined && lastWeatherCode !== '') {
+      wxTextEl.textContent = getWeatherTextByCode(lastWeatherCode, currentInfoLang);
+    } else {
+      // best effort translate existing
+      const cur = (wxTextEl.textContent || '').trim();
+      wxTextEl.textContent = (currentInfoLang === 'en') ? (WX_ZH_TO_EN[cur] || cur || 'Weather') : cur;
+    }
+  }
+}
+
+function startInfoLangTicker() {
+  stopInfoLangTicker();
+  if (!document.fullscreenElement) return;
+  applyInfoLang('zh');
+  infoLangTimer = setInterval(() => {
+    currentInfoLang = (currentInfoLang === 'zh') ? 'en' : 'zh';
+    applyInfoLang(currentInfoLang);
+  }, 10000);
+}
+
+function stopInfoLangTicker() {
+  if (infoLangTimer) clearInterval(infoLangTimer);
+  infoLangTimer = null;
+  currentInfoLang = 'zh';
+  applyInfoLang('zh');
+}
 
   const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -110,17 +181,6 @@
     const [y,m,d] = iso.split('-').map(Number);
     const dt = new Date(y, m - 1, d);
     return `${m}/${d}(${dayOfWeekZH(dt)})`;
-  }
-
-
-  function formatDateEN(iso) {
-    if (!iso) return '—';
-    const [y,m,d] = iso.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    const wk = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
-    // e.g. Feb 12 (Thu)
-    const mon = dt.toLocaleString('en-US', { month: 'short' });
-    return `${mon} ${d} (${wk})`;
   }
 
   function maskName(name) {
@@ -142,43 +202,6 @@
 
   function hint(text) {
     if (els.saveHint) els.saveHint.textContent = text || '—';
-
-  function applyInfoLang(lang) {
-    infoLang = (lang === 'en') ? 'en' : 'zh';
-
-    // Labels
-    if (els.lblDate) els.lblDate.textContent = infoLang === 'en' ? 'Date' : '日期';
-    if (els.lblTime) els.lblTime.textContent = infoLang === 'en' ? 'Time' : '時間';
-    if (els.lblWeather) els.lblWeather.textContent = infoLang === 'en' ? 'Weather' : '天氣';
-    if (els.lblTemp) els.lblTemp.textContent = infoLang === 'en' ? 'Temp' : '溫度';
-
-    // Date value
-    if (els.wbDateText) els.wbDateText.textContent = infoLang === 'en' ? formatDateEN(boardDate) : formatDateZH(boardDate);
-
-    // Weather value
-    if (lastWeather && els.wbWxEmoji && els.wbWxText) {
-      els.wbWxEmoji.textContent = lastWeather.zh.e; // emoji same
-      els.wbWxText.textContent = infoLang === 'en' ? lastWeather.en.t : lastWeather.zh.t;
-    }
-  }
-
-  function startInfoLangTicker() {
-    stopInfoLangTicker();
-    // Fullscreen only: toggle zh/en every 10s
-    applyInfoLang('zh');
-    infoLangTimer = setInterval(() => {
-      applyInfoLang(infoLang === 'zh' ? 'en' : 'zh');
-    }, INFO_LANG_TOGGLE_MS);
-  }
-
-  function stopInfoLangTicker() {
-    if (infoLangTimer) {
-      clearInterval(infoLangTimer);
-      infoLangTimer = null;
-    }
-    applyInfoLang('zh');
-  }
-
   }
 
   function pill(text, onRemove) {
@@ -247,7 +270,7 @@
   async function loadBoard(dateISO) {
     boardDate = dateISO;
     if (els.boardDate) els.boardDate.value = boardDate;
-    if (els.wbDateText) els.wbDateText.textContent = (infoLang === 'en') ? formatDateEN(boardDate) : formatDateZH(boardDate);
+    if (els.wbDateText) els.wbDateText.textContent = formatDateZH(boardDate);
 
     hint('讀取中...');
     const snap = await docRef().get();
@@ -312,25 +335,22 @@
     hint('已儲存');
   }
 
-
   function weatherFromCode(code) {
     // Open-Meteo weather_code mapping (簡化)
+    // 0 clear, 1/2/3 partly cloudy, 45/48 fog, 51/53/55 drizzle, 61/63/65 rain, 71/73/75 snow,
+    // 80/81/82 rain showers, 95 thunderstorm, 96/99 hail
     const c = Number(code);
-
-    const mk = (e, zh, en) => ({ e, zh, en });
-
-    if (c === 0) return mk('☀️', '晴', 'Clear');
-    if ([1,2,3].includes(c)) return mk('⛅', '多雲', 'Partly cloudy');
-    if ([45,48].includes(c)) return mk('🌫️', '霧', 'Fog');
-    if ([51,53,55].includes(c)) return mk('🌦️', '毛毛雨', 'Drizzle');
-    if ([61,63,65].includes(c)) return mk('🌧️', '雨', 'Rain');
-    if ([80,81,82].includes(c)) return mk('🌧️', '陣雨', 'Showers');
-    if ([71,73,75].includes(c)) return mk('🌨️', '雪', 'Snow');
-    if (c === 95) return mk('⛈️', '雷雨', 'Thunderstorm');
-    if ([96,99].includes(c)) return mk('⛈️', '冰雹雷雨', 'Thunderstorm (hail)');
-    return mk('⛅', '天氣', 'Weather');
+    if (c === 0) return { e:'☀️', t:'晴' };
+    if ([1,2,3].includes(c)) return { e:'⛅', t:'多雲' };
+    if ([45,48].includes(c)) return { e:'🌫️', t:'霧' };
+    if ([51,53,55].includes(c)) return { e:'🌦️', t:'毛毛雨' };
+    if ([61,63,65].includes(c)) return { e:'🌧️', t:'雨' };
+    if ([80,81,82].includes(c)) return { e:'🌧️', t:'陣雨' };
+    if ([71,73,75].includes(c)) return { e:'🌨️', t:'雪' };
+    if (c === 95) return { e:'⛈️', t:'雷雨' };
+    if ([96,99].includes(c)) return { e:'⛈️', t:'雷雨' };
+    return { e:'⛅', t:'天氣' };
   }
-
 
   async function fetchAndApplyWeather() {
     try {
@@ -343,15 +363,11 @@
       const temp = data && data.current ? data.current.temperature_2m : null;
       const code = data && data.current ? data.current.weather_code : null;
 
+      lastWeatherCode = code;
+
       const wx = weatherFromCode(code);
-      lastWeather = {
-        temp,
-        zh: { e: wx.e, t: wx.zh },
-        en: { e: wx.e, t: wx.en }
-      };
-      // Apply by current language (fullscreen may toggle)
       els.wbWxEmoji.textContent = wx.e;
-      els.wbWxText.textContent = (infoLang === 'en') ? wx.en : wx.zh;
+      els.wbWxText.textContent = getWeatherTextByCode(code, currentInfoLang);
 
       if (temp !== null && temp !== undefined && temp !== '') {
         const t = Math.round(Number(temp));
@@ -477,13 +493,12 @@
       else await document.exitFullscreen();
     });
     document.addEventListener('fullscreenchange', () => {
-      const inFs = !!document.fullscreenElement;
-      setReadonly(inFs);
-      els.btnFullscreen.textContent = inFs ? '離開全螢幕' : '全螢幕';
-      hint(inFs ? '全螢幕只讀' : '可編輯（別忘儲存）');
-
-      if (inFs) startInfoLangTicker();
+      // v4.8: fullscreen info cards language toggle
+      if (document.fullscreenElement) startInfoLangTicker();
       else stopInfoLangTicker();
+      setReadonly(!!document.fullscreenElement);
+      els.btnFullscreen.textContent = document.fullscreenElement ? '離開全螢幕' : '全螢幕';
+      hint(document.fullscreenElement ? '全螢幕只讀' : '可編輯（別忘儲存）');
     });
 
     // settings buttons
@@ -570,7 +585,6 @@
       const initDate = todayISO();
       els.boardDate.value = initDate;
       els.wbDateText.textContent = formatDateZH(initDate);
-      applyInfoLang('zh');
 
       bindEvents();
       await loadBoard(initDate);
