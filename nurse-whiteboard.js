@@ -418,12 +418,8 @@
     if (els.btnSettings) els.btnSettings.addEventListener('click', () => openSettings('tab-pre'));
     const btnLowerSettings = safeEl('btnLowerSettings');
     if (btnLowerSettings) btnLowerSettings.addEventListener('click', () => openSettings('tab-pre'));
-    if (els.btnOpenPre) els.btnOpenPre.addEventListener('click', () => openSettings('tab-pre'));
-    if (els.btnOpenMove) els.btnOpenMove.addEventListener('click', () => openSettings('tab-move'));
-    if (els.btnOpenIso) els.btnOpenIso.addEventListener('click', () => openSettings('tab-iso'));
 
     // modal add: pre-admit
-    \1      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
       const date = els.preDate.value || '';
       const bed = (els.preBed.value || '').trim();
       const name = (els.preName.value || '').trim();
@@ -446,7 +442,6 @@
     }
 
     // modal add: move
-    \1      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
       const fromBed = (els.fromBed.value || '').trim();
       const toBed = (els.toBed.value || '').trim();
       if (!fromBed || !toBed) { alert('待轉床：請填原床與目標床'); return; }
@@ -463,7 +458,6 @@
     });
 
     // modal add: iso
-    \1      if (!boardData) { alert('白板尚未載入完成，請稍等 1 秒再試'); return; }
       const date = els.isoDate.value || '';
       const bed = (els.isoBed.value || '').trim();
       const toBed = (els.isoToBed.value || '').trim();
