@@ -1,488 +1,372 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>護理師系統｜電子白板</title>
 
-  <!-- 依你現有專案：bootstrap / fontawesome 若已全域載入可刪 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
     :root{
       --wb-gap: 12px;
       --wb-border: #d9d9d9;
-      --wb-bg: #ffffff;
-      --wb-muted: #666;
-      --wb-card: #f9fafb;
-      --wb-pill: #eef2ff;
-      --wb-pill-border:#c7d2fe;
+      --wb-bg: #f6f7f9;
+      --wb-card: #ffffff;
     }
-    body{ background:#f3f4f6; }
-    .wb-wrap{ max-width: 1280px; margin: 0 auto; padding: 16px; }
-    .wb-topbar{
-      display:flex; gap:10px; align-items:center; justify-content:space-between;
-      margin-bottom: 10px;
-    }
-    .wb-title{ font-size: 18px; font-weight: 800; }
-    .wb-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .wb-actions .form-control, .wb-actions .form-select{ height: 34px; padding: 4px 10px; }
+    body{ background: var(--wb-bg); }
 
-    .board{
-      background: var(--wb-bg);
-      border: 1px solid var(--wb-border);
-      border-radius: 14px;
-      padding: var(--wb-gap);
-      box-shadow: 0 10px 30px rgba(0,0,0,.06);
-      aspect-ratio: 16 / 9;
-      min-height: 620px;
+    /* 主容器：非全螢幕可滾動避免擠壓 */
+    #boardRoot{
+      max-height: calc(100vh - 86px);
+      overflow: auto;
+      padding: 12px 12px 18px;
     }
-    /* 上 3/4，下 1/4 */
-    .board-grid{
-      height:100%;
-      display:grid;
+    /* 全螢幕：仍可滾動，但隱藏捲軸（kiosk 感） */
+    #boardRoot:fullscreen{
+      max-height: none;
+      background: var(--wb-bg);
+      overflow: auto;
+      padding: 16px;
+    }
+    #boardRoot:fullscreen::-webkit-scrollbar{ width: 0; height: 0; }
+    #boardRoot:fullscreen{ scrollbar-width: none; }
+
+    .toolbar{
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: #fff;
+      border-bottom: 1px solid var(--wb-border);
+      padding: 10px 12px;
+    }
+    .toolbar .hint{ color:#6c757d; font-size: 12px; }
+    .toolbar .btn{ white-space: nowrap; }
+
+    .wb-grid{
+      display: grid;
       grid-template-rows: 3fr 1fr;
       gap: var(--wb-gap);
+      min-height: 860px;
     }
 
-    /* 上半：左(3/4) 右(1/4) */
+    .panel{
+      background: var(--wb-card);
+      border: 1px solid var(--wb-border);
+      border-radius: 14px;
+      padding: 10px;
+      min-height: 0;
+    }
+    .panel-title{
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .panel-title small{ font-weight: 500; color:#6c757d; }
+
+    /* 上半：左 3/4 + 右 1/4 */
     .upper{
-      display:grid;
+      display: grid;
       grid-template-columns: 3fr 1fr;
       gap: var(--wb-gap);
       min-height: 0;
     }
-
-    .panel{
-      border: 1px solid var(--wb-border);
-      border-radius: 12px;
-      padding: 10px;
-      background: var(--wb-card);
-      min-height: 0;
-    }
-
-    /* 左上大區塊：左上資訊小格 + 早/午 */
     .upper-left{
-      display:grid;
-      grid-template-columns: 1fr;
+      display: grid;
       grid-template-rows: auto 1fr;
       gap: var(--wb-gap);
       min-height: 0;
     }
-
     .info-strip{
-      display:grid;
-      grid-template-columns: 220px 1fr;
+      display: grid;
+      grid-template-columns: 260px 1fr;
       gap: var(--wb-gap);
-      align-items:stretch;
+      align-items: stretch;
     }
     .info-box{
       border: 1px solid var(--wb-border);
-      border-radius: 10px;
-      padding: 8px 10px;
-      background:#fff;
-      display:grid;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: #fff;
+      display: grid;
       grid-template-columns: 1fr auto;
-      column-gap: 10px;
-      row-gap: 2px;
-      align-content:start;
+      gap: 8px;
+      align-items: start;
     }
-    .info-left{
-      display:grid;
-      row-gap: 2px;
+    .info-box .left{
+      display: grid;
+      gap: 6px;
       font-weight: 700;
     }
-    .info-left .muted{ color: var(--wb-muted); font-weight: 700; }
-    .info-temp{
+    .info-box .wx{
       display:flex;
-      align-items:flex-start;
-      gap:8px;
-      justify-content:flex-end;
-      font-weight: 900;
+      gap: 8px;
+      align-items:center;
+      font-weight: 700;
+    }
+    .info-box .wx span{ font-weight: 700; }
+    .info-box .temp{
       font-size: 18px;
-      white-space:nowrap;
+      font-weight: 800;
+      align-self: start;
+      padding-top: 2px;
     }
-    .wx{
-      display:flex; gap:6px; align-items:center;
-      font-weight:800;
-      color:#111;
-    }
-    .wx-emoji{ font-size: 18px; }
 
     .shift-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--wb-gap);
-      min-height: 0;
-    }
-
-    .field-title{
-      display:flex; justify-content:space-between; align-items:center;
-      font-weight: 900;
-      margin-bottom: 6px;
-    }
-    .field-title .hint{ font-weight:700; font-size:12px; color: var(--wb-muted); }
-
-    .shift-grid #notesText{ font-size: 22px; line-height: 1.6; }
-
-    textarea.wb-text{ font-size: 24px; line-height: 1.6; }
-
-    textarea.wb-text{
-      width:100%;
-      height: calc(100% - 26px);
-      min-height: 120px;
-      border: 1px solid var(--wb-border);
-      border-radius: 10px;
-      padding: 10px;
-      resize:none;
-      background:#fff;
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    /* 上半右側備註 */
-    .notes textarea.wb-text{ min-height: 220px; }
-
-    /* 下半：0.5/3 | 2/3 | 0.5/3  */
-    .lower{
-      display:grid;
-      grid-template-columns: 1fr 4fr 1fr; /* 0.5/3 : 2/3 : 0.5/3 近似 */
-      gap: var(--wb-gap);
-      min-height: 0;
-    }
-    .lower .panel{ background:#fff; }
-
-    .subpanel{
-      border: 1px dashed var(--wb-border);
-      border-radius: 10px;
-      padding: 8px;
-      background:#f9fafb;
-      min-height: 0;
-    }
-    .subpanel + .subpanel{ margin-top: 8px; }
-
-    .pill-list{ display:flex; flex-wrap:wrap; gap:8px; }
-    .pill{
-      border: 1px solid var(--wb-pill-border);
-      background: var(--wb-pill);
-      border-radius: 10px;
-      padding: 6px 10px;
-      font-weight: 800;
-      font-size: 13px;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      white-space:nowrap;
-    }
-    .pill .x{ cursor:pointer; font-weight:900; color:#374151; }
-    .pill .x:hover{ color:#111; }
-
-    .mini-form{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:8px;
-      margin-bottom:8px;
-    }
-    .mini-form .form-control, .mini-form .form-select{
-      height: 32px;
-      padding: 4px 8px;
-      font-size: 13px;
-    }
-    .mini-form .full{ grid-column: 1 / -1; }
-    .mini-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; }
-    .mini-actions .btn{ padding: 4px 10px; }
-
-    .visit-grid{
-      display:grid;
-      grid-template-rows: repeat(5, 1fr);
-      gap:8px;
-      height: calc(100% - 30px);
-      min-height: 0;
-    }
-    .visit-row{
-      display:grid;
-      grid-template-columns: 92px 1fr;
-      gap:8px;
-      align-items:stretch;
-      min-height: 0;
-    }
-    .visit-time{
-      font-weight: 900;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid var(--wb-border);
-      border-radius:10px;
-      background:#f9fafb;
-    }
-    .visit-row textarea{
-      height:100%;
-      min-height: 52px;
-    }
-
-    /* 全螢幕只讀 */
-    .readonly textarea,
-    .readonly input,
-    .readonly select,
-    .readonly button[data-edit="1"]{
-      pointer-events:none !important;
-      filter: grayscale(.2);
-      opacity: .92;
-    }
-    .readonly .pill .x{ display:none; }
-
-    /* 小工具 */
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  
-    /* RWD：避免擠壓重疊 */
-    @media (max-width: 992px){
-      .upper{ grid-template-columns: 1fr; }
-      .lower{ grid-template-columns: 1fr; }
-      .info-strip{ grid-template-columns: 1fr; }
-      .shift-grid{ grid-template-columns: 1fr; }
-      .visit-row{ grid-template-columns: 84px 1fr; }
-    }
-    @media (max-width: 576px){
-      .wb-actions{ gap:6px; }
-      .wb-actions .form-control{ width: 150px; }
-      textarea.wb-text{ font-size: 14px; }
-      .shift-grid textarea.wb-text{ font-size: 18px; }
-    }
-  
-    /* v4.3：下半不再三欄擠壓，探視保持全寬 */
-    .lower.lower-v4{
-      display: flex;
-      flex-direction: column;
-      gap: var(--wb-gap);
-      height: 100%;
-      min-height: 0;
-    }
-    .lower-summary{
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: var(--wb-gap);
-      height: 140px; /* 固定高度避免擠壓探視 */
-      min-height: 140px;
-    }
-    .summary-card{
-      border: 1px solid var(--wb-border);
-      border-radius: 12px;
-      padding: 10px;
-      background: #fff;
-      overflow: hidden;
       min-height: 0;
     }
-    .summary-card .pill-list{
-      max-height: 90px;
-      overflow: auto;
-      padding-right: 4px;
-    }
-    .visits-panel{
+    textarea.wb-text{
+      width: 100%;
+      resize: none;
       min-height: 0;
-      overflow: auto;
+      height: 100%;
+      font-size: 24px !important;  /* 早/午預設大字 */
+      line-height: 1.6 !important;
     }
-    @media (max-width: 992px){
-      .lower-summary{ grid-template-columns: 1fr; height: auto; }
-      .summary-card .pill-list{ max-height: 120px; }
+    #notesText{
+      font-size: 22px !important;
+      line-height: 1.6 !important;
     }
 
-  
-    /* v4.4：下半維持三格，但設定移到彈窗，避免擠壓重疊 */
-    .lower.lower-v44{
+    /* 下半：0.5/3, 2/3, 0.5/3 */
+    .lower{
       display: grid;
       grid-template-columns: 0.5fr 2fr 0.5fr;
       gap: var(--wb-gap);
       min-height: 0;
     }
-    .lower.lower-v44 .panel{ min-height: 0; }
-    .lower.lower-v44 .pill-list{ max-height: 120px; overflow: auto; padding-right: 4px; }
-    .board-footnote{ padding: 0 var(--wb-gap); }
-    @media (max-width: 992px){
-      .lower.lower-v44{ grid-template-columns: 1fr; }
-      .lower.lower-v44 .pill-list{ max-height: 160px; }
-    }
 
-  
-    /* v4.6：非全螢幕可滾動，避免下半擠壓；早/午/備註字體放大 */
-    #boardRoot{
-      /* 預留上方工具列空間，整塊可滾動 */
-      max-height: calc(100vh - 90px);
+    /* Pills */
+    .pill-list{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-content: flex-start;
+      max-height: 220px;
       overflow: auto;
-      padding-bottom: 12px;
+      padding-right: 4px;
     }
-    /* 進全螢幕時：只讀且不出現滾動條（仍可用觸控板滾動視情況） */
-    #boardRoot:fullscreen{
-      max-height: none;
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #cfe0ff;
+      background: #eef4ff;
+      font-size: 13px;
+      max-width: 100%;
+    }
+    .pill .x{
+      display: inline-flex;
+      width: 18px;
+      height: 18px;
+      align-items:center;
+      justify-content:center;
+      border-radius: 999px;
+      background: #dbe7ff;
+      cursor: pointer;
+      user-select:none;
+      flex: 0 0 auto;
+    }
+    .pill .t{
       overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 520px;
     }
-    /* textarea 字體放大（強制覆蓋） */
-    #morningText, #noonText{ font-size: 24px !important; line-height: 1.6 !important; }
-    #notesText{ font-size: 22px !important; line-height: 1.6 !important; }
 
-    /* 下半三格避免高度互相壓縮 */
-    .lower{ min-height: 0; }
-    .panel, .subpanel{ min-height: 0; }
+    /* 探視 */
+    .visit-grid{ display:flex; flex-direction:column; gap:10px; min-height:0; }
+    .visit-row{
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .visit-time{
+      border: 1px solid var(--wb-border);
+      border-radius: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 800;
+      background:#fff;
+    }
+    .visit-row textarea{
+      font-size: 18px !important;
+      height: 62px;
+    }
 
+    .footnote{
+      color:#6c757d;
+      font-size: 12px;
+      padding: 0 12px 10px;
+    }
+
+    /* 只讀模式（全螢幕） */
+    #boardRoot.readonly [data-edit="1"]{ display:none !important; }
+    #boardRoot.readonly textarea,
+    #boardRoot.readonly input,
+    #boardRoot.readonly select,
+    #boardRoot.readonly button.editable{
+      pointer-events: none;
+    }
+    #boardRoot.readonly textarea,
+    #boardRoot.readonly input,
+    #boardRoot.readonly select{
+      background: #f8f9fa;
+    }
+    #boardRoot.readonly .pill .x{ display:none !important; }
+
+    /* RWD */
+    @media (max-width: 992px){
+      .upper{ grid-template-columns: 1fr; }
+      .info-strip{ grid-template-columns: 1fr; }
+      .shift-grid{ grid-template-columns: 1fr; }
+      .lower{ grid-template-columns: 1fr; }
+      textarea.wb-text{ font-size: 22px !important; }
+      #notesText{ font-size: 20px !important; }
+    }
   </style>
 </head>
 
 <body>
-  <div class="wb-wrap">
-    <div class="wb-topbar">
-      <div class="wb-title">電子白板</div>
 
-      <div class="wb-actions">
-        <input type="date" id="boardDate" class="form-control" />
-        <button class="btn btn-outline-secondary btn-sm" id="btnToday">今天</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnSettings" data-edit="1">上方設定</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnLowerSettings" data-edit="1">下半設定</button>
-        <button class="btn btn-primary btn-sm" id="btnSave" data-edit="1">儲存</button>
-        <button class="btn btn-outline-primary btn-sm" id="btnFullscreen">全螢幕</button>
-        <span class="text-muted small" id="saveHint">—</span>
-      </div>
+  <div class="toolbar d-flex flex-wrap gap-2 align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <label class="fw-bold">日期</label>
+      <input type="date" id="boardDate" class="form-control form-control-sm" style="width: 160px;" data-edit="1">
+      <button class="btn btn-outline-secondary btn-sm" id="btnToday" data-edit="1" type="button">今天</button>
     </div>
 
-    <div class="board" id="boardRoot">
-      <div class="board-grid">
+    <div class="ms-auto d-flex gap-2 align-items-center">
+      <button class="btn btn-outline-secondary btn-sm" id="btnLowerSettings" data-edit="1" type="button">下半設定</button>
+      <button class="btn btn-primary btn-sm" id="btnSave" data-edit="1" type="button">儲存</button>
+      <button class="btn btn-outline-dark btn-sm" id="btnFullscreen" type="button">全螢幕</button>
+    </div>
 
-        <!-- 上半 -->
-        <div class="upper">
-
-          <!-- 上半左（最大） -->
-          <div class="panel upper-left">
-            <div class="info-strip">
-              <!-- 左上小格：日期/時間/天氣 + 溫度 -->
-              <div class="info-box">
-                <div class="info-left">
-                  <div class="muted" id="wbDateText">—</div>
-                  <div class="mono" id="wbTimeText">—</div>
-                  <div class="wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">晴</span></div>
-                </div>
-                <div class="info-temp">
-                  <span id="wbTemp">27℃</span>
-                </div>
-              </div>
-
-              <!-- 天氣/溫度：自動抓北勢村中正路（免手動） -->
-              <div class="d-flex gap-2 align-items-start">
-                <div class="w-100">
-                  <div class="field-title"><span>天氣/溫度</span><span class="hint">自動更新：崁頂鄉北勢村 中正路</span></div>
-                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新；全螢幕只讀）</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 早 / 午 -->
-            <div class="shift-grid">
-              <div class="panel h-100" style="background:#fff;">
-                <div class="field-title"><span>早</span><span class="hint">可打字</span></div>
-                <textarea id="morningText" class="wb-text" data-edit="1"></textarea>
-              </div>
-              <div class="panel h-100" style="background:#fff;">
-                <div class="field-title"><span>午</span><span class="hint">可打字</span></div>
-                <textarea id="noonText" class="wb-text" data-edit="1"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- 上半右：備註 -->
-          <div class="panel notes" style="background:#fff;">
-            <div class="field-title"><span>備註</span><span class="hint">可打字</span></div>
-            <textarea id="notesText" class="wb-text" data-edit="1"></textarea>
-          </div>
-        </div>
-
-        <!-- 下半 -->
-        <!-- 下半部 -->
-        <div class="lower lower-v44">
-          <!-- 第一格：預入住 + 今日待轉床（只顯示清單；設定在彈窗） -->
-          <div class="panel">
-            <div class="subpanel">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>預入住</span><span class="hint">可多筆</span></div></div>
-              <div class="pill-list" id="preList"></div>
-            </div>
-
-            <div class="subpanel">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>今日待轉床</span><span class="hint">可多筆</span></div></div>
-              <div class="pill-list" id="moveList"></div>
-              <div class="board-footnote text-muted small mt-2">顯示格式：床號 姓名(遮罩) ⮕ 目標床</div>
-            </div>
-          </div>
-
-          <!-- 第二格：家屬探視（下半第2格） -->
-          <div class="panel">
-            <div class="subpanel">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="field-title"><span>家屬探視</span><span class="hint">由 bookings 帶入/可手改</span></div>
-                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
-              </div>
-
-              <div class="visit-grid mt-2">
-                <div class="visit-row">
-                  <div class="visit-time">14:30</div>
-                  <textarea class="form-control wb-text" id="visit1430" rows="2" data-edit="1"></textarea>
-                </div>
-                <div class="visit-row">
-                  <div class="visit-time">15:00</div>
-                  <textarea class="form-control wb-text" id="visit1500" rows="2" data-edit="1"></textarea>
-                </div>
-                <div class="visit-row">
-                  <div class="visit-time">15:30</div>
-                  <textarea class="form-control wb-text" id="visit1530" rows="2" data-edit="1"></textarea>
-                </div>
-                <div class="visit-row">
-                  <div class="visit-time">16:00</div>
-                  <textarea class="form-control wb-text" id="visit1600" rows="2" data-edit="1"></textarea>
-                </div>
-                <div class="visit-row">
-                  <div class="visit-time">16:30</div>
-                  <textarea class="form-control wb-text" id="visit1630" rows="2" data-edit="1"></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 第三格：預解隔（只顯示清單；設定在彈窗） -->
-          <div class="panel">
-            <div class="subpanel">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>預解隔</span><span class="hint">可多筆</span></div></div>
-              <div class="pill-list" id="isoList"></div>
-            </div>
-          </div>
-        </div>
-
-<div class="text-muted small mt-2">
-      全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
+    <div class="w-100 d-flex justify-content-between align-items-center">
+      <div class="hint" id="saveHint">—</div>
+      <div class="hint">全螢幕：只讀（不能修改）；姓名會自動遮罩，至少中間 1 個字以「0」代替。</div>
     </div>
   </div>
 
-  
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <div id="boardRoot">
+    <div class="wb-grid">
+      <!-- 上半 -->
+      <div class="upper">
+        <!-- 上半左 -->
+        <div class="panel upper-left">
+          <div class="info-strip">
+            <div class="info-box">
+              <div class="left">
+                <div id="wbDateText">—</div>
+                <div id="wbTimeText">—</div>
+                <div class="wx"><span id="wbWxEmoji">⛅</span><span id="wbWxText">天氣</span></div>
+              </div>
+              <div class="temp" id="wbTemp">—</div>
+            </div>
 
-  <!-- 你專案的 firebase-init.js（請用你現有的那支） -->
-  <script src="firebase-init.js"></script>
+            <div class="d-flex align-items-center">
+              <div class="text-muted small">
+                天氣/溫度：自動抓崁頂鄉北勢村中正路附近（每 10 分鐘更新）
+              </div>
+            </div>
+          </div>
 
-  <!-- Bootstrap（Modal/Tab 需要） -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+          <div class="shift-grid">
+            <div class="panel">
+              <div class="panel-title">早 <small>可打字</small></div>
+              <textarea class="form-control wb-text" id="morningText" data-edit="1"></textarea>
+            </div>
+            <div class="panel">
+              <div class="panel-title">午 <small>可打字</small></div>
+              <textarea class="form-control wb-text" id="noonText" data-edit="1"></textarea>
+            </div>
+          </div>
+        </div>
 
-  <!-- 本頁 JS -->
-  <script src="nurse-whiteboard.js"></script>
+        <!-- 上半右：備註 -->
+        <div class="panel">
+          <div class="panel-title">備註 <small>可打字</small></div>
+          <textarea class="form-control wb-text" id="notesText" data-edit="1"></textarea>
+        </div>
+      </div>
 
-  <!-- 設定視窗（新增/管理：預入住、待轉床、預解隔） -->
-  <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+      <!-- 下半 -->
+      <div class="lower">
+        <!-- 1st col -->
+        <div class="panel">
+          <div class="panel-title">預入住 <small>可多筆</small></div>
+          <div class="pill-list" id="preList"></div>
+          <hr>
+          <div class="panel-title">今日待轉床 <small>可多筆</small></div>
+          <div class="pill-list" id="moveList"></div>
+          <div class="text-muted small mt-2">顯示格式：床號 姓名(遮罩) ⮕ 目標床</div>
+        </div>
+
+        <!-- 2nd col -->
+        <div class="panel">
+          <div class="panel-title">
+            <span>家屬探視 <small>由 bookings 帶入 / 可手改</small></span>
+            <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
+          </div>
+
+          <div class="visit-grid">
+            <div class="visit-row">
+              <div class="visit-time">14:30</div>
+              <textarea class="form-control wb-text" id="visit1430" rows="2" data-edit="1"></textarea>
+            </div>
+            <div class="visit-row">
+              <div class="visit-time">15:00</div>
+              <textarea class="form-control wb-text" id="visit1500" rows="2" data-edit="1"></textarea>
+            </div>
+            <div class="visit-row">
+              <div class="visit-time">15:30</div>
+              <textarea class="form-control wb-text" id="visit1530" rows="2" data-edit="1"></textarea>
+            </div>
+            <div class="visit-row">
+              <div class="visit-time">16:00</div>
+              <textarea class="form-control wb-text" id="visit1600" rows="2" data-edit="1"></textarea>
+            </div>
+            <div class="visit-row">
+              <div class="visit-time">16:30</div>
+              <textarea class="form-control wb-text" id="visit1630" rows="2" data-edit="1"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3rd col -->
+        <div class="panel">
+          <div class="panel-title">預解隔 <small>可多筆</small></div>
+          <div class="pill-list" id="isoList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    提示：全螢幕只讀；姓名遮罩至少中間 1 個字為「0」。
+  </div>
+
+  <!-- 下半設定 Modal -->
+  <div class="modal fade" id="lowerSettingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">電子白板設定</h5>
+          <h5 class="modal-title">下半設定</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+
         <div class="modal-body">
           <ul class="nav nav-tabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -497,46 +381,77 @@
           </ul>
 
           <div class="tab-content pt-3">
+            <!-- Pre -->
             <div class="tab-pane fade show active" id="pane-pre" role="tabpanel">
-              <div class="row g-2">
-                <div class="col-md-4"><input type="date" id="preDate" class="form-control" data-edit="1"></div>
-                <div class="col-md-4"><input id="preBed" class="form-control" placeholder="床號(例:216-1)" data-edit="1"></div>
-                <div class="col-md-4"><input id="preName" class="form-control" placeholder="姓名" data-edit="1"></div>
-              </div>
-              <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddPre" data-edit="1">新增</button>
+              <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label small">日期</label>
+                  <input type="date" id="preDate" class="form-control" data-edit="1">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">床號</label>
+                  <input id="preBed" class="form-control" placeholder="例：216-1" data-edit="1">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small">姓名</label>
+                  <input id="preName" class="form-control" placeholder="姓名" data-edit="1">
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button class="btn btn-success" id="btnAddPre" data-edit="1" type="button">新增</button>
+                </div>
               </div>
               <hr>
               <div class="pill-list" id="preListModal"></div>
             </div>
 
+            <!-- Move -->
             <div class="tab-pane fade" id="pane-move" role="tabpanel">
-              <div class="row g-2">
-                <div class="col-md-4"><input id="fromBed" class="form-control" placeholder="原床(例:216-1)" data-edit="1"></div>
-                <div class="col-md-4"><input id="toBed" class="form-control" placeholder="目標床(例:216-2)" data-edit="1"></div>
-                <div class="col-md-12">
-                  <select id="residentByBed" class="form-select" data-edit="1">
-                    <option value="">（先輸入原床，載入住民）</option>
-                  </select>
-                  <div class="text-muted small mt-1">住民姓名會自動遮罩顯示</div>
+              <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label small">原床</label>
+                  <input id="fromBed" class="form-control" placeholder="例：216-1" data-edit="1">
                 </div>
-              </div>
-              <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddMove" data-edit="1">新增</button>
+                <div class="col-md-3">
+                  <label class="form-label small">目標床</label>
+                  <input id="toBed" class="form-control" placeholder="例：216-2" data-edit="1">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small">住民（依原床帶出）</label>
+                  <select id="residentByBed" class="form-select" data-edit="1">
+                    <option value="">先輸入原床</option>
+                  </select>
+                  <div class="text-muted small mt-1">顯示會自動遮罩</div>
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button class="btn btn-success" id="btnAddMove" data-edit="1" type="button">新增</button>
+                </div>
               </div>
               <hr>
               <div class="pill-list" id="moveListModal"></div>
             </div>
 
+            <!-- Iso -->
             <div class="tab-pane fade" id="pane-iso" role="tabpanel">
-              <div class="row g-2">
-                <div class="col-md-4"><input type="date" id="isoDate" class="form-control" data-edit="1"></div>
-                <div class="col-md-4"><input id="isoBed" class="form-control" placeholder="床號(例:113)" data-edit="1"></div>
-                <div class="col-md-4"><input id="isoToBed" class="form-control" placeholder="預到床(例:216-1)" data-edit="1"></div>
-                <div class="col-md-12"><input id="isoName" class="form-control" placeholder="姓名" data-edit="1"></div>
-              </div>
-              <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddIso" data-edit="1">新增</button>
+              <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label small">日期</label>
+                  <input type="date" id="isoDate" class="form-control" data-edit="1">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">床號</label>
+                  <input id="isoBed" class="form-control" placeholder="例：113" data-edit="1">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">預到床</label>
+                  <input id="isoToBed" class="form-control" placeholder="例：216-1" data-edit="1">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">姓名</label>
+                  <input id="isoName" class="form-control" placeholder="姓名" data-edit="1">
+                </div>
+                <div class="col-12 d-grid mt-2">
+                  <button class="btn btn-success" id="btnAddIso" data-edit="1" type="button">新增</button>
+                </div>
               </div>
               <hr>
               <div class="pill-list" id="isoListModal"></div>
@@ -545,12 +460,21 @@
         </div>
 
         <div class="modal-footer">
-          <div class="text-muted small me-auto">提示：刪除請在主畫面小方框按 ×（全螢幕無法操作）</div>
+          <div class="text-muted small me-auto">刪除：在小方框按 ×（全螢幕只讀無法操作）</div>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Firebase（你原本頁面通常已經有 firebase-init.js，這裡保持相容：等 firebase-ready 事件） -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 本頁 JS -->
+  <script src="nurse-whiteboard.js"></script>
 </body>
 </html>
