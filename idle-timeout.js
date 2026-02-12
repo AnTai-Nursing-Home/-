@@ -20,7 +20,7 @@
 (function (global) {
   const DEFAULTS = {
     // 規則
-    idleSeconds: 10,
+    idleSeconds: 180,
     countdownSeconds: 120,
     checkIntervalMs: 1000,
 
