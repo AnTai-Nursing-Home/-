@@ -20,11 +20,16 @@
     'lengthCm','widthCm','depthCm','exudateAmount','exudateNature','tissueType','woundEdge','surroundingSkin','painScore','infectionSigns',
     'cleaningMethod','dressingUsed','debridement','medicationOrder','repositioning',
     'improved','noChange','worsened','needNotifyDoctor','needReferral','supervisorName',
-    'nursingSummary','printArea'
+    'nursingSummary','printArea','caseViewSection','caseSummaryCard','caseSummaryTitle','caseSummarySub','caseSummaryBasics','btnViewCaseDetail','caseDetailBody','reassessYear','btnNewReassess','reassessLoading','reassessEmpty','reassessListBox','reassessFormSection'
   ]);
 
   let currentStatus = 'open'; // open|closed
   let currentDocId = null;
+  let currentCaseData = null;          // 原始單張資料（建立時）
+  let mode = 'case';                   // 'case' | 'reassess'
+  let currentReassessId = null;        // 復評 doc id
+  const REASSESS_COL = 'woundCareReassessments'; // 復評集合（獨立 collection）
+
   let residents = [];
   let recorder = { staffId:'', displayName:'' };
 
@@ -102,12 +107,27 @@
   function showList() {
     $.editorSection.classList.add('d-none');
     $.listSection.classList.remove('d-none');
+    mode = 'case';
+    currentReassessId = null;
+    currentCaseData = null;
     updateDashBackVisibility();
   }
   function showForm() {
     $.listSection.classList.add('d-none');
     $.editorSection.classList.remove('d-none');
     updateDashBackVisibility();
+  }
+
+  function showCaseView() {
+    mode = 'case';
+    if ($.caseViewSection) $.caseViewSection.classList.remove('d-none');
+    if ($.reassessFormSection) $.reassessFormSection.classList.add('d-none');
+  }
+
+  function showReassessForm() {
+    mode = 'reassess';
+    if ($.caseViewSection) $.caseViewSection.classList.add('d-none');
+    if ($.reassessFormSection) $.reassessFormSection.classList.remove('d-none');
   }
 
   function resetFormForNew() {
@@ -132,7 +152,77 @@
     $.btnCloseCase.classList.remove('d-none');
   }
 
-  function fillForm(data) {
+  
+  function renderCaseSummary(caseData) {
+    if (!caseData) return;
+    const title = `${caseData.residentName || '(未填住民)'}｜${caseData.woundLocation || '未填部位'}`;
+    const sub = `${caseData.recordDate || ''} ${caseData.recordTime || ''} · 建單：${caseData.recorderName || ''}`;
+    const basics = [
+      `床號：${caseData.bedNumber || '—'}`,
+      `病歷號：${caseData.residentNumber || '—'}`,
+      `傷口類型：${caseData.woundType || '—'}`,
+      `分期：${caseData.pressureStage || '—'}`,
+      `數量：${caseData.woundCount || '—'}`,
+      `發生日：${caseData.onsetDate || '—'}`
+    ].join('　｜　');
+
+    if ($.caseSummaryTitle) $.caseSummaryTitle.textContent = title;
+    if ($.caseSummarySub) $.caseSummarySub.textContent = sub;
+    if ($.caseSummaryBasics) $.caseSummaryBasics.textContent = basics;
+  }
+
+  function buildCaseDetailHtml(caseData) {
+    const rows = [
+      ['機構名稱', caseData.facilityName || FACILITY_NAME],
+      ['紀錄日期/時間', `${caseData.recordDate || ''} ${caseData.recordTime || ''}`.trim()],
+      ['記錄人員', caseData.recorderName || ''],
+      ['住民姓名', caseData.residentName || ''],
+      ['床號', caseData.bedNumber || ''],
+      ['病歷號', caseData.residentNumber || ''],
+      ['傷口類型', caseData.woundType || ''],
+      ['發生日期', caseData.onsetDate || ''],
+      ['傷口位置', caseData.woundLocation || ''],
+      ['壓力性損傷分期', caseData.pressureStage || ''],
+      ['傷口數量', caseData.woundCount || ''],
+      ['長/寬/深 (cm)', `${caseData.lengthCm || ''} / ${caseData.widthCm || ''} / ${caseData.depthCm || ''}`],
+      ['滲出液量', caseData.exudateAmount || ''],
+      ['滲出液性質', caseData.exudateNature || ''],
+      ['傷口組織', caseData.tissueType || ''],
+      ['傷口邊緣', caseData.woundEdge || ''],
+      ['周圍皮膚', caseData.surroundingSkin || ''],
+      ['疼痛程度', caseData.painScore || ''],
+      ['感染徵象', caseData.infectionSigns || ''],
+      ['清潔方式', caseData.cleaningMethod || ''],
+      ['使用敷料', caseData.dressingUsed || ''],
+      ['是否清創', caseData.debridement || ''],
+      ['醫囑用藥', caseData.medicationOrder || ''],
+      ['翻身減壓措施', caseData.repositioning || ''],
+      ['傷口改善', caseData.improved || ''],
+      ['無明顯變化', caseData.noChange || ''],
+      ['傷口惡化', caseData.worsened || ''],
+      ['需通報醫師', caseData.needNotifyDoctor || ''],
+      ['需轉診', caseData.needReferral || ''],
+      ['護理長/主管覆核', caseData.supervisorName || ''],
+      ['護理紀錄摘要', caseData.nursingSummary || ''],
+    ];
+
+    return `
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <tbody>
+            ${rows.map(([k,v]) => `
+              <tr>
+                <th class="text-nowrap" style="width: 180px;">${escapeHtml(k)}</th>
+                <td>${escapeHtml(v)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+function fillForm(data) {
     $.facilityName.value = data.facilityName || FACILITY_NAME;
     $.recordDate.value = data.recordDate || '';
     $.recordTime.value = data.recordTime || '';
@@ -202,6 +292,31 @@
     const data = collectForm();
     if (!data.residentId) { alert('請先選擇住民'); return; }
 
+    if (mode === 'reassess') {
+      if (!currentDocId) { alert('未選擇原始單張'); return; }
+      data.caseId = currentDocId;
+      data.caseResidentId = currentCaseData?.residentId || data.residentId;
+      data.caseResidentName = currentCaseData?.residentName || data.residentName;
+      data.reassessYear = yearFromISO(data.recordDate);
+      data.status = currentStatus;
+
+      if (currentReassessId) {
+        await db.collection(REASSESS_COL).doc(currentReassessId).set(data, { merge: true });
+      } else {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        data.createdBy = recorder.staffId || '';
+        const ref = await db.collection(REASSESS_COL).add(data);
+        currentReassessId = ref.id;
+      }
+
+      alert('復評已儲存');
+      showCaseView();
+      const years = await loadReassessYears();
+      setReassessYearOptions(years, yearFromISO(data.recordDate));
+      await loadReassessmentsByYear($.reassessYear.value);
+      return;
+    }
+
     if (currentDocId) {
       await db.collection('woundCareRecords').doc(currentDocId).set(data, { merge: true });
     } else {
@@ -216,6 +331,24 @@
 
   
   async function deleteRecord() {
+    if (mode === 'reassess') {
+      if (!currentReassessId) {
+        alert('尚未儲存，無法刪除');
+        return;
+      }
+      if (!confirm('確定要刪除此復評？此動作無法復原。')) return;
+
+      await db.collection(REASSESS_COL).doc(currentReassessId).delete();
+      alert('復評已刪除');
+      currentReassessId = null;
+
+      showCaseView();
+      const years = await loadReassessYears();
+      setReassessYearOptions(years, $.reassessYear.value);
+      await loadReassessmentsByYear($.reassessYear.value);
+      return;
+    }
+
     if (!currentDocId) {
       alert('尚未儲存，無法刪除');
       return;
@@ -230,6 +363,8 @@
   }
 
   async function closeCase() {
+    if (mode === 'reassess') { alert('復評不提供結案'); return; }
+
     if (!currentDocId) return;
     if (!confirm('確定要結案嗎？結案後會移到「已結案」清單。')) return;
     await db.collection('woundCareRecords').doc(currentDocId).set({
@@ -243,7 +378,112 @@
     showList();
   }
 
-  function buildListItem(docId, d) {
+  
+  function yearFromISO(dateStr) {
+    const m = /^\d{4}/.exec(dateStr || '');
+    return m ? Number(m[0]) : (new Date()).getFullYear();
+  }
+
+  function setReassessYearOptions(years, selectedYear) {
+    const nowY = (new Date()).getFullYear();
+    const ys = Array.from(new Set([nowY, ...(years || [])])).sort((a,b)=>b-a);
+    if (!$.reassessYear) return;
+    $.reassessYear.innerHTML = ys.map(y => `<option value="${y}">${y}</option>`).join('');
+    $.reassessYear.value = String(selectedYear || nowY);
+  }
+
+  function buildReassessItem(docId, d) {
+    const title = `${d.recordDate || ''} ${d.recordTime || ''}`.trim() || '(未填日期)';
+    const sub = `${d.woundLocation || currentCaseData?.woundLocation || ''} · 記錄：${d.recorderName || ''}`;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start';
+    el.innerHTML = `
+      <div class="me-3">
+        <div class="fw-semibold">${escapeHtml(title)}</div>
+        <div class="text-muted small">${escapeHtml(sub)}</div>
+      </div>
+      <div class="text-muted small mono">${escapeHtml(docId.slice(0,6))}</div>
+    `;
+    el.addEventListener('click', async () => {
+      const snap = await db.collection(REASSESS_COL).doc(docId).get();
+      const data = snap.data();
+      if (!data) return;
+      currentReassessId = docId;
+      fillForm(data);
+      showReassessForm();
+      if ($.btnCloseCase) $.btnCloseCase.classList.add('d-none');
+      if ($.btnDelete) $.btnDelete.classList.remove('d-none');
+    });
+    return el;
+  }
+
+  async function loadReassessmentsByYear(year) {
+    if (!currentDocId || !$.reassessListBox) return;
+    try {
+      $.reassessListBox.innerHTML = '';
+      if ($.reassessEmpty) $.reassessEmpty.classList.add('d-none');
+      if ($.reassessLoading) $.reassessLoading.classList.remove('d-none');
+
+      const y = Number(year) || (new Date()).getFullYear();
+
+      const q = db.collection(REASSESS_COL)
+        .where('caseId','==', currentDocId)
+        .where('reassessYear','==', y)
+        .orderBy('recordDate','desc')
+        .orderBy('recordTime','desc');
+
+      const snap = await q.get();
+
+      if ($.reassessLoading) $.reassessLoading.classList.add('d-none');
+      if (snap.empty) {
+        if ($.reassessEmpty) $.reassessEmpty.classList.remove('d-none');
+        return;
+      }
+      snap.forEach(doc => {
+        $.reassessListBox.appendChild(buildReassessItem(doc.id, doc.data() || {}));
+      });
+    } catch (e) {
+      if ($.reassessLoading) $.reassessLoading.classList.add('d-none');
+      console.error(e);
+      alert('讀取復評資料失敗，請稍後再試');
+    }
+  }
+
+  async function loadReassessYears() {
+    if (!currentDocId) return [];
+    const snap = await db.collection(REASSESS_COL).where('caseId','==', currentDocId).get();
+    const years = [];
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      if (d.reassessYear) years.push(Number(d.reassessYear));
+      else if (d.recordDate) years.push(yearFromISO(d.recordDate));
+    });
+    return years;
+  }
+
+  function beginNewReassess() {
+    if (!currentCaseData || !currentDocId) return;
+
+    currentReassessId = null;
+    resetFormForNew();
+
+    $.residentSelect.value = currentCaseData.residentId || '';
+    $.bedNumber.value = currentCaseData.bedNumber || '';
+    $.residentNumber.value = currentCaseData.residentNumber || '';
+
+    $.woundType.value = currentCaseData.woundType || '';
+    $.onsetDate.value = currentCaseData.onsetDate || '';
+    $.woundLocation.value = currentCaseData.woundLocation || '';
+    $.pressureStage.value = currentCaseData.pressureStage || '';
+    $.woundCount.value = currentCaseData.woundCount || '';
+
+    showReassessForm();
+    if ($.btnCloseCase) $.btnCloseCase.classList.add('d-none');
+    if ($.btnDelete) $.btnDelete.classList.add('d-none');
+  }
+
+function buildListItem(docId, d) {
     const title = `${d.residentName || '(未填住民)'}｜${d.woundLocation || '未填部位'}`;
     const sub = `${d.recordDate || ''} ${d.recordTime || ''} · 記錄：${d.recorderName || ''}`;
     const badge = d.status === 'closed'
@@ -267,8 +507,15 @@
       currentDocId = docId;
       currentStatus = data.status || 'open';
       setTabs();
-      fillForm(data);
+      currentCaseData = data;
+      renderCaseSummary(currentCaseData);
       showForm();
+      showCaseView();
+      const years = await loadReassessYears();
+      setReassessYearOptions(years, (new Date()).getFullYear());
+      await loadReassessmentsByYear($.reassessYear.value);
+      if ($.caseDetailBody) $.caseDetailBody.innerHTML = buildCaseDetailHtml(currentCaseData);
+
     });
     return el;
   }
@@ -469,14 +716,46 @@
   function wire() {
     $.tabOpen.addEventListener('click', async () => { currentStatus='open'; await loadList(); });
     $.tabClosed.addEventListener('click', async () => { currentStatus='closed'; await loadList(); });
-    $.btnNew.addEventListener('click', () => { currentStatus='open'; setTabs(); resetFormForNew(); showForm(); });
-    $.btnBack.addEventListener('click', () => { showList(); });
+    $.btnNew.addEventListener('click', () => { currentStatus='open'; setTabs(); resetFormForNew(); showForm(); mode='case'; currentCaseData=null; showReassessForm(); if ($.btnCloseCase) $.btnCloseCase.classList.remove('d-none'); if ($.btnDelete) $.btnDelete.classList.add('d-none'); });
+    $.btnBack.addEventListener('click', async () => {
+      if (mode === 'reassess') {
+        showCaseView();
+        const years = await loadReassessYears();
+        setReassessYearOptions(years, $.reassessYear.value);
+        await loadReassessmentsByYear($.reassessYear.value);
+      } else {
+        showList();
+      }
+    });
     $.btnSave.addEventListener('click', saveRecord);
     $.btnDelete.addEventListener('click', deleteRecord);
     $.btnCloseCase.addEventListener('click', closeCase);
     $.btnExportDocx.addEventListener('click', exportDocx);
     $.btnPrint.addEventListener('click', printNow);
     bindResidentAutoFill();
+
+    if ($.btnViewCaseDetail) {
+      $.btnViewCaseDetail.addEventListener('click', () => {
+        const modalEl = document.getElementById('caseDetailModal');
+        if (!modalEl) return;
+        if (currentCaseData && $.caseDetailBody) $.caseDetailBody.innerHTML = buildCaseDetailHtml(currentCaseData);
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      });
+    }
+
+    if ($.reassessYear) {
+      $.reassessYear.addEventListener('change', async () => {
+        await loadReassessmentsByYear($.reassessYear.value);
+      });
+    }
+
+    if ($.btnNewReassess) {
+      $.btnNewReassess.addEventListener('click', () => {
+        beginNewReassess();
+      });
+    }
+
   }
 
   document.addEventListener('firebase-ready', async () => {
