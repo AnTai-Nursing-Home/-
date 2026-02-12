@@ -416,6 +416,8 @@
 
     // settings buttons
     if (els.btnSettings) els.btnSettings.addEventListener('click', () => openSettings('tab-pre'));
+    const btnLowerSettings = safeEl('btnLowerSettings');
+    if (btnLowerSettings) btnLowerSettings.addEventListener('click', () => openSettings('tab-pre'));
     if (els.btnOpenPre) els.btnOpenPre.addEventListener('click', () => openSettings('tab-pre'));
     if (els.btnOpenMove) els.btnOpenMove.addEventListener('click', () => openSettings('tab-move'));
     if (els.btnOpenIso) els.btnOpenIso.addEventListener('click', () => openSettings('tab-iso'));
