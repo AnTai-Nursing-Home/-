@@ -417,6 +417,26 @@
       border-color:#334155 !important;
     }
 
+  
+    /* ===== v4.9.2 FIX: 早/午輸入區撐滿整格（不要縮小可打字範圍） ===== */
+    .shift-grid .panel{
+      display:flex;
+      flex-direction:column;
+    }
+    /* 讓早/午 textarea 撐滿剩餘高度 */
+    #morningText, #noonText{
+      flex:1 !important;
+      min-height:0 !important;
+      height:auto !important;   /* 覆蓋先前固定 200px */
+      font-size: 32px !important; /* 早午內容再大一點點 */
+      line-height: 1.55 !important;
+    }
+    /* 備註內容字小一點 */
+    #notesText{
+      font-size: 18px !important;
+      line-height: 1.6 !important;
+    }
+
   </style>
 </head>
 
