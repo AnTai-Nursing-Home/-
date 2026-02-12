@@ -76,6 +76,39 @@
       gap: var(--wb-gap);
       align-items:stretch;
     }
+
+    /* v4.7：上方資訊改成四格（日期/時間/天氣/溫度） */
+    .info-strip.info-strip-4{
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--wb-gap);
+    }
+    .mini-info-box{
+      border: 1px solid var(--wb-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background:#fff;
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 64px;
+    }
+    .mini-label{
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--wb-muted);
+      line-height: 1;
+    }
+    .mini-value{
+      font-weight: 900;
+      font-size: 18px;
+      color:#111;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .info-box{
       border: 1px solid var(--wb-border);
       border-radius: 10px;
@@ -351,25 +384,22 @@
 
           <!-- 上半左（最大） -->
           <div class="panel upper-left">
-            <div class="info-strip">
-              <!-- 左上小格：日期/時間/天氣 + 溫度 -->
-              <div class="info-box">
-                <div class="info-left">
-                  <div class="muted" id="wbDateText">—</div>
-                  <div class="mono" id="wbTimeText">—</div>
-                  <div class="wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">晴</span></div>
-                </div>
-                <div class="info-temp">
-                  <span id="wbTemp">27℃</span>
-                </div>
+            <div class="info-strip info-strip-4">
+              <div class="mini-info-box">
+                <div class="mini-label">日期</div>
+                <div class="mini-value" id="wbDateText">—</div>
               </div>
-
-              <!-- 天氣/溫度：自動抓北勢村中正路（免手動） -->
-              <div class="d-flex gap-2 align-items-start">
-                <div class="w-100">
-                  <div class="field-title"><span>天氣/溫度</span><span class="hint">自動更新：崁頂鄉北勢村 中正路</span></div>
-                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新；全螢幕只讀）</div>
-                </div>
+              <div class="mini-info-box">
+                <div class="mini-label">時間</div>
+                <div class="mini-value mono" id="wbTimeText">—</div>
+              </div>
+              <div class="mini-info-box">
+                <div class="mini-label">天氣</div>
+                <div class="mini-value wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">晴</span></div>
+              </div>
+              <div class="mini-info-box">
+                <div class="mini-label">溫度</div>
+                <div class="mini-value" id="wbTemp">27℃</div>
               </div>
             </div>
 
@@ -416,8 +446,8 @@
           <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center">
-                <div class="field-title"><span>家屬探視</span><span class="hint">由 bookings 帶入/可手改</span></div>
-                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
+                <div class="field-title"><span>探視</span><span class="hint">bookings/可改</span></div>
+                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">帶入</button>
               </div>
 
               <div class="visit-grid mt-2">
@@ -458,10 +488,6 @@
 
     </div> <!-- /board-grid -->
   </div> <!-- /boardRoot -->
-
-  <div class="text-muted small mt-2">
-    全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
-  </div>
 </div> <!-- /wb-wrap -->
 
   
