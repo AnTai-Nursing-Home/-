@@ -123,7 +123,9 @@
     }
     .field-title .hint{ font-weight:700; font-size:12px; color: var(--wb-muted); }
 
-    .shift-grid textarea.wb-text{ font-size: 20px; line-height: 1.6; }
+    .shift-grid #notesText{ font-size: 22px; line-height: 1.6; }
+
+    textarea.wb-text{ font-size: 24px; line-height: 1.6; }
 
     textarea.wb-text{
       width:100%;
@@ -284,6 +286,22 @@
       .summary-card .pill-list{ max-height: 120px; }
     }
 
+  
+    /* v4.4：下半維持三格，但設定移到彈窗，避免擠壓重疊 */
+    .lower.lower-v44{
+      display: grid;
+      grid-template-columns: 0.5fr 2fr 0.5fr;
+      gap: var(--wb-gap);
+      min-height: 0;
+    }
+    .lower.lower-v44 .panel{ min-height: 0; }
+    .lower.lower-v44 .pill-list{ max-height: 120px; overflow: auto; padding-right: 4px; }
+    .board-footnote{ padding: 0 var(--wb-gap); }
+    @media (max-width: 992px){
+      .lower.lower-v44{ grid-template-columns: 1fr; }
+      .lower.lower-v44 .pill-list{ max-height: 160px; }
+    }
+
   </style>
 </head>
 
@@ -327,8 +345,8 @@
               <!-- 天氣/溫度：自動抓北勢村中正路（免手動） -->
               <div class="d-flex gap-2 align-items-start">
                 <div class="w-100">
-                  <div class="field-title"><span>天氣/溫度</span><span class="hint">天氣資訊：崁頂鄉北勢村中正路</span></div>
-                  <div class="text-muted small">（每 10 分鐘更新）</div>
+                  <div class="field-title"><span>天氣/溫度</span><span class="hint">自動更新：崁頂鄉北勢村 中正路</span></div>
+                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新；全螢幕只讀）</div>
                 </div>
               </div>
             </div>
@@ -355,40 +373,33 @@
 
         <!-- 下半 -->
         <!-- 下半部 -->
-        <div class="lower lower-v4">
-          <!-- 下半設定摘要（固定高度，不擠壓探視） -->
-          <div class="lower-summary">
-            <div class="summary-card">
+        <div class="lower lower-v44">
+          <!-- 第一格：預入住 + 今日待轉床（只顯示清單；設定在彈窗） -->
+          <div class="panel">
+            <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="field-title m-0"><span>預入住</span><span class="hint">可多筆</span></div>
-                <button class="btn btn-success btn-sm" id="btnOpenPre" data-edit="1">設定</button>
+                <button class="btn btn-success btn-sm" id="btnOpenPre" data-edit="1" type="button">設定</button>
               </div>
               <div class="pill-list" id="preList"></div>
             </div>
 
-            <div class="summary-card">
+            <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="field-title m-0"><span>今日待轉床</span><span class="hint">可多筆</span></div>
-                <button class="btn btn-success btn-sm" id="btnOpenMove" data-edit="1">設定</button>
+                <button class="btn btn-success btn-sm" id="btnOpenMove" data-edit="1" type="button">設定</button>
               </div>
               <div class="pill-list" id="moveList"></div>
-            </div>
-
-            <div class="summary-card">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>預解隔</span><span class="hint">可多筆</span></div>
-                <button class="btn btn-success btn-sm" id="btnOpenIso" data-edit="1">設定</button>
-              </div>
-              <div class="pill-list" id="isoList"></div>
+              <div class="board-footnote text-muted small mt-2">顯示格式：床號 姓名(遮罩) ⮕ 目標床</div>
             </div>
           </div>
 
-          <!-- 家屬探視（全寬，不再被三欄擠壓） -->
-          <div class="panel visits-panel flex-fill">
+          <!-- 第二格：家屬探視（下半第2格） -->
+          <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center">
                 <div class="field-title"><span>家屬探視</span><span class="hint">由 bookings 帶入/可手改</span></div>
-                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1">自動帶入 bookings</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
               </div>
 
               <div class="visit-grid mt-2">
@@ -415,14 +426,20 @@
               </div>
             </div>
           </div>
-        </div>
-</div>
+
+          <!-- 第三格：預解隔（只顯示清單；設定在彈窗） -->
+          <div class="panel">
+            <div class="subpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="field-title m-0"><span>預解隔</span><span class="hint">可多筆</span></div>
+                <button class="btn btn-success btn-sm" id="btnOpenIso" data-edit="1" type="button">設定</button>
+              </div>
+              <div class="pill-list" id="isoList"></div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="text-muted small mt-2">
+
+<div class="text-muted small mt-2">
       全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
     </div>
   </div>
@@ -441,7 +458,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- 本頁 JS -->
-  <script src="nurse-whiteboard.js"></script>
+  <script src="nurse-whiteboard.v4.4.js"></script>
 
   <!-- 設定視窗（新增/管理：預入住、待轉床、預解隔） -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
