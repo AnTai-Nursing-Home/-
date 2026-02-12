@@ -194,18 +194,19 @@
     .pill .x{ cursor:pointer; font-weight:900; color:#374151; }
     .pill .x:hover{ color:#111; }
 
-    /* 探視：避免超出畫面（v4.7 fix） */
+    /* 探視：列高修正（v4.7 compact） */
     .visit-grid{
       display:grid;
-      grid-template-rows: repeat(5, 1fr);
+      grid-template-rows: auto;
       gap:8px;
-      height: calc(100% - 30px);
+      
       min-height: 0;
       min-width: 0;
       overflow-y: auto;
     }
     .visit-row{
       display:grid;
+      height:40px;
       grid-template-columns: 80px minmax(0, 1fr);
       gap:8px;
       align-items:stretch;
@@ -214,6 +215,8 @@
     }
     .visit-time{
       font-weight: 900;
+      height:40px;
+      font-size:14px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -223,12 +226,15 @@
       min-width: 0;
     }
     .visit-row textarea{
-      height:100%;
-      min-height: 52px;
+      height:40px;
+      min-height:40px;
       width: 100%;
       max-width: 100%;
       min-width: 0;
-      overflow: auto;
+      padding:6px 10px;
+      font-size:16px;
+      resize:none;
+      overflow:auto;
     }
 
     /* 全螢幕只讀 */
@@ -245,7 +251,10 @@
     /* v4.7：非全螢幕可滾動，避免擠壓 */
     #boardRoot{
       max-height: calc(100vh - 90px);
-      overflow: auto;
+      padding:6px 10px;
+      font-size:16px;
+      resize:none;
+      overflow:auto;
       padding-bottom: 12px;
     }
     #boardRoot:fullscreen{
