@@ -34,8 +34,10 @@
       border-radius: 14px;
       padding: var(--wb-gap);
       box-shadow: 0 10px 30px rgba(0,0,0,.06);
-      aspect-ratio: 16 / 9;
-      min-height: 620px;
+      /* 讓內容不會擠到重疊：用視窗高度固定版面，必要時可捲動 */
+      height: calc(100vh - 140px);
+      min-height: 640px;
+      overflow: auto;
     }
     /* 上 3/4，下 1/4 */
     .board-grid{
@@ -59,6 +61,8 @@
       padding: 10px;
       background: var(--wb-card);
       min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     /* 左上大區塊：左上資訊小格 + 早/午 */
@@ -125,8 +129,9 @@
 
     textarea.wb-text{
       width:100%;
-      height: calc(100% - 26px);
-      min-height: 120px;
+      flex: 1;
+      height: 100%;
+      min-height: 90px;
       border: 1px solid var(--wb-border);
       border-radius: 10px;
       padding: 10px;
@@ -190,9 +195,9 @@
 
     .visit-grid{
       display:grid;
-      grid-template-rows: repeat(5, 1fr);
+      grid-template-rows: repeat(5, minmax(54px, 1fr));
       gap:8px;
-      height: calc(100% - 30px);
+      flex: 1;
       min-height: 0;
     }
     .visit-row{
@@ -229,6 +234,15 @@
 
     /* 小工具 */
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* RWD：窄螢幕避免三欄擠在一起 */
+    @media (max-width: 1100px){
+      .upper{ grid-template-columns: 1fr; }
+      .lower{ grid-template-columns: 1fr; }
+      .info-strip{ grid-template-columns: 1fr; }
+      .board{ height: auto; min-height: 0; }
+    }
+
   </style>
 </head>
 
