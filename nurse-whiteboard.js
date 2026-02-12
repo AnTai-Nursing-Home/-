@@ -65,6 +65,67 @@
   let boardDate = null; // YYYY-MM-DD
   let boardData = null; // loaded doc
   let isReadonly = false;
+  // ====== Weather (Kanding Township, Beishi Village) ======
+  const LOC = { lat: 22.512019, lon: 120.49051, tz: 'Asia/Taipei' }; // 北勢村附近
+  let lastWxFetchAt = 0;
+
+  function weatherCodeToWx(code) {
+    // Open-Meteo weathercode mapping (簡化版)
+    // 0 clear, 1-3 partly cloudy, 45/48 fog, 51-67 drizzle/rain, 71-77 snow, 80-82 rain showers, 95-99 thunder
+    if (code === 0) return { e:'☀️', t:'晴' };
+    if ([1,2,3].includes(code)) return { e:'⛅', t:'多雲' };
+    if ([45,48].includes(code)) return { e:'🌫️', t:'霧' };
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return { e:'🌧️', t:'雨' };
+    if (code >= 71 && code <= 77) return { e:'❄️', t:'雪' };
+    if (code >= 95 && code <= 99) return { e:'⛈️', t:'雷雨' };
+    return { e:'⛅', t:'多雲' };
+  }
+
+  async function fetchCurrentWeatherAndTemp() {
+    // 每 5 分鐘最多抓一次，避免過度請求
+    const now = Date.now();
+    if (now - lastWxFetchAt < 5 * 60 * 1000) return;
+    lastWxFetchAt = now;
+
+    try {
+      // Open-Meteo: current temperature & weather code
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}` +
+        `&current=temperature_2m,weather_code&timezone=${encodeURIComponent(LOC.tz)}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('weather fetch failed');
+      const json = await res.json();
+
+      const temp = json?.current?.temperature_2m;
+      const code = json?.current?.weather_code;
+
+      if (typeof temp === 'number') {
+        // 顯示即時溫度；不強制覆寫你保存的 tempC（只更新畫面）
+        els.tempInput.value = String(Math.round(temp));
+        els.wbTemp.textContent = `${Math.round(temp)}℃`;
+      }
+
+      if (typeof code === 'number') {
+        const wx = weatherCodeToWx(code);
+        els.wbWxEmoji.textContent = wx.e;
+        els.wbWxText.textContent = wx.t;
+
+        // 同步下拉顯示（不強制變更你的存檔設定）
+        // 依 code 推回 select 近似值
+        let v = 'cloudy';
+        if (code === 0) v = 'sunny';
+        else if ([1,2,3].includes(code)) v = 'cloudy';
+        else if ([45,48].includes(code)) v = 'fog';
+        else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) v = 'rain';
+        else if (code >= 95 && code <= 99) v = 'thunder';
+        els.wxSelect.value = v;
+      }
+    } catch (e) {
+      console.warn('[whiteboard] weather fetch failed:', e);
+      // 失敗就維持原本顯示
+    }
+  }
+
 
   const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -306,11 +367,11 @@
     const d = new Date();
     els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
-    els.btnToday.addEventListener('click', () => loadBoard(todayISO()));
+    els.btnToday.addEventListener('click', async () => { await loadBoard(todayISO()); await fetchCurrentWeatherAndTemp(); });
 
     els.boardDate.addEventListener('change', () => {
       const v = els.boardDate.value;
-      if (v) loadBoard(v);
+      if (v) { await loadBoard(v); await fetchCurrentWeatherAndTemp(); }
     });
 
     els.wxSelect.addEventListener('change', () => {
@@ -411,6 +472,8 @@
 
       bindEvents();
       await loadBoard(todayISO());
+      await fetchCurrentWeatherAndTemp();
+      setInterval(fetchCurrentWeatherAndTemp, 10 * 60 * 1000);
       setReadonly(false);
     } catch (e) {
       console.error(e);
