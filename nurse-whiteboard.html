@@ -51,7 +51,7 @@
 
     .upper{
       display:grid;
-      grid-template-columns: 3fr 1fr;
+      grid-template-columns: 4fr 0.85fr;
       gap: var(--wb-gap);
       min-height: 0;
       min-width: 0;
@@ -93,6 +93,22 @@
       min-width: 0;
       overflow: hidden;
     }
+
+    .info-card{ position: relative; }
+    .info-card::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:10px;
+      pointer-events:none;
+      opacity:.14;
+      background: linear-gradient(135deg, rgba(59,130,246,.18), rgba(255,255,255,0));
+    }
+    .info-card.info-time::before{ background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(255,255,255,0)); }
+    .info-card.info-weather::before{ background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(255,255,255,0)); }
+    .info-card.info-temp::before{ background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(255,255,255,0)); }
+    .info-card > *{ position: relative; } /* keep text above decoration */
+
     .info-label{
       font-weight: 900;
       font-size: 12px;
@@ -305,20 +321,20 @@
           <div class="panel upper-left">
             <!-- v4.7：四格資訊 -->
             <div class="info-strip">
-              <div class="info-card">
-                <div class="info-label">日期</div>
+              <div class="info-card info-date">
+                <div class="info-label" id="lblDate">日期</div>
                 <div class="info-value" id="wbDateText">—</div>
               </div>
-              <div class="info-card">
-                <div class="info-label">時間</div>
+              <div class="info-card info-time">
+                <div class="info-label" id="lblTime">時間</div>
                 <div class="info-value mono" id="wbTimeText">—</div>
               </div>
-              <div class="info-card">
-                <div class="info-label">天氣</div>
+              <div class="info-card info-weather">
+                <div class="info-label" id="lblWeather">天氣</div>
                 <div class="info-value wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">—</span></div>
               </div>
-              <div class="info-card">
-                <div class="info-label">溫度</div>
+              <div class="info-card info-temp">
+                <div class="info-label" id="lblTemp">溫度</div>
                 <div class="info-value" id="wbTemp">—</div>
               </div>
             </div>
@@ -502,7 +518,7 @@
   </div>
 
   <!-- 本頁 JS（放在 modal 之後，確保 btnAddPre/Move/Iso 能綁到事件） -->
-  <script src="nurse-whiteboard.js"></script>
+  <script src="nurse-whiteboard.v4.8.js"></script>
 
 </body>
 </html>
