@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>護理師系統｜電子白板</title>
+
+  <!-- 依你現有專案：bootstrap / fontawesome 若已全域載入可刪 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <style>
+    :root{
+      --wb-gap: 12px;
+      --wb-border: #d9d9d9;
+      --wb-bg: #ffffff;
+      --wb-muted: #666;
+      --wb-card: #f9fafb;
+      --wb-pill: #eef2ff;
+      --wb-pill-border:#c7d2fe;
+    }
+    body{ background:#f3f4f6; }
+    .wb-wrap{ max-width: 1280px; margin: 0 auto; padding: 16px; }
+    .wb-topbar{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      margin-bottom: 10px;
+    }
+    .wb-title{ font-size: 18px; font-weight: 800; }
+    .wb-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .wb-actions .form-control, .wb-actions .form-select{ height: 34px; padding: 4px 10px; }
+
+    .board{
+      background: var(--wb-bg);
+      border: 1px solid var(--wb-border);
+      border-radius: 14px;
+      padding: var(--wb-gap);
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+      aspect-ratio: 16 / 9;
+      min-height: 620px;
+    }
+    /* 上 3/4，下 1/4 */
+    .board-grid{
+      height:100%;
+      display:grid;
+      grid-template-rows: 3fr 1fr;
+      gap: var(--wb-gap);
+    }
+
+    /* 上半：左(3/4) 右(1/4) */
+    .upper{
+      display:grid;
+      grid-template-columns: 3fr 1fr;
+      gap: var(--wb-gap);
+      min-height: 0;
+    }
+
+    .panel{
+      border: 1px solid var(--wb-border);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--wb-card);
+      min-height: 0;
+    }
+
+    /* 左上大區塊：左上資訊小格 + 早/午 */
+    .upper-left{
+      display:grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      gap: var(--wb-gap);
+      min-height: 0;
+    }
+
+    .info-strip{
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap: var(--wb-gap);
+      align-items:stretch;
+    }
+    .info-box{
+      border: 1px solid var(--wb-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background:#fff;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      column-gap: 10px;
+      row-gap: 2px;
+      align-content:start;
+    }
+    .info-left{
+      display:grid;
+      row-gap: 2px;
+      font-weight: 700;
+    }
+    .info-left .muted{ color: var(--wb-muted); font-weight: 700; }
+    .info-temp{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      justify-content:flex-end;
+      font-weight: 900;
+      font-size: 18px;
+      white-space:nowrap;
+    }
+    .wx{
+      display:flex; gap:6px; align-items:center;
+      font-weight:800;
+      color:#111;
+    }
+    .wx-emoji{ font-size: 18px; }
+
+    .shift-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--wb-gap);
+      min-height: 0;
+    }
+
+    .field-title{
+      display:flex; justify-content:space-between; align-items:center;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+    .field-title .hint{ font-weight:700; font-size:12px; color: var(--wb-muted); }
+
+    textarea.wb-text{
+      width:100%;
+      height: calc(100% - 26px);
+      min-height: 120px;
+      border: 1px solid var(--wb-border);
+      border-radius: 10px;
+      padding: 10px;
+      resize:none;
+      background:#fff;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    /* 上半右側備註 */
+    .notes textarea.wb-text{ min-height: 220px; }
+
+    /* 下半：0.5/3 | 2/3 | 0.5/3  */
+    .lower{
+      display:grid;
+      grid-template-columns: 1fr 4fr 1fr; /* 0.5/3 : 2/3 : 0.5/3 近似 */
+      gap: var(--wb-gap);
+      min-height: 0;
+    }
+    .lower .panel{ background:#fff; }
+
+    .subpanel{
+      border: 1px dashed var(--wb-border);
+      border-radius: 10px;
+      padding: 8px;
+      background:#f9fafb;
+      min-height: 0;
+    }
+    .subpanel + .subpanel{ margin-top: 8px; }
+
+    .pill-list{ display:flex; flex-wrap:wrap; gap:8px; }
+    .pill{
+      border: 1px solid var(--wb-pill-border);
+      background: var(--wb-pill);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-weight: 800;
+      font-size: 13px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .pill .x{ cursor:pointer; font-weight:900; color:#374151; }
+    .pill .x:hover{ color:#111; }
+
+    .mini-form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .mini-form .form-control, .mini-form .form-select{
+      height: 32px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    .mini-form .full{ grid-column: 1 / -1; }
+    .mini-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; }
+    .mini-actions .btn{ padding: 4px 10px; }
+
+    .visit-grid{
+      display:grid;
+      grid-template-rows: repeat(5, 1fr);
+      gap:8px;
+      height: calc(100% - 30px);
+      min-height: 0;
+    }
+    .visit-row{
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap:8px;
+      align-items:stretch;
+      min-height: 0;
+    }
+    .visit-time{
+      font-weight: 900;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid var(--wb-border);
+      border-radius:10px;
+      background:#f9fafb;
+    }
+    .visit-row textarea{
+      height:100%;
+      min-height: 52px;
+    }
+
+    /* 全螢幕只讀 */
+    .readonly textarea,
+    .readonly input,
+    .readonly select,
+    .readonly button[data-edit="1"]{
+      pointer-events:none !important;
+      filter: grayscale(.2);
+      opacity: .92;
+    }
+    .readonly .pill .x{ display:none; }
+
+    /* 小工具 */
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+
+<body>
+  <div class="wb-wrap">
+    <div class="wb-topbar">
+      <div class="wb-title">電子白板</div>
+
+      <div class="wb-actions">
+        <input type="date" id="boardDate" class="form-control" />
+        <button class="btn btn-outline-secondary btn-sm" id="btnToday">今天</button>
+        <button class="btn btn-primary btn-sm" id="btnSave" data-edit="1">儲存</button>
+        <button class="btn btn-outline-primary btn-sm" id="btnFullscreen">全螢幕</button>
+        <span class="text-muted small" id="saveHint">—</span>
+      </div>
+    </div>
+
+    <div class="board" id="boardRoot">
+      <div class="board-grid">
+
+        <!-- 上半 -->
+        <div class="upper">
+
+          <!-- 上半左（最大） -->
+          <div class="panel upper-left">
+            <div class="info-strip">
+              <!-- 左上小格：日期/時間/天氣 + 溫度 -->
+              <div class="info-box">
+                <div class="info-left">
+                  <div class="muted" id="wbDateText">—</div>
+                  <div class="mono" id="wbTimeText">—</div>
+                  <div class="wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">晴</span></div>
+                </div>
+                <div class="info-temp">
+                  <span id="wbTemp">27℃</span>
+                </div>
+              </div>
+
+              <!-- 天氣/溫度可編輯（非全螢幕） -->
+              <div class="d-flex gap-2 align-items-start">
+                <div class="w-100">
+                  <div class="field-title"><span>天氣/溫度</span><span class="hint">可自行設定</span></div>
+                  <div class="d-flex gap-2">
+                    <select id="wxSelect" class="form-select form-select-sm" style="width:140px;" data-edit="1">
+                      <option value="sunny">☀️ 晴</option>
+                      <option value="cloudy">⛅ 多雲</option>
+                      <option value="rain">🌧️ 雨</option>
+                      <option value="thunder">⛈️ 雷雨</option>
+                      <option value="wind">💨 風</option>
+                      <option value="fog">🌫️ 霧</option>
+                    </select>
+                    <input id="tempInput" class="form-control form-control-sm" style="width:120px;" placeholder="27" data-edit="1" />
+                    <div class="text-muted small align-self-center">℃</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 早 / 午 -->
+            <div class="shift-grid">
+              <div class="panel h-100" style="background:#fff;">
+                <div class="field-title"><span>早</span><span class="hint">可打字</span></div>
+                <textarea id="morningText" class="wb-text" data-edit="1"></textarea>
+              </div>
+              <div class="panel h-100" style="background:#fff;">
+                <div class="field-title"><span>午</span><span class="hint">可打字</span></div>
+                <textarea id="noonText" class="wb-text" data-edit="1"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- 上半右：備註 -->
+          <div class="panel notes" style="background:#fff;">
+            <div class="field-title"><span>備註</span><span class="hint">可打字</span></div>
+            <textarea id="notesText" class="wb-text" data-edit="1"></textarea>
+          </div>
+        </div>
+
+        <!-- 下半 -->
+        <div class="lower">
+
+          <!-- 第一格：預入住 + 今日待轉床 -->
+          <div class="panel">
+            <div class="subpanel">
+              <div class="field-title"><span>預入住</span><span class="hint">可多筆</span></div>
+              <div class="mini-form">
+                <input type="date" id="preDate" class="form-control" data-edit="1">
+                <input id="preBed" class="form-control" placeholder="床號(例:216-1)" data-edit="1">
+                <input id="preName" class="form-control full" placeholder="姓名" data-edit="1">
+              </div>
+              <div class="mini-actions">
+                <button class="btn btn-success btn-sm" id="btnAddPre" data-edit="1">新增</button>
+              </div>
+              <div class="pill-list" id="preList"></div>
+            </div>
+
+            <div class="subpanel">
+              <div class="field-title"><span>今日待轉床</span><span class="hint">由住民資料選床</span></div>
+              <div class="mini-form">
+                <input id="fromBed" class="form-control" placeholder="原床(例:216-1)" data-edit="1">
+                <input id="toBed" class="form-control" placeholder="目標床(例:216-2)" data-edit="1">
+                <select id="residentByBed" class="form-select full" data-edit="1">
+                  <option value="">（先輸入原床，載入住民）</option>
+                </select>
+              </div>
+              <div class="mini-actions">
+                <button class="btn btn-success btn-sm" id="btnAddMove" data-edit="1">新增</button>
+              </div>
+              <div class="pill-list" id="moveList"></div>
+              <div class="text-muted small mt-2">顯示格式：床號 姓名(遮罩) ⮕ 目標床</div>
+            </div>
+          </div>
+
+          <!-- 第二格：家屬探視 -->
+          <div class="panel">
+            <div class="field-title">
+              <span>家屬探視</span>
+              <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1">自動帶入 bookings</button>
+              </div>
+            </div>
+
+            <div class="visit-grid">
+              <div class="visit-row">
+                <div class="visit-time">14:30</div>
+                <textarea id="visit1430" class="wb-text" data-edit="1"></textarea>
+              </div>
+              <div class="visit-row">
+                <div class="visit-time">15:00</div>
+                <textarea id="visit1500" class="wb-text" data-edit="1"></textarea>
+              </div>
+              <div class="visit-row">
+                <div class="visit-time">15:30</div>
+                <textarea id="visit1530" class="wb-text" data-edit="1"></textarea>
+              </div>
+              <div class="visit-row">
+                <div class="visit-time">16:00</div>
+                <textarea id="visit1600" class="wb-text" data-edit="1"></textarea>
+              </div>
+              <div class="visit-row">
+                <div class="visit-time">16:30</div>
+                <textarea id="visit1630" class="wb-text" data-edit="1"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第三格：預解隔 -->
+          <div class="panel">
+            <div class="subpanel">
+              <div class="field-title"><span>預解隔</span><span class="hint">可多筆</span></div>
+              <div class="mini-form">
+                <input type="date" id="isoDate" class="form-control" data-edit="1">
+                <input id="isoBed" class="form-control" placeholder="床號(例:113)" data-edit="1">
+                <input id="isoToBed" class="form-control" placeholder="預到床(例:216-1)" data-edit="1">
+                <input id="isoName" class="form-control full" placeholder="姓名" data-edit="1">
+              </div>
+              <div class="mini-actions">
+                <button class="btn btn-success btn-sm" id="btnAddIso" data-edit="1">新增</button>
+              </div>
+              <div class="pill-list" id="isoList"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="text-muted small mt-2">
+      全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
+    </div>
+  </div>
+
+  <!-- 你專案的 firebase-init.js（請用你現有的那支） -->
+  <script src="firebase-init.js"></script>
+
+  <!-- 本頁 JS -->
+  <script src="nurse-whiteboard.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
