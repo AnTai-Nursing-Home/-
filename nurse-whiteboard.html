@@ -136,7 +136,7 @@
       padding: 10px;
       resize:none;
       background:#fff;
-      font-size: 14px;
+      font-size: 18px;
       line-height: 1.55;
     }
 
@@ -316,8 +316,9 @@
       overflow: hidden;
     }
     /* textarea 字體放大（強制覆蓋） */
-    #morningText, #noonText{ font-size: 24px !important; line-height: 1.6 !important; }
-    #notesText{ font-size: 22px !important; line-height: 1.6 !important; }
+    #morningText, #noonText{ font-size: 28px !important; line-height: 1.6 !important; }
+    #notesText{ font-size: 26px !important; line-height: 1.6 !important; }
+    #visit1430, #visit1500, #visit1530, #visit1600, #visit1630{ font-size: 18px !important; line-height: 1.55 !important; }
 
     /* 下半三格避免高度互相壓縮 */
     .lower{ min-height: 0; }
@@ -453,11 +454,15 @@
             </div>
           </div>
         </div>
+      </div>
 
-<div class="text-muted small mt-2">
-      全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
-    </div>
+    </div> <!-- /board-grid -->
+  </div> <!-- /boardRoot -->
+
+  <div class="text-muted small mt-2">
+    全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
   </div>
+</div> <!-- /wb-wrap -->
 
   
   <!-- Firebase SDK -->
