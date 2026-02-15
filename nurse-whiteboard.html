@@ -1,18 +1,3 @@
-    /* v4.9.4：資訊卡對應動畫（全螢幕/一般皆可；若系統偏好減少動態則停用） */
-    @keyframes wbFloat { 0%{ transform: translateY(0);} 50%{ transform: translateY(-2px);} 100%{ transform: translateY(0);} }
-    @keyframes wbPulse { 0%{ transform: scale(1);} 50%{ transform: scale(1.015);} 100%{ transform: scale(1);} }
-    @keyframes wbGlow  { 0%{ filter: brightness(1);} 50%{ filter: brightness(1.08);} 100%{ filter: brightness(1);} }
-    @keyframes wbTick  { 0%,90%{ opacity:1;} 95%{ opacity:.35;} 100%{ opacity:1;} }
-
-    .info-card:nth-child(1){ animation: wbFloat 6s ease-in-out infinite; } /* 日期：漂浮 */
-    .info-card:nth-child(2) .info-value{ animation: wbTick 1s linear infinite; } /* 時間：輕微閃爍 */
-    .info-card:nth-child(3){ animation: wbGlow 5s ease-in-out infinite; } /* 天氣：光暈 */
-    .info-card:nth-child(4){ animation: wbPulse 4s ease-in-out infinite; } /* 溫度：脈動 */
-
-    @media (prefers-reduced-motion: reduce){
-      .info-card, .info-card *{ animation: none !important; }
-    }
-
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -458,7 +443,24 @@
       border-color:#334155 !important;
     }
 
-  </style>
+  
+
+/* --- animations moved into style (fix) --- */
+/* v4.9.4：資訊卡對應動畫（全螢幕/一般皆可；若系統偏好減少動態則停用） */
+    @keyframes wbFloat { 0%{ transform: translateY(0);} 50%{ transform: translateY(-2px);} 100%{ transform: translateY(0);} }
+    @keyframes wbPulse { 0%{ transform: scale(1);} 50%{ transform: scale(1.015);} 100%{ transform: scale(1);} }
+    @keyframes wbGlow  { 0%{ filter: brightness(1);} 50%{ filter: brightness(1.08);} 100%{ filter: brightness(1);} }
+    @keyframes wbTick  { 0%,90%{ opacity:1;} 95%{ opacity:.35;} 100%{ opacity:1;} }
+
+    .info-card:nth-child(1){ animation: wbFloat 6s ease-in-out infinite; } /* 日期：漂浮 */
+    .info-card:nth-child(2) .info-value{ animation: wbTick 1s linear infinite; } /* 時間：輕微閃爍 */
+    .info-card:nth-child(3){ animation: wbGlow 5s ease-in-out infinite; } /* 天氣：光暈 */
+    .info-card:nth-child(4){ animation: wbPulse 4s ease-in-out infinite; } /* 溫度：脈動 */
+
+    @media (prefers-reduced-motion: reduce){
+      .info-card, .info-card *{ animation: none !important; }
+    }
+</style>
 </head>
 
 <body>
