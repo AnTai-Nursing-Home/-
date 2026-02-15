@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>護理師系統｜電子白板</title>
 
+  <!-- 依你現有專案：bootstrap / fontawesome 若已全域載入可刪 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 
   <style>
-    *{ box-sizing:border-box; }
     :root{
       --wb-gap: 12px;
       --wb-border: #d9d9d9;
@@ -20,7 +20,6 @@
     }
     body{ background:#f3f4f6; }
     .wb-wrap{ max-width: 1280px; margin: 0 auto; padding: 16px; }
-
     .wb-topbar{
       display:flex; gap:10px; align-items:center; justify-content:space-between;
       margin-bottom: 10px;
@@ -37,24 +36,21 @@
       box-shadow: 0 10px 30px rgba(0,0,0,.06);
       aspect-ratio: 16 / 9;
       min-height: 620px;
-      width: 100%;
-      min-width: 0;
     }
+    /* 上 3/4，下 1/4 */
     .board-grid{
       height:100%;
       display:grid;
       grid-template-rows: 3fr 1fr;
       gap: var(--wb-gap);
-      min-height: 0;
-      min-width: 0;
     }
 
+    /* 上半：左(3/4) 右(1/4) */
     .upper{
       display:grid;
-      grid-template-columns: 4fr 0.85fr;
+      grid-template-columns: 3fr 1fr;
       gap: var(--wb-gap);
       min-height: 0;
-      min-width: 0;
     }
 
     .panel{
@@ -63,113 +59,53 @@
       padding: 10px;
       background: var(--wb-card);
       min-height: 0;
-      min-width: 0;
-      width: 100%;
     }
 
-    /* 左上大區塊：資訊列 + 早/午 */
+    /* 左上大區塊：左上資訊小格 + 早/午 */
     .upper-left{
       display:grid;
       grid-template-columns: 1fr;
       grid-template-rows: auto 1fr;
       gap: var(--wb-gap);
       min-height: 0;
-      min-width: 0;
     }
 
-    /* v4.7：日期/時間/天氣/溫度 各一格 */
     .info-strip{
       display:grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: 220px 1fr;
       gap: var(--wb-gap);
       align-items:stretch;
-      min-width: 0;
     }
-
-    .info-card{
-      border-radius: 14px;
-      padding: 10px 12px;
-      min-width: 0;
-      overflow: hidden;
-      position: relative;
-      border: 1px solid rgba(0,0,0,.08);
-      box-shadow: 0 6px 18px rgba(0,0,0,.08);
-      color:#0b1220;
-      background: #fff;
+    .info-box{
+      border: 1px solid var(--wb-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background:#fff;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      column-gap: 10px;
+      row-gap: 2px;
+      align-content:start;
     }
-
-    /* 讓每格有明顯、但不刺眼的主題背景（白天） */
-    .info-card::before{
-      content:"";
-      position:absolute;
-      inset:-40px -40px auto auto;
-      width:180px;
-      height:180px;
-      border-radius: 999px;
-      opacity:.35;
-      filter: blur(0px);
-      transform: rotate(12deg);
-      pointer-events:none;
+    .info-left{
+      display:grid;
+      row-gap: 2px;
+      font-weight: 700;
     }
-    .info-card::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      background:
-        radial-gradient(120px 80px at 18% 18%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%),
-        linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,0));
-      opacity:.55;
-      pointer-events:none;
-    }
-
-    .info-card.info-date{
-      background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 55%, #e0f2fe 100%);
-      border-color:#7dd3fc;
-    }
-    .info-card.info-date::before{ background: radial-gradient(circle at 30% 30%, #38bdf8, rgba(56,189,248,0)); }
-
-    .info-card.info-time{
-      background: linear-gradient(135deg, #ede9fe 0%, #ffffff 55%, #ede9fe 100%);
-      border-color:#a78bfa;
-    }
-    .info-card.info-time::before{ background: radial-gradient(circle at 30% 30%, #8b5cf6, rgba(139,92,246,0)); }
-
-    .info-card.info-weather{
-      background: linear-gradient(135deg, #fff7ed 0%, #ffffff 55%, #fff7ed 100%);
-      border-color:#fb923c;
-    }
-    .info-card.info-weather::before{ background: radial-gradient(circle at 30% 30%, #f59e0b, rgba(245,158,11,0)); }
-
-    .info-card.info-temp{
-      background: linear-gradient(135deg, #fee2e2 0%, #ffffff 55%, #fee2e2 100%);
-      border-color:#f87171;
-    }
-    .info-card.info-temp::before{ background: radial-gradient(circle at 30% 30%, #ef4444, rgba(239,68,68,0)); }
-
-    .info-card > *{ position: relative; } /* keep text above decoration */
-
-    .info-label{
-      font-weight: 900;
-      font-size: 12px;
-      color: inherit;
-      opacity: .85;
-      margin-bottom: 4px;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
-    }
-    .info-value{
+    .info-left .muted{ color: var(--wb-muted); font-weight: 700; }
+    .info-temp{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      justify-content:flex-end;
       font-weight: 900;
       font-size: 18px;
-      line-height: 1.2;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
+      white-space:nowrap;
     }
     .wx{
       display:flex; gap:6px; align-items:center;
-      font-weight:900;
-      min-width: 0;
+      font-weight:800;
+      color:#111;
     }
     .wx-emoji{ font-size: 18px; }
 
@@ -178,7 +114,6 @@
       grid-template-columns: 1fr 1fr;
       gap: var(--wb-gap);
       min-height: 0;
-      min-width: 0;
     }
 
     .field-title{
@@ -187,6 +122,10 @@
       margin-bottom: 6px;
     }
     .field-title .hint{ font-weight:700; font-size:12px; color: var(--wb-muted); }
+
+    .shift-grid #notesText{ font-size: 22px; line-height: 1.6; }
+
+    textarea.wb-text{ font-size: 24px; line-height: 1.6; }
 
     textarea.wb-text{
       width:100%;
@@ -197,10 +136,8 @@
       padding: 10px;
       resize:none;
       background:#fff;
-      font-size: 18px;            /* v4.7：整體字體放大 */
-      line-height: 1.6;
-      min-width: 0;
-      max-width: 100%;
+      font-size: 14px;
+      line-height: 1.55;
     }
 
     /* 上半右側備註 */
@@ -209,10 +146,9 @@
     /* 下半：0.5/3 | 2/3 | 0.5/3  */
     .lower{
       display:grid;
-      grid-template-columns: 0.5fr 2fr 0.5fr;
+      grid-template-columns: 1fr 4fr 1fr; /* 0.5/3 : 2/3 : 0.5/3 近似 */
       gap: var(--wb-gap);
       min-height: 0;
-      min-width: 0;
     }
     .lower .panel{ background:#fff; }
 
@@ -222,12 +158,10 @@
       padding: 8px;
       background:#f9fafb;
       min-height: 0;
-      min-width: 0;
-      overflow: hidden; /* 避免子元素撐爆 */
     }
     .subpanel + .subpanel{ margin-top: 8px; }
 
-    .pill-list{ display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
+    .pill-list{ display:flex; flex-wrap:wrap; gap:8px; }
     .pill{
       border: 1px solid var(--wb-pill-border);
       background: var(--wb-pill);
@@ -239,58 +173,51 @@
       gap:8px;
       align-items:center;
       white-space:nowrap;
-      max-width: 100%;
-    }
-    .pill > span:first-child{
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 100%;
     }
     .pill .x{ cursor:pointer; font-weight:900; color:#374151; }
     .pill .x:hover{ color:#111; }
 
-    /* 探視：列高修正（v4.7 compact） */
+    .mini-form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .mini-form .form-control, .mini-form .form-select{
+      height: 32px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    .mini-form .full{ grid-column: 1 / -1; }
+    .mini-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; }
+    .mini-actions .btn{ padding: 4px 10px; }
+
     .visit-grid{
       display:grid;
-      grid-template-rows: auto;
+      grid-template-rows: repeat(5, 1fr);
       gap:8px;
-      
+      height: calc(100% - 30px);
       min-height: 0;
-      min-width: 0;
-      overflow-y: auto;
     }
     .visit-row{
       display:grid;
-      height:40px;
-      grid-template-columns: 80px minmax(0, 1fr);
+      grid-template-columns: 92px 1fr;
       gap:8px;
       align-items:stretch;
       min-height: 0;
-      min-width: 0;
     }
     .visit-time{
       font-weight: 900;
-      height:40px;
-      font-size:14px;
       display:flex;
       align-items:center;
       justify-content:center;
       border:1px solid var(--wb-border);
       border-radius:10px;
       background:#f9fafb;
-      min-width: 0;
     }
     .visit-row textarea{
-      height:40px;
-      min-height:40px;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      padding:6px 10px;
-      font-size:16px;
-      resize:none;
-      overflow:auto;
+      height:100%;
+      min-height: 52px;
     }
 
     /* 全螢幕只讀 */
@@ -304,137 +231,203 @@
     }
     .readonly .pill .x{ display:none; }
 
-    /* v4.7：非全螢幕可滾動，避免擠壓 */
-    #boardRoot{
-      max-height: calc(100vh - 90px);
-      padding:6px 10px;
-      font-size:16px;
-      resize:none;
-      overflow:auto;
-      padding-bottom: 12px;
-    }
-    #boardRoot:fullscreen{
-      max-height: none;
-      overflow: hidden;
-    }
-
-    /* 早/午/備註再放大（你說可以更大） */
-    #morningText, #noonText{ font-size: 28px !important; line-height: 1.6 !important; }
-    #notesText{ font-size: 26px !important; line-height: 1.6 !important; }
-
-    /* ===== v4.9 夜班深色模式（20:00-06:00 自動） ===== */
-    body.night-mode{ background:#0b1220; color:#e5e7eb; }
-
-    body.night-mode .board{
-      background:#0f172a;
-      border-color:#334155;
-      box-shadow: 0 14px 40px rgba(0,0,0,.35);
-    }
-    body.night-mode .panel{
-      background:#111827;
-      border-color:#334155;
-    }
-    body.night-mode .subpanel{
-      background:#0f172a;
-      border-color:#334155;
-    }
-    body.night-mode textarea,
-    body.night-mode input,
-    body.night-mode select{
-      background:#0b1220 !important;
-      color:#e5e7eb !important;
-      border-color:#334155 !important;
-    }
-    body.night-mode .field-title .hint,
-    body.night-mode .text-muted{ color:#9ca3af !important; }
-
-    body.night-mode .visit-time{ background:#0f172a; border-color:#334155; }
-    body.night-mode .pill{
-      background:#1f2937;
-      border-color:#334155;
-      color:#e5e7eb;
-    }
-
-    /* 夜班資訊卡：更深、更不刺眼 */
-    body.night-mode .info-card{
-      color:#e5e7eb;
-      border-color:#334155;
-      box-shadow: 0 10px 24px rgba(0,0,0,.35);
-    }
-    body.night-mode .info-card::after{ opacity:.18; }
-    body.night-mode .info-card.info-date{ background: linear-gradient(135deg,#0b3a5a,#0f172a 60%,#0b3a5a); }
-    body.night-mode .info-card.info-time{ background: linear-gradient(135deg,#2b1b5a,#0f172a 60%,#2b1b5a); }
-    body.night-mode .info-card.info-weather{ background: linear-gradient(135deg,#5a3a0b,#0f172a 60%,#5a3a0b); }
-    body.night-mode .info-card.info-temp{ background: linear-gradient(135deg,#5a0b0b,#0f172a 60%,#5a0b0b); }
-
-    /* RWD */
+    /* 小工具 */
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  
+    /* RWD：避免擠壓重疊 */
     @media (max-width: 992px){
       .upper{ grid-template-columns: 1fr; }
       .lower{ grid-template-columns: 1fr; }
+      .info-strip{ grid-template-columns: 1fr; }
       .shift-grid{ grid-template-columns: 1fr; }
-      .info-strip{ grid-template-columns: 1fr 1fr; }
+      .visit-row{ grid-template-columns: 84px 1fr; }
     }
     @media (max-width: 576px){
       .wb-actions{ gap:6px; }
       .wb-actions .form-control{ width: 150px; }
+      textarea.wb-text{ font-size: 14px; }
+      .shift-grid textarea.wb-text{ font-size: 18px; }
     }
-
-    /* ===== v4.9.1 Night readability + layout polish ===== */
-
-    /* 夜班：標題（早/午/備註/探視等）文字顏色 */
-    body.night-mode .field-title span:first-child{
-      color:#f9fafb !important;
+  
+    /* v4.3：下半不再三欄擠壓，探視保持全寬 */
+    .lower.lower-v4{
+      display: flex;
+      flex-direction: column;
+      gap: var(--wb-gap);
+      height: 100%;
+      min-height: 0;
     }
-    body.night-mode .field-title .hint{
-      color:#9ca3af !important;
+    .lower-summary{
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--wb-gap);
+      height: 140px; /* 固定高度避免擠壓探視 */
+      min-height: 140px;
     }
-
-    /* 上方資訊方塊：更大、更像看板 */
-    .info-strip{ gap: 16px; }
-    .info-card{ padding: 14px 16px; border-radius: 16px; }
-    .info-label{ font-size: 13px; margin-bottom: 6px; }
-    .info-value{ font-size: 24px; }
-    .wx-emoji{ font-size: 24px; }
-
-    /* 早/午：列高更小、字稍大 */
-    #morningText, #noonText{
-      font-size: 30px !important;
-      line-height: 1.55 !important;
-      min-height: 200px !important;
-      height: 200px !important;
+    .summary-card{
+      border: 1px solid var(--wb-border);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+      overflow: hidden;
+      min-height: 0;
     }
-
-    /* 備註：字小一點（不改框大小） */
-    #notesText{
-      font-size: 20px !important;
-      line-height: 1.6 !important;
+    .summary-card .pill-list{
+      max-height: 90px;
+      overflow: auto;
+      padding-right: 4px;
     }
-
-    /* 夜班：把可能被 inline 白底影響的 panel 強制轉暗 */
-    body.night-mode .shift-grid .panel,
-    body.night-mode .notes.panel{
-      background:#111827 !important;
-      border-color:#334155 !important;
+    .visits-panel{
+      min-height: 0;
+      overflow: auto;
+    }
+    @media (max-width: 992px){
+      .lower-summary{ grid-template-columns: 1fr; height: auto; }
+      .summary-card .pill-list{ max-height: 120px; }
     }
 
   
-    /* ===== v4.9.2 FIX: 早/午輸入區撐滿整格（不要縮小可打字範圍） ===== */
-    .shift-grid .panel{
-      display:flex;
-      flex-direction:column;
+    /* v4.4：下半維持三格，但設定移到彈窗，避免擠壓重疊 */
+    .lower.lower-v44{
+      display: grid;
+      grid-template-columns: 0.5fr 2fr 0.5fr;
+      gap: var(--wb-gap);
+      min-height: 0;
     }
-    /* 讓早/午 textarea 撐滿剩餘高度 */
-    #morningText, #noonText{
-      flex:1 !important;
-      min-height:0 !important;
-      height:auto !important;   /* 覆蓋先前固定 200px */
-      font-size: 32px !important; /* 早午內容再大一點點 */
-      line-height: 1.55 !important;
+    .lower.lower-v44 .panel{ min-height: 0; }
+    .lower.lower-v44 .pill-list{ max-height: 120px; overflow: auto; padding-right: 4px; }
+    .board-footnote{ padding: 0 var(--wb-gap); }
+    @media (max-width: 992px){
+      .lower.lower-v44{ grid-template-columns: 1fr; }
+      .lower.lower-v44 .pill-list{ max-height: 160px; }
     }
-    /* 備註內容字小一點 */
-    #notesText{
-      font-size: 18px !important;
-      line-height: 1.6 !important;
+
+  
+    /* v4.6：非全螢幕可滾動，避免下半擠壓；早/午/備註字體放大 */
+    #boardRoot{
+      /* 預留上方工具列空間，整塊可滾動 */
+      max-height: calc(100vh - 90px);
+      overflow: auto;
+      padding-bottom: 12px;
+    }
+    /* 進全螢幕時：只讀且不出現滾動條（仍可用觸控板滾動視情況） */
+    #boardRoot:fullscreen{
+      max-height: none;
+      overflow: hidden;
+    }
+    /* textarea 字體放大（強制覆蓋） */
+    #morningText, #noonText{ font-size: 24px !important; line-height: 1.6 !important; }
+    #notesText{ font-size: 22px !important; line-height: 1.6 !important; }
+
+    /* 下半三格避免高度互相壓縮 */
+    .lower{ min-height: 0; }
+    .panel, .subpanel{ min-height: 0; }
+
+  
+    /* ===== v4.9.3 UI polish: 下排/各資訊區塊不單調 ===== */
+
+    /* 通用：讓各 panel 更像卡片（白天） */
+    .panel{
+      background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%) !important;
+      border: 1px solid rgba(15, 23, 42, .10) !important;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .06);
+    }
+    .subpanel{
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+      border: 1px solid rgba(15, 23, 42, .10) !important;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, .05);
+    }
+
+    /* 標題列：加上淡色底與圓角（早/午/備註/探視/預入住/待轉床/預解隔） */
+    .field-title{
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(99, 102, 241, .08);
+      border: 1px solid rgba(99, 102, 241, .18);
+    }
+    .field-title span:first-child{
+      letter-spacing: .5px;
+    }
+
+    /* 讓三個小區塊（預入住/待轉床/預解隔）各自有不同的標題底色 */
+    .lower > .panel:nth-child(1) .subpanel:first-child .field-title,
+    .lower > .panel:nth-child(1) .subpanel:first-child .field-title.m-0{
+      background: rgba(56, 189, 248, .10);
+      border-color: rgba(56, 189, 248, .25);
+    }
+    .lower > .panel:nth-child(1) .subpanel:nth-child(2) .field-title,
+    .lower > .panel:nth-child(1) .subpanel:nth-child(2) .field-title.m-0{
+      background: rgba(139, 92, 246, .10);
+      border-color: rgba(139, 92, 246, .25);
+    }
+    .lower > .panel:nth-child(3) .subpanel .field-title,
+    .lower > .panel:nth-child(3) .subpanel .field-title.m-0{
+      background: rgba(239, 68, 68, .10);
+      border-color: rgba(239, 68, 68, .25);
+    }
+
+    /* pill 更像 tag：圓角更大 + 微陰影 + hover */
+    .pill{
+      border-radius: 999px;
+      padding: 7px 12px;
+      box-shadow: 0 4px 10px rgba(15,23,42,.06);
+      background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+    }
+    .pill:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 8px 16px rgba(15,23,42,.10);
+      transition: all .15s ease;
+    }
+
+    /* 探視：每列像小卡片，時間框更有層次 */
+    .visit-row{
+      border-radius: 12px;
+      padding: 6px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid rgba(15,23,42,.10);
+      box-shadow: 0 4px 12px rgba(15,23,42,.05);
+    }
+    .visit-time{
+      background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%) !important;
+      border-color: rgba(15,23,42,.12) !important;
+    }
+    .visit-row textarea{
+      background: rgba(255,255,255,.92) !important;
+      border-color: rgba(15,23,42,.12) !important;
+    }
+
+    /* 下排左右兩欄：加一點內距與一致圓角 */
+    .lower .panel{
+      border-radius: 14px;
+    }
+
+    /* ===== 夜班：同樣有層次，但不刺眼 ===== */
+    body.night-mode .panel{
+      background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%) !important;
+      border-color:#334155 !important;
+      box-shadow: 0 14px 34px rgba(0,0,0,.35) !important;
+    }
+    body.night-mode .subpanel{
+      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%) !important;
+      border-color:#334155 !important;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
+    }
+    body.night-mode .field-title{
+      background: rgba(99, 102, 241, .14) !important;
+      border-color: rgba(99, 102, 241, .22) !important;
+    }
+    body.night-mode .visit-row{
+      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%) !important;
+      border-color:#334155 !important;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
+    }
+    body.night-mode .visit-time{
+      background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%) !important;
+      border-color:#334155 !important;
+    }
+    body.night-mode .visit-row textarea{
+      background:#0b1220 !important;
+      border-color:#334155 !important;
     }
 
   </style>
@@ -443,17 +436,13 @@
 <body>
   <div class="wb-wrap">
     <div class="wb-topbar">
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-      <a href="admin.html?view=dashboard" class="btn btn-secondary btn-sm" style="font-weight:800;">
-        ← 返回護理師儀表板
-      </a>
       <div class="wb-title">電子白板</div>
-    </div>
 
       <div class="wb-actions">
         <input type="date" id="boardDate" class="form-control" />
         <button class="btn btn-outline-secondary btn-sm" id="btnToday">今天</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnSettings" data-edit="1">設定</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnSettings" data-edit="1">上方設定</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnLowerSettings" data-edit="1">下半設定</button>
         <button class="btn btn-primary btn-sm" id="btnSave" data-edit="1">儲存</button>
         <button class="btn btn-outline-primary btn-sm" id="btnFullscreen">全螢幕</button>
         <span class="text-muted small" id="saveHint">—</span>
@@ -468,33 +457,35 @@
 
           <!-- 上半左（最大） -->
           <div class="panel upper-left">
-            <!-- v4.7：四格資訊 -->
             <div class="info-strip">
-              <div class="info-card info-date">
-                <div class="info-label" id="lblDate">日期</div>
-                <div class="info-value" id="wbDateText">—</div>
+              <!-- 左上小格：日期/時間/天氣 + 溫度 -->
+              <div class="info-box">
+                <div class="info-left">
+                  <div class="muted" id="wbDateText">—</div>
+                  <div class="mono" id="wbTimeText">—</div>
+                  <div class="wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">晴</span></div>
+                </div>
+                <div class="info-temp">
+                  <span id="wbTemp">27℃</span>
+                </div>
               </div>
-              <div class="info-card info-time">
-                <div class="info-label" id="lblTime">時間</div>
-                <div class="info-value mono" id="wbTimeText">—</div>
-              </div>
-              <div class="info-card info-weather">
-                <div class="info-label" id="lblWeather">天氣</div>
-                <div class="info-value wx"><span class="wx-emoji" id="wbWxEmoji">☀️</span><span id="wbWxText">—</span></div>
-              </div>
-              <div class="info-card info-temp">
-                <div class="info-label" id="lblTemp">溫度</div>
-                <div class="info-value" id="wbTemp">—</div>
+
+              <!-- 天氣/溫度：自動抓北勢村中正路（免手動） -->
+              <div class="d-flex gap-2 align-items-start">
+                <div class="w-100">
+                  <div class="field-title"><span>天氣/溫度</span><span class="hint">自動更新：崁頂鄉北勢村 中正路</span></div>
+                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新；全螢幕只讀）</div>
+                </div>
               </div>
             </div>
 
             <!-- 早 / 午 -->
             <div class="shift-grid">
-              <div class="panel h-100">
+              <div class="panel h-100" style="background:#fff;">
                 <div class="field-title"><span>早</span><span class="hint">可打字</span></div>
                 <textarea id="morningText" class="wb-text" data-edit="1"></textarea>
               </div>
-              <div class="panel h-100">
+              <div class="panel h-100" style="background:#fff;">
                 <div class="field-title"><span>午</span><span class="hint">可打字</span></div>
                 <textarea id="noonText" class="wb-text" data-edit="1"></textarea>
               </div>
@@ -502,38 +493,37 @@
           </div>
 
           <!-- 上半右：備註 -->
-          <div class="panel notes">
+          <div class="panel notes" style="background:#fff;">
             <div class="field-title"><span>備註</span><span class="hint">可打字</span></div>
             <textarea id="notesText" class="wb-text" data-edit="1"></textarea>
           </div>
         </div>
 
         <!-- 下半 -->
-        <div class="lower">
-          <!-- 左：預入住 + 待轉床 -->
+        <!-- 下半部 -->
+        <div class="lower lower-v44">
+          <!-- 第一格：預入住 + 今日待轉床（只顯示清單；設定在彈窗） -->
           <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>預入住</span><span class="hint">可多筆</span></div>
-              </div>
+                <div class="field-title m-0"><span>預入住</span><span class="hint">可多筆</span></div></div>
               <div class="pill-list" id="preList"></div>
             </div>
 
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>待轉床</span><span class="hint">可多筆</span></div>
-              </div>
+                <div class="field-title m-0"><span>今日待轉床</span><span class="hint">可多筆</span></div></div>
               <div class="pill-list" id="moveList"></div>
-              <div class="text-muted small mt-2">格式：床號 姓名(遮罩) ⮕ 目標床</div>
+              <div class="board-footnote text-muted small mt-2">顯示格式：床號 姓名(遮罩) ⮕ 目標床</div>
             </div>
           </div>
 
-          <!-- 中：探視 -->
+          <!-- 第二格：家屬探視（下半第2格） -->
           <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center">
-                <div class="field-title"><span>探視</span><span class="hint">bookings/可改</span></div>
-                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">帶入</button>
+                <div class="field-title"><span>家屬探視</span><span class="hint">由 bookings 帶入/可手改</span></div>
+                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
               </div>
 
               <div class="visit-grid mt-2">
@@ -561,21 +551,22 @@
             </div>
           </div>
 
-          <!-- 右：預解隔 -->
+          <!-- 第三格：預解隔（只顯示清單；設定在彈窗） -->
           <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="field-title m-0"><span>預解隔</span><span class="hint">可多筆</span></div>
-              </div>
+                <div class="field-title m-0"><span>預解隔</span><span class="hint">可多筆</span></div></div>
               <div class="pill-list" id="isoList"></div>
             </div>
           </div>
         </div>
 
-      </div><!-- /board-grid -->
-    </div><!-- /boardRoot -->
-  </div><!-- /wb-wrap -->
+<div class="text-muted small mt-2">
+      全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
+    </div>
+  </div>
 
+  
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -588,6 +579,8 @@
   <!-- Bootstrap（Modal/Tab 需要） -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- 本頁 JS -->
+  <script src="nurse-whiteboard.js"></script>
 
   <!-- 設定視窗（新增/管理：預入住、待轉床、預解隔） -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
@@ -603,7 +596,7 @@
               <button class="nav-link active" id="tab-pre" data-bs-toggle="tab" data-bs-target="#pane-pre" type="button" role="tab">預入住</button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="tab-move" data-bs-toggle="tab" data-bs-target="#pane-move" type="button" role="tab">待轉床</button>
+              <button class="nav-link" id="tab-move" data-bs-toggle="tab" data-bs-target="#pane-move" type="button" role="tab">今日待轉床</button>
             </li>
             <li class="nav-item" role="presentation">
               <button class="nav-link" id="tab-iso" data-bs-toggle="tab" data-bs-target="#pane-iso" type="button" role="tab">預解隔</button>
@@ -618,7 +611,7 @@
                 <div class="col-md-4"><input id="preName" class="form-control" placeholder="姓名" data-edit="1"></div>
               </div>
               <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddPre" data-edit="1" type="button">新增</button>
+                <button class="btn btn-success btn-sm" id="btnAddPre" data-edit="1">新增</button>
               </div>
               <hr>
               <div class="pill-list" id="preListModal"></div>
@@ -636,7 +629,7 @@
                 </div>
               </div>
               <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddMove" data-edit="1" type="button">新增</button>
+                <button class="btn btn-success btn-sm" id="btnAddMove" data-edit="1">新增</button>
               </div>
               <hr>
               <div class="pill-list" id="moveListModal"></div>
@@ -650,7 +643,7 @@
                 <div class="col-md-12"><input id="isoName" class="form-control" placeholder="姓名" data-edit="1"></div>
               </div>
               <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-success btn-sm" id="btnAddIso" data-edit="1" type="button">新增</button>
+                <button class="btn btn-success btn-sm" id="btnAddIso" data-edit="1">新增</button>
               </div>
               <hr>
               <div class="pill-list" id="isoListModal"></div>
@@ -659,15 +652,12 @@
         </div>
 
         <div class="modal-footer">
-          <div class="text-muted small me-auto">刪除：主畫面小方框按 ×（全螢幕無法操作）</div>
+          <div class="text-muted small me-auto">提示：刪除請在主畫面小方框按 ×（全螢幕無法操作）</div>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- 本頁 JS（放在 modal 之後，確保 btnAddPre/Move/Iso 能綁到事件） -->
-  <script src="nurse-whiteboard.js"></script>
 
 </body>
 </html>
