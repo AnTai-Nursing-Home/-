@@ -1,3 +1,18 @@
+
+    /* v4.9.4：資訊卡對應動畫（全螢幕/一般皆可；若系統偏好減少動態則停用） */
+    @keyframes wbFloat { 0%{ transform: translateY(0);} 50%{ transform: translateY(-2px);} 100%{ transform: translateY(0);} }
+    @keyframes wbPulse { 0%{ transform: scale(1);} 50%{ transform: scale(1.015);} 100%{ transform: scale(1);} }
+    @keyframes wbGlow  { 0%{ filter: brightness(1);} 50%{ filter: brightness(1.08);} 100%{ filter: brightness(1);} }
+    @keyframes wbTick  { 0%,90%{ opacity:1;} 95%{ opacity:.35;} 100%{ opacity:1;} }
+
+    .info-card:nth-child(1){ animation: wbFloat 6s ease-in-out infinite; } /* 日期：漂浮 */
+    .info-card:nth-child(2) .info-value{ animation: wbTick 1s linear infinite; } /* 時間：輕微閃爍 */
+    .info-card:nth-child(3){ animation: wbGlow 5s ease-in-out infinite; } /* 天氣：光暈 */
+    .info-card:nth-child(4){ animation: wbPulse 4s ease-in-out infinite; } /* 溫度：脈動 */
+
+    @media (prefers-reduced-motion: reduce){
+      .info-card, .info-card *{ animation: none !important; }
+    }
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -194,19 +209,23 @@
 
     .visit-grid{
       display:grid;
-      grid-template-rows: repeat(5, 1fr);
-      gap:8px;
-      height: calc(100% - 30px);
+      grid-template-rows: auto;
+      gap:6px;
       min-height: 0;
+      min-width: 0;
+      overflow-y: auto;
     }
     .visit-row{
       display:grid;
-      grid-template-columns: 92px 1fr;
+      grid-template-columns: 80px minmax(0, 1fr);
       gap:8px;
       align-items:stretch;
       min-height: 0;
+      min-width: 0;
+      height: 38px;
     }
     .visit-time{
+      height: 38px;
       font-weight: 900;
       display:flex;
       align-items:center;
@@ -214,10 +233,19 @@
       border:1px solid var(--wb-border);
       border-radius:10px;
       background:#f9fafb;
+      min-width: 0;
+      font-size: 14px;
     }
     .visit-row textarea{
-      height:100%;
-      min-height: 52px;
+      height: 38px;
+      min-height: 38px;
+      padding: 6px 10px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      resize: none;
+      font-size: 16px;
     }
 
     /* 全螢幕只讀 */
@@ -474,7 +502,7 @@
               <div class="d-flex gap-2 align-items-start">
                 <div class="w-100">
                   <div class="field-title"><span>天氣/溫度</span><span class="hint">自動更新：崁頂鄉北勢村 中正路</span></div>
-                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新；全螢幕只讀）</div>
+                  <div class="text-muted small">顯示左側小格資訊（每 10 分鐘更新）</div>
                 </div>
               </div>
             </div>
@@ -518,12 +546,12 @@
             </div>
           </div>
 
-          <!-- 第二格：家屬探視（下半第2格） -->
+          <!-- 第二格：探視（下半第2格） -->
           <div class="panel">
             <div class="subpanel">
               <div class="d-flex justify-content-between align-items-center">
-                <div class="field-title"><span>家屬探視</span><span class="hint">由 bookings 帶入/可手改</span></div>
-                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">自動帶入 bookings</button>
+                <div class="field-title"><span>探視</span><span class="hint">bookings/可改</span></div>
+                <button class="btn btn-outline-secondary btn-sm" id="btnAutoVisits" data-edit="1" type="button">帶入</button>
               </div>
 
               <div class="visit-grid mt-2">
@@ -562,7 +590,6 @@
         </div>
 
 <div class="text-muted small mt-2">
-      全螢幕時：只讀（不能修改）。名字會自動遮罩，至少中間 1 個字以「0」代替。
     </div>
   </div>
 
