@@ -6,7 +6,8 @@
  */
 (() => {
   const BOARD_COL = 'nurse_whiteboards';
-  const RESIDENTS_COL = 'residents';
+  const BOARD_DOC = 'current';
+const RESIDENTS_COL = 'residents';
   const BOOKINGS_COL = 'bookings';
 
   const BEISHI_LAT = 22.506545;
@@ -280,11 +281,12 @@ function stopInfoLangTicker() {
   }
 
   function docRef() {
-    return db.collection(BOARD_COL).doc(boardDate);
+    return db.collection(BOARD_COL).doc(BOARD_DOC);
   }
 
   async function loadBoard(dateISO) {
-    boardDate = dateISO;
+    // 不以天存檔：所有資料覆蓋寫入同一份（current）
+    boardDate = todayISO();
     if (els.boardDate) els.boardDate.value = boardDate;
     if (els.wbDateText) els.wbDateText.textContent = formatDateZH(boardDate);
 
@@ -347,7 +349,7 @@ function stopInfoLangTicker() {
     };
 
     hint('儲存中...');
-    await docRef().set(payload, { merge: true });
+    await docRef().set(payload, { merge: false });
     hint('已儲存');
   }
 
@@ -388,8 +390,12 @@ function stopInfoLangTicker() {
       if (temp !== null && temp !== undefined && temp !== '') {
         const t = Math.round(Number(temp));
         els.wbTemp.textContent = `${t}℃`;
+        // 溫度計圖示：>=25 熱，<25 冷
+        els.wbTemp.classList.toggle('hot', t >= 25);
+        els.wbTemp.classList.toggle('cold', t < 25);
       } else {
         els.wbTemp.textContent = '—';
+        els.wbTemp.classList.remove('hot','cold');
       }
     } catch (e) {
       // 失敗就保持現有顯示
@@ -488,7 +494,14 @@ function stopInfoLangTicker() {
     // time ticker
     const tick = () => {
       const d = new Date();
-      if (els.wbTimeText) els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      if (els.wbTimeText) els.wbTimeText.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+      // 日期每天自動更新（午夜切換）
+      const iso = todayISO();
+      if (iso !== boardDate) {
+        boardDate = iso;
+        if (els.boardDate) els.boardDate.value = boardDate;
+        if (els.wbDateText) els.wbDateText.textContent = formatDateZH(boardDate);
+      }
     };
     tick();
     setInterval(tick, 1000);
