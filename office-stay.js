@@ -322,8 +322,7 @@ function endOfDay(d) {
 
 // 取得「今日外宿中」的 applicantId set（核准且日期涵蓋今日）
 async function getTodayOutApplicantIdSet() {
-    const today = new Date();
-    const dayStart = startOfDay(today);
+    const now = new Date();
 
     // ✅ 不要寫死 'approved'，改成從狀態定義找出「核准」那個狀態的 id（docId）
     // 你的 Firestore 目前 docId 可能是：核准(approve)
@@ -342,21 +341,20 @@ async function getTodayOutApplicantIdSet() {
 
     let snap = null;
     try {
-        // 主要策略：抓「核准」且 endDateTime >= 今日 00:00（再用前端補 startDateTime <= 今日 23:59）
+        // 主要策略：抓「核准」且 endDateTime >= 現在（再用前端補 startDateTime <= 現在）
         snap = await db.collection('stayApplications')
             .where('statusId', 'in', approvedIds)
-            .where('endDateTime', '>=', firebase.firestore.Timestamp.fromDate(dayStart))
+            .where('endDateTime', '>=', firebase.firestore.Timestamp.fromDate(now))
             .orderBy('endDateTime', 'asc')
             .get();
     } catch (e) {
         console.warn('名冊狀態判定查詢失敗，改用備援抓取核准單：', e);
-        // 備援：只用 statusId in 抓，再用前端補日期範圍（避免索引或查詢限制）
+        // 備援：只用 statusId in 抓，再用前端補時間範圍（避免索引或查詢限制）
         snap = await db.collection('stayApplications')
             .where('statusId', 'in', approvedIds)
             .get();
     }
 
-    const dayEnd = endOfDay(today);
     const outSet = new Set();
     snap.forEach(doc => {
         const d = doc.data();
@@ -364,7 +362,9 @@ async function getTodayOutApplicantIdSet() {
         const s = d.startDateTime?.toDate ? d.startDateTime.toDate() : null;
         const e = d.endDateTime?.toDate ? d.endDateTime.toDate() : null;
         if (!s || !e) return;
-        if (s <= dayEnd && e >= dayStart) {
+
+        // ✅ 以「現在時間」判定是否外宿中（避免整天都顯示外宿）
+        if (s <= now && e >= now) {
             if (d.applicantId) outSet.add(d.applicantId);
         }
     });
