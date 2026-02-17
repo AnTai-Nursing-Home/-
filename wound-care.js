@@ -27,6 +27,7 @@
   let currentDocId = null;
   let currentCaseData = null;          // 原始單張資料（建立時）
   let mode = 'case';                   // 'case' | 'reassess'
+  let isEditingCaseDetail = false;     // 是否正在編輯「原始單張完整內容」
   let currentReassessId = null;        // 復評 doc id
   const REASSESS_COL = 'woundCareReassessments'; // 復評集合（獨立 collection）
 
@@ -336,6 +337,17 @@ function fillForm(data) {
       currentDocId = ref.id;
     }
     alert('已儲存');
+    if (isEditingCaseDetail && currentDocId) {
+      const snap = await db.collection('woundCareRecords').doc(currentDocId).get();
+      currentCaseData = snap.data() || currentCaseData;
+      renderCaseSummary(currentCaseData);
+      showCaseView();
+      isEditingCaseDetail = false;
+      const years = await loadReassessYears();
+      setReassessYearOptions(years, $.reassessYear.value);
+      await loadReassessmentsByYear($.reassessYear.value);
+      return;
+    }
     await loadList();
   }
 
@@ -475,6 +487,7 @@ function fillForm(data) {
   function beginNewReassess() {
     if (!currentCaseData || !currentDocId) return;
 
+    isEditingCaseDetail = false;
     currentReassessId = null;
     resetFormForNew();
 
@@ -628,17 +641,21 @@ function buildListItem(docId, d) {
       ]
     });
 
+    const facilityTitle = new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [ new TextRun({ text: d.facilityName || '安泰醫療社團法人附設安泰護理之家', font, size: 28, bold: true }) ],
+      spacing: { after: 120 }
+    });
+
     const title = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: '護理之家傷口紀錄單', font, size: 32, bold: true }) ],
+      children: [ new TextRun({ text: '傷口紀錄單', font, size: 32, bold: true }) ],
       spacing: { after: 240 }
     });
 
     const headerTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        fieldRow('機構名稱', d.facilityName),
-        fieldRow('紀錄日期', d.recordDate),
+      rows: [        fieldRow('紀錄日期', d.recordDate),
         fieldRow('住民姓名', d.residentName),
         fieldRow('床號', d.bedNumber),
         fieldRow('病歷號', d.residentNumber),
@@ -665,6 +682,7 @@ function buildListItem(docId, d) {
           }
         },
         children: [
+          facilityTitle,
           title,
           headerTable,
 
@@ -718,18 +736,148 @@ function buildListItem(docId, d) {
 
 
   function printNow() {
-    window.print();
+    const base = (mode === 'reassess' || isEditingCaseDetail) ? collectForm() : (currentCaseData || collectForm());
+
+    // 舊資料相容（舊欄位名 → 新欄位名）
+    const data = { ...base };
+    if (!data.needDebridementAdvice && data.needNotifyDoctor) data.needDebridementAdvice = data.needNotifyDoctor;
+    if (!data.needOPD && data.needReferral) data.needOPD = data.needReferral;
+
+    const html = buildPrintHtml(data);
+
+    const w = window.open('', '_blank');
+    if (!w) { alert('無法開啟列印視窗（可能被瀏覽器阻擋）'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    // 等待資源載入後列印
+    w.onload = () => {
+      w.print();
+      w.close();
+    };
   }
+
+  function buildPrintHtml(d) {
+    const facility = '安泰醫療社團法人附設安泰護理之家';
+    const title = '傷口紀錄單';
+
+    const row = (k, v) => `
+      <tr>
+        <th>${escapeHtml(k)}</th>
+        <td>${escapeHtml(v ?? '')}</td>
+      </tr>`;
+
+    const section = (name, rowsHtml) => `
+      <div class="section">
+        <div class="section-title">${escapeHtml(name)}</div>
+        <table class="tbl">
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+
+    const headerRows = [
+      row('紀錄日期/時間', `${d.recordDate || ''} ${d.recordTime || ''}`.trim()),
+      row('記錄人員', d.recorderName || ''),
+      row('住民姓名', d.residentName || ''),
+      row('床號', d.bedNumber || ''),
+      row('病歷號', d.residentNumber || ''),
+    ].join('');
+
+    const s1 = [
+      row('傷口類型', d.woundType || ''),
+      row('發生日期', d.onsetDate || ''),
+      row('傷口位置', d.woundLocation || ''),
+      row('壓力性損傷分期', d.pressureStage || ''),
+      row('傷口數量（處）', d.woundCount || ''),
+      row('最近是否曾經清創', d.recentDebridement || ''),
+    ].join('');
+
+    const s2 = [
+      row('長度（cm）', d.lengthCm || ''),
+      row('寬度（cm）', d.widthCm || ''),
+      row('深度（cm）', d.depthCm || ''),
+      row('滲出液量', d.exudateAmount || ''),
+      row('滲出液性質', d.exudateNature || ''),
+      row('傷口組織', d.tissueType || ''),
+      row('傷口邊緣', d.woundEdge || ''),
+      row('周圍皮膚', d.surroundingSkin || ''),
+      row('疼痛程度（0–10）', d.painScore || ''),
+      row('感染徵象', d.infectionSigns || ''),
+    ].join('');
+
+    const s3 = [
+      row('清潔方式', d.cleaningMethod || ''),
+      row('使用敷料', d.dressingUsed || ''),
+      row('醫囑用藥', d.medicationOrder || ''),
+      row('翻身減壓措施', d.repositioning || ''),
+    ].join('');
+
+    const s4 = [
+      row('傷口改善', d.improved || ''),
+      row('無明顯變化', d.noChange || ''),
+      row('傷口惡化', d.worsened || ''),
+      row('評估後是否建議清創', d.needDebridementAdvice || ''),
+      row('評估後是否掛門診', d.needOPD || ''),
+      row('護理長／主管覆核', d.supervisorName || ''),
+    ].join('');
+
+    const s5 = `
+      <div class="section">
+        <div class="section-title">五、護理紀錄摘要</div>
+        <div class="box">${escapeHtml(d.nursingSummary || '')}</div>
+      </div>
+    `;
+
+    return `
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${facility}｜${title}</title>
+  <style>
+    body{font-family:"Microsoft JhengHei", Arial, sans-serif; margin:0; padding:24px; color:#111;}
+    .header{text-align:center; margin-bottom:14px;}
+    .facility{font-size:18px; font-weight:700; letter-spacing:.04em;}
+    .title{font-size:22px; font-weight:800; margin-top:6px; letter-spacing:.08em;}
+    .section{margin-top:14px;}
+    .section-title{font-size:16px; font-weight:800; margin:10px 0 6px;}
+    .tbl{width:100%; border-collapse:collapse; font-size:14px;}
+    .tbl th,.tbl td{border:1px solid #333; padding:8px 10px; vertical-align:top;}
+    .tbl th{width:26%; background:#f3f4f6; text-align:left; white-space:nowrap;}
+    .box{border:1px solid #333; padding:10px; min-height:110px; white-space:pre-wrap;}
+    @media print { body{padding:10mm;} }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="facility">${facility}</div>
+    <div class="title">${title}</div>
+  </div>
+
+  ${section('基本資料', headerRows)}
+  ${section('一、傷口基本資料', s1)}
+  ${section('二、傷口評估', s2)}
+  ${section('三、照護措施', s3)}
+  ${section('四、傷口變化評估', s4)}
+  ${s5}
+</body>
+</html>`;
+  }
+
 
 
   // --- Wiring ---
   function wire() {
     $.tabOpen.addEventListener('click', async () => { currentStatus='open'; await loadList(); });
     $.tabClosed.addEventListener('click', async () => { currentStatus='closed'; await loadList(); });
-    $.btnNew.addEventListener('click', () => { currentStatus='open'; setTabs(); resetFormForNew(); showForm(); mode='case'; currentCaseData=null; showReassessForm(); if ($.btnCloseCase) $.btnCloseCase.classList.remove('d-none'); if ($.btnDelete) $.btnDelete.classList.add('d-none'); });
+    $.btnNew.addEventListener('click', () => { isEditingCaseDetail = false;  currentStatus='open'; setTabs(); resetFormForNew(); showForm(); mode='case'; currentCaseData=null; showReassessForm(); if ($.btnCloseCase) $.btnCloseCase.classList.remove('d-none'); if ($.btnDelete) $.btnDelete.classList.add('d-none'); });
     $.btnBack.addEventListener('click', async () => {
-      if (mode === 'reassess') {
+      // 復評編輯 or 原始單張完整內容編輯 → 回到案例摘要頁（CaseView）
+      if (mode === 'reassess' || isEditingCaseDetail) {
         showCaseView();
+        isEditingCaseDetail = false;
         const years = await loadReassessYears();
         setReassessYearOptions(years, $.reassessYear.value);
         await loadReassessmentsByYear($.reassessYear.value);
@@ -737,6 +885,7 @@ function buildListItem(docId, d) {
         showList();
       }
     });
+
     $.btnSave.addEventListener('click', saveRecord);
     $.btnDelete.addEventListener('click', deleteRecord);
     $.btnCloseCase.addEventListener('click', closeCase);
@@ -746,11 +895,20 @@ function buildListItem(docId, d) {
 
     if ($.btnViewCaseDetail) {
       $.btnViewCaseDetail.addEventListener('click', () => {
-        const modalEl = document.getElementById('caseDetailModal');
-        if (!modalEl) return;
-        if (currentCaseData && $.caseDetailBody) $.caseDetailBody.innerHTML = buildCaseDetailHtml(currentCaseData);
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
+        // 需求：點「查看完整單張」要看到「單張樣式（可編輯）」而不是敘述性表格
+        if (!currentCaseData) return;
+        isEditingCaseDetail = true;
+        mode = 'case';
+        currentReassessId = null;
+
+        const mapped = { ...currentCaseData };
+        if (!mapped.needDebridementAdvice && mapped.needNotifyDoctor) mapped.needDebridementAdvice = mapped.needNotifyDoctor;
+        if (!mapped.needOPD && mapped.needReferral) mapped.needOPD = mapped.needReferral;
+        fillForm(mapped);
+        showReassessForm();
+
+        // 原始單張可刪除；結案按鈕依 status 由 fillForm 控制顯示
+        if ($.btnDelete) $.btnDelete.classList.remove('d-none');
       });
     }
 
