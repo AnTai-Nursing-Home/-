@@ -622,7 +622,18 @@ function buildListItem(docId, d) {
     const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel } = window.docx;
 
     const font = 'Microsoft JhengHei';
-    const safeText = (v) => String(v ?? '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    // Word / OOXML is very sensitive to illegal XML characters & lone surrogate pairs.
+    // Make export extremely defensive to avoid "內容有問題".
+    const safeText = (v) => {
+      let s = String(v ?? '');
+      // Remove ASCII control chars except TAB(\x09) / LF(\x0A) / CR(\x0D)
+      s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+      // Remove non-characters
+      s = s.replace(/[\uFFFE\uFFFF]/g, '');
+      // Remove lone surrogates (ill-formed UTF-16)
+      s = s.replace(/[\uD800-\uDFFF]/g, '');
+      return s;
+    };
     const labelRun = (t) => new TextRun({ text: safeText(t), font, size: 24, bold: true });
     const valRun = (t) => new TextRun({ text: safeText(t || ''), font, size: 24 });
 
@@ -679,9 +690,11 @@ function buildListItem(docId, d) {
       const lines = safeText(text || '').split(/\r?\n/);
       const children = [];
       lines.forEach((line, idx) => {
-        if (idx > 0) children.push(new TextRun({ text: '', break: 1 }));
-        children.push(new TextRun({ text: line, font, size: 24 }));
+        // Put the line break on the run itself to avoid generating empty runs.
+        children.push(new TextRun({ text: line, font, size: 24, break: idx === 0 ? 0 : 1 }));
       });
+      // If there is no content at all, still keep a harmless empty paragraph.
+      if (children.length === 0) children.push(new TextRun({ text: '', font, size: 24 }));
       return new Paragraph({ children, spacing: { after: 80 } });
     };
 
