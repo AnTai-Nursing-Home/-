@@ -1,4 +1,4 @@
-/* nurse-whiteboard.v4.9.7.js
+/* nurse-whiteboard.v5.2.js
  * 護理師系統：電子白板（修正語法錯誤、移除手動天氣、設定改彈窗）
  * - Firestore doc: nurse_whiteboards/{YYYY-MM-DD}
  * - residents：用 bedNumber 查住民（供待轉床選擇）
@@ -120,8 +120,8 @@ let infoLangTimer = null;
 let lastWeatherCode = null;
 
 const INFO_LABELS = {
-  zh: { date: '日期', time: '時間', weather: '天氣', temp: '溫度' },
-  en: { date: 'Date', time: 'Time', weather: 'Weather', temp: 'Temp' },
+  zh: { date: '日期', time: '時間', weather: '天氣', temp: '溫度', rain: '降雨機率', hilo: '最高/最低' },
+  en: { date: 'Date', time: 'Time', weather: 'Weather', temp: 'Temp', rain: 'Rain %', hilo: 'High / Low' },
 };
 
 const WX_ZH_TO_EN = {
