@@ -12,7 +12,7 @@
 
   const BEISHI_LAT = 22.506545;
   const BEISHI_LON = 120.50190; // 北勢村中正路附近（以 840 號周邊為基準）
-  const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+  const WEATHER_REFRESH_MS = 5 * 60 * 1000;
 
   const $ = (id) => document.getElementById(id);
   const safeEl = (id) => document.getElementById(id);
@@ -31,6 +31,8 @@
     wbWxEmoji: $('wbWxEmoji'),
     wbWxText: $('wbWxText'),
     wbTemp: $('wbTemp'),
+    wbRain: $('wbRain'),
+    wbHiLo: $('wbHiLo'),
 
     morningText: $('morningText'),
     noonText: $('noonText'),
@@ -158,10 +160,14 @@ function applyInfoLang(lang) {
   const tLab = getInfoLabelElByValueId('wbTimeText');
   const wLab = getInfoLabelElByValueId('wbWxText');
   const tempLab = getInfoLabelElByValueId('wbTemp');
+  const rainLab = getInfoLabelElByValueId('wbRain');
+  const hiloLab = getInfoLabelElByValueId('wbHiLo');
   if (dLab) dLab.textContent = lz.date;
   if (tLab) tLab.textContent = lz.time;
   if (wLab) wLab.textContent = lz.weather;
   if (tempLab) tempLab.textContent = lz.temp;
+  if (rainLab) rainLab.textContent = lz.rain;
+  if (hiloLab) hiloLab.textContent = lz.hilo;
 
   // weather text
   const wxTextEl = safeEl('wbWxText');
@@ -400,7 +406,10 @@ function stopInfoLangTicker() {
     try {
       const url =
         `https://api.open-meteo.com/v1/forecast?latitude=${BEISHI_LAT}&longitude=${BEISHI_LON}` +
-        `&current=temperature_2m,weather_code&timezone=Asia%2FTaipei`;
+        `&current=temperature_2m,weather_code` +
+        `&hourly=precipitation_probability` +
+        `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+        `&forecast_days=1&timezone=Asia%2FTaipei`;
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
 
@@ -408,6 +417,73 @@ function stopInfoLangTicker() {
       const code = data && data.current ? data.current.weather_code : null;
 
       lastWeatherCode = code;
+
+      // rain probability (current hour, fallback to daily max if needed)
+      let rainProb = null;
+      try {
+        const curTime = data && data.current && data.current.time ? String(data.current.time) : null;
+        const h = data && data.hourly ? data.hourly : null;
+        if (curTime && h && Array.isArray(h.time) && Array.isArray(h.precipitation_probability)) {
+          let idx = h.time.indexOf(curTime);
+          if (idx < 0) {
+            // best effort: choose nearest hour
+            const curTs = Date.parse(curTime);
+            if (!Number.isNaN(curTs)) {
+              let bestI = -1, bestD = Infinity;
+              for (let i = 0; i < h.time.length; i++) {
+                const ts = Date.parse(h.time[i]);
+                if (Number.isNaN(ts)) continue;
+                const d = Math.abs(ts - curTs);
+                if (d < bestD) { bestD = d; bestI = i; }
+              }
+              idx = bestI;
+            }
+          }
+          if (idx >= 0) {
+            const v = h.precipitation_probability[idx];
+            if (v !== null && v !== undefined && v !== '') rainProb = Number(v);
+          }
+        }
+        if ((rainProb === null || Number.isNaN(rainProb)) && data && data.daily && Array.isArray(data.daily.precipitation_probability_max)) {
+          const v = data.daily.precipitation_probability_max[0];
+          if (v !== null && v !== undefined && v !== '') rainProb = Number(v);
+        }
+      } catch (_) {}
+
+      // daily high/low
+      let hi = null, lo = null;
+      try {
+        const dly = data && data.daily ? data.daily : null;
+        if (dly && Array.isArray(dly.temperature_2m_max) && Array.isArray(dly.temperature_2m_min)) {
+          hi = dly.temperature_2m_max[0];
+          lo = dly.temperature_2m_min[0];
+        }
+      } catch (_) {}
+
+      // apply rain + hi/lo to UI
+      if (els.wbRain) {
+        if (rainProb !== null && !Number.isNaN(rainProb)) {
+          const rp = Math.round(rainProb);
+          els.wbRain.textContent = `${rp}%`;
+          const rIcon = safeEl('wbRainIcon');
+          if (rIcon) rIcon.textContent = (rp >= 60) ? '🌧️' : (rp >= 30 ? '☔' : '🌂');
+        } else {
+          els.wbRain.textContent = '—';
+          const rIcon = safeEl('wbRainIcon');
+          if (rIcon) rIcon.textContent = '☔';
+        }
+      }
+
+      if (els.wbHiLo) {
+        const hival = (hi !== null && hi !== undefined && hi !== '') ? Math.round(Number(hi)) : null;
+        const loval = (lo !== null && lo !== undefined && lo !== '') ? Math.round(Number(lo)) : null;
+        if (hival !== null && !Number.isNaN(hival) && loval !== null && !Number.isNaN(loval)) {
+          els.wbHiLo.textContent = `${hival} / ${loval}℃`;
+        } else {
+          els.wbHiLo.textContent = '—';
+        }
+      }
+
 
       const wx = weatherFromCode(code);
       els.wbWxEmoji.textContent = wx.e;
