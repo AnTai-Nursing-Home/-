@@ -16,10 +16,10 @@
     'btnBack','btnSave','btnCloseCase','btnExportDocx','btnPrint',
     'facilityName','recordDate','recordTime','recorderName',
     'residentSelect','bedNumber','residentNumber',
-    'woundType','onsetDate','woundLocation','pressureStage','woundCount',
+    'woundType','onsetDate','woundLocation','pressureStage','woundCount','recentDebridement',
     'lengthCm','widthCm','depthCm','exudateAmount','exudateNature','tissueType','woundEdge','surroundingSkin','painScore','infectionSigns',
-    'cleaningMethod','dressingUsed','debridement','medicationOrder','repositioning',
-    'improved','noChange','worsened','needNotifyDoctor','needReferral','supervisorName',
+    'cleaningMethod','dressingUsed','medicationOrder','repositioning',
+    'improved','noChange','worsened','needDebridementAdvice','needOPD','supervisorName',
     'nursingSummary','printArea','caseViewSection','caseSummaryCard','caseSummaryTitle','caseSummarySub','caseSummaryBasics','btnViewCaseDetail','caseDetailBody','reassessYear','btnNewReassess','reassessLoading','reassessEmpty','reassessListBox','reassessFormSection'
   ]);
 
@@ -143,10 +143,10 @@
     $.residentNumber.value = '';
 
     [
-      'woundType','onsetDate','woundLocation','pressureStage','woundCount',
+      'woundType','onsetDate','woundLocation','pressureStage','woundCount','recentDebridement',
       'lengthCm','widthCm','depthCm','exudateAmount','exudateNature','tissueType','woundEdge','surroundingSkin','painScore','infectionSigns',
-      'cleaningMethod','dressingUsed','debridement','medicationOrder','repositioning',
-      'improved','noChange','worsened','needNotifyDoctor','needReferral','supervisorName','nursingSummary'
+      'cleaningMethod','dressingUsed','medicationOrder','repositioning',
+      'improved','noChange','worsened','needDebridementAdvice','needOPD','supervisorName','nursingSummary'
     ].forEach(id => { if ($[id]) $[id].value = ''; });
 
     $.btnCloseCase.classList.remove('d-none');
@@ -184,6 +184,7 @@
       ['傷口位置', caseData.woundLocation || ''],
       ['壓力性損傷分期', caseData.pressureStage || ''],
       ['傷口數量', caseData.woundCount || ''],
+      ['最近是否曾經清創', caseData.recentDebridement || ''],
       ['長/寬/深 (cm)', `${caseData.lengthCm || ''} / ${caseData.widthCm || ''} / ${caseData.depthCm || ''}`],
       ['滲出液量', caseData.exudateAmount || ''],
       ['滲出液性質', caseData.exudateNature || ''],
@@ -194,14 +195,13 @@
       ['感染徵象', caseData.infectionSigns || ''],
       ['清潔方式', caseData.cleaningMethod || ''],
       ['使用敷料', caseData.dressingUsed || ''],
-      ['是否清創', caseData.debridement || ''],
       ['醫囑用藥', caseData.medicationOrder || ''],
       ['翻身減壓措施', caseData.repositioning || ''],
       ['傷口改善', caseData.improved || ''],
       ['無明顯變化', caseData.noChange || ''],
       ['傷口惡化', caseData.worsened || ''],
-      ['需通報醫師', caseData.needNotifyDoctor || ''],
-      ['需轉診', caseData.needReferral || ''],
+      ['評估後是否建議清創', caseData.needDebridementAdvice || caseData.needNotifyDoctor || ''],
+      ['評估後是否掛門診', caseData.needOPD || caseData.needReferral || ''],
       ['護理長/主管覆核', caseData.supervisorName || ''],
       ['護理紀錄摘要', caseData.nursingSummary || ''],
     ];
@@ -236,6 +236,16 @@ function fillForm(data) {
         $[k].value = data[k];
       }
     });
+
+
+    // backward compatibility: old fields -> new fields
+    if ($.needDebridementAdvice && !$.needDebridementAdvice.value && data.needNotifyDoctor != null) {
+      $.needDebridementAdvice.value = data.needNotifyDoctor;
+    }
+    if ($.needOPD && !$.needOPD.value && data.needReferral != null) {
+      $.needOPD.value = data.needReferral;
+    }
+
 
     // close button only for open
     if (data.status === 'closed') $.btnCloseCase.classList.add('d-none');
@@ -272,16 +282,16 @@ function fillForm(data) {
       surroundingSkin: $.surroundingSkin.value || '',
       painScore: $.painScore.value || '',
       infectionSigns: $.infectionSigns.value || '',
+      recentDebridement: $.recentDebridement.value || '',
       cleaningMethod: $.cleaningMethod.value || '',
       dressingUsed: $.dressingUsed.value || '',
-      debridement: $.debridement.value || '',
       medicationOrder: $.medicationOrder.value || '',
       repositioning: $.repositioning.value || '',
       improved: $.improved.value || '',
       noChange: $.noChange.value || '',
       worsened: $.worsened.value || '',
-      needNotifyDoctor: $.needNotifyDoctor.value || '',
-      needReferral: $.needReferral.value || '',
+      needDebridementAdvice: $.needDebridementAdvice.value || '',
+      needOPD: $.needOPD.value || '',
       supervisorName: $.supervisorName.value || '',
       nursingSummary: $.nursingSummary.value || '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -565,6 +575,7 @@ function buildListItem(docId, d) {
       woundLocation: data.woundLocation,
       pressureStage: data.pressureStage,
       woundCount: data.woundCount,
+      recentDebridement: data.recentDebridement,
       lengthCm: data.lengthCm,
       widthCm: data.widthCm,
       depthCm: data.depthCm,
@@ -577,14 +588,13 @@ function buildListItem(docId, d) {
       infectionSigns: data.infectionSigns,
       cleaningMethod: data.cleaningMethod,
       dressingUsed: data.dressingUsed,
-      debridement: data.debridement,
       medicationOrder: data.medicationOrder,
       repositioning: data.repositioning,
       improved: data.improved,
       noChange: data.noChange,
       worsened: data.worsened,
-      needNotifyDoctor: data.needNotifyDoctor,
-      needReferral: data.needReferral,
+      needDebridementAdvice: data.needDebridementAdvice || data.needNotifyDoctor,
+      needOPD: data.needOPD || data.needReferral,
       nursingSummary: data.nursingSummary,
       recorderName: data.recorderName,
       supervisorName: data.supervisorName
@@ -664,6 +674,7 @@ function buildListItem(docId, d) {
           p(`傷口位置：${d.woundLocation}`),
           p(`壓力性損傷分期：${d.pressureStage}`),
           p(`傷口數量：${d.woundCount}`),
+          p(`最近是否曾經清創：${d.recentDebridement}`),
 
           h('二、傷口評估'),
           p(`傷口長度：${d.lengthCm} cm`),
@@ -677,10 +688,9 @@ function buildListItem(docId, d) {
           p(`疼痛程度（0–10分）：${d.painScore}`),
           p(`感染徵象：${d.infectionSigns}`),
 
-          h('三、處置措施'),
+          h('三、照護措施'),
           p(`清潔方式：${d.cleaningMethod}`),
           p(`使用敷料：${d.dressingUsed}`),
-          p(`是否清創：${d.debridement}`),
           p(`醫囑用藥：${d.medicationOrder}`),
           p(`翻身減壓措施：${d.repositioning}`),
 
@@ -688,8 +698,8 @@ function buildListItem(docId, d) {
           p(`傷口改善：${d.improved}`),
           p(`無明顯變化：${d.noChange}`),
           p(`傷口惡化：${d.worsened}`),
-          p(`需通報醫師：${d.needNotifyDoctor}`),
-          p(`需轉診：${d.needReferral}`),
+          p(`評估後是否建議清創：${d.needDebridementAdvice}`),
+          p(`評估後是否掛門診：${d.needOPD}`),
 
           h('五、護理紀錄摘要'),
           p(d.nursingSummary || ''),
