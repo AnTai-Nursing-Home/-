@@ -1,4 +1,4 @@
-/* nurse-whiteboard.v5.2.js
+/* nurse-whiteboard.v5.3.js
  * 護理師系統：電子白板（修正語法錯誤、移除手動天氣、設定改彈窗）
  * - Firestore doc: nurse_whiteboards/{YYYY-MM-DD}
  * - residents：用 bedNumber 查住民（供待轉床選擇）
