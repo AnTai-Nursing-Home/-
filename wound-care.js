@@ -622,8 +622,9 @@ function buildListItem(docId, d) {
     const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel } = window.docx;
 
     const font = 'Microsoft JhengHei';
-    const labelRun = (t) => new TextRun({ text: t, font, size: 24, bold: true });
-    const valRun = (t) => new TextRun({ text: t || '', font, size: 24 });
+    const safeText = (v) => String(v ?? '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    const labelRun = (t) => new TextRun({ text: safeText(t), font, size: 24, bold: true });
+    const valRun = (t) => new TextRun({ text: safeText(t || ''), font, size: 24 });
 
     const noBorders = {
       top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
@@ -643,7 +644,7 @@ function buildListItem(docId, d) {
 
     const facilityTitle = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: d.facilityName || '安泰醫療社團法人附設安泰護理之家', font, size: 28, bold: true }) ],
+      children: [ new TextRun({ text: safeText(d.facilityName || '安泰醫療社團法人附設安泰護理之家'), font, size: 28, bold: true }) ],
       spacing: { after: 120 }
     });
 
@@ -670,9 +671,19 @@ function buildListItem(docId, d) {
     });
 
     const p = (text) => new Paragraph({
-      children: [ new TextRun({ text, font, size: 24 }) ],
+      children: [ new TextRun({ text: safeText(text), font, size: 24 }) ],
       spacing: { after: 80 }
     });
+
+    const pMultiline = (text) => {
+      const lines = safeText(text || '').split(/\r?\n/);
+      const children = [];
+      lines.forEach((line, idx) => {
+        if (idx > 0) children.push(new TextRun({ text: '', break: 1 }));
+        children.push(new TextRun({ text: line, font, size: 24 }));
+      });
+      return new Paragraph({ children, spacing: { after: 80 } });
+    };
 
     const doc = new Document({
       sections: [{
@@ -720,7 +731,7 @@ function buildListItem(docId, d) {
           p(`評估後是否掛門診：${d.needOPD}`),
 
           h('五、護理紀錄摘要'),
-          p(d.nursingSummary || ''),
+          pMultiline(d.nursingSummary || ''),
 
           new Paragraph({ text: '' }),
           p(`紀錄人員：${d.recorderName}`),
@@ -738,12 +749,17 @@ function buildListItem(docId, d) {
   function printNow() {
     const base = (mode === 'reassess' || isEditingCaseDetail) ? collectForm() : (currentCaseData || collectForm());
 
+    const now = new Date();
+    const pad2 = (n) => String(n).padStart(2,'0');
+    const printedAt = `${now.getFullYear()}/${pad2(now.getMonth()+1)}/${pad2(now.getDate())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    const exportedBy = `${recorder.staffId || ''} ${recorder.displayName || ''}`.trim();
+
     // 舊資料相容（舊欄位名 → 新欄位名）
     const data = { ...base };
     if (!data.needDebridementAdvice && data.needNotifyDoctor) data.needDebridementAdvice = data.needNotifyDoctor;
     if (!data.needOPD && data.needReferral) data.needOPD = data.needReferral;
 
-    const html = buildPrintHtml(data);
+    const html = buildPrintHtml(data, { printedAt, exportedBy });
 
     const w = window.open('', '_blank');
     if (!w) { alert('無法開啟列印視窗（可能被瀏覽器阻擋）'); return; }
@@ -758,7 +774,7 @@ function buildListItem(docId, d) {
     };
   }
 
-  function buildPrintHtml(d) {
+  function buildPrintHtml(d, meta) {
     const facility = '安泰醫療社團法人附設安泰護理之家';
     const title = '傷口紀錄單';
 
@@ -841,6 +857,7 @@ function buildListItem(docId, d) {
     .header{text-align:center; margin-bottom:14px;}
     .facility{font-size:18px; font-weight:700; letter-spacing:.04em;}
     .title{font-size:22px; font-weight:800; margin-top:6px; letter-spacing:.08em;}
+    .meta{margin-top:8px; font-size:12px; color:#374151;}
     .section{margin-top:14px;}
     .section-title{font-size:16px; font-weight:800; margin:10px 0 6px;}
     .tbl{width:100%; border-collapse:collapse; font-size:14px;}
@@ -854,6 +871,7 @@ function buildListItem(docId, d) {
   <div class="header">
     <div class="facility">${facility}</div>
     <div class="title">${title}</div>
+    <div class="meta">列印時間：${escapeHtml(meta?.printedAt || "")}　｜　匯出人：${escapeHtml(meta?.exportedBy || "")}</div>
   </div>
 
   ${section('基本資料', headerRows)}
