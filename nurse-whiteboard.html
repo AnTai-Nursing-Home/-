@@ -52,6 +52,10 @@
     .upper{
       display:grid;
       grid-template-columns: 4fr 0.85fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "info info"
+        "left notes";
       gap: var(--wb-gap);
       min-height: 0;
       min-width: 0;
@@ -69,13 +73,31 @@
 
     /* 左上大區塊：資訊列 + 早/午 */
     .upper-left{
-      display:grid;
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr;
-      gap: var(--wb-gap);
+      grid-area: left;
+      display:block;
       min-height: 0;
       min-width: 0;
     }
+
+    /* v5.2：資訊列跨兩欄，避免被備註擠壓 */
+    .info-panel{
+      grid-area: info;
+      background: transparent;
+      border: none;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    /* v5.2：備註仍在右側，但往下縮短高度，讓出空間給資訊方塊 */
+    .notes{
+      grid-area: notes;
+      align-self: start;
+    }
+    .notes textarea.wb-text{
+      height: 190px;
+      min-height: 190px;
+    }
+
 
     /* v4.7：日期/時間/天氣/溫度 各一格 */
     .info-strip{
@@ -145,6 +167,19 @@
       border-color:#f87171;
     }
     .info-card.info-temp::before{ background: radial-gradient(circle at 30% 30%, #ef4444, rgba(239,68,68,0)); }
+
+    .info-card.info-rain{
+      background: linear-gradient(135deg, #dbeafe 0%, #ffffff 55%, #dbeafe 100%);
+      border-color:#60a5fa;
+    }
+    .info-card.info-rain::before{ background: radial-gradient(circle at 30% 30%, #3b82f6, rgba(59,130,246,0)); }
+
+    .info-card.info-hilo{
+      background: linear-gradient(135deg, #dcfce7 0%, #ffffff 55%, #dcfce7 100%);
+      border-color:#34d399;
+    }
+    .info-card.info-hilo::before{ background: radial-gradient(circle at 30% 30%, #10b981, rgba(16,185,129,0)); }
+
 
     .info-card.info-rain{
       background: linear-gradient(135deg, #e0e7ff 0%, #ffffff 55%, #e0e7ff 100%);
@@ -379,13 +414,16 @@
     body.night-mode .info-card.info-time{ background: linear-gradient(135deg,#2b1b5a,#0f172a 60%,#2b1b5a); }
     body.night-mode .info-card.info-weather{ background: linear-gradient(135deg,#5a3a0b,#0f172a 60%,#5a3a0b); }
     body.night-mode .info-card.info-temp{ background: linear-gradient(135deg,#5a0b0b,#0f172a 60%,#5a0b0b); }
+    body.night-mode .info-card.info-rain{ background: linear-gradient(135deg,#0b2a5a,#0f172a 60%,#0b2a5a); }
+    body.night-mode .info-card.info-hilo{ background: linear-gradient(135deg,#0b5a2a,#0f172a 60%,#0b5a2a); }
+
 
     body.night-mode .info-card.info-rain{ background: linear-gradient(135deg,#1a2a5a,#0f172a 60%,#1a2a5a); }
     body.night-mode .info-card.info-hilo{ background: linear-gradient(135deg,#0b5a2a,#0f172a 60%,#0b5a2a); }
 
     /* RWD */
     @media (max-width: 992px){
-      .upper{ grid-template-columns: 1fr; }
+      .upper{ grid-template-columns: 1fr; grid-template-rows: auto auto auto; grid-template-areas:"info" "left" "notes"; }
       .lower{ grid-template-columns: 1fr; }
       .shift-grid{ grid-template-columns: 1fr; }
       .info-strip{ grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -518,9 +556,8 @@
         <!-- 上半 -->
         <div class="upper">
 
-          <!-- 上半左（最大） -->
-          <div class="panel upper-left">
-            <!-- v4.7：四格資訊 -->
+          <!-- 上半資訊列：跨兩欄（避免被備註擠壓） -->
+          <div class="panel info-panel">
             <div class="info-strip">
               <div class="info-card info-date">
                 <div class="info-label" id="lblDate">日期</div>
@@ -548,18 +585,20 @@
               </div>
 
             </div>
+          </div>
 
-            <!-- 早 / 午 -->
+          <!-- 上半左：早 / 午 -->
+          <div class="panel upper-left">
             <div class="shift-grid">
-              <div class="panel h-100">
-                <div class="field-title"><span>早</span><span class="hint">可打字</span></div>
-                <textarea id="morningText" class="wb-text" data-edit="1"></textarea>
-              </div>
-              <div class="panel h-100">
-                <div class="field-title"><span>午</span><span class="hint">可打字</span></div>
-                <textarea id="noonText" class="wb-text" data-edit="1"></textarea>
-              </div>
-            </div>
+<div class="panel h-100">
+<div class="field-title"><span>早</span><span class="hint">可打字</span></div>
+<textarea id="morningText" class="wb-text" data-edit="1"></textarea>
+</div>
+<div class="panel h-100">
+<div class="field-title"><span>午</span><span class="hint">可打字</span></div>
+<textarea id="noonText" class="wb-text" data-edit="1"></textarea>
+</div>
+</div>
           </div>
 
           <!-- 上半右：備註 -->
