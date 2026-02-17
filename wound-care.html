@@ -204,6 +204,15 @@
                 <label class="form-label">傷口數量（處）</label>
                 <input id="woundCount" type="number" min="0" class="form-control">
               </div>
+            
+              <div class="col-md-6">
+                <label class="form-label">最近是否曾經清創</label>
+                <select id="recentDebridement" class="form-select">
+                  <option value="">—</option>
+                  <option>是</option>
+                  <option>否</option>
+                </select>
+              </div>
             </div>
 
             <h5 class="mt-4">二、傷口評估</h5>
@@ -269,7 +278,7 @@
               </div>
             </div>
 
-            <h5 class="mt-4">三、處置措施</h5>
+            <h5 class="mt-4">三、照護措施</h5>
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label">清潔方式</label>
@@ -279,11 +288,7 @@
                 <label class="form-label">使用敷料</label>
                 <input id="dressingUsed" class="form-control" placeholder="例如：泡棉敷料">
               </div>
-              <div class="col-md-6">
-                <label class="form-label">是否清創</label>
-                <input id="debridement" class="form-control" placeholder="否 / 是（方式：...）">
-              </div>
-              <div class="col-md-6">
+<div class="col-md-6">
                 <label class="form-label">醫囑用藥</label>
                 <input id="medicationOrder" class="form-control" placeholder="無 / 有：...">
               </div>
@@ -314,14 +319,14 @@
                 </select>
               </div>
               <div class="col-md-4">
-                <label class="form-label">需通報醫師</label>
-                <select id="needNotifyDoctor" class="form-select">
+                <label class="form-label">評估後是否建議清創</label>
+                <select id="needDebridementAdvice" class="form-select">
                   <option value="">—</option><option>是</option><option>否</option>
                 </select>
               </div>
               <div class="col-md-4">
-                <label class="form-label">需轉診</label>
-                <select id="needReferral" class="form-select">
+                <label class="form-label">評估後是否掛門診</label>
+                <select id="needOPD" class="form-select">
                   <option value="">—</option><option>是</option><option>否</option>
                 </select>
               </div>
