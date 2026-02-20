@@ -612,7 +612,8 @@
     }
 
     modal.show();
-  
+  }
+
   function openCreateModal() {
     if (!isAdmin) {
       alert('需要管理員權限才能新增人員。');
@@ -654,7 +655,6 @@
     // 關閉時禁用下方 perms
     refreshPermPanelsEnabledState();
   }
-}
 
   function closeEditModal() {
     currentEditing = null;
