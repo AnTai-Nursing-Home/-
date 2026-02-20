@@ -64,7 +64,7 @@
     }
   }
 
-  async function waitForDb(maxWaitMs = 8000) {
+  async async function waitForDb(maxWaitMs = 8000) {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       if (window.db && typeof window.db.collection === 'function') return window.db;
