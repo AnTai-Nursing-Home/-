@@ -10,7 +10,8 @@
     adminStaff: '社工/其他',
     caregivers: '外籍照服員',
     localCaregivers: '本國照服員',
-    nurses: '護理師'
+    nurses: '護理師',
+    manual: '手動建立'
   };
 
   // -----------------------------
@@ -199,12 +200,17 @@
   const sourceFilter = document.getElementById('sourceFilter');
   const statusFilter = document.getElementById('statusFilter');
   const btnCreateMissing = document.getElementById('btnCreateMissing');
+  const btnAddManual = document.getElementById('btnAddManual');
   const loginInfo = document.getElementById('loginInfo');
   const adminHint = document.getElementById('adminHint');
 
   // Modal elements
   const editModalEl = document.getElementById('editModal');
   const editSubTitle = document.getElementById('editSubTitle');
+  const createFields = document.getElementById('createFields');
+  const createStaffId = document.getElementById('createStaffId');
+  const createName = document.getElementById('createName');
+  const createSource = document.getElementById('createSource');
   const editUsername = document.getElementById('editUsername');
   const editPassword = document.getElementById('editPassword');
   const permArea = document.getElementById('permArea');
@@ -227,7 +233,8 @@
   let actor = { id: 'unknown', name: 'unknown', username: '' };
 
   let modal;
-  let currentEditing = null; // { staffId, name, source, account }
+  let currentEditing = null;
+  let isCreating = false; // { staffId, name, source, account }
 
   function getAuth() {
     // 兼容：辦公室(officeAuth) / 護理師&照服員(antai_session_user)
@@ -364,6 +371,13 @@
     document.querySelectorAll(selector).forEach(cb => {
       cb.disabled = !enabled;
       if (!enabled) cb.checked = false;
+    });
+  }
+
+  function checkAllPerms(sysKey) {
+    const selector = `[data-sys="${sysKey}"][data-perm]`;
+    document.querySelectorAll(selector).forEach(cb => {
+      if (!cb.disabled) cb.checked = true;
     });
   }
 
@@ -571,6 +585,8 @@
 
   // ===== Modal 開啟/關閉 =====
   function openEditModal(row) {
+    isCreating = false;
+    if (createFields) createFields.classList.add('d-none');
     const acc = normalizeAccount(row.account || {});
     currentEditing = {
       staffId: row.staffId,
@@ -596,10 +612,54 @@
     }
 
     modal.show();
+  
+  function openCreateModal() {
+    if (!isAdmin) {
+      alert('需要管理員權限才能新增人員。');
+      return;
+    }
+    isCreating = true;
+    currentEditing = {
+      staffId: '',
+      name: '',
+      source: 'manual',
+      account: normalizeAccount({})
+    };
+
+    // 顯示新增欄位
+    if (createFields) createFields.classList.remove('d-none');
+    editSubTitle.textContent = `新增人員`;
+
+    // 清空/預設
+    if (createStaffId) createStaffId.value = '';
+    if (createName) createName.value = '';
+    if (createSource) createSource.value = 'manual';
+
+    editUsername.value = '';
+    editPassword.value = '';
+
+    // 管理員可以編權限
+    permArea.classList.remove('d-none');
+    btnDeleteAccount.classList.add('d-none');
+
+    // 預設：四大系統全關閉；開關開啟時會自動全勾選
+    resetPermUiToAccount(currentEditing.account);
+
+    modal.show();
   }
+
+  function resetPermUiToAccount(acc) {
+    // 先把 UI reset 到 account
+    fillPermsFromAccount(acc);
+    // 關閉時禁用下方 perms
+    refreshPermPanelsEnabledState();
+  }
+}
 
   function closeEditModal() {
     currentEditing = null;
+    isCreating = false;
+    if (createFields) createFields.classList.add('d-none');
     modal.hide();
   }
 
@@ -607,15 +667,19 @@
   function bindToggleHandlers() {
     toggleNurse.addEventListener('change', () => {
       setPermsEnabled('nurse', toggleNurse.checked);
+      if (toggleNurse.checked) checkAllPerms('nurse');
     });
     toggleCaregiver.addEventListener('change', () => {
       setPermsEnabled('caregiver', toggleCaregiver.checked);
+      if (toggleCaregiver.checked) checkAllPerms('caregiver');
     });
     toggleOffice.addEventListener('change', () => {
       setPermsEnabled('office', toggleOffice.checked);
+      if (toggleOffice.checked) checkAllPerms('office');
     });
     toggleAffairs.addEventListener('change', () => {
       setPermsEnabled('affairs', toggleAffairs.checked);
+      if (toggleAffairs.checked) checkAllPerms('affairs');
     });
   }
 
@@ -647,6 +711,26 @@
   async function saveAccountFromModal() {
     if (!currentEditing) return;
 
+    // 新增模式：先從欄位取得 staffId / name / source
+    if (isCreating) {
+      const sid = (createStaffId?.value || '').trim();
+      const nm = (createName?.value || '').trim();
+      const src = (createSource?.value || 'manual').trim() || 'manual';
+
+      if (!sid) {
+        alert('請輸入員工編號');
+        return;
+      }
+      currentEditing.staffId = sid;
+      currentEditing.name = nm || sid;
+      currentEditing.source = src;
+
+      // 若帳密沒填，預設用員工編號
+      if (!editUsername.value.trim()) editUsername.value = sid;
+      if (!editPassword.value.trim()) editPassword.value = sid;
+    }
+
+
     const staffId = currentEditing.staffId;
     const existed = accountsMap.has(staffId);
 
@@ -663,7 +747,12 @@
       currentEditing.account = newAcc;
     }
 
-    const toWrite = attachAuditFields({ ...currentEditing.account }, !existed);
+    const base = { ...currentEditing.account };
+    // 讓手動建立的人也能顯示在清單（不在 staff 集合時會用這些欄位顯示）
+    base.name = currentEditing.name || base.name;
+    base.source = currentEditing.source || base.source;
+
+    const toWrite = attachAuditFields(base, !existed);
 
     setButtonBusy(btnSaveModal, true, '儲存中...');
     try {
@@ -671,14 +760,30 @@
 
       // 更新本地 map / rowsAll
       accountsMap.set(staffId, { id: staffId, ...toWrite });
+      let updated = false;
       for (const r of rowsAll) {
         if (r.staffId === staffId) {
           r.account = accountsMap.get(staffId);
+          // 若來源/姓名在 staff 集合不存在，更新顯示資訊
+          if (r.source === 'manual' || !r.source) r.source = currentEditing.source || r.source || 'manual';
+          if (!r.name || r.name === r.staffId) r.name = currentEditing.name || r.name || r.staffId;
+          updated = true;
           break;
         }
       }
+      if (!updated) {
+        rowsAll.push({
+          staffId,
+          name: currentEditing.name || staffId,
+          source: currentEditing.source || 'manual',
+          account: accountsMap.get(staffId)
+        });
+      }
+
 
       showToast('已儲存', 'success');
+      isCreating = false;
+      if (createFields) createFields.classList.add('d-none');
       closeEditModal();
       refreshRender();
     } catch (e) {
@@ -816,6 +921,15 @@
       return { ...s, account: acc };
     });
 
+    // 把「只存在 userAccounts 但不在任何 staff 集合」的帳號也納入（例如手動新增的人）
+    const staffIdSet = new Set(staff.map(s => s.staffId));
+    for (const [id, acc] of accountsMap.entries()) {
+      if (staffIdSet.has(id)) continue;
+      const name = (acc && (acc.name || acc.fullName || acc.displayName)) || id;
+      merged.push({ staffId: id, name, source: acc?.source || 'manual', account: acc });
+    }
+
+
     // 非管理員：只顯示自己
     rowsAll = isAdmin ? merged : merged.filter(r => r.staffId === actor.id);
 
@@ -828,6 +942,7 @@
 
     if (!isAdmin) {
       if (btnCreateMissing) btnCreateMissing.classList.add('d-none');
+      if (btnAddManual) btnAddManual.classList.add('d-none');
       if (sourceFilter) sourceFilter.disabled = true;
       if (statusFilter) statusFilter.disabled = true;
       if (qInput) qInput.placeholder = '你目前只能查看/修改自己的帳密';
@@ -866,6 +981,7 @@
     // events
     btnRefresh?.addEventListener('click', reloadAll);
     btnCreateMissing?.addEventListener('click', createMissingAccounts);
+    btnAddManual?.addEventListener('click', openCreateModal);
     qInput?.addEventListener('input', refreshRender);
     sourceFilter?.addEventListener('change', refreshRender);
     statusFilter?.addEventListener('change', refreshRender);
@@ -874,7 +990,7 @@
     btnDeleteAccount?.addEventListener('click', deleteAccountFromModal);
 
     // when modal is hidden, clear currentEditing
-    editModalEl?.addEventListener('hidden.bs.modal', () => { currentEditing = null; });
+    editModalEl?.addEventListener('hidden.bs.modal', () => { currentEditing = null; isCreating = false; if (createFields) createFields.classList.add('d-none'); });
 
     await reloadAll();
   }
