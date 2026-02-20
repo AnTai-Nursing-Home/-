@@ -43,7 +43,7 @@
   <div class="card shadow-sm mb-3">
     <div class="card-body">
       <div class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">搜尋（姓名/員編/帳號）</label>
           <input id="q" class="form-control" placeholder="輸入關鍵字">
         </div>
@@ -57,7 +57,7 @@
             <option value="nurses">護理師</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">篩選狀態</label>
           <select id="statusFilter" class="form-select">
             <option value="">全部</option>
@@ -68,6 +68,11 @@
         <div class="col-md-2 d-grid">
           <button id="btnCreateMissing" class="btn btn-outline-primary">
             <i class="fas fa-user-plus me-1"></i>一鍵建立缺少帳號
+          </button>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button id="btnAddManual" class="btn btn-outline-success">
+            <i class="fas fa-user-plus me-1"></i>新增人員
           </button>
         </div>
       </div>
@@ -116,6 +121,29 @@
       </div>
 
       <div class="modal-body">
+        
+        <!-- 新增人員欄位（僅管理員可見） -->
+        <div id="createFields" class="row g-2 mb-3 d-none">
+          <div class="col-md-4">
+            <label class="form-label">員工編號</label>
+            <input id="createStaffId" class="form-control" autocomplete="off" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">姓名</label>
+            <input id="createName" class="form-control" autocomplete="off" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">來源</label>
+            <select id="createSource" class="form-select">
+              <option value="manual">手動建立</option>
+              <option value="adminStaff">社工/其他</option>
+              <option value="caregivers">外籍照服員</option>
+              <option value="localCaregivers">本國照服員</option>
+              <option value="nurses">護理師</option>
+            </select>
+          </div>
+        </div>
+
         <div class="row g-2 mb-3">
           <div class="col-md-6">
             <label class="form-label">帳號</label>
