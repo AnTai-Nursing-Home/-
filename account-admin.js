@@ -13,28 +13,167 @@
     nurses: '護理師'
   };
 
+  // -----------------------------
+  // 全站權限守門（本檔案可在其他系統頁直接 <script src="account-admin.js"></script> 引用）
+  // 規則來源：userAccounts/{staffId}.systems.{system}.enabled / perms
+  // -----------------------------
+
+  const PAGE_GUARD_RULES = [
+    // 護理師系統
+    { page: 'admin.html', system: 'nurse', perm: null, dashboard: 'admin.html' },
+    { page: 'admin-visit.html', system: 'nurse', perm: 'visit', dashboard: 'admin.html' },
+    { page: 'admin-duty.html', system: 'nurse', perm: 'duty', dashboard: 'admin.html' },
+    { page: 'admin-supplies-system.html', system: 'nurse', perm: 'supplies', dashboard: 'admin.html' },
+    { page: 'admin-resident-system.html', system: 'nurse', perm: 'resident', dashboard: 'admin.html' },
+    { page: 'wound-care.html', system: 'nurse', perm: 'woundCare', dashboard: 'admin.html' },
+    { page: 'doctor-rounds.html', system: 'nurse', perm: 'doctorRound', dashboard: 'admin.html' },
+    { page: 'nurse-primary-cases.html', system: 'nurse', perm: 'primaryCases', dashboard: 'admin.html' },
+    { page: 'nurse-whiteboard.html', system: 'nurse', perm: 'nurseWhiteboard', dashboard: 'admin.html' },
+    { page: 'temperature-nurse.html', system: 'nurse', perm: 'temperature', dashboard: 'admin.html' },
+
+    // 照服員系統
+    { page: 'caregiver.html', system: 'caregiver', perm: null, dashboard: 'caregiver.html' },
+    { page: 'leave-caregiver.html', system: 'caregiver', perm: 'leave', dashboard: 'caregiver.html' },
+    { page: 'stay-caregiver.html', system: 'caregiver', perm: 'stay', dashboard: 'caregiver.html' },
+    { page: 'foley-care.html', system: 'caregiver', perm: 'foley', dashboard: 'caregiver.html' },
+    { page: 'meal-caregiver.html', system: 'caregiver', perm: 'meal', dashboard: 'caregiver.html' },
+    { page: 'temperature-caregiver.html', system: 'caregiver', perm: 'temperature', dashboard: 'caregiver.html' },
+
+    // 辦公室系統
+    { page: 'office.html', system: 'office', perm: null, dashboard: 'office.html' },
+    { page: 'office-evaluation.html', system: 'office', perm: 'evaluation', dashboard: 'office.html' },
+    { page: 'office-duty.html', system: 'office', perm: 'duty', dashboard: 'office.html' },
+    { page: 'employees-admin.html', system: 'office', perm: 'employeesAdmin', dashboard: 'office.html' },
+    { page: 'office-maintenance.html', system: 'office', perm: 'maintenance', dashboard: 'office.html' },
+    { page: 'office-stay.html', system: 'office', perm: 'stay', dashboard: 'office.html' },
+    { page: 'announcements-admin.html', system: 'office', perm: 'announcements', dashboard: 'office.html' },
+    { page: 'meal-fee-admin.html', system: 'office', perm: 'mealFee', dashboard: 'office.html' },
+    { page: 'account-admin.html', system: null, perm: null, dashboard: 'office.html' }, // 帳號管理：只要有登入即可（非管理員只看自己）
+  ];
+
+  function getAuthUser() {
+    try {
+      const raw = sessionStorage.getItem(AUTH_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      const staffId = obj.staffId || obj.id || obj.empId || obj.employeeId || obj.uid;
+      const name = obj.name || obj.staffName || obj.displayName || '';
+      return staffId ? { ...obj, staffId, name } : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function waitForDb(maxWaitMs = 8000) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      if (window.db && typeof window.db.collection === 'function') return window.db;
+      await new Promise(r => setTimeout(r, 120));
+    }
+    return null;
+  }
+
+  function getRuleForCurrentPage() {
+    const path = (location.pathname || '').split('/').pop() || '';
+    if (!path) return null;
+    return PAGE_GUARD_RULES.find(r => r.page === path) || null;
+  }
+
+  function getByPath(obj, path) {
+    if (!obj || !path) return undefined;
+    return path.split('.').reduce((acc, k) => (acc && acc[k] !== undefined ? acc[k] : undefined), obj);
+  }
+
+  async function guardCurrentPage() {
+    const rule = getRuleForCurrentPage();
+    if (!rule) return; // 沒列在清單的頁面不擋（避免誤擋）
+
+    const authUser = getAuthUser();
+    if (!authUser) {
+      // 沒登入：導回對應儀表板（儀表板本身會呈現登入畫面/流程）
+      location.href = rule.dashboard || 'index.html';
+      return;
+    }
+
+    const db = await waitForDb();
+    if (!db) {
+      console.warn('[account-admin guard] db not ready, skip guard');
+      return;
+    }
+
+    let acc;
+    try {
+      const snap = await db.collection('userAccounts').doc(authUser.staffId).get();
+      if (!snap.exists) {
+        alert('找不到你的帳號資料，請聯絡管理員。');
+        location.href = rule.dashboard || 'index.html';
+        return;
+      }
+      acc = snap.data() || {};
+    } catch (e) {
+      console.warn('[account-admin guard] load userAccounts failed', e);
+      return;
+    }
+
+    // 如果是帳號管理頁：只要登入就可以；非管理員會被 UI 限制只能改自己
+    if (rule.page === 'account-admin.html') return;
+
+    const sys = acc.systems && acc.systems[rule.system] ? acc.systems[rule.system] : null;
+    if (!sys || sys.enabled !== true) {
+      alert('你沒有進入此系統的權限。');
+      location.href = rule.dashboard || 'index.html';
+      return;
+    }
+    if (rule.perm) {
+      const allowed = !!(sys.perms && sys.perms[rule.perm] === true);
+      if (!allowed) {
+        alert('你沒有使用此功能的權限。');
+        location.href = rule.dashboard || 'index.html';
+        return;
+      }
+    }
+  }
+
+  // 在非帳號管理頁：自動進行守門
+  // 在帳號管理頁：也會跑，但規則會放行
+  // 注意：請把本檔案放在 firebase-init.js 之後引用
+  guardCurrentPage();
+
+
+
   // 四大系統：護理師 / 照服員 / 辦公室 / 事務
   // ✅ 你之後要加更多權限，只要在這裡加項目即可（不會再把表格越拉越寬）
   const PERMISSION_CATALOG = {
     nurse: [
-      { key: 'nurseWhiteboard', label: '護理白板' },
+      { key: 'visit', label: '家屬探視' },
+      { key: 'duty', label: '班務系統' },
+      { key: 'supplies', label: '器材/衛材' },
+      { key: 'resident', label: '住民系統' },
       { key: 'woundCare', label: '傷口照護' },
-      { key: 'doctorRound', label: '醫師巡診' }
+      { key: 'doctorRound', label: '醫師巡診' },
+      { key: 'primaryCases', label: '主責個案分配' },
+      { key: 'nurseWhiteboard', label: '護理白板' },
+      { key: 'temperature', label: '體溫登錄' }
     ],
     caregiver: [
-      { key: 'caregiverRoster', label: '照服員名冊' },
-      { key: 'vitals', label: '生命徵象' }
+      { key: 'leave', label: '預假系統' },
+      { key: 'stay', label: '外宿申請' },
+      { key: 'foley', label: '導尿管照護評估' },
+      { key: 'meal', label: '點餐系統' },
+      { key: 'temperature', label: '體溫登錄' }
     ],
     office: [
-      { key: 'residentsAdmin', label: '住民系統' },
+      { key: 'evaluation', label: '評鑑系統' },
+      { key: 'duty', label: '班務系統' },
       { key: 'employeesAdmin', label: '員工資料系統' },
-      { key: 'officeStay', label: '外宿系統' },
-      { key: 'booking', label: '家屬探視預約' },
-      { key: 'nutritionist', label: '營養師系統' },
-      { key: 'accountAdmin', label: '帳號系統（管理）' }
+      { key: 'maintenance', label: '器材報修' },
+      { key: 'stay', label: '外宿申請管理' },
+      { key: 'announcements', label: '公告管理' },
+      { key: 'mealFee', label: '餐費管理' },
+      { key: 'accountAdmin', label: '帳號管理' }
     ],
     affairs: [
-      { key: 'annualLeave', label: '年假系統' }
+      { key: 'nutritionist', label: '營養師系統' }
     ]
   };
 
@@ -691,6 +830,11 @@
 
   // ===== 初始化 =====
   async function init() {
+    // 若本檔案被其他系統頁引用：只需要守門，不需要初始化帳號管理 UI
+    const _page = (location.pathname || '').split('/').pop();
+    const _isAccountAdminPage = (_page === 'account-admin.html') && document.getElementById('permArea') && document.getElementById('editModal');
+    if (!_isAccountAdminPage) return;
+
     await waitForDbReady();
     if (!(await ensureLogin())) return;
 
