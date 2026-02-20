@@ -76,6 +76,72 @@ document.addEventListener('firebase-ready', () => {
   const excelFileInput = document.getElementById('excel-file-input');
   const importStatus = document.getElementById('import-status');
 
+
+  // ====================== 登入者（顯示與匯出使用） ======================
+  const loginBadgeEl = document.getElementById('loginBadge');
+
+  const CURRENT_USER = { staffId: '', name: '' };
+
+  function setLoginBadge(text) {
+    if (!loginBadgeEl) return;
+    loginBadgeEl.textContent = text || '登入者：—';
+  }
+
+  function getSessionUser() {
+    try {
+      const raw = sessionStorage.getItem('antai_session_user');
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      if (!u) return null;
+      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
+      const name = u.displayName || u.name || u.staffName || u.username || '';
+      if (!staffId && !name) return null;
+      return { staffId, name };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function loadCurrentUserForEmployees() {
+    // 1) sessionStorage 優先
+    const su = getSessionUser();
+    if (su) {
+      CURRENT_USER.staffId = su.staffId || '';
+      CURRENT_USER.name = su.name || '';
+      setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+      return CURRENT_USER;
+    }
+
+    // 2) Firebase Auth + userAccounts（若頁面有載 auth）
+    try {
+      if (firebase?.auth) {
+        const u = firebase.auth().currentUser;
+        if (u?.uid) {
+          const acc = await db.collection('userAccounts').doc(u.uid).get();
+          if (acc.exists) {
+            const d = acc.data() || {};
+            CURRENT_USER.staffId = d.staffId || d.id || '';
+            CURRENT_USER.name = d.displayName || d.name || '';
+            setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+            return CURRENT_USER;
+          }
+        }
+      }
+    } catch (e) {}
+
+    setLoginBadge('登入者：—');
+    return CURRENT_USER;
+  }
+
+  function formatExportTime(dt = new Date()) {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    return `${y}/${m}/${d} ${hh}:${mm}`;
+  }
+
   const employeeForm = document.getElementById('employee-form');
   const typeInput = document.getElementById('employee-type');
   const sortOrderInput = document.getElementById('employee-sortOrder');
@@ -615,6 +681,8 @@ function fillFormFromRow(row) {
 
 
 async function generateReportHTML() {
+    const exportTime = formatExportTime(new Date());
+    const exportUser = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim() || '—';
     const tab = activeTabDef();
     const col = tab.collection;
 
@@ -670,6 +738,11 @@ async function generateReportHTML() {
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
         <th>學歷</th><th>畢業學校</th>
       </tr></thead><tbody>${rows}</tbody></table>
+
+      <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
+        匯出時間：${exportTime}&nbsp;&nbsp;&nbsp;&nbsp;匯出人員：${exportUser}
+      </div>
+
       </body></html>
     `;
   }
@@ -678,6 +751,8 @@ async function generateReportHTML() {
   
   // ========= Word 匯出（真正 .docx，整合所有名冊） =========
   async function exportAllToWordDocx() {
+    const exportTime = formatExportTime(new Date());
+    const exportUser = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim() || '—';
     if (window.__exportingEmployeesDocx) return;
     window.__exportingEmployeesDocx = true;
 
@@ -866,6 +941,13 @@ async function generateReportHTML() {
         }
       }
 
+      // 匯出資訊（文件末尾）
+      children.push(new Paragraph({ children: [new TextRun(' ')] }));
+      children.push(new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [new TextRun({ text: `匯出時間：${exportTime}    匯出人員：${exportUser}`, font: 'DFKai-SB', size: 20 })]
+      }));
+
       const doc = new Document({
         sections: [{
           properties: {
@@ -897,6 +979,8 @@ async function generateReportHTML() {
 
 // ========= Excel 匯出（整合所有名冊到同一個 .xlsx，分頁區分） =========
   async function exportAllToExcelXlsx() {
+    const exportTime = formatExportTime(new Date());
+    const exportUser = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim() || '—';
     if (window.__exportingEmployeesXlsx) return;
     window.__exportingEmployeesXlsx = true;
 
@@ -1066,6 +1150,15 @@ async function generateReportHTML() {
           applyRowStyle(r, { header:false });
         });
 
+
+        // Footer: 匯出資訊（表格下方）
+        const footerRowIdx = ws.lastRow.number + 2;
+        ws.mergeCells(footerRowIdx, 1, footerRowIdx, finalCols.length);
+        const fc = ws.getCell(footerRowIdx, 1);
+        fc.value = `匯出時間：${exportTime}    匯出人員：${exportUser}`;
+        fc.font = { name: 'Microsoft JhengHei', size: 11 };
+        fc.alignment = { vertical: 'middle', horizontal: 'right' };
+
         // Auto filter
         ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: finalCols.length } };
 
@@ -1188,6 +1281,7 @@ async function generateReportHTML() {
   }
 
   // 初始載入
+  await loadCurrentUserForEmployees();
   loadAll();
 });
 });
