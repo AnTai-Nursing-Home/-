@@ -13,6 +13,10 @@
     .sticky-top-2 { position: sticky; top: 0; z-index: 10; background: #fff; }
     .table td, .table th { vertical-align: middle; }
     .small-muted { font-size: 12px; color: #6c757d; }
+    .badge-system { margin-right: 4px; }
+    .pwd-mask { letter-spacing: 2px; }
+    .perm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
+    @media (min-width: 992px){ .perm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   </style>
 </head>
 <body>
@@ -23,7 +27,8 @@
       <div class="small-muted">資料來源：社工/其他、外籍照服員、本國照服員、護理師</div>
     </div>
     <div class="d-flex gap-2">
-      <a href="office.html?view=dashboard" class="btn btn-outline-secondary">
+      <span id="loginInfo" class="badge bg-light text-dark border align-self-center"></span>
+      <a href="office.html?view=dashboard" class="btn btn-outline-secondary" id="btnBackOffice">
         <i class="fas fa-arrow-left me-1"></i>返回辦公室
       </a>
       <button id="btnRefresh" class="btn btn-primary">
@@ -69,6 +74,7 @@
       <div class="small-muted mt-2">
         「一鍵建立缺少帳號」會用 <span class="mono">username=員工編號</span>、<span class="mono">password=員工編號</span>（可再改）。
       </div>
+      <div id="adminHint" class="small-muted mt-1"></div>
     </div>
   </div>
 
@@ -82,21 +88,119 @@
               <th style="min-width:110px;">員工編號</th>
               <th style="min-width:160px;">姓名</th>
               <th style="min-width:160px;">帳號</th>
-              <th style="min-width:160px;">密碼</th>
-              <th style="min-width:120px;">可進辦公室</th>
-              <th style="min-width:120px;">可進護理師</th>
-              <th style="min-width:120px;">可進營養師</th>
-                            <th style="min-width:120px;">可進照服員</th>
-<th style="min-width:120px;">可用年假系統</th>
-              <th style="min-width:140px;">動作</th>
+              <th style="min-width:140px;">密碼</th>
+              <th style="min-width:240px;">可使用系統</th>
+              <th style="min-width:150px;">動作</th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="11" class="text-center text-muted">載入中...</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>
           </tbody>
         </table>
       </div>
       <div id="msg" class="text-muted small mt-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 編輯帳號/權限 Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0"><i class="fas fa-user-pen me-2"></i>編輯帳號與權限</h5>
+          <div class="small-muted" id="editSubTitle"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">帳號</label>
+            <input id="editUsername" class="form-control" autocomplete="off" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">密碼</label>
+            <input id="editPassword" class="form-control" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- 權限區（非管理員會隱藏） -->
+        <div id="permArea">
+          <ul class="nav nav-tabs" id="permTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-nurse" type="button" role="tab">護理師系統</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-caregiver" type="button" role="tab">照服員系統</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-office" type="button" role="tab">辦公室系統</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-affairs" type="button" role="tab">事務系統</button>
+            </li>
+          </ul>
+
+          <div class="tab-content border border-top-0 rounded-bottom p-3" id="permTabContent">
+            <div class="tab-pane fade show active" id="tab-nurse" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">可進入護理師系統</div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toggleNurse">
+                </div>
+              </div>
+              <div id="nursePerms" class="perm-grid"></div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-caregiver" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">可進入照服員系統</div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toggleCaregiver">
+                </div>
+              </div>
+              <div id="caregiverPerms" class="perm-grid"></div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-office" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">可進入辦公室系統</div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toggleOffice">
+                </div>
+              </div>
+              <div id="officePerms" class="perm-grid"></div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-affairs" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">可進入事務系統</div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="toggleAffairs">
+                </div>
+              </div>
+              <div id="affairsPerms" class="perm-grid"></div>
+            </div>
+          </div>
+
+          <div class="small-muted mt-2">
+            先打開上方開關，才會啟用下方該系統的細項權限。
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger me-auto" id="btnDeleteAccount">
+          <i class="fas fa-trash me-1"></i>刪除帳號
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" id="btnSaveModal">
+          <i class="fas fa-floppy-disk me-1"></i>儲存
+        </button>
+      </div>
     </div>
   </div>
 </div>
