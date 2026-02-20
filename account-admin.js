@@ -233,7 +233,6 @@
     // 兼容：辦公室(officeAuth) / 護理師&照服員(antai_session_user)
     return getAuthUser();
   }
-  }
 
   // 取得登入者資訊（盡量相容不同系統存法）
   function getActor() {
