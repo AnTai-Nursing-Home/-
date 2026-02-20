@@ -1,8 +1,8 @@
-// account-admin.js - 辦公室端帳號管理
-// 讀取員工資料：adminStaff / caregivers / localCaregivers / nurses
+// account-admin.js - 帳號管理（含登入者、權限編輯 Modal、管理員/非管理員視角）
 // 帳號資料：userAccounts/{staffId}
+// 員工資料來源：adminStaff / caregivers / localCaregivers / nurses
 
-(function(){
+(function () {
   const AUTH_KEY = 'officeAuth';
 
   // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
@@ -13,6 +13,39 @@
     nurses: '護理師'
   };
 
+  // 四大系統：護理師 / 照服員 / 辦公室 / 事務
+  // ✅ 你之後要加更多權限，只要在這裡加項目即可（不會再把表格越拉越寬）
+  const PERMISSION_CATALOG = {
+    nurse: [
+      { key: 'nurseWhiteboard', label: '護理白板' },
+      { key: 'woundCare', label: '傷口照護' },
+      { key: 'doctorRound', label: '醫師巡診' }
+    ],
+    caregiver: [
+      { key: 'caregiverRoster', label: '照服員名冊' },
+      { key: 'vitals', label: '生命徵象' }
+    ],
+    office: [
+      { key: 'residentsAdmin', label: '住民系統' },
+      { key: 'employeesAdmin', label: '員工資料系統' },
+      { key: 'officeStay', label: '外宿系統' },
+      { key: 'booking', label: '家屬探視預約' },
+      { key: 'nutritionist', label: '營養師系統' },
+      { key: 'accountAdmin', label: '帳號系統（管理）' }
+    ],
+    affairs: [
+      { key: 'annualLeave', label: '年假系統' }
+    ]
+  };
+
+  // 舊欄位相容（既有資料仍會讀/寫）
+  const LEGACY_SYSTEM_FLAG = {
+    nurse: 'canNurse',
+    caregiver: 'canCaregiver',
+    office: 'canOffice',
+    affairs: 'canAnnualLeave'
+  };
+
   const tbody = document.getElementById('tbody');
   const msg = document.getElementById('msg');
   const btnRefresh = document.getElementById('btnRefresh');
@@ -21,12 +54,56 @@
   const sourceFilter = document.getElementById('sourceFilter');
   const statusFilter = document.getElementById('statusFilter');
   const btnCreateMissing = document.getElementById('btnCreateMissing');
+  const loginInfo = document.getElementById('loginInfo');
+  const adminHint = document.getElementById('adminHint');
 
-  function getAuth(){
-    try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch(e){ return null; }
+  // Modal elements
+  const editModalEl = document.getElementById('editModal');
+  const editSubTitle = document.getElementById('editSubTitle');
+  const editUsername = document.getElementById('editUsername');
+  const editPassword = document.getElementById('editPassword');
+  const permArea = document.getElementById('permArea');
+  const btnSaveModal = document.getElementById('btnSaveModal');
+  const btnDeleteAccount = document.getElementById('btnDeleteAccount');
+
+  const toggleNurse = document.getElementById('toggleNurse');
+  const toggleCaregiver = document.getElementById('toggleCaregiver');
+  const toggleOffice = document.getElementById('toggleOffice');
+  const toggleAffairs = document.getElementById('toggleAffairs');
+
+  const nursePerms = document.getElementById('nursePerms');
+  const caregiverPerms = document.getElementById('caregiverPerms');
+  const officePerms = document.getElementById('officePerms');
+  const affairsPerms = document.getElementById('affairsPerms');
+
+  let rowsAll = [];
+  let accountsMap = new Map();
+  let isAdmin = false;
+  let actor = { id: 'unknown', name: 'unknown', username: '' };
+
+  let modal;
+  let currentEditing = null; // { staffId, name, source, account }
+
+  function getAuth() {
+    try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
   }
 
-  async function waitForDbReady(){
+  // 取得登入者資訊（盡量相容不同系統存法）
+  function getActor() {
+    const a = getAuth() || {};
+    const id = a.staffId || a.uid || a.userId || a.staffNo || a.employeeId || a.username || 'unknown';
+    const name = a.displayName || a.name || a.fullName || a.staffName || a.username || 'unknown';
+    const username = a.username || a.user || '';
+    return { id, name, username };
+  }
+
+  function renderLoginInfo() {
+    if (!loginInfo) return;
+    const a = actor;
+    loginInfo.textContent = a.id === 'unknown' ? `登入中` : `登入者：${a.id} ${a.name}`;
+  }
+
+  async function waitForDbReady() {
     if (typeof db !== 'undefined' && db) return;
     await new Promise((resolve) => {
       document.addEventListener('firebase-ready', () => resolve(), { once: true });
@@ -34,16 +111,32 @@
     });
   }
 
-  function escapeHtml(s){
+  function escapeHtml(s) {
     return (s ?? '').toString()
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#039;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
-  // ===== 通知/忙碌狀態（Bootstrap Toast + 文字提示） =====
+  function setMsg(text) {
+    if (msg) msg.textContent = text || '';
+  }
+
+  function setButtonBusy(btn, busy, textBusy = '處理中...') {
+    if (!btn) return;
+    if (busy) {
+      btn.dataset._oldText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${textBusy}`;
+    } else {
+      btn.disabled = false;
+      if (btn.dataset._oldText) btn.innerHTML = btn.dataset._oldText;
+    }
+  }
+
+  // ===== Toast =====
   function ensureToastContainer() {
     let c = document.getElementById('toastContainer');
     if (c) return c;
@@ -68,52 +161,162 @@
           <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>`;
       c.appendChild(el);
-      const t = new bootstrap.Toast(el, { delay: 2500 });
+      const t = new bootstrap.Toast(el, { delay: 2200 });
       t.show();
       el.addEventListener('hidden.bs.toast', () => el.remove());
     } catch (e) {
-      // fallback
-      const msg = document.getElementById('msg');
-      if (msg) msg.textContent = message;
+      console.log(message);
     }
   }
 
-  function setMsg(text) {
-    const msg = document.getElementById('msg');
-    if (msg) msg.textContent = text || '';
+  // ===== 權限資料：讀/寫相容 =====
+  function normalizeAccount(doc = {}) {
+    const acc = { ...doc };
+
+    // 新式結構：systems
+    acc.systems = acc.systems && typeof acc.systems === 'object' ? acc.systems : {};
+
+    // 確保四大系統都有物件
+    for (const k of ['nurse', 'caregiver', 'office', 'affairs']) {
+      if (!acc.systems[k] || typeof acc.systems[k] !== 'object') acc.systems[k] = {};
+      if (typeof acc.systems[k].enabled !== 'boolean') {
+        // 從舊欄位推導
+        const legacyKey = LEGACY_SYSTEM_FLAG[k];
+        acc.systems[k].enabled = acc[legacyKey] === true;
+      }
+      acc.systems[k].perms = acc.systems[k].perms && typeof acc.systems[k].perms === 'object' ? acc.systems[k].perms : {};
+    }
+
+    return acc;
   }
 
-  function setButtonBusy(btn, busy, busyText = '處理中...') {
-    if (!btn) return;
-    if (busy) {
-      if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>${busyText}`;
-    } else {
-      btn.disabled = false;
-      if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
-      delete btn.dataset.origHtml;
+  function deriveLegacyFlagsFromSystems(acc) {
+    for (const [sys, legacyKey] of Object.entries(LEGACY_SYSTEM_FLAG)) {
+      acc[legacyKey] = acc.systems?.[sys]?.enabled === true;
+    }
+    return acc;
+  }
+
+  function buildPermGrid(container, sysKey) {
+    if (!container) return;
+    container.innerHTML = '';
+    const items = PERMISSION_CATALOG[sysKey] || [];
+    for (const it of items) {
+      const id = `perm_${sysKey}_${it.key}`;
+      const wrap = document.createElement('div');
+      wrap.className = 'form-check';
+      wrap.innerHTML = `
+        <input class="form-check-input" type="checkbox" id="${id}" data-sys="${sysKey}" data-perm="${it.key}">
+        <label class="form-check-label" for="${id}">${escapeHtml(it.label)}</label>
+      `;
+      container.appendChild(wrap);
     }
   }
 
+  function setPermsEnabled(sysKey, enabled) {
+    const selector = `[data-sys="${sysKey}"][data-perm]`;
+    document.querySelectorAll(selector).forEach(cb => {
+      cb.disabled = !enabled;
+      if (!enabled) cb.checked = false;
+    });
+  }
 
-  async function ensureOfficeLogin(){
+  function fillPermsFromAccount(acc) {
+    const a = normalizeAccount(acc);
+
+    // toggles
+    toggleNurse.checked = a.systems.nurse.enabled === true;
+    toggleCaregiver.checked = a.systems.caregiver.enabled === true;
+    toggleOffice.checked = a.systems.office.enabled === true;
+    toggleAffairs.checked = a.systems.affairs.enabled === true;
+
+    // perms
+    for (const sysKey of ['nurse', 'caregiver', 'office', 'affairs']) {
+      const enabled = a.systems[sysKey].enabled === true;
+      setPermsEnabled(sysKey, enabled);
+
+      const perms = a.systems[sysKey].perms || {};
+      document.querySelectorAll(`[data-sys="${sysKey}"][data-perm]`).forEach(cb => {
+        const permKey = cb.getAttribute('data-perm');
+        cb.checked = enabled ? (perms[permKey] === true) : false;
+      });
+    }
+  }
+
+  function readAccountFromModal(baseAcc) {
+    const out = normalizeAccount(baseAcc || {});
+    out.username = (editUsername.value || '').trim();
+    out.password = (editPassword.value || '').trim();
+
+    out.systems.nurse.enabled = toggleNurse.checked;
+    out.systems.caregiver.enabled = toggleCaregiver.checked;
+    out.systems.office.enabled = toggleOffice.checked;
+    out.systems.affairs.enabled = toggleAffairs.checked;
+
+    for (const sysKey of ['nurse', 'caregiver', 'office', 'affairs']) {
+      out.systems[sysKey].perms = out.systems[sysKey].perms || {};
+      const enabled = out.systems[sysKey].enabled === true;
+
+      // 如果沒開系統，perms 全清空
+      if (!enabled) {
+        out.systems[sysKey].perms = {};
+        continue;
+      }
+
+      document.querySelectorAll(`[data-sys="${sysKey}"][data-perm]`).forEach(cb => {
+        const permKey = cb.getAttribute('data-perm');
+        out.systems[sysKey].perms[permKey] = cb.checked === true;
+      });
+    }
+
+    deriveLegacyFlagsFromSystems(out);
+    return out;
+  }
+
+  function renderSystemBadges(acc) {
+    const a = normalizeAccount(acc || {});
+    const badges = [];
+    if (a.systems.office.enabled) badges.push(`<span class="badge bg-primary badge-system">辦公室</span>`);
+    if (a.systems.nurse.enabled) badges.push(`<span class="badge bg-success badge-system">護理師</span>`);
+    if (a.systems.caregiver.enabled) badges.push(`<span class="badge bg-warning text-dark badge-system">照服員</span>`);
+    if (a.systems.affairs.enabled) badges.push(`<span class="badge bg-info text-dark badge-system">事務</span>`);
+    return badges.join('') || `<span class="text-muted">—</span>`;
+  }
+
+  // ===== 管理員判斷 =====
+  async function resolveIsAdmin() {
+    const a = getAuth() || {};
+    if (a.isAdmin === true || a.admin === true || a.role === 'admin' || a.canManageAccounts === true) return true;
+
+    // fallback: 從 userAccounts 自己的 doc 判斷
+    try {
+      if (actor.id && actor.id !== 'unknown') {
+        const doc = await db.collection('userAccounts').doc(actor.id).get();
+        const d = doc.exists ? (doc.data() || {}) : {};
+        if (d.isAdmin === true || d.role === 'admin' || d.canManageAccounts === true) return true;
+      }
+    } catch (e) { /* ignore */ }
+
+    return false;
+  }
+
+  async function ensureLogin() {
     const auth = getAuth();
-    if (!auth || auth.canOffice !== true) {
-      alert('請先以可進辦公室的帳號登入。');
+    if (!auth) {
+      alert('請先登入後再進入帳號系統。');
       window.location.href = 'office.html';
       return false;
     }
     return true;
   }
 
-  async function loadAllStaff(){
+  // ===== Firestore 讀取 =====
+  async function loadAllStaff() {
     const sources = ['adminStaff', 'caregivers', 'localCaregivers', 'nurses'];
     const staff = [];
 
     for (const col of sources) {
       try {
-        // 若你有 sortOrder 就用，沒有就直接 get 後排序
         const snap = await db.collection(col).get();
         snap.forEach(doc => {
           const d = doc.data() || {};
@@ -138,28 +341,27 @@
       uniq.push(s);
     }
 
-    // 排序：先 source 再 staffId
-    uniq.sort((a,b)=> (a.source+ a.staffId).localeCompare(b.source+b.staffId,'zh-Hant'));
+    uniq.sort((a, b) => (a.source + a.staffId).localeCompare(b.source + b.staffId, 'zh-Hant'));
     return uniq;
   }
 
-  async function loadAccountsMap(){
+  async function loadAccountsMap() {
     const map = new Map();
     try {
       const snap = await db.collection('userAccounts').get();
-      snap.forEach(doc => map.set(doc.id, { id: doc.id, ...(doc.data()||{}) }));
+      snap.forEach(doc => map.set(doc.id, { id: doc.id, ...(doc.data() || {}) }));
     } catch (e) {
       console.warn('讀取 userAccounts 失敗:', e);
     }
     return map;
   }
 
-  function applyFilters(rows){
+  function applyFilters(rows) {
     const q = (qInput.value || '').trim().toLowerCase();
     const src = sourceFilter.value || '';
     const st = statusFilter.value || '';
 
-    return rows.filter(r=>{
+    return rows.filter(r => {
       if (src && r.source !== src) return false;
 
       const hasAcc = !!r.account;
@@ -167,261 +369,365 @@
       if (st === 'none' && hasAcc) return false;
 
       if (!q) return true;
-      const hay = `${r.staffId} ${r.name} ${(r.account?.username||'')}`.toLowerCase();
+      const hay = `${r.staffId} ${r.name} ${(r.account?.username || '')}`.toLowerCase();
       return hay.includes(q);
     });
   }
 
-  function render(rows){
+  // ===== 表格渲染（不再把權限塞在表格欄位）=====
+  function render(rows) {
     tbody.innerHTML = '';
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">沒有資料</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">沒有資料</td></tr>`;
       return;
     }
 
     for (const r of rows) {
-      const acc = r.account || {};
+      const acc = normalizeAccount(r.account || {});
       const tr = document.createElement('tr');
       tr.setAttribute('data-id', r.staffId);
 
       const sourceText = SOURCE_LABEL[r.source] || r.source;
 
+      const pwdMasked = acc.password ? '●'.repeat(Math.min(12, acc.password.length)) : '';
+      const canEditThisRow = isAdmin || (r.staffId === actor.id);
+
       tr.innerHTML = `
         <td><span class="badge bg-secondary">${escapeHtml(sourceText)}</span></td>
         <td class="mono">${escapeHtml(r.staffId)}</td>
         <td>${escapeHtml(r.name)}</td>
-        <td>
-          <input class="form-control form-control-sm" data-k="username" value="${escapeHtml(acc.username || '')}" placeholder="帳號">
-        </td>
-        <td>
-          <input class="form-control form-control-sm" data-k="password" value="${escapeHtml(acc.password || '')}" placeholder="密碼">
-        </td>
-        <td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canOffice" ${acc.canOffice===true?'checked':''}>
-        </td>
-        <td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canNurse" ${acc.canNurse===true?'checked':''}>
-        </td>
-        
-        <td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canNutritionist" ${acc.canNutritionist===true?'checked':''}>
-        </td>
-
-        <td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canCaregiver" ${acc.canCaregiver===true?'checked':''}>
-        </td>
-<td class="text-center">
-          <input type="checkbox" class="form-check-input" data-k="canAnnualLeave" ${acc.canAnnualLeave===true?'checked':''}>
-        </td>
+        <td class="mono">${escapeHtml(acc.username || '')}</td>
+        <td class="mono pwd-mask">${escapeHtml(pwdMasked)}</td>
+        <td>${renderSystemBadges(acc)}</td>
         <td>
           <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary" data-act="save"><i class="fas fa-floppy-disk me-1"></i>儲存</button>
-            <button class="btn btn-sm btn-outline-danger" data-act="clear"><i class="fas fa-trash me-1"></i>清空</button>
+            <button class="btn btn-sm btn-primary" data-act="edit" ${canEditThisRow ? '' : 'disabled'}>
+              <i class="fas fa-pen-to-square me-1"></i>編輯
+            </button>
+            ${isAdmin ? `
+              <button class="btn btn-sm btn-outline-danger" data-act="delete">
+                <i class="fas fa-trash me-1"></i>刪除
+              </button>` : ``}
           </div>
         </td>
       `;
 
-      tr.querySelector('[data-act="save"]').addEventListener('click', () => saveRow(tr, r));
-      tr.querySelector('[data-act="clear"]').addEventListener('click', () => clearRow(tr, r));
+      tr.querySelector('[data-act="edit"]').addEventListener('click', () => openEditModal(r));
+      if (isAdmin) {
+        tr.querySelector('[data-act="delete"]').addEventListener('click', () => deleteAccountWithConfirm(r));
+      }
+
       tbody.appendChild(tr);
     }
   }
 
-  function readRowInputs(tr){
-    const out = {};
-    tr.querySelectorAll('[data-k]').forEach(el=>{
-      const k = el.getAttribute('data-k');
-      if (el.type === 'checkbox') out[k] = el.checked;
-      else out[k] = (el.value || '').trim();
+  // ===== Modal 開啟/關閉 =====
+  function openEditModal(row) {
+    const acc = normalizeAccount(row.account || {});
+    currentEditing = {
+      staffId: row.staffId,
+      name: row.name,
+      source: row.source,
+      account: acc
+    };
+
+    editSubTitle.textContent = `${row.staffId}｜${row.name}｜${SOURCE_LABEL[row.source] || row.source}`;
+
+    editUsername.value = acc.username || '';
+    editPassword.value = acc.password || '';
+
+    if (!isAdmin) {
+      // 非管理員：只能改自己的帳密，不可調權限
+      permArea.classList.add('d-none');
+      btnDeleteAccount.classList.add('d-none');
+    } else {
+      permArea.classList.remove('d-none');
+      btnDeleteAccount.classList.remove('d-none');
+
+      fillPermsFromAccount(acc);
+    }
+
+    modal.show();
+  }
+
+  function closeEditModal() {
+    currentEditing = null;
+    modal.hide();
+  }
+
+  // toggle events -> enable/disable perms grid
+  function bindToggleHandlers() {
+    toggleNurse.addEventListener('change', () => {
+      setPermsEnabled('nurse', toggleNurse.checked);
     });
-    return out;
+    toggleCaregiver.addEventListener('change', () => {
+      setPermsEnabled('caregiver', toggleCaregiver.checked);
+    });
+    toggleOffice.addEventListener('change', () => {
+      setPermsEnabled('office', toggleOffice.checked);
+    });
+    toggleAffairs.addEventListener('change', () => {
+      setPermsEnabled('affairs', toggleAffairs.checked);
+    });
   }
 
-  async function saveAllAccounts(){
-    const btn = document.getElementById('saveAllBtn');
-    if (!confirm('確定要一次儲存所有帳號的變更嗎？')) return;
-
-    setButtonBusy(btn, true, '儲存中...');
-    setMsg('正在批次儲存中...');
-
-    const rows = document.querySelectorAll('#tbody tr[data-id]');
-
-    if (!rows.length){
-      setButtonBusy(btn, false);
-      setMsg('目前沒有可儲存的資料列');
-      showToast('目前沒有可儲存的資料列', 'warning');
-      return;
-    }
-    let ok = 0, fail = 0;
-
-    for (const tr of rows){
-      const id = tr.getAttribute('data-id');
-      if (!id) continue;
-
-      try{
-        const v = readRowInputs(tr);
-        if (!v.username || !v.password) { fail++; continue; }
-
-        const payload = {
-          username: v.username,
-          password: v.password,
-          canOffice: !!v.canOffice,
-          canNurse: !!v.canNurse,
-          canNutritionist: !!v.canNutritionist,
-          canCaregiver: !!v.canCaregiver,
-          canAnnualLeave: !!v.canAnnualLeave,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        await db.collection('userAccounts').doc(id).set(payload, { merge: true });
-        ok++;
-      }catch(e){
-        console.error('批次儲存失敗', id, e);
-        fail++;
-      }
-    }
-
-    setButtonBusy(btn, false);
-    const summary = `批次儲存完成：成功 ${ok} 筆，失敗 ${fail} 筆`;
-    setMsg(summary);
-    showToast(summary, fail > 0 ? 'warning' : 'success');
+  // ===== 寫入 Firestore（含登入者）=====
+  function nowIso() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  async function saveRow(tr, r){
-    const saveBtn = tr.querySelector('[data-act="save"]');
-    setButtonBusy(saveBtn, true, '儲存中...');
+  function attachAuditFields(acc, isNew) {
+    const a = actor;
+    const time = nowIso();
+    if (isNew) {
+      acc.createdAt = acc.createdAt || time;
+      acc.createdBy = a.id;
+      acc.createdById = a.id;
+      acc.createdByName = a.name;
+      acc.createdByUsername = a.username || '';
+    }
+    acc.updatedAt = time;
+    acc.updatedBy = a.id;
+    acc.updatedById = a.id;
+    acc.updatedByName = a.name;
+    acc.updatedByUsername = a.username || '';
+    return acc;
+  }
 
+  async function saveAccountFromModal() {
+    if (!currentEditing) return;
+
+    const staffId = currentEditing.staffId;
+    const existed = accountsMap.has(staffId);
+
+    const newAcc = readAccountFromModal(currentEditing.account);
+
+    // 非管理員：只允許改 username/password（權限維持原狀）
+    if (!isAdmin) {
+      const keep = normalizeAccount(currentEditing.account);
+      keep.username = newAcc.username;
+      keep.password = newAcc.password;
+      // 保留原本權限（避免被前端隱藏欄位清空）
+      currentEditing.account = keep;
+    } else {
+      currentEditing.account = newAcc;
+    }
+
+    const toWrite = attachAuditFields({ ...currentEditing.account }, !existed);
+
+    setButtonBusy(btnSaveModal, true, '儲存中...');
     try {
-      const v = readRowInputs(tr);
+      await db.collection('userAccounts').doc(staffId).set(toWrite, { merge: true });
 
-      if (!v.username) { showToast('請輸入帳號', 'warning'); return; }
-      if (!v.password) { showToast('請輸入密碼', 'warning'); return; }
-
-      // 基本資訊同步寫入，方便查詢與顯示
-      const payload = {
-        staffId: r.staffId,
-        displayName: r.name,
-        source: r.source,
-        username: v.username,
-        password: v.password,
-        canOffice: !!v.canOffice,
-        canNurse: !!v.canNurse,
-        canNutritionist: !!v.canNutritionist,
-        canCaregiver: !!v.canCaregiver,
-        canAnnualLeave: !!v.canAnnualLeave,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      };
-
-      const ref = db.collection('userAccounts').doc(r.staffId);
-      const snap = await ref.get();
-      if (!snap.exists) {
-        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      // 更新本地 map / rowsAll
+      accountsMap.set(staffId, { id: staffId, ...toWrite });
+      for (const r of rowsAll) {
+        if (r.staffId === staffId) {
+          r.account = accountsMap.get(staffId);
+          break;
+        }
       }
 
-      await ref.set(payload, { merge: true });
-
-      setMsg(`已儲存：${r.staffId} ${r.name}`);
-      showToast(`已儲存：${r.staffId} ${r.name}`, 'success');
-
-      // 更新內存
-      r.account = payload;
+      showToast('已儲存', 'success');
+      closeEditModal();
+      refreshRender();
     } catch (e) {
       console.error(e);
-      showToast('儲存失敗，請稍後再試', 'danger');
+      showToast('儲存失敗', 'danger');
     } finally {
-      setButtonBusy(saveBtn, false);
+      setButtonBusy(btnSaveModal, false);
     }
   }
 
-  async function clearRow(tr, r){
-    if (!confirm(`確定要清空/刪除 ${r.staffId} ${r.name} 的帳號資料嗎？`)) return;
+  async function writeAuditLog(action, payload = {}) {
     try {
-      await db.collection('userAccounts').doc(r.staffId).delete();
-      msg.textContent = `已刪除：${r.staffId} ${r.name}`;
-      // 清空畫面
-      tr.querySelectorAll('[data-k]').forEach(el=>{
-        if (el.type === 'checkbox') el.checked = false;
-        else el.value = '';
+      await db.collection('auditLogs').add({
+        action,
+        at: nowIso(),
+        actorId: actor.id,
+        actorName: actor.name,
+        actorUsername: actor.username || '',
+        ...payload
       });
-      r.account = null;
     } catch (e) {
-      console.error(e);
-      alert('刪除失敗，請稍後再試');
+      console.warn('寫入 auditLogs 失敗（不影響主要流程）', e);
     }
   }
 
-  async function createMissing(rows){
-    const missing = rows.filter(r => !r.account);
-    if (!missing.length) {
-      alert('沒有缺少帳號的員工。');
-      return;
-    }
-    if (!confirm(`將為 ${missing.length} 位員工建立帳號（username/password=員工編號），確定嗎？`)) return;
-
-    const batch = db.batch();
-    const now = firebase.firestore.FieldValue.serverTimestamp();
-
-    missing.forEach(r=>{
-      const ref = db.collection('userAccounts').doc(r.staffId);
-      batch.set(ref, {
-        staffId: r.staffId,
-        displayName: r.name,
-        source: r.source,
-        username: r.staffId,
-        password: r.staffId,
-        canOffice: (r.source === 'adminStaff' || r.source === 'localCaregivers'), // 你可自行調整預設
-        canNurse: (r.source === 'nurses'),
-        canNutritionist: (r.source === 'adminStaff' || r.source === 'nurses'), // 你可自行調整預設
-        canCaregiver: (r.source === 'caregivers' || r.source === 'localCaregivers'), // 照服員預設可進
-        canAnnualLeave: false,
-        createdAt: now,
-        updatedAt: now
-      }, { merge: true });
-    });
+  async function deleteAccountWithConfirm(row) {
+    if (!isAdmin) return;
+    if (!confirm(`確定要刪除「${row.staffId} ${row.name}」的帳號資料嗎？（只會刪 userAccounts）`)) return;
 
     try {
-      await batch.commit();
-      alert('已建立缺少帳號（可再修改密碼/權限）。');
-      await refresh();
+      await db.collection('userAccounts').doc(row.staffId).delete();
+      await writeAuditLog('deleteUserAccount', { staffId: row.staffId, staffName: row.name });
+
+      accountsMap.delete(row.staffId);
+      for (const r of rowsAll) {
+        if (r.staffId === row.staffId) {
+          r.account = null;
+          break;
+        }
+      }
+
+      showToast('已刪除', 'warning');
+      refreshRender();
     } catch (e) {
       console.error(e);
-      alert('批次建立失敗，請稍後再試');
+      showToast('刪除失敗', 'danger');
     }
   }
 
-  let allRows = [];
+  async function deleteAccountFromModal() {
+    if (!isAdmin || !currentEditing) return;
+    const row = { staffId: currentEditing.staffId, name: currentEditing.name };
+    if (!confirm(`確定要刪除「${row.staffId} ${row.name}」的帳號資料嗎？`)) return;
 
-  async function refresh(){
-    tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">載入中...</td></tr>`;
-    msg.textContent = '';
+    setButtonBusy(btnDeleteAccount, true, '刪除中...');
+    try {
+      await db.collection('userAccounts').doc(row.staffId).delete();
+      await writeAuditLog('deleteUserAccount', { staffId: row.staffId, staffName: row.name });
 
-    await waitForDbReady();
+      accountsMap.delete(row.staffId);
+      for (const r of rowsAll) {
+        if (r.staffId === row.staffId) {
+          r.account = null;
+          break;
+        }
+      }
+
+      showToast('已刪除', 'warning');
+      closeEditModal();
+      refreshRender();
+    } catch (e) {
+      console.error(e);
+      showToast('刪除失敗', 'danger');
+    } finally {
+      setButtonBusy(btnDeleteAccount, false);
+    }
+  }
+
+  // ===== 一鍵建立缺少帳號（admin only）=====
+  async function createMissingAccounts() {
+    if (!isAdmin) return;
+    if (!confirm('確定要一鍵建立所有缺少帳號的人員？（username/password 都會先用員工編號）')) return;
+
+    setButtonBusy(btnCreateMissing, true, '建立中...');
+    try {
+      let created = 0;
+      for (const r of rowsAll) {
+        if (r.account) continue;
+        const acc = normalizeAccount({
+          username: r.staffId,
+          password: r.staffId,
+          // 預設都不開任何系統，避免誤開權限
+          systems: {
+            nurse: { enabled: false, perms: {} },
+            caregiver: { enabled: false, perms: {} },
+            office: { enabled: false, perms: {} },
+            affairs: { enabled: false, perms: {} },
+          }
+        });
+        deriveLegacyFlagsFromSystems(acc);
+        const toWrite = attachAuditFields({ ...acc }, true);
+
+        await db.collection('userAccounts').doc(r.staffId).set(toWrite, { merge: true });
+        accountsMap.set(r.staffId, { id: r.staffId, ...toWrite });
+        r.account = accountsMap.get(r.staffId);
+        created++;
+      }
+      showToast(`完成：建立 ${created} 筆`, 'success');
+      refreshRender();
+    } catch (e) {
+      console.error(e);
+      showToast('建立失敗', 'danger');
+    } finally {
+      setButtonBusy(btnCreateMissing, false);
+    }
+  }
+
+  // ===== 重新渲染 =====
+  function refreshRender() {
+    const list = applyFilters(rowsAll);
+    render(list);
+    setMsg(`共 ${list.length} 筆`);
+  }
+
+  async function reloadAll() {
+    setMsg('載入中...');
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>`;
 
     const staff = await loadAllStaff();
-    const accountsMap = await loadAccountsMap();
+    accountsMap = await loadAccountsMap();
 
-    allRows = staff.map(s => ({
-      ...s,
-      account: accountsMap.get(s.staffId) || null
-    }));
+    // 合併 staff + account
+    const merged = staff.map(s => {
+      const acc = accountsMap.get(s.staffId) || null;
+      return { ...s, account: acc };
+    });
 
-    const filtered = applyFilters(allRows);
-    render(filtered);
-    msg.textContent = `共 ${filtered.length} 筆（總員工 ${allRows.length}）`;
+    // 非管理員：只顯示自己
+    rowsAll = isAdmin ? merged : merged.filter(r => r.staffId === actor.id);
+
+    refreshRender();
   }
 
-  // 綁定事件
-  btnRefresh.addEventListener('click', refresh);
-    if (saveAllBtn) saveAllBtn.addEventListener('click', () => saveAllAccounts());
-qInput.addEventListener('input', () => render(applyFilters(allRows)));
-  sourceFilter.addEventListener('change', () => render(applyFilters(allRows)));
-  statusFilter.addEventListener('change', () => render(applyFilters(allRows)));
-  btnCreateMissing.addEventListener('click', () => createMissing(allRows));
+  function setupUiByRole() {
+    // 這版不再做「一鍵儲存」：避免誤解，直接隱藏（你若想保留我再改成批次儲存 modal 變更）
+    if (saveAllBtn) saveAllBtn.classList.add('d-none');
 
-  // 啟動
-  (async function boot(){
-    if (!await ensureOfficeLogin()) return;
-    await refresh();
-  })();
+    if (!isAdmin) {
+      if (btnCreateMissing) btnCreateMissing.classList.add('d-none');
+      if (sourceFilter) sourceFilter.disabled = true;
+      if (statusFilter) statusFilter.disabled = true;
+      if (qInput) qInput.placeholder = '你目前只能查看/修改自己的帳密';
+      if (adminHint) adminHint.textContent = '非管理員模式：只能查看/修改自己的帳號與密碼（不能調整權限）。';
+    } else {
+      if (adminHint) adminHint.textContent = '管理員模式：可管理所有人帳號與權限。';
+    }
+  }
 
+  // ===== 初始化 =====
+  async function init() {
+    await waitForDbReady();
+    if (!(await ensureLogin())) return;
+
+    actor = getActor();
+    renderLoginInfo();
+
+    // build perm grids once
+    buildPermGrid(nursePerms, 'nurse');
+    buildPermGrid(caregiverPerms, 'caregiver');
+    buildPermGrid(officePerms, 'office');
+    buildPermGrid(affairsPerms, 'affairs');
+
+    modal = new bootstrap.Modal(editModalEl);
+
+    bindToggleHandlers();
+
+    isAdmin = await resolveIsAdmin();
+    setupUiByRole();
+
+    // events
+    btnRefresh?.addEventListener('click', reloadAll);
+    btnCreateMissing?.addEventListener('click', createMissingAccounts);
+    qInput?.addEventListener('input', refreshRender);
+    sourceFilter?.addEventListener('change', refreshRender);
+    statusFilter?.addEventListener('change', refreshRender);
+
+    btnSaveModal?.addEventListener('click', saveAccountFromModal);
+    btnDeleteAccount?.addEventListener('click', deleteAccountFromModal);
+
+    // when modal is hidden, clear currentEditing
+    editModalEl?.addEventListener('hidden.bs.modal', () => { currentEditing = null; });
+
+    await reloadAll();
+  }
+
+  init().catch(err => {
+    console.error(err);
+    showToast('初始化失敗', 'danger');
+  });
 })();
