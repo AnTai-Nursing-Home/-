@@ -20,6 +20,51 @@ document.addEventListener("firebase-ready", () => {
 
   const RESIDENTS_BY_BED = {};
 
+  // =========================
+  // Login User (from sessionStorage or Firestore userAccounts)
+  // =========================
+  const loginUserEl = document.getElementById("login-user");
+  const CURRENT_USER = { staffId: "", name: "" };
+
+  function renderLoginUser() {
+    if (!loginUserEl) return;
+    const label = (CURRENT_USER.staffId || CURRENT_USER.name)
+      ? `登入者：${(CURRENT_USER.staffId || '').trim()} ${(CURRENT_USER.name || '').trim()}`.trim()
+      : "登入者：—";
+    loginUserEl.textContent = label;
+  }
+
+  async function initLoginUser() {
+    // 1) Prefer sessionStorage (same as other systems)
+    try {
+      const raw = sessionStorage.getItem("antai_session_user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        CURRENT_USER.staffId = u.staffId || u.employeeId || "";
+        CURRENT_USER.name = u.displayName || u.name || "";
+        renderLoginUser();
+        return;
+      }
+    } catch (e) {}
+
+    // 2) Fallback to Firebase Auth + userAccounts/{uid}
+    try {
+      const auth = firebase.auth();
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) { renderLoginUser(); return; }
+        const doc = await db.collection("userAccounts").doc(user.uid).get();
+        const d = doc.exists ? (doc.data() || {}) : {};
+        CURRENT_USER.staffId = d.staffId || d.employeeId || "";
+        CURRENT_USER.name = d.displayName || d.name || "";
+        renderLoginUser();
+      });
+    } catch (e) {
+      console.warn("[doctor-rounds] initLoginUser failed", e);
+      renderLoginUser();
+    }
+  }
+
+
   function showLoadingRow() {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary py-4">讀取中...</td></tr>`;
   }
@@ -487,6 +532,23 @@ document.addEventListener("firebase-ready", () => {
 
     applyBorderToRange('A1', `G${signRow}`);
 
+    // 匯出資訊（底部）
+    const exportInfoRow = signRow + 2;
+    ws.getRow(exportInfoRow).height = 24;
+    ws.mergeCells(`A${exportInfoRow}:G${exportInfoRow}`);
+
+    const now = new Date();
+    const exportTime =
+      `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ` +
+      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    const exporter = `${(CURRENT_USER.staffId || '').trim()} ${(CURRENT_USER.name || '').trim()}`.trim() || '—';
+    setCell(`A${exportInfoRow}`, `匯出時間：${exportTime}    匯出人員：${exporter}`, {
+      font: fontBody,
+      align: { horizontal: 'right' },
+      wrap: true
+    });
+
     // Sheet 2
     const ws2 = wb.addWorksheet('摘要');
     ws2.columns = [{ width: 22.0 }, { width: 18.0 }, { width: 22.0 }, { width: 18.0 }];
@@ -620,6 +682,15 @@ document.addEventListener("firebase-ready", () => {
             <td class="sign" colspan="3">巡診醫師簽名：</td>
             <td class="sign" colspan="4">跟診護理師簽名：</td>
           </tr>
+
+          <tr style="height:24pt;">
+            <td colspan="7" style="text-align:right;vertical-align:middle;font-size:10pt;">
+              匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}&nbsp;&nbsp;&nbsp;&nbsp;匯出人員：${(() => {
+                const s = (CURRENT_USER.staffId || '').trim() + ' ' + (CURRENT_USER.name || '').trim();
+                return s.trim() || '—';
+              })()}
+            </td>
+          </tr>
         </table>
       </body>
     </html>`;
@@ -646,6 +717,7 @@ document.addEventListener("firebase-ready", () => {
   dateInput.addEventListener("change", async () => { await loadSheet(true); });
 
   (async () => {
+    initLoginUser();
     await loadResidents();
     if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
     await loadSheet(true);
