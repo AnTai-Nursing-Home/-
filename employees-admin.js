@@ -1281,7 +1281,8 @@ async function generateReportHTML() {
   }
 
   // 初始載入
-  await loadCurrentUserForEmployees();
-  loadAll();
+  loadCurrentUserForEmployees().then(() => {
+    loadAll();
+  });
 });
 });
