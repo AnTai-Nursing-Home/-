@@ -3,7 +3,7 @@
 // 員工資料來源：adminStaff / caregivers / localCaregivers / nurses
 
 (function () {
-  const AUTH_KEY = 'officeAuth';
+  const AUTH_KEYS = ['officeAuth', 'antai_session_user'];
 
   // 資料來源顯示中文（value 仍維持原本的 collection 名稱，避免影響既有資料/邏輯）
   const SOURCE_LABEL = {
@@ -53,12 +53,15 @@
 
   function getAuthUser() {
     try {
-      const raw = sessionStorage.getItem(AUTH_KEY);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      const staffId = obj.staffId || obj.id || obj.empId || obj.employeeId || obj.uid;
-      const name = obj.name || obj.staffName || obj.displayName || '';
-      return staffId ? { ...obj, staffId, name } : null;
+      for (const key of AUTH_KEYS) {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) continue;
+        const obj = JSON.parse(raw);
+        const staffId = obj.staffId || obj.id || obj.empId || obj.employeeId || obj.uid || obj.username;
+        const name = obj.name || obj.staffName || obj.displayName || '';
+        if (staffId) return { ...obj, staffId, name, _authKey: key };
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -90,7 +93,10 @@
 
     const authUser = getAuthUser();
     if (!authUser) {
-      // 沒登入：導回對應儀表板（儀表板本身會呈現登入畫面/流程）
+      // 儀表板/登入頁（admin.html / caregiver.html / office.html）：允許停留顯示登入畫面，不做守門導轉
+      if (rule.perm === null && (rule.page === rule.dashboard)) return;
+
+      // 其他子頁：沒登入就導回對應儀表板（儀表板本身會呈現登入畫面/流程）
       location.href = rule.dashboard || 'index.html';
       return;
     }
