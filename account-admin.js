@@ -230,7 +230,9 @@
   let currentEditing = null; // { staffId, name, source, account }
 
   function getAuth() {
-    try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
+    // 兼容：辦公室(officeAuth) / 護理師&照服員(antai_session_user)
+    return getAuthUser();
+  }
   }
 
   // 取得登入者資訊（盡量相容不同系統存法）
@@ -449,7 +451,9 @@
     const auth = getAuth();
     if (!auth) {
       alert('請先登入後再進入帳號系統。');
-      window.location.href = 'office.html';
+      // 依照不同登入來源導回較合理的入口
+      const target = (location.pathname || '').includes('office') ? 'office.html' : 'office.html';
+      window.location.href = target;
       return false;
     }
     return true;
