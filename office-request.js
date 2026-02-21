@@ -311,7 +311,10 @@ function getLoginContext() {
     // 目標：只抓「登入者本人」的資料，但要兼容舊資料欄位命名（nurseId 可能存 docId 或 staffId）
     const nurseDocId = (loggedIn?.nurseId || "").toString().trim();
     const staffId = (loggedIn?.staffId || "").toString().trim();
-    const name = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+    const nameRaw = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+
+    const normName = (s) => (s || "").toString().replace(/\s+/g, "").replace(/[()（）].*$/, "").trim();
+    const name = normName(nameRaw);
 
     const unique = new Map();
 
@@ -321,7 +324,7 @@ function getLoginContext() {
         const q = await col.where(field, "==", value).get();
         q.docs.forEach(d => unique.set(d.id, d));
       } catch (e) {
-        // ignore (可能缺索引/欄位不存在)
+        // ignore (可能缺索引/欄位不存在/權限限制)
       }
     }
 
@@ -332,27 +335,42 @@ function getLoginContext() {
     await runWhere("applicantId", staffId);
     await runWhere("createdById", staffId);
     await runWhere("createdById", nurseDocId);
-    await runWhere("applicant", name);
-    await runWhere("applicantName", name);
-    await runWhere("nurseName", name);
-    await runWhere("name", name);
 
-
-    // 最後保底：抓全部前端過濾（資料量大時不建議，但你的系統通常量不會爆）
-    if (unique.size === 0) {
-      try {
-        const all = await col.get();
-        all.docs.forEach(d => {
-          const data = d.data() || {};
-          const nid = (data.nurseId || "").toString().trim();
-          const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
-          const an = (data.applicant || data.applicantName || data.nurseName || data.name || "").toString().trim();
-          if ((nurseDocId && nid === nurseDocId) || (staffId && (nid === staffId || sid === staffId)) || (name && an === name)) {
-            unique.set(d.id, d);
-          }
-        });
-      } catch (e) {}
+    // 以姓名為條件（部分資料可能只存名字）
+    if (name) {
+      await runWhere("applicant", nameRaw);
+      await runWhere("applicant", name);
+      await runWhere("applicantName", nameRaw);
+      await runWhere("applicantName", name);
+      await runWhere("nurseName", nameRaw);
+      await runWhere("nurseName", name);
+      await runWhere("name", nameRaw);
+      await runWhere("name", name);
     }
+
+    // ✅ 強化：就算已經查到一部分，也再做一次「全量掃描」補齊舊資料（你這套量不大，掃一次很安全）
+    // 原因：有些舊單的欄位命名/值格式不一致（例如 nurseId 存 docId vs 工號、姓名含空白/括號），
+    // 只靠 where 可能會漏資料。
+    try {
+      const all = await col.get();
+      all.docs.forEach(d => {
+        const data = d.data() || {};
+        const nid = (data.nurseId || "").toString().trim();
+        const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
+
+        const anRaw = (data.applicant || data.applicantName || data.nurseName || data.name || "").toString().trim();
+        const an = normName(anRaw);
+
+        const matchId =
+          (nurseDocId && (nid === nurseDocId || sid === nurseDocId)) ||
+          (staffId && (nid === staffId || sid === staffId));
+
+        const matchName =
+          name && (an === name || normName(nameRaw) === an);
+
+        if (matchId || matchName) unique.set(d.id, d);
+      });
+    } catch (e) {}
 
     return Array.from(unique.values());
   }
