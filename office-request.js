@@ -1,1109 +1,623 @@
+document.addEventListener("firebase-ready", async () => {
+  const db = firebase.firestore();
 
-/* ===== Global collections for both office & nurse sides ===== */
-window.COL_LEAVE = "nurse_leave_requests";
-window.COL_SWAP  = "nurse_shift_requests";
+  // Collections
+  const nurseCol = db.collection("nurses"); // ✅ 人員資料庫改成從 nurses 抓
+  const leaveCol = db.collection("nurse_leave_requests");
+  const swapCol = db.collection("nurse_shift_requests");
+  const statusCol = db.collection("request_status_list");
 
-/**
- * office-request.js (Micronurse Office) — UPDATED FOR HOURS COLUMN
- * - Adds display column: 請假時數(小時) after "班別"
- * - A1 rule: if no explicit hours info in legacy data, show blank
- * - Keeps mirror to Annual Leave (特休) enabled
- * - Firebase v8 compatible
- */
+  // DOM
+  const leaveBody = document.getElementById("leaveTableBody");
+  const swapBody = document.getElementById("swapTableBody");
+  const recordBody = document.getElementById("recordTableBody");
 
-(function () {
-  const DB = () => firebase.firestore();
-  const COL_LEAVE   = "nurse_leave_requests";
-  const COL_SWAP    = "nurse_shift_requests";
-  const COL_STATUS  = "request_status_list";
-  const COL_ANNUAL  = "annual_leave_requests";
-  const HOURS_PER_DAY = 8;
+  const leaveApplicantSelect =
+    document.getElementById("leaveApplicant") ||
+    document.querySelector("#leaveForm select[name='applicant']");
+  const swapApplicantSelect = document.getElementById("swapApplicant");
 
-  const $ = (s) => document.querySelector(s);
+  const loginUserDisplay = document.getElementById("loginUserDisplay");
 
-  // ===== 登入者顯示（右上角）=====
-  function getLoggedInUserName() {
-    // ✅ 優先抓辦公室登入（office.html / office.js）使用的 sessionStorage: officeAuth
-    // officeAuth 內容形如：{ staffId, displayName, username, canOffice, ... }
-    try {
-      const raw = sessionStorage.getItem('officeAuth');
-      if (raw) {
-        const u = JSON.parse(raw);
-        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
-        if (n && n.trim()) return n.trim();
-      }
-    } catch (e) {}
+  // Record tab controls
+  const recordTypeEl = document.getElementById("recordType");
+  const recordStatusEl = document.getElementById("recordStatus");
+  const recordFromEl = document.getElementById("recordFrom");
+  const recordToEl = document.getElementById("recordTo");
+  const recordSearchBtn = document.getElementById("recordSearchBtn");
+  const recordResetBtn = document.getElementById("recordResetBtn");
 
-    // ✅ 其次抓護理端登入（如果此頁也會從護理端入口開）
-    try {
-      const raw = sessionStorage.getItem('nurseAuth');
-      if (raw) {
-        const u = JSON.parse(raw);
-        const n = (u && (u.displayName || u.name || u.username)) ? String(u.displayName || u.name || u.username) : '';
-        if (n && n.trim()) return n.trim();
-      }
-    } catch (e) {}
+  let statusList = [];
 
-    // 盡量兼容你其他系統可能用的命名（不確定就多抓幾個）
-    const candidates = [
-      window.CURRENT_USER_NAME,
-      window.LOGIN_USER_NAME,
-      window.LOGIN_NAME,
-      window.currentUserName,
-      window.userName,
-      window.loggedInUserName,
-      (() => { try { return sessionStorage.getItem("loginName"); } catch(_) { return ""; } })(),
-      (() => { try { return sessionStorage.getItem("loggedInUser"); } catch(_) { return ""; } })(),
-      (() => { try { return sessionStorage.getItem("username"); } catch(_) { return ""; } })(),
-      (() => { try { return localStorage.getItem("loginName"); } catch(_) { return ""; } })(),
-      (() => { try { return localStorage.getItem("loggedInUser"); } catch(_) { return ""; } })(),
-      (() => { try { return localStorage.getItem("username"); } catch(_) { return ""; } })(),
-    ].filter(Boolean);
-
-    return String(candidates[0] || "").trim();
+  // ===== Login / Session (防呆：支援多種既有系統存法) =====
+  function safeJsonParse(v) {
+    try { return JSON.parse(v); } catch { return null; }
   }
 
-  function renderLoggedInUser() {
-    const el = document.getElementById("loginUserName");
-    if (!el) return;
-    const name = getLoggedInUserName();
-    el.textContent = name ? `登入者：${name}` : "登入者：未登入";
-  }
-
-  // 允許其他頁面在登入後用 event 通知更新（可選）
-  window.addEventListener("user-changed", renderLoggedInUser);
-
-
-  // ===== 員工清單（申請人下拉選單用） =====
-  const EMP_COLLECTIONS = ["caregivers","localCaregivers","nurses","adminStaff"];  // 調整順序：外籍 → 台籍 → 護理師 → 行政
-  let EMP_NAMES = []; // 只存姓名給辦公室端選擇
-
-  async function loadEmployeeListForOffice() {
-    const db = firebase.firestore();
-    const snaps = await Promise.all(EMP_COLLECTIONS.map(c => db.collection(c).get()));
-    const seen = new Set();
-    EMP_NAMES = [];
-    snaps.forEach(snap => {
-      snap.forEach(doc => {
-        const d = doc.data() || {};
-        const name = d.name || "";
-        if (!name || seen.has(name)) return;
-        seen.add(name);
-        EMP_NAMES.push(name);
-      });
-    });
-    EMP_NAMES.sort(); // 排序一下比較好選
-    fillApplicantDropdowns();
-  }
-
-  function fillApplicantDropdowns() {
-    const leaveSel = document.getElementById("leaveApplicant");
-    const swapSel  = document.getElementById("swapApplicant");
-
-    // ✅ 新增：篩選用員工下拉
-    const leaveFilterSel = document.getElementById("leaveApplicantFilter");
-    const swapFilterSel  = document.getElementById("swapApplicantFilter");
-
-    const baseOption = '<option value="">請選擇申請人</option>';
-    const opts = [baseOption]
-      .concat(EMP_NAMES.map(n => `<option value="${n}">${n}</option>`))
-      .join("");
-
-    const filterOpts = ['<option value="">全部</option>']
-      .concat(EMP_NAMES.map(n => `<option value="${n}">${n}</option>`))
-      .join("");
-
-    if (leaveSel) leaveSel.innerHTML = opts;
-    if (swapSel)  swapSel.innerHTML  = opts;
-
-    if (leaveFilterSel) leaveFilterSel.innerHTML = filterOpts;
-    if (swapFilterSel)  swapFilterSel.innerHTML  = filterOpts;
-  }
-  // ========= Utilities =========
-  function ymd(dLike) {
-    if (!dLike) return "";
-    const d = new Date(dLike);
-    if (isNaN(d)) {
-      const s = String(dLike);
-      return s.length >= 10 ? s.slice(0,10) : s;
-    }
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  }
-  function toISODate() {
-    return new Date().toISOString();
-  }
-  function hoursFromPayload(d) {
-    // Preferred explicit field
-    if (typeof d.hoursUsed === "number" && d.hoursUsed > 0) return d.hoursUsed;
-
-    // UI Mode A (number + unit)
-    const val = Number(d.durationValue || d.hours || 0);
-    const unit = String(d.durationUnit || d.unit || "").toLowerCase();
-    if (val > 0) {
-      if (unit === "hour" || unit === "hours" || unit === "小時") return val;
-      if (unit === "day"  || unit === "days"  || unit === "天") return val * HOURS_PER_DAY;
-      // if unit empty (legacy but has value), assume hours
-      return val;
-    }
-
-    // Legacy half-day
-    if (String(d.halfDay || "").toLowerCase() === "true") return 4;
-
-    // If none -> undefined (A1: show blank)
-    return undefined;
-  }
-  function getDisplayHoursText(d) {
-    const h = hoursFromPayload(d);
-    if (typeof h === "number" && h >= 0) return `${h} 小時`;
-    return ""; // A1 rule
-  }
-  function getStatusColor(name, list) {
-    const s = list.find(x => x.name === name);
-    return s ? s.color : "#6c757d";
-  }
-
-  // ========= Status List =========
-  let STATUS_LIST = [];
-  async function loadStatuses() {
-    const statusCol = firebase.firestore().collection(COL_STATUS);
-    const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
-    STATUS_LIST = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const optionHTML = STATUS_LIST.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
-    ["leaveStatusSelect","swapStatusSelect","leaveStatusFilter","swapStatusFilter"].forEach(id => {
-      const sel = document.getElementById(id);
-      if (sel) sel.innerHTML = `<option value="">全部</option>${optionHTML}`;
-    });
-
-    const statusBody = document.getElementById("statusTableBody");
-    if (statusBody) {
-      statusBody.innerHTML = STATUS_LIST.map(s => `
-        <tr>
-          <td>${s.name}</td>
-          <td><span class="badge" style="background:${s.color};color:#fff;">${s.color}</span></td>
-        </tr>
-      `).join("");
-    }
-  }
-
-  // ========= Rendering (Leave / Swap) =========
-  function inDateRange(targetDate, start, end) {
-    if (!targetDate) return true;
-    const t = new Date(targetDate);
-    if (start) { const s = new Date(start); if (t < s) return false; }
-    if (end)   { const e = new Date(end);   if (t > e) return false; }
-    return true;
-  }
-
-  async function loadLeaveRequests() {
-    const leaveBody = document.getElementById("leaveTableBody");
-    if (!leaveBody) return;
-    leaveBody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">載入中...</td></tr>`;
-    const db = firebase.firestore();
-    const snap = await db.collection(COL_LEAVE).orderBy("applyDate", "desc").get();
-    const start = $("#leaveStartDate")?.value;
-    const end   = $("#leaveEndDate")?.value;
-    const filterStatus = $("#leaveStatusFilter")?.value;
-    const filterApplicant = $("#leaveApplicantFilter")?.value;
-
-    let rows = "";
-    snap.forEach(doc => {
-      const d = doc.data() || {};
-      if (!inDateRange(d.leaveDate, start, end)) return;
-      if (filterStatus && d.status !== filterStatus) return;
-            if (filterApplicant && (d.applicant || "") !== filterApplicant) return;
-const color = getStatusColor(d.status || "", STATUS_LIST);
-      const hoursText = getDisplayHoursText(d); // "" if not available
-
-      rows += `
-        <tr data-id="${doc.id}">
-          <td>${d.applyDate || ""}</td>
-          <td>${d.applicant || ""}</td>
-          <td>${d.leaveType || ""}</td>
-          <td>${d.leaveDate || ""}</td>
-          <td>${d.shift || ""}</td>
-          <td>${hoursText}</td>
-          <td>${d.reason || ""}</td>
-          <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}" style="background:${color};color:#fff;">
-              ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
-            </select>
-          </td>
-          <td class="supervisor-sign-cell" data-id="${doc.id}">${d.supervisorSign || ""}</td>
-          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-          <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-leave" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
-<button class="btn btn-danger btn-sm delete-leave" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>`;
-    });
-    leaveBody.innerHTML = rows || `<tr><td colspan="11" class="text-center text-muted">沒有符合的資料</td></tr>`;
-
-  }
-
-  async function loadSwapRequests() {
-    const swapBody = document.getElementById("swapTableBody");
-    if (!swapBody) return;
-    swapBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
-    const db = firebase.firestore();
-    const snap = await db.collection(COL_SWAP).orderBy("applyDate", "desc").get();
-    const start = $("#swapStartDate")?.value;
-    const end   = $("#swapEndDate")?.value;
-    const filterStatus = $("#swapStatusFilter")?.value;
-    const filterApplicant = $("#swapApplicantFilter")?.value;
-
-    let rows = "";
-    snap.forEach(doc => {
-      const d = doc.data() || {};
-      if (!inDateRange(d.swapDate, start, end)) return;
-      if (filterStatus && d.status !== filterStatus) return;
-            if (filterApplicant && (d.applicant || "") !== filterApplicant) return;
-const color = getStatusColor(d.status || "", STATUS_LIST);
-      rows += `
-        <tr data-id="${doc.id}">
-          <td>${d.applyDate || ""}</td>
-          <td>${d.applicant || ""}</td>
-          <td>${d.swapDate || ""}</td>
-          <td>${d.originalShift || ""}</td>
-          <td>${d.newShift || ""}</td>
-          <td>${d.reason || ""}</td>
-          <td>
-            <select class="form-select form-select-sm status-select" data-id="${doc.id}" style="background:${color};color:#fff;">
-              ${STATUS_LIST.map(s => `<option value="${s.name}" ${d.status === s.name ? 'selected' : ''}>${s.name}</option>`).join("")}
-            </select>
-          </td>
-          <td class="supervisor-sign-cell" data-id="${doc.id}">${d.supervisorSign || ""}</td>
-          <td><textarea class="form-control form-control-sm note-area" data-id="${doc.id}" rows="1">${d.note || ""}</textarea></td>
-          <td class="no-print text-center"><button class="btn btn-sm btn-outline-primary me-1 edit-swap" data-id="${doc.id}"><i class="fa-solid fa-pen"></i></button>
-<button class="btn btn-danger btn-sm delete-swap" data-id="${doc.id}"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>`;
-    });
-    swapBody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted">沒有符合的資料</td></tr>`;
-
-  }
-
-  // ========= Create Leave/Swap (with mixed duration support if fields exist) =========
-  async function handleAddLeave(e) {
-    e.preventDefault();
-    const f = e.target;
-    const db = firebase.firestore();
-
-    const amountInput = f.querySelector('[name="durationValue"]') || $("#leaveAmount");
-    const unitSelect  = f.querySelector('[name="durationUnit"]')  || $("#leaveUnit");
-
-    let durationValue = amountInput ? Number(amountInput.value || "0") : 0;
-    let durationUnit  = unitSelect  ? (unitSelect.value || "").toLowerCase() : "";
-
-    if (!(durationValue > 0)) {
-      // default to 1 day only if no UI fields exist; but since UI has field, keep 0 -> will be ignored in display
-      if (!amountInput) { durationValue = 1; durationUnit = "day"; }
-    }
-
-    const payload = {
-      applicant: f.applicant.value,
-      applyDate: new Date().toISOString().split("T")[0],
-      leaveType: f.leaveType.value,
-      leaveDate: f.leaveDate.value,
-      shift: f.shift.value,
-      reason: f.reason.value,
-      status: f.status.value,
-      note: "",
-      supervisorSign: "",
-      durationValue,
-      durationUnit,
-      hoursUsed: (durationValue > 0)
-        ? (durationUnit && durationUnit.startsWith("day") ? durationValue * HOURS_PER_DAY : durationValue)
-        : undefined,
-      createdAt: toISODate()
-    };
-
-    await db.collection(COL_LEAVE).add(payload);
-    f.reset();
-    alert("✅ 已新增請假單");
-  }
-
-  async function handleAddSwap(e) {
-    e.preventDefault();
-    const f = e.target;
-    const db = firebase.firestore();
-    const payload = {
-      applicant: f.applicant.value,
-      applyDate: new Date().toISOString().split("T")[0],
-      swapDate: f.swapDate.value,
-      originalShift: f.originalShift.value,
-      newShift: f.newShift.value,
-      reason: f.reason.value,
-      status: f.status.value,
-      note: "",
-      supervisorSign: "",
-      createdAt: toISODate()
-    };
-    await db.collection(COL_SWAP).add(payload);
-    f.reset();
-    alert("✅ 已新增調班單");
-  }
-
-  // ========= Mirror Sync to Annual Leave (特休) =========
-  const _empIdCache = Object.create(null);
-
-  // ★ 支援 caregivers / localCaregivers / nurses / adminStaff 四種來源
-  const COLLECTIONS_FOR_ID = ["caregivers","localCaregivers","nurses","adminStaff"];
-  async function resolveEmpIdByName(name) {
-    if (!name) return "";
-    if (_empIdCache[name]) return _empIdCache[name];
-    const db = firebase.firestore();
-    for (const col of COLLECTIONS_FOR_ID) {
-      const q = await db.collection(col).where("name","==",name).limit(1).get();
-      if (!q.empty) {
-        const doc = q.docs[0];
-        const data = doc.data() || {};
-        const id = data.empId || data.id || doc.id || "";
-        if (id) {
-          _empIdCache[name] = id;
-          return id;
-        }
-      }
+  function pick(obj, keys) {
+    if (!obj) return "";
+    for (const k of keys) {
+      if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== "") return obj[k];
     }
     return "";
   }
 
-  async function upsertAnnualBySource(sourceDocId, d) {
-    const db = firebase.firestore();
-    const al = db.collection(COL_ANNUAL);
-    const found = await al.where("sourceDocId","==",sourceDocId).limit(1).get();
-    const empId = d.employeeId || d.empId || d.applicantId || await resolveEmpIdByName(d.applicant || d.name);
-    // compute hours but DO NOT default to HOURS_PER_DAY for display rule; annual_leave needs numeric though
-    let hrs = hoursFromPayload(d);
-    if (typeof hrs !== "number") hrs = 0; // in annual_leave, store 0 if missing
-
-    const payload = {
-      sourceDocId,
-      source: "請假系統",
-      applyDate: d.applyDate || ymd(d.createdAt || toISODate()),
-      applicant: d.applicant || d.name || "",
-      empId: empId || "",
-      leaveType: d.leaveType || "特休",
-      leaveDate: ymd(d.leaveDate || d.date),
-      shift: d.shift || "",
-      reason: d.reason || "",
-      status: d.status || "審核通過",
-      supervisorSign: d.supervisorSign || "",
-      note: d.note || "",
-      hoursUsed: hrs,
-      daysUsed: (hrs / HOURS_PER_DAY),
-      createdAt: d.createdAt || toISODate(),
-      updatedAt: toISODate()
-    };
-    if (!payload.applicant || !payload.leaveDate) {
-      console.warn("[mirror] skip upsert: missing required fields", payload);
-      return false;
-    }
-    await al.doc(sourceDocId).set(payload, { merge: true });
-    return true;
-  }
-
-  async function deleteAnnualBySource(sourceDocId) {
-    const db = firebase.firestore();
-    const al = db.collection(COL_ANNUAL);
-    const snap = await al.where("sourceDocId","==",sourceDocId).get();
-    if (snap.empty) return false;
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    return true;
-  }
-
-  function bindMirrorRealtime() {
-    const db = firebase.firestore();
-    db.collection(COL_LEAVE).onSnapshot(snap => {
-      snap.docChanges().forEach(async chg => {
-        const id = chg.doc.id;
-        const d  = chg.doc.data() || {};
-        const type = (d.leaveType || "").trim();
-        if (type !== "特休") return; // only mirror annual leave
-
-        if (chg.type === "removed") {
-          await deleteAnnualBySource(id);
-          return;
-        }
-
-        const status = (d.status || "").trim();
-        if (status === "審核通過") {
-          await upsertAnnualBySource(id, d);
-        } else {
-          await deleteAnnualBySource(id);
-        }
-      });
-    });
-  }
-
-  // ========= Inline updates (with debounce) =========
-  const _debounceTimers = Object.create(null);
-  function debounceUpdate(key, delay, fn) {
-    if (_debounceTimers[key]) clearTimeout(_debounceTimers[key]);
-    _debounceTimers[key] = setTimeout(() => {
-      delete _debounceTimers[key];
-      try { fn(); } catch (e) { console.error("debounceUpdate error:", e); }
-    }, delay);
-  }
-
-  async function updateRequestFieldSmart(id, patch) {
-    const db = firebase.firestore();
-    const leaveDoc = await db.collection(COL_LEAVE).doc(id).get();
-    if (leaveDoc.exists) {
-      await leaveDoc.ref.update(patch);
-      return "leave";
-    }
-    const swapDoc = await db.collection(COL_SWAP).doc(id).get();
-    if (swapDoc.exists) {
-      await swapDoc.ref.update(patch);
-      return "swap";
-    }
-    return "none";
-  }
-
-  function bindInlineEditors() {
-  // ✅ 註解欄位：改成「離開輸入框（blur）」才儲存，避免打字中途就自動存
-  document.addEventListener("blur", async (e) => {
-    if (e.target && e.target.classList && e.target.classList.contains("note-area")) {
-      const id = e.target.dataset.id;
-      const value = e.target.value;
-      try {
-        await updateRequestFieldSmart(id, { note: value });
-      } catch (err) {
-        console.error("save note failed:", err);
-      }
-    }
-  }, true); // capture=true 讓 blur 可在 document 層被捕捉到
-
-  // 狀態下拉：維持即時儲存
-  document.addEventListener("change", async (e) => {
-    if (e.target.classList.contains("status-select")) {
-      const id = e.target.dataset.id;
-      const value = e.target.value;
-      const color = (STATUS_LIST.find(s => s.name === value)?.color) || "#6c757d";
-      e.target.style.background = color;
-      e.target.style.color = "#fff";
-
-      // ✅ 狀態變更後，自動帶入主管簽名＝登入者姓名（若有登入者）
-      const loginName = (typeof getLoggedInUserName === "function") ? getLoggedInUserName() : "";
-      const patch = { status: value };
-      if (loginName) patch.supervisorSign = loginName;
-
-      await updateRequestFieldSmart(id, patch);
-
-      // ✅ 同步更新畫面上的主管簽名欄位（無下拉選單，直接顯示文字）
-      if (loginName) {
-        const cell = document.querySelector(`.supervisor-sign-cell[data-id="${id}"]`);
-        if (cell) cell.textContent = loginName;
-      }
-    }
-  });
-}
-
-  // ========= Delete buttons =========
-  function bindDeleteButtons() {
-    document.addEventListener("click", async (e) => {
-      const btnLeave = e.target.closest(".delete-leave");
-      const btnSwap  = e.target.closest(".delete-swap");
-      if (btnLeave) {
-        const id = btnLeave.dataset.id;
-        if (confirm("確定要刪除此請假單？")) {
-          await firebase.firestore().collection(COL_LEAVE).doc(id).delete();
-        }
-      }
-      if (btnSwap) {
-        const id = btnSwap.dataset.id;
-        if (confirm("確定要刪除此調班單？")) {
-          await firebase.firestore().collection(COL_SWAP).doc(id).delete();
-        }
-      }
-    });
-  }
-
-  // ========= Export & Print =========
-  // ========= Export (Styled .xlsx via ExcelJS; fallback to XLSX table export) =========
-  function _cmToIn(cm){ return cm / 2.54; }
-
-  function _ensureExcelJs(){
-    if (typeof ExcelJS === "undefined" || typeof saveAs === "undefined") return false;
-    return true;
-  }
-
-  function _collectTableData(tableId){
-    const table = document.getElementById(tableId);
-    if (!table) return { headers: [], rows: [] };
-
-    // headers
-    const ths = [...table.querySelectorAll("thead th")].filter(th => !th.classList.contains("no-print"));
-    const headers = ths.map(th => (th.textContent || "").trim());
-
-    // rows
-    const rows = [...table.querySelectorAll("tbody tr")].map(tr => {
-      const tds = [...tr.children].filter(td => !td.classList.contains("no-print"));
-      return tds.map(td => {
-        // If contains select/input/textarea, extract value
-        const sel = td.querySelector("select");
-        if (sel) return (sel.value || sel.options?.[sel.selectedIndex]?.text || "").trim();
-        const inp = td.querySelector("input");
-        if (inp) return (inp.value || "").trim();
-        const ta = td.querySelector("textarea");
-        if (ta) return (ta.value || "").trim();
-        return (td.textContent || "").trim();
-      });
-    }).filter(r => r.length && !r.join("").includes("沒有符合的資料") && !r.join("").includes("載入中"));
-
-    return { headers, rows };
-  }
-
-  async function exportStyledXlsx({ tableId, filename, sheetName, title }) {
-    // Prefer ExcelJS styled export; fallback to legacy XLSX table export
-    if (!_ensureExcelJs()) {
-      exportTableToExcel(tableId, filename.replace(/\.xlsx$/i, "") + ".xlsx");
-      return;
-    }
-
-    const { headers, rows } = _collectTableData(tableId);
-    if (!headers.length) {
-      alert("找不到可匯出的表格資料");
-      return;
-    }
-
-    const wb = new ExcelJS.Workbook();
-    wb.creator = "Micronurse Office";
-    wb.created = new Date();
-
-    const ws = wb.addWorksheet(sheetName || "Sheet1", {
-      properties: { defaultRowHeight: 20 },
-      pageSetup: {
-        paperSize: 9, // A4
-        orientation: "landscape",
-        fitToPage: true,
-        fitToWidth: 1,
-        fitToHeight: 0,
-        margins: {
-          top: _cmToIn(1.5),
-          bottom: _cmToIn(1.5),
-          left: _cmToIn(1.5),
-          right: _cmToIn(1.5),
-          header: _cmToIn(0.8),
-          footer: _cmToIn(0.8)
-        }
-      },
-      views: [{ state: "frozen", ySplit: 2 }] // freeze title + header
-    });
-
-    // Title row
-    const titleText = title || filename.replace(/\.xlsx$/i, "");
-    ws.mergeCells(1, 1, 1, headers.length);
-    const titleCell = ws.getCell(1, 1);
-    titleCell.value = titleText;
-    titleCell.font = { name: "Microsoft JhengHei", size: 16, bold: true };
-    titleCell.alignment = { horizontal: "center", vertical: "middle" };
-    ws.getRow(1).height = 28;
-
-    // Header row
-    ws.addRow(headers);
-    const headerRow = ws.getRow(2);
-    headerRow.height = 22;
-    headerRow.eachCell((cell) => {
-      cell.font = { name: "Microsoft JhengHei", size: 12, bold: true };
-      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE9ECEF" } };
-      cell.border = {
-        top: { style: "thin" }, left: { style: "thin" },
-        bottom: { style: "thin" }, right: { style: "thin" }
-      };
-    });
-
-    // Data rows
-    rows.forEach(r => ws.addRow(r));
-    for (let i = 3; i <= ws.rowCount; i++) {
-      const row = ws.getRow(i);
-      row.height = 36; // allow wrap
-      row.eachCell((cell) => {
-        cell.font = { name: "Microsoft JhengHei", size: 11 };
-        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-        cell.border = {
-          top: { style: "thin" }, left: { style: "thin" },
-          bottom: { style: "thin" }, right: { style: "thin" }
-        };
-      });
-    }
-
-    // Column widths (make it roomy; tweak based on header text)
-    const widthMap = {
-      "申請日期": 14, "申請人": 14, "假別": 12, "請假日期": 14, "班別": 12,
-      "請假時數(小時)": 16, "理由": 30, "狀態": 14, "主管簽名": 14, "註解": 30,
-      "調班日期": 14, "原班別": 14, "欲換班別": 14
-    };
-    ws.columns = headers.map(h => ({ width: widthMap[h] || 18 }));
-
-    // Save
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
-  }
-
-  function exportTableToExcel(tableId, filename) {
-    // ✅ 防呆：避免 XLSX 沒載入導致 XLSX is not defined
-    if (typeof XLSX === "undefined") {
-      alert("⚠️ 匯出功能需要載入 Excel 函式庫（XLSX）。\n請確認 office-request.html 已加入 xlsx.full.min.js，或重新整理再試一次。");
-      console.error("XLSX is not defined. Please include https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js before office-request.js");
-      return;
-    }
-
-    const table = document.getElementById(tableId).cloneNode(true);
-    table.querySelectorAll(".no-print").forEach(e => e.remove());
-    table.querySelectorAll("select, input, textarea").forEach(el => {
-      const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-      el.replaceWith(document.createTextNode(text));
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(table);
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    XLSX.writeFile(wb, filename);
-  }
-  function bindExportPrint() {
-    $("#exportLeaveExcel")?.addEventListener("click", () => exportStyledXlsx({ tableId: "leaveTable", filename: "請假紀錄.xlsx", sheetName: "請假紀錄", title: "請假紀錄表" }));
-    $("#exportSwapExcel") ?.addEventListener("click", () => exportStyledXlsx({ tableId: "swapTable",  filename: "調班紀錄.xlsx", sheetName: "調班紀錄", title: "調班紀錄表" }));
-$("#printLeaveTable")?.addEventListener("click", () => {
-      const clone = document.getElementById("leaveTable").cloneNode(true);
-      clone.querySelectorAll(".no-print").forEach(e => e.remove());
-      clone.querySelectorAll("select, input, textarea").forEach(el => {
-        const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-        el.replaceWith(document.createTextNode(text));
-      });
-      const content = clone.outerHTML;
-      const w = window.open("", "_blank");
-      w.document.write([
-  '<html><head><title>請假紀錄</title>',
-  '<style>',
-  '@page { size: A4 landscape; margin: 15mm; }',
-  'body { font-family:"Microsoft JhengHei"; font-size:13px; }',
-  'table { border-collapse:collapse; width:100%; }',
-  'th,td { border:1px solid #000; padding:6px; text-align:center; }',
-  'h2,h4,p { text-align:center; margin:0; }',
-  '</style></head>',
-  '<body>',
-  '<h2>安泰護理之家</h2>',
-  '<h4>請假紀錄表</h4>',
-  '<p>列印日期：' + new Date().toLocaleDateString('zh-TW') + '</p>',
-  content,
-  '</body></html>'
-].join(''));
-w.document.close();
-      w.print();
-    });
-
-    $("#printSwapTable")?.addEventListener("click", () => {
-      const clone = document.getElementById("swapTable").cloneNode(true);
-      clone.querySelectorAll(".no-print").forEach(e => e.remove());
-      clone.querySelectorAll("select, input, textarea").forEach(el => {
-        const text = el.value || el.options?.[el.selectedIndex]?.text || "";
-        el.replaceWith(document.createTextNode(text));
-      });
-      const content = clone.outerHTML;
-      const w = window.open("", "_blank");
-      w.document.write([
-  '<html><head><title>調班紀錄</title>',
-  '<style>',
-  '@page { size: A4 landscape; margin: 15mm; }',
-  'body { font-family:"Microsoft JhengHei"; font-size:13px; }',
-  'table { border-collapse:collapse; width:100%; }',
-  'th,td { border:1px solid #000; padding:6px; text-align:center; }',
-  'h2,h4,p { text-align:center; margin:0; }',
-  '</style></head>',
-  '<body>',
-  '<h2>安泰護理之家</h2>',
-  '<h4>調班紀錄表</h4>',
-  '<p>列印日期：' + new Date().toLocaleDateString('zh-TW') + '</p>',
-  content,
-  '</body></html>'
-].join(''));
-w.document.close();
-      w.print();
-    });
-  }
-
-  // ========= Init =========
-  document.addEventListener("firebase-ready", async () => {
-    renderLoggedInUser();
-    await loadEmployeeListForOffice();
-    await loadStatuses();
-    await loadLeaveRequests();
-    await loadSwapRequests();
-
-    $("#filterLeave")?.addEventListener("click", loadLeaveRequests);
-    $("#filterSwap") ?.addEventListener("click", loadSwapRequests);
-
-    $("#addLeaveForm")?.addEventListener("submit", handleAddLeave);
-    $("#addSwapForm") ?.addEventListener("submit", handleAddSwap);
-
-    bindInlineEditors();
-    bindDeleteButtons();
-    bindExportPrint();
-    bindMirrorRealtime();
-
-    // Realtime refresh (only when added/removed or status changed)
-    // Realtime refresh：只在「新增/刪除」或「狀態」變更時才重刷，避免註解儲存造成跳回最上方
-const __leaveStatusCache = Object.create(null);
-
-firebase.firestore().collection(COL_LEAVE).onSnapshot((snap) => {
-  let shouldRefresh = false;
-
-  snap.docChanges().forEach(chg => {
-    const id = chg.doc.id;
-    const d = chg.doc.data() || {};
-    const newStatus = (d.status || "").trim();
-
-    if (chg.type === "added") {
-      __leaveStatusCache[id] = newStatus;
-      shouldRefresh = true;
-      return;
-    }
-
-    if (chg.type === "removed") {
-      delete __leaveStatusCache[id];
-      shouldRefresh = true;
-      return;
-    }
-
-    if (chg.type === "modified") {
-      const oldStatus = (__leaveStatusCache[id] || "").trim();
-      __leaveStatusCache[id] = newStatus;
-      // ✅ 只有狀態真的變了才重刷（註解 note 更新不會觸發重刷）
-      if (newStatus !== oldStatus) shouldRefresh = true;
-    }
-  });
-
-  if (shouldRefresh) loadLeaveRequests();
-});
-    const __swapStatusCache = Object.create(null);
-
-firebase.firestore().collection(COL_SWAP).onSnapshot((snap) => {
-  let shouldRefresh = false;
-
-  snap.docChanges().forEach(chg => {
-    const id = chg.doc.id;
-    const d = chg.doc.data() || {};
-    const newStatus = (d.status || "").trim();
-
-    if (chg.type === "added") {
-      __swapStatusCache[id] = newStatus;
-      shouldRefresh = true;
-      return;
-    }
-
-    if (chg.type === "removed") {
-      delete __swapStatusCache[id];
-      shouldRefresh = true;
-      return;
-    }
-
-    if (chg.type === "modified") {
-      const oldStatus = (__swapStatusCache[id] || "").trim();
-      __swapStatusCache[id] = newStatus;
-      if (newStatus !== oldStatus) shouldRefresh = true;
-    }
-  });
-
-  if (shouldRefresh) loadSwapRequests();
-});
-
-
-
-  });
-})();
-
-// ========= Edit Modal (full edit with dropdown leaveType) =========
-let editModal;
-
-function fillStatusSelectForModal(current) {
-  try {
-    const sel = document.getElementById("eStatus");
-    if (!sel) return;
-    if (typeof STATUS_LIST !== 'undefined' && Array.isArray(STATUS_LIST)) {
-      sel.innerHTML = STATUS_LIST.map(s =>
-        `<option value="${s.name}" ${current === s.name ? "selected": ""}>${s.name}</option>`
-      ).join("");
-    } else {
-      const fallback = ['待審核','審核通過','退回'];
-      sel.innerHTML = fallback.map(n => `<option value="${n}" ${current===n?'selected':''}>${n}</option>`).join("");
-    }
-  } catch (e) { console.error(e); }
-}
-
-async function openEdit(kind, id) {
-  try {
-    const db = firebase.firestore();
-    const col = kind === "leave" ? COL_LEAVE : COL_SWAP;
-    const snap = await db.collection(col).doc(id).get();
-    if (!snap.exists) return alert("找不到資料");
-    const d = snap.data() || {};
-
-    document.getElementById("editReqTitle").textContent = kind === "leave" ? "編輯請假單" : "編輯調班單";
-    document.getElementById("editReqId").value   = id;
-    document.getElementById("editReqType").value = kind;
-
-    // 共用
-    document.getElementById("eApplicant").value      = d.applicant || "";
-    document.getElementById("eApplyDate").value      = d.applyDate || (new Date().toISOString().slice(0,10));
-    document.getElementById("eReason").value         = d.reason || "";
-    document.getElementById("eSupervisorSign").value = d.supervisorSign || "";
-    document.getElementById("eNote").value           = d.note || "";
-    fillStatusSelectForModal(d.status || "");
-
-    // 請假
-    document.getElementById("eLeaveType").value = d.leaveType || "";
-    document.getElementById("eLeaveDate").value = d.leaveDate || "";
-    document.getElementById("eShift").value     = d.shift || "";
-    const hrs = (typeof d.durationValue === "number") ? d.durationValue
-              : (typeof d.hoursUsed === "number" ? d.hoursUsed
-              : (typeof d.hours === "number" ? d.hours : ""));
-    document.getElementById("eHours").value = hrs;
-
-    // 調班
-    document.getElementById("eSwapDate").value      = d.swapDate || "";
-    document.getElementById("eOriginalShift").value = d.originalShift || "";
-    document.getElementById("eNewShift").value      = d.newShift || "";
-
-    if (!editModal) editModal = new bootstrap.Modal(document.getElementById("editReqModal"));
-    editModal.show();
-  } catch (e) { console.error(e); alert("讀取資料時發生錯誤"); }
-}
-
-function bindEditModal() {
-  document.addEventListener("click", (e) => {
-    const b1 = e.target.closest(".edit-leave");
-    const b2 = e.target.closest(".edit-swap");
-    if (b1)  openEdit("leave", b1.dataset.id);
-    if (b2)  openEdit("swap",  b2.dataset.id);
-  });
-
-  const form = document.getElementById("editReqForm");
-  if (form) form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
+  
+// ========== Login（完全對齊 nurse-primary-cases.js：參考 supplies.js） ==========
+function getLoginUser() {
+  // 系統共用登入資訊
+  for (const store of [sessionStorage, localStorage]) {
     try {
-      const id   = document.getElementById("editReqId").value;
-      const kind = document.getElementById("editReqType").value;
-      const db   = firebase.firestore();
-      const col  = kind === "leave" ? COL_LEAVE : COL_SWAP;
-
-      const patch = {
-        applicant:      document.getElementById("eApplicant").value.trim(),
-        applyDate:      document.getElementById("eApplyDate").value,
-        status:         document.getElementById("eStatus").value,
-        reason:         document.getElementById("eReason").value.trim(),
-        supervisorSign: document.getElementById("eSupervisorSign").value.trim(),
-        note:           document.getElementById("eNote").value.trim(),
-      };
-
-      if (kind === "leave") {
-        patch.leaveType = document.getElementById("eLeaveType").value;
-        patch.leaveDate = document.getElementById("eLeaveDate").value;
-        patch.shift     = document.getElementById("eShift").value.trim();
-        const hoursVal  = document.getElementById("eHours").value;
-        const hnum = Number(hoursVal);
-        if (!isNaN(hnum) && hnum >= 0) {
-          patch.durationValue = hnum;
-          patch.durationUnit  = "hour";
-          patch.hoursUsed     = hnum; // 兼容舊資料顯示
-        } else {
-          patch.durationValue = null;
-          patch.durationUnit  = "hour";
-        }
-      } else {
-        patch.swapDate      = document.getElementById("eSwapDate").value;
-        patch.originalShift = document.getElementById("eOriginalShift").value.trim();
-        patch.newShift      = document.getElementById("eNewShift").value.trim();
+      const raw = store.getItem('antai_session_user');
+      if (raw) {
+        const a = JSON.parse(raw);
+        const staffId = (a?.staffId || a?.username || a?.id || '').toString().trim();
+        const displayName = (a?.displayName || a?.name || a?.staffName || '').toString().trim();
+        if (staffId || displayName) return { staffId, displayName };
       }
+    } catch (e) {}
 
-      await db.collection(col).doc(id).update(patch);
-
-      if (typeof loadLeaveRequests === 'function' && kind === "leave") await loadLeaveRequests();
-      if (typeof loadSwapRequests  === 'function' && kind === "swap")  await loadSwapRequests();
-      editModal?.hide();
-      alert("✅ 已更新");
-    } catch (e) { console.error(e); alert("儲存時發生錯誤"); }
-  });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  try { bindEditModal(); } catch(e) { console.error(e); }
-  try { if (typeof renderLoggedInUser === 'function') renderLoggedInUser(); } catch(e) { console.error(e); }
-});
-
-
-/* ===== Edit Modal & Button Injection (uses firebase.firestore, global collections) ===== */
-(function(){
-  const LEAVE_COL = window.COL_LEAVE || "nurse_leave_requests";
-  const SWAP_COL  = window.COL_SWAP  || "nurse_shift_requests";
-
-  function qs(sel){ return document.querySelector(sel); }
-
-  function fillStatusSelectForModal(current){
-    try{
-      const sel = document.getElementById("eStatus");
-      if (!sel) return;
-      if (typeof window.STATUS_LIST !== 'undefined' && Array.isArray(window.STATUS_LIST)){
-        sel.innerHTML = window.STATUS_LIST.map(s => 
-          `<option value="${s.name}" ${current===s.name?'selected':''}>${s.name}</option>`
-        ).join("");
-      }else{
-        const fallback = ['待審核','審核通過','退回'];
-        sel.innerHTML = fallback.map(n => `<option value="${n}" ${current===n?'selected':''}>${n}</option>`).join("");
-      }
-    }catch(e){ console.error(e); }
-  }
-
-  async function openEdit(kind, id){
-    try{
-      const db  = firebase.firestore();
-      const col = (kind === 'leave') ? LEAVE_COL : SWAP_COL;
-      const doc = await db.collection(col).doc(id).get();
-      if(!doc.exists){ alert("找不到資料（ID："+id+"）"); return; }
-      const d = doc.data() || {};
-
-      // Set title
-      qs("#editReqTitle").textContent = (kind==='leave') ? "編輯請假單" : "編輯調班單";
-      qs("#editReqId").value   = id;
-      qs("#editReqType").value = kind;
-
-      // Common
-      qs("#eApplicant").value      = d.applicant || "";
-      qs("#eApplyDate").value      = (d.applyDate || "").toString().slice(0,10);
-      qs("#eReason").value         = d.reason || "";
-      qs("#eSupervisorSign").value = d.supervisorSign || "";
-      qs("#eNote").value           = d.note || "";
-      fillStatusSelectForModal(d.status || "");
-
-      // Leave
-      qs("#eLeaveType").value = d.leaveType || "";
-      qs("#eLeaveDate").value = (d.leaveDate || "").toString().slice(0,10);
-      qs("#eShift").value     = d.shift || "";
-      const hrs = (typeof d.durationValue === "number") ? d.durationValue
-                : (typeof d.hoursUsed === "number") ? d.hoursUsed
-                : (typeof d.hours === "number") ? d.hours : "";
-      qs("#eHours").value = hrs;
-
-      // Swap
-      qs("#eSwapDate").value      = (d.swapDate || "").toString().slice(0,10);
-      qs("#eOriginalShift").value = d.originalShift || "";
-      qs("#eNewShift").value      = d.newShift || "";
-
-      window.__editModalInstance = window.__editModalInstance || new bootstrap.Modal(document.getElementById("editReqModal"));
-      window.__editModalInstance.show();
-    }catch(e){
-      console.error(e);
-      alert("讀取資料時發生錯誤");
+    for (const k of ['officeAuth', 'nurseAuth', 'caregiverAuth']) {
+      try {
+        const raw = store.getItem(k);
+        if (!raw) continue;
+        const a = JSON.parse(raw);
+        const staffId = (a?.staffId || a?.username || a?.id || '').toString().trim();
+        const displayName = (a?.displayName || a?.name || a?.staffName || '').toString().trim();
+        if (staffId || displayName) return { staffId, displayName };
+      } catch (e) {}
     }
   }
 
-  function bindEditModal(){
-    // Open handlers
-    document.addEventListener("click", (e)=>{
-      const el = e.target.closest(".edit-leave, .edit-swap");
-      if(!el) return;
-      if(el.classList.contains("edit-leave")) openEdit("leave", el.dataset.id);
-      if(el.classList.contains("edit-swap"))  openEdit("swap",  el.dataset.id);
+  // 常見單值 key
+  const maybeNameKeys = ['loginName','userName','displayName','currentUserName','staffName','caregiverName','nurseName','officeName'];
+  for (const k of maybeNameKeys) {
+    const v = sessionStorage.getItem(k) || localStorage.getItem(k);
+    if (v) return { staffId: '', displayName: String(v).trim() };
+  }
+  return { staffId: '', displayName: '' };
+}
+
+// 讓下游流程（resolveLoggedInNurse / pick()）可以照舊運作：回傳相容欄位
+function getLoginContext() {
+  const u = getLoginUser();
+  return {
+    staffId: u.staffId,
+    employeeId: u.staffId,
+    userId: u.staffId,
+    uid: u.staffId,
+    id: u.staffId,
+    displayName: u.displayName,
+    name: u.displayName
+  };
+}
+
+  async function resolveLoggedInNurse() {
+    const ctx = getLoginContext();
+    const rawId = pick(ctx, ["nurseId", "userId", "uid", "id", "employeeId", "staffId"]);
+    const staffId = String(pick(ctx, ["staffId","employeeId","userId","nurseId","id","uid"]) || "").trim();
+    const displayName = String(pick(ctx, ["displayName","name","fullName","username"]) || "").trim();
+    window.__LOGIN_USER__ = { staffId, displayName };
+    const rawName = pick(ctx, ["name", "displayName", "fullName", "username"]);
+
+    // 先嘗試用 ID 對 nurses doc.id 直接比對
+    if (rawId) {
+      try {
+        const snap = await nurseCol.doc(String(rawId)).get();
+        if (snap.exists) {
+          const n = snap.data() || {};
+          const name = n.name || n.fullName || n.displayName || rawName || String(rawId);
+          return { nurseId: snap.id, nurseName: name, staffId, displayName };
+        }
+      } catch {}
+    }
+
+    // 再用姓名查（若你 nurses 有 name 欄位）
+    if (rawName) {
+      try {
+        const q = await nurseCol.where("name", "==", String(rawName)).limit(1).get();
+        if (!q.empty) {
+          const doc = q.docs[0];
+          return { nurseId: doc.id, nurseName: (doc.data()?.name || rawName), staffId, displayName };
+        }
+      } catch {
+        // fallback：抓全部比對
+        try {
+          const all = await nurseCol.get();
+          const found = all.docs.find(d => (d.data()?.name || "").trim() === String(rawName).trim());
+          if (found) return { nurseId: found.id, nurseName: found.data()?.name || rawName, staffId, displayName };
+        } catch {}
+      }
+    }
+
+    // 如果完全抓不到，至少顯示登入者名稱（但無法鎖定申請/紀錄）
+    if (rawName) return { nurseId: "", nurseName: rawName, staffId, displayName };
+    return { nurseId: "", nurseName: "", staffId, displayName };
+  }
+
+  function renderLoginUser(nurseName) {
+    if (!loginUserDisplay) return;
+    loginUserDisplay.textContent = nurseName ? `登入者：${nurseName}` : "登入者：未登入 / 讀取失敗";
+  }
+
+  // ===== 狀態樣式顯示 =====
+  async function loadStatuses() {
+    const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
+    statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  function getStatusBadge(statusName) {
+    const found = statusList.find(s => s.name === statusName);
+    return found
+      ? `<span class="badge" style="background:${found.color};color:#fff;">${found.name}</span>`
+      : `<span class="badge bg-secondary">${statusName || ""}</span>`;
+  }
+
+  function buildRecordStatusOptions() {
+    if (!recordStatusEl) return;
+    recordStatusEl.innerHTML = `<option value="">全部</option>`;
+    statusList.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.name;
+      opt.textContent = s.name;
+      recordStatusEl.appendChild(opt);
     });
+  }
 
-    // Save
-    const form = document.getElementById("editReqForm");
-    if(form) form.addEventListener("submit", async (ev)=>{
-      ev.preventDefault();
-      try{
-        const id   = qs("#editReqId").value;
-        const kind = qs("#editReqType").value;
-        const db   = firebase.firestore();
-        const col  = (kind==='leave') ? LEAVE_COL : SWAP_COL;
+  // ===== 護理師名冊（從 nurses 抓）=====
+  function clearSelect(sel) {
+    if (!sel) return;
+    sel.innerHTML = `<option value="">請選擇護理師</option>`;
+  }
 
-        const patch = {
-          applicant:      qs("#eApplicant").value.trim(),
-          applyDate:      qs("#eApplyDate").value,
-          status:         qs("#eStatus").value,
-          reason:         qs("#eReason").value.trim(),
-          supervisorSign: qs("#eSupervisorSign").value.trim(),
-          note:           qs("#eNote").value.trim(),
-        };
+  async function loadNurses() {
+    clearSelect(leaveApplicantSelect);
+    clearSelect(swapApplicantSelect);
 
-        if(kind==='leave'){
-          patch.leaveType = qs("#eLeaveType").value;
-          patch.leaveDate = qs("#eLeaveDate").value;
-          patch.shift     = qs("#eShift").value.trim();
-          const hnum = Number(qs("#eHours").value);
-          if(!isNaN(hnum) && hnum >= 0){
-            patch.durationValue = hnum;
-            patch.durationUnit  = "hour";
-            patch.hoursUsed     = hnum; // legacy display support
+    // 優先只抓在職；若資料庫沒有 status 欄位或無索引，則回退抓全部
+    let snap;
+    try {
+      snap = await nurseCol.where("status", "==", "在職").orderBy("name").get();
+    } catch (err) {
+      snap = await nurseCol.orderBy("name").get().catch(() => nurseCol.get());
+    }
+
+    if (snap.empty) return;
+
+    snap.forEach(doc => {
+      const n = doc.data() || {};
+      const name = n.name || n.fullName || n.displayName || "";
+      if (!name) return;
+
+      [leaveApplicantSelect, swapApplicantSelect].forEach(sel => {
+        if (!sel) return;
+        const opt = document.createElement("option");
+        opt.value = doc.id;      // nurseId
+        opt.textContent = name;  // 顯示姓名
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  async function getNurseNameById(nurseId) {
+    if (!nurseId) return "";
+    try {
+      const snap = await nurseCol.doc(nurseId).get();
+      const n = snap.data() || {};
+      return n.name || n.fullName || n.displayName || "";
+    } catch {
+      return "";
+    }
+  }
+
+  // ===== 載入請假申請（總覽）=====
+  function hoursText(d) {
+    const v = Number(d?.durationValue ?? 0);
+    if (v > 0) return v + " 小時";
+    return "";
+  }
+
+  async function loadLeaveRequests() {
+    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
+
+    if (snap.empty) {
+      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有申請資料</td></tr>`;
+      return;
+    }
+
+    leaveBody.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.leaveType || ""}</td>
+        <td>${d.leaveDate || ""}</td>
+        <td>${d.shift || ""}</td>
+        <td>${hoursText(d)}</td>
+        <td>${d.reason || ""}</td>
+        <td>${getStatusBadge(d.status)}</td>
+        <td>${d.supervisorSign || ""}</td>
+        <td>${d.note || ""}</td>
+      `;
+      leaveBody.appendChild(tr);
+    });
+  }
+
+  // ===== 載入調班申請（總覽）=====
+  async function loadSwapRequests() {
+    swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
+
+    if (snap.empty) {
+      swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有調班資料</td></tr>`;
+      return;
+    }
+
+    swapBody.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.swapDate || ""}</td>
+        <td>${d.originalShift || ""}</td>
+        <td>${d.newShift || ""}</td>
+        <td>${d.reason || ""}</td>
+        <td>${getStatusBadge(d.status)}</td>
+        <td>${d.supervisorSign || ""}</td>
+        <td>${d.note || ""}</td>
+      `;
+      swapBody.appendChild(tr);
+    });
+  }
+
+  // ===== 申請紀錄（只顯示登入者）=====
+  function dateInRange(dateStr, fromStr, toStr) {
+    if (!dateStr) return false;
+    if (fromStr && dateStr < fromStr) return false; // YYYY-MM-DD 字串可直接比較
+    if (toStr && dateStr > toStr) return false;
+    return true;
+  }
+
+  function renderRecordRows(rows) {
+    if (!recordBody) return;
+    if (!rows.length) {
+      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">查無資料</td></tr>`;
+      return;
+    }
+
+    recordBody.innerHTML = "";
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.typeLabel}</td>
+        <td>${r.applyDate || ""}</td>
+        <td>${r.applicant || ""}</td>
+        <td>${r.summary || ""}</td>
+        <td>${getStatusBadge(r.status)}</td>
+        <td>${r.supervisorSign || ""}</td>
+        <td>${r.note || ""}</td>
+      `;
+      recordBody.appendChild(tr);
+    });
+  }
+
+  
+  async function getMyDocs(col, loggedIn) {
+    // 目標：只抓「登入者本人」的資料，但要兼容舊資料欄位命名（nurseId 可能存 docId 或 staffId）
+    const nurseDocId = (loggedIn?.nurseId || "").toString().trim();
+    const staffId = (loggedIn?.staffId || "").toString().trim();
+    const name = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+
+    const unique = new Map();
+
+    async function runWhere(field, value) {
+      if (!value) return;
+      try {
+        const q = await col.where(field, "==", value).get();
+        q.docs.forEach(d => unique.set(d.id, d));
+      } catch (e) {
+        // ignore (可能缺索引/欄位不存在)
+      }
+    }
+
+    // 常見欄位（新 → 舊）
+    await runWhere("nurseId", nurseDocId);
+    await runWhere("nurseId", staffId);           // 舊系統可能把 nurseId 寫成工號
+    await runWhere("staffId", staffId);
+    await runWhere("applicantId", staffId);
+    await runWhere("createdById", staffId);
+    await runWhere("createdById", nurseDocId);
+    await runWhere("applicant", name);
+    await runWhere("applicantName", name);
+    await runWhere("nurseName", name);
+    await runWhere("name", name);
+
+
+    // 最後保底：抓全部前端過濾（資料量大時不建議，但你的系統通常量不會爆）
+    if (unique.size === 0) {
+      try {
+        const all = await col.get();
+        all.docs.forEach(d => {
+          const data = d.data() || {};
+          const nid = (data.nurseId || "").toString().trim();
+          const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
+          const an = (data.applicant || data.applicantName || data.nurseName || data.name || "").toString().trim();
+          if ((nurseDocId && nid === nurseDocId) || (staffId && (nid === staffId || sid === staffId)) || (name && an === name)) {
+            unique.set(d.id, d);
           }
-        }else{
-          patch.swapDate      = qs("#eSwapDate").value;
-          patch.originalShift = qs("#eOriginalShift").value.trim();
-          patch.newShift      = qs("#eNewShift").value.trim();
+        });
+      } catch (e) {}
+    }
+
+    return Array.from(unique.values());
+  }
+
+  function toYMD(v) {
+    // 支援: "YYYY-MM-DD" / Firestore Timestamp / Date / number(ms)
+    if (!v) return "";
+    if (typeof v === "string") return v.slice(0, 10);
+    try {
+      if (typeof v.toDate === "function") return v.toDate().toISOString().slice(0, 10);
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      if (typeof v === "number") return new Date(v).toISOString().slice(0, 10);
+    } catch {}
+    return "";
+  }
+
+  function isApprovedStatus(s) {
+    const t = (s || "").toString().trim();
+    return ["審核通過", "核准", "approve", "approved", "同意"].includes(t);
+  }
+
+  function inMonth(ymd, ym) {
+    if (!ymd || !ym) return false;
+    return ymd.slice(0, 7) === ym;
+  }
+async function loadMyRecords(loggedIn) {
+    if (!recordBody) return;
+    recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>`;
+
+    const nurseId = (loggedIn?.nurseId || "").toString().trim();
+    const staffId = (loggedIn?.staffId || "").toString().trim();
+    const nurseName = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+
+    if (!nurseId && !staffId && !nurseName) {
+      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">⚠️ 無法取得登入者資訊（nurseId / staffId / 姓名），因此無法查詢個人申請紀錄。</td></tr>`;
+      return;
+    }
+
+    const type = recordTypeEl?.value || "all";
+    const status = (recordStatusEl?.value || "").trim();
+    const from = recordFromEl?.value || "";
+    const to = recordToEl?.value || "";
+
+    const rows = [];
+
+    if (type === "all" || type === "leave") {
+      const docs = await getMyDocs(leaveCol, loggedIn);
+      docs.forEach(doc => {
+        const d = doc.data() || {};
+        rows.push({
+          type: "leave",
+          typeLabel: "請假",
+          applyDate: toYMD(d.applyDate) || toYMD(d.createdAt) || "",
+          applicant: d.applicant || nurseName,
+          status: d.status || "",
+          supervisorSign: d.supervisorSign || "",
+          note: d.note || "",
+          leaveDate: d.leaveDate || "",
+          _raw: d,
+          summary: `假別：${d.leaveType || ""}\n日期：${d.leaveDate || ""}\n班別：${d.shift || ""}\n時數：${hoursText(d)}\n理由：${d.reason || ""}`.trim()
+        });
+      });
+    }
+
+    if (type === "all" || type === "swap") {
+      const docs = await getMyDocs(swapCol, loggedIn);
+      docs.forEach(doc => {
+        const d = doc.data() || {};
+        rows.push({
+          type: "swap",
+          typeLabel: "調班",
+          applyDate: toYMD(d.applyDate) || toYMD(d.createdAt) || "",
+          applicant: d.applicant || nurseName,
+          status: d.status || "",
+          supervisorSign: d.supervisorSign || "",
+          note: d.note || "",
+          swapDate: d.swapDate || "",
+          _raw: d,
+          summary: `日期：${d.swapDate || ""}\n原班：${d.originalShift || ""}\n欲換：${d.newShift || ""}\n理由：${d.reason || ""}`.trim()
+        });
+      });
+    }
+
+    const allRows = rows.slice();
+
+    // 篩選
+    let filtered = rows.slice();
+
+    if (status && status !== "all") filtered = filtered.filter(r => (r.status || "") === status);
+    if (from || to) filtered = filtered.filter(r => dateInRange(r.applyDate, from, to));
+
+    // 依申請日期新到舊
+    filtered.sort((a, b) => (b.applyDate || "").localeCompare(a.applyDate || ""));
+
+    
+    renderRecordRows(filtered);
+
+    // ===== 當月時數統計（僅審核通過）=====
+    const ym = (document.getElementById("recordMonth")?.value || "").trim();
+    if (ym) {
+      let leaveHours = 0;
+      let specialHours = 0;
+      let swapCount = 0;
+
+      allRows.forEach(r => {
+        if (!isApprovedStatus(r.status)) return;
+
+        if (r.type === "leave") {
+          const d = r._raw || {};
+          const ymd = toYMD(d.leaveDate) || r.leaveDate || "";
+          if (!inMonth(ymd, ym)) return;
+
+          const h = Number(d.durationValue ?? d.durationHours ?? d.hours ?? d.duration ?? 0) || 0;
+          leaveHours += h;
+          if ((d.leaveType || "") === "特休") specialHours += h;
         }
 
-        await db.collection(col).doc(id).update(patch);
-        window.__editModalInstance?.hide();
-        // 🔥 避免Modal遮罩殘留造成畫面無法操作
-        setTimeout(() => {
-          document.body.classList.remove('modal-open');
-          document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-        }, 200);
-        if(kind==='leave' && typeof window.loadLeaveRequests==='function') window.loadLeaveRequests();
-        if(kind==='swap'  && typeof window.loadSwapRequests==='function')  window.loadSwapRequests();
-        alert("✅ 已更新");
-      }catch(e){ console.error(e); alert("儲存時發生錯誤"); }
-    });
-  }
-    // ===== 防止Modal關閉後遮罩卡住 =====
-    document.addEventListener("click", (e) => {
-      // 點取消按鈕
-      if (e.target.matches("#editReqModal .btn-secondary, #editReqModal [data-bs-dismiss='modal']")) {
-        setTimeout(() => {
-          document.body.classList.remove("modal-open");
-          document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-        }, 200);
-      }
-    });
-    
-    // 當Modal完全關閉時，也再清一次（Bootstrap事件）
-    document.getElementById("editReqModal")?.addEventListener("hidden.bs.modal", () => {
-      setTimeout(() => {
-        document.body.classList.remove("modal-open");
-        document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-      }, 150);
-    });
+        if (r.type === "swap") {
+          const d = r._raw || {};
+          const ymd = toYMD(d.swapDate) || r.swapDate || "";
+          if (!inMonth(ymd, ym)) return;
 
-  // Inject edit buttons before delete buttons (supports multiple class names)
-  function injectEditButtons(){
-    const selectors = [
-      // leave delete
-      'button.delete-leave','button.deleteLeave',
-      // swap delete
-      'button.delete-swap','button.deleteSwap'
-    ];
-    document.querySelectorAll(selectors.join(',')).forEach(btn => {
-      const isSwap = btn.classList.contains('delete-swap') || btn.classList.contains('deleteSwap');
-      const editClass = isSwap ? 'edit-swap' : 'edit-leave';
-      if (btn.previousElementSibling && btn.previousElementSibling.classList.contains(editClass)) return;
-      const id = btn.dataset.id || btn.closest('tr')?.dataset?.id || '';
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `btn btn-sm btn-outline-primary me-1 ${editClass}`;
-      b.dataset.id = id;
-      b.textContent = '✏️';
-      btn.parentNode.insertBefore(b, btn);
-    });
+          swapCount += 1;
+        }
+      });
+
+      const leaveEl = document.getElementById("monthLeaveHours");
+      const specialEl = document.getElementById("monthSpecialHours");
+      const swapEl = document.getElementById("monthSwapCount");
+      if (leaveEl) leaveEl.textContent = `${leaveHours} 小時`;
+      if (specialEl) specialEl.textContent = `${specialHours} 小時`;
+      if (swapEl) swapEl.textContent = `${swapCount} 筆`;
+    }
+
   }
 
-  // Observe DOM to re-inject after rerender
-  const mo = new MutationObserver(() => injectEditButtons());
+  // ===== 送出請假申請 =====
+  document.getElementById("leaveForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    bindEditModal();
-    injectEditButtons();
-    mo.observe(document.body, { childList:true, subtree:true });
+    const nurseId = leaveApplicantSelect?.value || form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
+
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇/確認申請人（護理師）");
+      return;
+    }
+
+    const data = {
+      nurseId,
+      applicant: nurseName,
+      applyDate: new Date().toISOString().split("T")[0],
+      leaveType: form.leaveType.value,
+      leaveDate: form.leaveDate.value,
+      shift: form.shift.value,
+      reason: form.reason.value,
+      durationValue: Number(form.durationValue.value),
+      durationUnit: "hour",
+      status: "待審核",
+      note: "",
+      supervisorSign: "",
+      // 登入者欄位（便於稽核/追蹤）
+      applicantId: (window.__LOGIN_USER__?.staffId || ''),
+      nurseDocId: nurseId,
+      createdById: (window.__LOGIN_USER__?.staffId || nurseId),
+      createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await leaveCol.add(data);
+    alert(`✅ 已送出請假申請！（申請人：${nurseName}）`);
+    form.reset();
+
+    // 送出後，申請人維持為登入者
+    if (leaveApplicantSelect) leaveApplicantSelect.value = nurseId;
   });
-})();
+
+  // ===== 送出調班申請 =====
+  document.getElementById("swapForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    const nurseId = swapApplicantSelect?.value || form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
+
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇/確認申請人（護理師）");
+      return;
+    }
+
+    const data = {
+      nurseId,
+      applicant: nurseName,
+      applyDate: new Date().toISOString().split("T")[0],
+      swapDate: form.swapDate.value,
+      originalShift: form.originalShift.value,
+      newShift: form.newShift.value,
+      reason: form.reason.value,
+      status: "待審核",
+      note: "",
+      supervisorSign: "",
+      // 登入者欄位（便於稽核/追蹤）
+      applicantId: (window.__LOGIN_USER__?.staffId || ''),
+      nurseDocId: nurseId,
+      createdById: (window.__LOGIN_USER__?.staffId || nurseId),
+      createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await swapCol.add(data);
+    alert(`✅ 已送出調班申請！（申請人：${nurseName}）`);
+    form.reset();
+
+    // 送出後，申請人維持為登入者
+    if (swapApplicantSelect) swapApplicantSelect.value = nurseId;
+  });
+
+  // ===== 初始化 =====
+  await loadStatuses();
+  buildRecordStatusOptions();
+
+  await loadNurses();
+
+  const loggedIn = await resolveLoggedInNurse();
+  renderLoginUser(loggedIn.nurseName);
+
+  // 統計月份預設為本月
+  const recordMonthEl = document.getElementById("recordMonth");
+  if (recordMonthEl && !recordMonthEl.value) {
+    recordMonthEl.value = new Date().toISOString().slice(0, 7);
+  }
+  recordMonthEl?.addEventListener("change", () => loadMyRecords(loggedIn));
+
+  // 申請人自動帶入登入者，並鎖定不可選
+  if (loggedIn?.nurseId) {
+    if (leaveApplicantSelect) {
+      leaveApplicantSelect.value = loggedIn.nurseId;
+      leaveApplicantSelect.disabled = true;
+    }
+    if (swapApplicantSelect) {
+      swapApplicantSelect.value = loggedIn.nurseId;
+      swapApplicantSelect.disabled = true;
+    }
+  }
+
+  await loadLeaveRequests();
+  await loadSwapRequests();
+  await loadMyRecords(loggedIn);
+
+  // Record tab actions
+  recordSearchBtn?.addEventListener("click", () => loadMyRecords(loggedIn));
+  recordResetBtn?.addEventListener("click", () => {
+    if (recordTypeEl) recordTypeEl.value = "all";
+    if (recordStatusEl) recordStatusEl.value = "";
+    if (recordFromEl) recordFromEl.value = "";
+    if (recordToEl) recordToEl.value = "";
+    loadMyRecords(loggedIn);
+  });
+
+  // 即時同步 Firestore 更新（總覽表格）
+  leaveCol.onSnapshot(loadLeaveRequests);
+  swapCol.onSnapshot(loadSwapRequests);
+
+  // 個人紀錄也同步（只要該 collection 有變動就重刷）
+  leaveCol.onSnapshot(() => loadMyRecords(loggedIn));
+  swapCol.onSnapshot(() => loadMyRecords(loggedIn));
+});
