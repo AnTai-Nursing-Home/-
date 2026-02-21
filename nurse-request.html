@@ -178,6 +178,11 @@
           <!-- ====== 申請紀錄 ====== -->
           <div class="tab-pane fade" id="recordTab">
             <div class="form-section mb-3">
+              <div class="row g-3 mt-3 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label">統計月份</label>
+                  <input type="month" class="form-control" id="recordMonth">
+                </div>
               <div class="row g-3 align-items-end">
                 <div class="col-md-3">
                   <label class="form-label">紀錄類型</label>
@@ -213,19 +218,17 @@
               <div class="small text-muted mt-2">
                 ※ 此分頁只會顯示「登入者本人」的申請紀錄，可用狀態或申請日期篩選。
               </div>
-              <div class="row g-3 mt-3 align-items-end">
-                <div class="col-md-3">
-                  <label class="form-label">統計月份</label>
-                  <input type="month" class="form-control" id="recordMonth">
-                </div>
+              
                 <div class="col-md-3">
                   <label class="form-label">當月請假時數（含特休）</label>
                   <div class="form-control bg-light" id="monthLeaveHours">0 小時</div>
                 </div>
+
                 <div class="col-md-3">
                   <label class="form-label">當月特休時數（僅特休）</label>
                   <div class="form-control bg-light" id="monthSpecialHours">0 小時</div>
                 </div>
+                
                 <div class="col-md-3">
                   <label class="form-label">當月調班</label>
                   <div class="form-control bg-light" id="monthSwapCount">0 筆</div>
