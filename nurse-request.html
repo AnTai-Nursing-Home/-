@@ -178,12 +178,28 @@
           <!-- ====== 申請紀錄 ====== -->
           <div class="tab-pane fade" id="recordTab">
             <div class="form-section mb-3">
+              <!-- ====== 當月統計（僅審核通過） ====== -->
               <div class="row g-3 mt-3 align-items-end">
                 <div class="col-md-3">
                   <label class="form-label">統計月份</label>
                   <input type="month" class="form-control" id="recordMonth">
                 </div>
-              <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label">當月請假時數（通過）</label>
+                  <div class="form-control bg-light" id="monthLeaveHours">0 小時</div>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">當月特休時數（通過）</label>
+                  <div class="form-control bg-light" id="monthSpecialHours">0 小時</div>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">當月調班（通過）</label>
+                  <div class="form-control bg-light" id="monthSwapCount">0 筆</div>
+                </div>
+              </div>
+
+              <!-- ====== 查詢篩選（只查登入者本人） ====== -->
+              <div class="row g-3 mt-3 align-items-end">
                 <div class="col-md-3">
                   <label class="form-label">紀錄類型</label>
                   <select class="form-select" id="recordType">
@@ -206,6 +222,7 @@
                   <label class="form-label">申請日期（迄）</label>
                   <input type="date" class="form-control" id="recordTo">
                 </div>
+
                 <div class="col-12 d-flex justify-content-end gap-2">
                   <button class="btn btn-outline-secondary" type="button" id="recordResetBtn">
                     <i class="fa-solid fa-rotate-left me-1"></i>重設
@@ -215,29 +232,13 @@
                   </button>
                 </div>
               </div>
-              <div class="small text-muted mt-2">
-                ※ 此分頁只會顯示「登入者本人」的申請紀錄，可用狀態或申請日期篩選。
-              </div>
-              
-                <div class="col-md-3">
-                  <label class="form-label">當月請假時數（含特休）</label>
-                  <div class="form-control bg-light" id="monthLeaveHours">0 小時</div>
-                </div>
 
-                <div class="col-md-3">
-                  <label class="form-label">當月特休時數（僅特休）</label>
-                  <div class="form-control bg-light" id="monthSpecialHours">0 小時</div>
-                </div>
-                
-                <div class="col-md-3">
-                  <label class="form-label">當月調班</label>
-                  <div class="form-control bg-light" id="monthSwapCount">0 筆</div>
-                </div>
+              <div class="mt-2 text-muted small">
+                ※ 此分頁只會顯示「登入者本人」的申請紀錄，可用狀態或申請日期範圍篩選。
               </div>
-
             </div>
 
-            <div class="table-responsive">
+<div class="table-responsive">
               <table class="table table-bordered align-middle" id="recordTable">
                 <thead class="table-light">
                   <tr>
