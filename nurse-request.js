@@ -112,6 +112,30 @@ function getLoginContext() {
       } catch {}
     }
 
+    
+    // 再嘗試用 staffId 查（多數系統 nurses 會有 staffId/employeeId 欄位）
+    if (staffId) {
+      try {
+        const q2 = await nurseCol.where("staffId", "==", staffId).limit(1).get();
+        if (!q2.empty) {
+          const doc = q2.docs[0];
+          const n = doc.data() || {};
+          const name = n.name || n.fullName || n.displayName || displayName || rawName || staffId;
+          return { nurseId: doc.id, nurseName: name, staffId, displayName };
+        }
+      } catch {
+        try {
+          const q3 = await nurseCol.where("employeeId", "==", staffId).limit(1).get();
+          if (!q3.empty) {
+            const doc = q3.docs[0];
+            const n = doc.data() || {};
+            const name = n.name || n.fullName || n.displayName || displayName || rawName || staffId;
+            return { nurseId: doc.id, nurseName: name, staffId, displayName };
+          }
+        } catch {}
+      }
+    }
+
     // 再用姓名查（若你 nurses 有 name 欄位）
     if (rawName) {
       try {
@@ -311,7 +335,10 @@ function getLoginContext() {
     // 目標：只抓「登入者本人」的資料，但要兼容舊資料欄位命名（nurseId 可能存 docId 或 staffId）
     const nurseDocId = (loggedIn?.nurseId || "").toString().trim();
     const staffId = (loggedIn?.staffId || "").toString().trim();
-    const name = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+    const nameRaw = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+
+    const normName = (s) => (s || "").toString().replace(/\s+/g, "").replace(/[()（）].*$/, "").trim();
+    const name = normName(nameRaw);
 
     const unique = new Map();
 
@@ -321,7 +348,7 @@ function getLoginContext() {
         const q = await col.where(field, "==", value).get();
         q.docs.forEach(d => unique.set(d.id, d));
       } catch (e) {
-        // ignore (可能缺索引/欄位不存在)
+        // ignore (可能缺索引/欄位不存在/權限限制)
       }
     }
 
@@ -333,21 +360,41 @@ function getLoginContext() {
     await runWhere("createdById", staffId);
     await runWhere("createdById", nurseDocId);
 
-    // 最後保底：抓全部前端過濾（資料量大時不建議，但你的系統通常量不會爆）
-    if (unique.size === 0) {
-      try {
-        const all = await col.get();
-        all.docs.forEach(d => {
-          const data = d.data() || {};
-          const nid = (data.nurseId || "").toString().trim();
-          const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
-          const an = (data.applicant || "").toString().trim();
-          if ((nurseDocId && nid === nurseDocId) || (staffId && (nid === staffId || sid === staffId)) || (name && an === name)) {
-            unique.set(d.id, d);
-          }
-        });
-      } catch (e) {}
+    // 以姓名為條件（部分資料可能只存名字）
+    if (name) {
+      await runWhere("applicant", nameRaw);
+      await runWhere("applicant", name);
+      await runWhere("applicantName", nameRaw);
+      await runWhere("applicantName", name);
+      await runWhere("nurseName", nameRaw);
+      await runWhere("nurseName", name);
+      await runWhere("name", nameRaw);
+      await runWhere("name", name);
     }
+
+    // ✅ 強化：就算已經查到一部分，也再做一次「全量掃描」補齊舊資料（你這套量不大，掃一次很安全）
+    // 原因：有些舊單的欄位命名/值格式不一致（例如 nurseId 存 docId vs 工號、姓名含空白/括號），
+    // 只靠 where 可能會漏資料。
+    try {
+      const all = await col.get();
+      all.docs.forEach(d => {
+        const data = d.data() || {};
+        const nid = (data.nurseId || "").toString().trim();
+        const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
+
+        const anRaw = (data.applicant || data.applicantName || data.nurseName || data.name || "").toString().trim();
+        const an = normName(anRaw);
+
+        const matchId =
+          (nurseDocId && (nid === nurseDocId || sid === nurseDocId)) ||
+          (staffId && (nid === staffId || sid === staffId));
+
+        const matchName =
+          name && (an === name || normName(nameRaw) === an);
+
+        if (matchId || matchName) unique.set(d.id, d);
+      });
+    } catch (e) {}
 
     return Array.from(unique.values());
   }
@@ -377,16 +424,17 @@ async function loadMyRecords(loggedIn) {
     if (!recordBody) return;
     recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>`;
 
-    const nurseId = loggedIn?.nurseId || "";
-    const nurseName = loggedIn?.nurseName || "";
+    const nurseId = (loggedIn?.nurseId || "").toString().trim();
+    const staffId = (loggedIn?.staffId || "").toString().trim();
+    const nurseName = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
 
-    if (!nurseId) {
-      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">⚠️ 無法取得登入者的 nurseId，因此無法查詢個人申請紀錄（請確認登入者資料是否有對應 nurses 的 doc.id）。</td></tr>`;
+    if (!nurseId && !staffId && !nurseName) {
+      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">⚠️ 無法取得登入者資訊（nurseId / staffId / 姓名），因此無法查詢個人申請紀錄。</td></tr>`;
       return;
     }
 
     const type = recordTypeEl?.value || "all";
-    const status = recordStatusEl?.value || "";
+    const status = (recordStatusEl?.value || "").trim();
     const from = recordFromEl?.value || "";
     const to = recordToEl?.value || "";
 
@@ -399,7 +447,7 @@ async function loadMyRecords(loggedIn) {
         rows.push({
           type: "leave",
           typeLabel: "請假",
-          applyDate: d.applyDate || toYMD(d.createdAt) || "",
+          applyDate: toYMD(d.applyDate) || toYMD(d.createdAt) || "",
           applicant: d.applicant || nurseName,
           status: d.status || "",
           supervisorSign: d.supervisorSign || "",
@@ -418,7 +466,7 @@ async function loadMyRecords(loggedIn) {
         rows.push({
           type: "swap",
           typeLabel: "調班",
-          applyDate: d.applyDate || toYMD(d.createdAt) || "",
+          applyDate: toYMD(d.applyDate) || toYMD(d.createdAt) || "",
           applicant: d.applicant || nurseName,
           status: d.status || "",
           supervisorSign: d.supervisorSign || "",
@@ -430,10 +478,12 @@ async function loadMyRecords(loggedIn) {
       });
     }
 
+    const allRows = rows.slice();
+
     // 篩選
     let filtered = rows.slice();
 
-    if (status) filtered = filtered.filter(r => (r.status || "") === status);
+    if (status && status !== "all") filtered = filtered.filter(r => (r.status || "") === status);
     if (from || to) filtered = filtered.filter(r => dateInRange(r.applyDate, from, to));
 
     // 依申請日期新到舊
@@ -449,7 +499,7 @@ async function loadMyRecords(loggedIn) {
       let specialHours = 0;
       let swapCount = 0;
 
-      filtered.forEach(r => {
+      allRows.forEach(r => {
         if (!isApprovedStatus(r.status)) return;
 
         if (r.type === "leave") {
@@ -457,7 +507,7 @@ async function loadMyRecords(loggedIn) {
           const ymd = toYMD(d.leaveDate) || r.leaveDate || "";
           if (!inMonth(ymd, ym)) return;
 
-          const h = Number(d.durationValue || 0) || 0;
+          const h = Number(d.durationValue ?? d.durationHours ?? d.hours ?? d.duration ?? 0) || 0;
           leaveHours += h;
           if ((d.leaveType || "") === "特休") specialHours += h;
         }
@@ -495,7 +545,8 @@ async function loadMyRecords(loggedIn) {
     }
 
     const data = {
-      nurseId,
+      nurseId: (window.__LOGIN_USER__?.staffId || ""),
+      staffId: (window.__LOGIN_USER__?.staffId || ""),
       applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       leaveType: form.leaveType.value,
@@ -509,7 +560,6 @@ async function loadMyRecords(loggedIn) {
       supervisorSign: "",
       // 登入者欄位（便於稽核/追蹤）
       applicantId: (window.__LOGIN_USER__?.staffId || ''),
-      nurseDocId: nurseId,
       createdById: (window.__LOGIN_USER__?.staffId || nurseId),
       createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -537,7 +587,9 @@ async function loadMyRecords(loggedIn) {
     }
 
     const data = {
-      nurseId,
+      nurseId: (window.__LOGIN_USER__?.staffId || ""),
+      nurseDocId: nurseId,
+      staffId: (window.__LOGIN_USER__?.staffId || ""),
       applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       swapDate: form.swapDate.value,
