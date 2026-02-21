@@ -95,6 +95,9 @@ function getLoginContext() {
   async function resolveLoggedInNurse() {
     const ctx = getLoginContext();
     const rawId = pick(ctx, ["nurseId", "userId", "uid", "id", "employeeId", "staffId"]);
+    const staffId = String(pick(ctx, ["staffId","employeeId","userId","nurseId","id","uid"]) || "").trim();
+    const displayName = String(pick(ctx, ["displayName","name","fullName","username"]) || "").trim();
+    window.__LOGIN_USER__ = { staffId, displayName };
     const rawName = pick(ctx, ["name", "displayName", "fullName", "username"]);
 
     // 先嘗試用 ID 對 nurses doc.id 直接比對
@@ -104,7 +107,7 @@ function getLoginContext() {
         if (snap.exists) {
           const n = snap.data() || {};
           const name = n.name || n.fullName || n.displayName || rawName || String(rawId);
-          return { nurseId: snap.id, nurseName: name };
+          return { nurseId: snap.id, nurseName: name, staffId, displayName };
         }
       } catch {}
     }
@@ -115,21 +118,21 @@ function getLoginContext() {
         const q = await nurseCol.where("name", "==", String(rawName)).limit(1).get();
         if (!q.empty) {
           const doc = q.docs[0];
-          return { nurseId: doc.id, nurseName: (doc.data()?.name || rawName) };
+          return { nurseId: doc.id, nurseName: (doc.data()?.name || rawName), staffId, displayName };
         }
       } catch {
         // fallback：抓全部比對
         try {
           const all = await nurseCol.get();
           const found = all.docs.find(d => (d.data()?.name || "").trim() === String(rawName).trim());
-          if (found) return { nurseId: found.id, nurseName: found.data()?.name || rawName };
+          if (found) return { nurseId: found.id, nurseName: found.data()?.name || rawName, staffId, displayName };
         } catch {}
       }
     }
 
     // 如果完全抓不到，至少顯示登入者名稱（但無法鎖定申請/紀錄）
-    if (rawName) return { nurseId: "", nurseName: rawName };
-    return { nurseId: "", nurseName: "" };
+    if (rawName) return { nurseId: "", nurseName: rawName, staffId, displayName };
+    return { nurseId: "", nurseName: "", staffId, displayName };
   }
 
   function renderLoginUser(nurseName) {
@@ -303,19 +306,74 @@ function getLoginContext() {
     });
   }
 
-  async function getMyDocs(col, nurseId) {
-    if (!nurseId) return [];
-    // 優先 where 篩選；若遇到索引或權限問題，回退抓全部再前端過濾
-    try {
-      const q = await col.where("nurseId", "==", nurseId).get();
-      return q.docs;
-    } catch {
-      const all = await col.get();
-      return all.docs.filter(d => (d.data()?.nurseId || "") === nurseId);
+  
+  async function getMyDocs(col, loggedIn) {
+    // 目標：只抓「登入者本人」的資料，但要兼容舊資料欄位命名（nurseId 可能存 docId 或 staffId）
+    const nurseDocId = (loggedIn?.nurseId || "").toString().trim();
+    const staffId = (loggedIn?.staffId || "").toString().trim();
+    const name = (loggedIn?.nurseName || loggedIn?.displayName || "").toString().trim();
+
+    const unique = new Map();
+
+    async function runWhere(field, value) {
+      if (!value) return;
+      try {
+        const q = await col.where(field, "==", value).get();
+        q.docs.forEach(d => unique.set(d.id, d));
+      } catch (e) {
+        // ignore (可能缺索引/欄位不存在)
+      }
     }
+
+    // 常見欄位（新 → 舊）
+    await runWhere("nurseId", nurseDocId);
+    await runWhere("nurseId", staffId);           // 舊系統可能把 nurseId 寫成工號
+    await runWhere("staffId", staffId);
+    await runWhere("applicantId", staffId);
+    await runWhere("createdById", staffId);
+    await runWhere("createdById", nurseDocId);
+
+    // 最後保底：抓全部前端過濾（資料量大時不建議，但你的系統通常量不會爆）
+    if (unique.size === 0) {
+      try {
+        const all = await col.get();
+        all.docs.forEach(d => {
+          const data = d.data() || {};
+          const nid = (data.nurseId || "").toString().trim();
+          const sid = (data.staffId || data.applicantId || data.createdById || "").toString().trim();
+          const an = (data.applicant || "").toString().trim();
+          if ((nurseDocId && nid === nurseDocId) || (staffId && (nid === staffId || sid === staffId)) || (name && an === name)) {
+            unique.set(d.id, d);
+          }
+        });
+      } catch (e) {}
+    }
+
+    return Array.from(unique.values());
   }
 
-  async function loadMyRecords(loggedIn) {
+  function toYMD(v) {
+    // 支援: "YYYY-MM-DD" / Firestore Timestamp / Date / number(ms)
+    if (!v) return "";
+    if (typeof v === "string") return v.slice(0, 10);
+    try {
+      if (typeof v.toDate === "function") return v.toDate().toISOString().slice(0, 10);
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      if (typeof v === "number") return new Date(v).toISOString().slice(0, 10);
+    } catch {}
+    return "";
+  }
+
+  function isApprovedStatus(s) {
+    const t = (s || "").toString().trim();
+    return ["審核通過", "核准", "approve", "approved", "同意"].includes(t);
+  }
+
+  function inMonth(ymd, ym) {
+    if (!ymd || !ym) return false;
+    return ymd.slice(0, 7) === ym;
+  }
+async function loadMyRecords(loggedIn) {
     if (!recordBody) return;
     recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>`;
 
@@ -335,34 +393,38 @@ function getLoginContext() {
     const rows = [];
 
     if (type === "all" || type === "leave") {
-      const docs = await getMyDocs(leaveCol, nurseId);
+      const docs = await getMyDocs(leaveCol, loggedIn);
       docs.forEach(doc => {
         const d = doc.data() || {};
         rows.push({
           type: "leave",
           typeLabel: "請假",
-          applyDate: d.applyDate || "",
+          applyDate: d.applyDate || toYMD(d.createdAt) || "",
           applicant: d.applicant || nurseName,
           status: d.status || "",
           supervisorSign: d.supervisorSign || "",
           note: d.note || "",
+          leaveDate: d.leaveDate || "",
+          _raw: d,
           summary: `假別：${d.leaveType || ""}\n日期：${d.leaveDate || ""}\n班別：${d.shift || ""}\n時數：${hoursText(d)}\n理由：${d.reason || ""}`.trim()
         });
       });
     }
 
     if (type === "all" || type === "swap") {
-      const docs = await getMyDocs(swapCol, nurseId);
+      const docs = await getMyDocs(swapCol, loggedIn);
       docs.forEach(doc => {
         const d = doc.data() || {};
         rows.push({
           type: "swap",
           typeLabel: "調班",
-          applyDate: d.applyDate || "",
+          applyDate: d.applyDate || toYMD(d.createdAt) || "",
           applicant: d.applicant || nurseName,
           status: d.status || "",
           supervisorSign: d.supervisorSign || "",
           note: d.note || "",
+          swapDate: d.swapDate || "",
+          _raw: d,
           summary: `日期：${d.swapDate || ""}\n原班：${d.originalShift || ""}\n欲換：${d.newShift || ""}\n理由：${d.reason || ""}`.trim()
         });
       });
@@ -377,7 +439,46 @@ function getLoginContext() {
     // 依申請日期新到舊
     filtered.sort((a, b) => (b.applyDate || "").localeCompare(a.applyDate || ""));
 
+    
     renderRecordRows(filtered);
+
+    // ===== 當月時數統計（僅審核通過）=====
+    const ym = (document.getElementById("recordMonth")?.value || "").trim();
+    if (ym) {
+      let leaveHours = 0;
+      let specialHours = 0;
+      let swapCount = 0;
+
+      filtered.forEach(r => {
+        if (!isApprovedStatus(r.status)) return;
+
+        if (r.type === "leave") {
+          const d = r._raw || {};
+          const ymd = toYMD(d.leaveDate) || r.leaveDate || "";
+          if (!inMonth(ymd, ym)) return;
+
+          const h = Number(d.durationValue || 0) || 0;
+          leaveHours += h;
+          if ((d.leaveType || "") === "特休") specialHours += h;
+        }
+
+        if (r.type === "swap") {
+          const d = r._raw || {};
+          const ymd = toYMD(d.swapDate) || r.swapDate || "";
+          if (!inMonth(ymd, ym)) return;
+
+          swapCount += 1;
+        }
+      });
+
+      const leaveEl = document.getElementById("monthLeaveHours");
+      const specialEl = document.getElementById("monthSpecialHours");
+      const swapEl = document.getElementById("monthSwapCount");
+      if (leaveEl) leaveEl.textContent = `${leaveHours} 小時`;
+      if (specialEl) specialEl.textContent = `${specialHours} 小時`;
+      if (swapEl) swapEl.textContent = `${swapCount} 筆`;
+    }
+
   }
 
   // ===== 送出請假申請 =====
@@ -407,8 +508,10 @@ function getLoginContext() {
       note: "",
       supervisorSign: "",
       // 登入者欄位（便於稽核/追蹤）
-      createdById: nurseId,
-      createdByName: nurseName,
+      applicantId: (window.__LOGIN_USER__?.staffId || ''),
+      nurseDocId: nurseId,
+      createdById: (window.__LOGIN_USER__?.staffId || nurseId),
+      createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -445,8 +548,10 @@ function getLoginContext() {
       note: "",
       supervisorSign: "",
       // 登入者欄位（便於稽核/追蹤）
-      createdById: nurseId,
-      createdByName: nurseName,
+      applicantId: (window.__LOGIN_USER__?.staffId || ''),
+      nurseDocId: nurseId,
+      createdById: (window.__LOGIN_USER__?.staffId || nurseId),
+      createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -466,6 +571,13 @@ function getLoginContext() {
 
   const loggedIn = await resolveLoggedInNurse();
   renderLoginUser(loggedIn.nurseName);
+
+  // 統計月份預設為本月
+  const recordMonthEl = document.getElementById("recordMonth");
+  if (recordMonthEl && !recordMonthEl.value) {
+    recordMonthEl.value = new Date().toISOString().slice(0, 7);
+  }
+  recordMonthEl?.addEventListener("change", () => loadMyRecords(loggedIn));
 
   // 申請人自動帶入登入者，並鎖定不可選
   if (loggedIn?.nurseId) {
