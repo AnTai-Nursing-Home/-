@@ -1,86 +1,49 @@
-// 主責個案分配（清單 + 編輯）
-// - 清單：顯示日期、標題、住民總人數、主責個案數、製表人
-// - 編輯：表格同舊版，但不再顯示上方日期/週次/製表人欄位；儲存時用 Modal 填寫
-// - 右上角顯示登入者（員編 + 姓名），登入邏輯參考 supplies.js
+document.addEventListener("firebase-ready", async () => {
+  const db = firebase.firestore();
 
-const ROW_COUNT = 12;      // 預設 12 位護理師名額（每位 2 列）
-const CASE_COLS = 7;       // 每行 7 格
+  // Collections
+  const nurseCol = db.collection("nurses"); // ✅ 人員資料庫改成從 nurses 抓
+  const leaveCol = db.collection("nurse_leave_requests");
+  const swapCol = db.collection("nurse_shift_requests");
+  const statusCol = db.collection("request_status_list");
 
-// 仍沿用原集合名稱；新表單用「自動 ID」避免同一天多張表衝突
-const COLLECTION = 'nurse_case_assignments';
+  // DOM
+  const leaveBody = document.getElementById("leaveTableBody");
+  const swapBody = document.getElementById("swapTableBody");
+  const recordBody = document.getElementById("recordTableBody");
 
-let nurses = [];
-let residents = [];
-let baseListsLoaded = false;
+  const leaveApplicantSelect =
+    document.getElementById("leaveApplicant") ||
+    document.querySelector("#leaveForm select[name='applicant']");
+  const swapApplicantSelect = document.getElementById("swapApplicant");
 
-let currentUser = { staffId: '', displayName: '' };
-let currentSheetId = '';              // Firestore doc id
-let currentSheetMeta = {              // 會顯示在清單的欄位
-  date: '',
-  title: '',
-  residentTotal: '',
-  primaryCaseCount: '',
-  maker: ''
-};
+  const loginUserDisplay = document.getElementById("loginUserDisplay");
 
-// 編輯頁下方備註（可自行輸入）
-let currentNotes = { note1: '', note2: '', note3: '' };
+  // Record tab controls
+  const recordTypeEl = document.getElementById("recordType");
+  const recordStatusEl = document.getElementById("recordStatus");
+  const recordFromEl = document.getElementById("recordFrom");
+  const recordToEl = document.getElementById("recordTo");
+  const recordSearchBtn = document.getElementById("recordSearchBtn");
+  const recordResetBtn = document.getElementById("recordResetBtn");
 
-let sheetMetaModal = null;
-let saving = false;
+  let statusList = [];
 
-let copyFromModal = null;
-let sheetsCache = []; // for copy-from dropdown
-let selectedYear = 'all';
-
-// 依日期字串抓年份（支援 YYYY-MM-DD / YYYY/MM/DD / 其他含年份的格式）
-function extractYear(dateStr) {
-  const s = String(dateStr || '').trim();
-  const m = s.match(/^(\d{4})[\/\-]/) || s.match(/(\d{4})/);
-  return m ? m[1] : '';
-}
-
-function updateYearFilterOptions(docs) {
-  const sel = document.getElementById('yearFilter');
-  if (!sel) return;
-
-  // 綁定 change 事件（只綁一次）
-  if (!sel.dataset.bound) {
-    sel.addEventListener('change', async () => {
-      selectedYear = sel.value || 'all';
-      await loadSheetsList(); // 重新載入/重繪清單
-    });
-    sel.dataset.bound = '1';
+  // ===== Login / Session (防呆：支援多種既有系統存法) =====
+  function safeJsonParse(v) {
+    try { return JSON.parse(v); } catch { return null; }
   }
 
-  const years = Array.from(new Set((docs || [])
-    .map(d => extractYear(safeText(d.date) || safeText(d.id)))
-    .filter(Boolean)))
-    .sort((a, b) => b.localeCompare(a));
+  function pick(obj, keys) {
+    if (!obj) return "";
+    for (const k of keys) {
+      if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== "") return obj[k];
+    }
+    return "";
+  }
 
-  const keep = sel.value || selectedYear || 'all';
-  sel.innerHTML = '<option value="all">全部</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
-  // 還原選取
-  if (years.includes(keep)) sel.value = keep;
-  else sel.value = 'all';
-  selectedYear = sel.value;
-}
-
-function applyYearFilter(docs) {
-  if (!docs || !docs.length) return [];
-  if (!selectedYear || selectedYear === 'all') return docs;
-  return docs.filter(d => extractYear(safeText(d.date) || safeText(d.id)) === selectedYear);
-}
-
-
-// --- 未儲存變更偵測（Dirty Check，參考導尿系統做法） ---
-let isDirty = false;
-let lastSavedSnapshot = '';
-let unsavedModal = null;
-let pendingResolveAfterSave = null;
-
-
-// ========== Login（參考 supplies.js） ==========
+  
+// ========== Login（完全對齊 nurse-primary-cases.js：參考 supplies.js） ==========
 function getLoginUser() {
   // 系統共用登入資訊
   for (const store of [sessionStorage, localStorage]) {
@@ -115,1131 +78,426 @@ function getLoginUser() {
   return { staffId: '', displayName: '' };
 }
 
-function renderLoginUserBadge() {
-  currentUser = getLoginUser();
-  const el = document.getElementById('loginUserNameCases');
-  const text = (currentUser.staffId || currentUser.displayName)
-    ? `登入者：${[currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ')}`
-    : '登入者：未登入';
-  if (el) el.textContent = text;
-}
-
-// ========== 住民/護理師 options ==========
-function buildResidentOptionsHtml() {
-  let html = '<option value="">--</option>';
-  residents.forEach(r => {
-    const name = r.name || r.id || '';
-    html += `<option value="${name}">${name}</option>`;
-  });
-  return html;
-}
-
-function buildNurseOptionsHtml() {
-  let html = '<option value="">--</option>';
-  nurses.forEach(n => {
-    const name = n.name || '';
-    const id = n.id || '';
-    html += `<option value="${id}">${name}</option>`;
-  });
-  return html;
-}
-
-// 避免重複選到同一住民
-function refreshResidentOptions() {
-  const selects = document.querySelectorAll('.case-select');
-  if (!selects.length) return;
-
-  const selectedSet = new Set();
-  selects.forEach(sel => {
-    const v = (sel.value || '').trim();
-    if (v) selectedSet.add(v);
-  });
-
-  selects.forEach(sel => {
-    const current = (sel.value || '').trim();
-    let html = '<option value="">--</option>';
-    residents.forEach(r => {
-      const name = r.name || r.id || '';
-      if (selectedSet.has(name) && name !== current) return;
-      const selectedAttr = (name === current) ? ' selected' : '';
-      html += `<option value="${name}"${selectedAttr}>${name}</option>`;
-    });
-    sel.innerHTML = html;
-  });
-}
-
-function updateCaseCountForGroup(groupIndex) {
-  const selects = document.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
-  let count = 0;
-  selects.forEach(sel => {
-    if (sel.value && sel.value.trim() !== '') count++;
-  });
-  const span = document.querySelector(`.case-count[data-group="${groupIndex}"]`);
-  if (span) span.textContent = count > 0 ? String(count) : '';
-}
-
-
-// ========== 表格渲染 ==========
-function renderCaseTable() {
-  const tbody = document.getElementById('caseTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  const nurseOptions = buildNurseOptionsHtml();
-  const residentOptions = buildResidentOptionsHtml();
-
-  for (let i = 0; i < ROW_COUNT; i++) {
-    const groupIndex = String(i);
-
-    const trTop = document.createElement('tr');
-    const trBottom = document.createElement('tr');
-
-    // 員編（rowspan=2）
-    const tdId = document.createElement('td');
-    tdId.rowSpan = 2;
-    const idSpan = document.createElement('span');
-    idSpan.classList.add('nurse-id');
-    idSpan.setAttribute('data-group', groupIndex);
-    tdId.appendChild(idSpan);
-    trTop.appendChild(tdId);
-
-    // 護理師（rowspan=2）
-    const tdName = document.createElement('td');
-    tdName.rowSpan = 2;
-    tdName.innerHTML = `
-      <select class="form-select form-select-sm nurse-name-select" data-group="${groupIndex}">
-        ${nurseOptions}
-      </select>
-    `;
-    trTop.appendChild(tdName);
-
-    // 上列 1~7
-    for (let j = 0; j < CASE_COLS; j++) {
-      const tdCase = document.createElement('td');
-      tdCase.innerHTML = `
-        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
-          ${residentOptions}
-        </select>
-      `;
-      trTop.appendChild(tdCase);
-    }
-
-    // 下列 8~14
-    for (let j = 0; j < CASE_COLS; j++) {
-      const tdCase = document.createElement('td');
-      tdCase.innerHTML = `
-        <select class="form-select form-select-sm case-select" data-group="${groupIndex}">
-          ${residentOptions}
-        </select>
-      `;
-      trBottom.appendChild(tdCase);
-    }
-
-    // 個案數（rowspan=2）
-    const tdCount = document.createElement('td');
-    tdCount.rowSpan = 2;
-    tdCount.innerHTML = `<span class="case-count" data-group="${groupIndex}"></span>`;
-    trTop.appendChild(tdCount);
-
-    tbody.appendChild(trTop);
-    tbody.appendChild(trBottom);
-  }
-
-  // 護理師選單事件：選名字 → 員編自動帶出
-  const nameSelects = tbody.querySelectorAll('.nurse-name-select');
-  nameSelects.forEach(select => {
-    select.addEventListener('change', (event) => {
-      const target = event.target;
-      const groupIndex = target.getAttribute('data-group');
-      const nurseId = target.value;
-      const nurse = nurses.find(n => n.id === nurseId);
-      const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
-      if (idSpan) idSpan.textContent = nurse ? nurse.id : '';
-      markDirty();
-    });
-  });
-
-  // 個案選單事件：更新個案數 + 重新整理住民清單（避免重複）
-  const caseSelects = tbody.querySelectorAll('.case-select');
-  caseSelects.forEach(select => {
-    select.addEventListener('change', (event) => {
-      const target = event.target;
-      const groupIndex = target.getAttribute('data-group');
-      updateCaseCountForGroup(groupIndex);
-      refreshResidentOptions();
-      setPrimaryCaseCountCell(computePrimaryCaseCount());
-      markDirty();
-    });
-  });
-
-  refreshResidentOptions();
-  setPrimaryCaseCountCell(computePrimaryCaseCount());
-}
-
-// ========== 備註（備註一/二/三） ==========
-function setNotesToUI(notes) {
-  const n = notes || {};
-  currentNotes = {
-    note1: (n.note1 ?? '').toString(),
-    note2: (n.note2 ?? '').toString(),
-    note3: (n.note3 ?? '').toString()
+// 讓下游流程（resolveLoggedInNurse / pick()）可以照舊運作：回傳相容欄位
+function getLoginContext() {
+  const u = getLoginUser();
+  return {
+    staffId: u.staffId,
+    employeeId: u.staffId,
+    userId: u.staffId,
+    uid: u.staffId,
+    id: u.staffId,
+    displayName: u.displayName,
+    name: u.displayName
   };
-
-  const el1 = document.getElementById('note1');
-  const el2 = document.getElementById('note2');
-  const el3 = document.getElementById('note3');
-  if (el1) el1.value = currentNotes.note1;
-  if (el2) el2.value = currentNotes.note2;
-  if (el3) el3.value = currentNotes.note3;
 }
 
-function readNotesFromUI() {
-  const el1 = document.getElementById('note1');
-  const el2 = document.getElementById('note2');
-  const el3 = document.getElementById('note3');
-  currentNotes = {
-    note1: (el1 ? el1.value : (currentNotes.note1 || '')).toString(),
-    note2: (el2 ? el2.value : (currentNotes.note2 || '')).toString(),
-    note3: (el3 ? el3.value : (currentNotes.note3 || '')).toString()
-  };
-  return { ...currentNotes };
-}
+  async function resolveLoggedInNurse() {
+    const ctx = getLoginContext();
+    const rawId = pick(ctx, ["nurseId", "userId", "uid", "id", "employeeId", "staffId"]);
+    const rawName = pick(ctx, ["name", "displayName", "fullName", "username"]);
 
-// ========== 收集/套用表格資料 ==========
-function collectCaseTableData() {
-  const rows = [];
-  const tbody = document.getElementById('caseTableBody');
-  if (!tbody) return rows;
-
-  for (let i = 0; i < ROW_COUNT; i++) {
-    const groupIndex = String(i);
-
-    const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
-    const nurseId = idSpan ? idSpan.textContent.trim() : '';
-
-    const nameSelect = tbody.querySelector(`.nurse-name-select[data-group="${groupIndex}"]`);
-    let nurseName = '';
-    if (nameSelect) {
-      const opt = nameSelect.options[nameSelect.selectedIndex];
-      if (opt) nurseName = opt.textContent.trim();
-    }
-
-    const caseSelects = tbody.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
-    const cases = [];
-    caseSelects.forEach(sel => cases.push((sel.value || '').trim()));
-
-    const countSpan = tbody.querySelector(`.case-count[data-group="${groupIndex}"]`);
-    const caseCount = countSpan ? (countSpan.textContent.trim() || '') : '';
-
-    rows.push({ nurseId, nurseName, cases, caseCount });
-  }
-  return rows;
-}
-
-function applyCaseTableRows(rows) {
-  const tbody = document.getElementById('caseTableBody');
-  if (!tbody) return;
-
-  for (let i = 0; i < Math.min(rows.length, ROW_COUNT); i++) {
-    const r = rows[i] || {};
-    const groupIndex = String(i);
-
-    const idSpan = tbody.querySelector(`.nurse-id[data-group="${groupIndex}"]`);
-    const nameSelect = tbody.querySelector(`.nurse-name-select[data-group="${groupIndex}"]`);
-    const caseSelects = tbody.querySelectorAll(`.case-select[data-group="${groupIndex}"]`);
-
-    if (idSpan) idSpan.textContent = r.nurseId || '';
-    if (nameSelect && r.nurseId) nameSelect.value = r.nurseId;
-
-    if (caseSelects.length) {
-      const arr = Array.isArray(r.cases) ? r.cases : [];
-      for (let j = 0; j < Math.min(caseSelects.length, arr.length); j++) {
-        caseSelects[j].value = arr[j] || '';
-      }
-    }
-    updateCaseCountForGroup(groupIndex);
-  }
-  refreshResidentOptions();
-  setPrimaryCaseCountCell(computePrimaryCaseCount());
-}
-
-// ========== Base lists（護理師/住民） ==========
-async function loadCaseAssignBaseLists() {
-  try {
-    const nurseSnap = await db.collection('nurses').orderBy('id').get();
-    nurses = nurseSnap.docs.map(doc => {
-      const data = doc.data() || {};
-      return { id: data.id || doc.id, name: data.name || '' };
-    });
-
-    const residentSnap = await db.collection('residents').orderBy('bedNumber').get();
-    residents = residentSnap.docs.map(doc => {
-      const data = doc.data() || {};
-      return { id: data.residentNumber || doc.id, name: doc.id };
-    });
-
-    baseListsLoaded = true;
-    renderCaseTable();
-  } catch (error) {
-    console.error('載入主責個案分配（護理師/住民清單）失敗：', error);
-    alert('載入主責個案分配資料失敗，請稍後再試。');
-  }
-}
-
-// ========== 清單（Sheets list） ==========
-function fmtTime(ts) {
-  try {
-    if (!ts) return '';
-    if (typeof ts.toDate === 'function') return ts.toDate().toLocaleString('zh-TW');
-    if (ts instanceof Date) return ts.toLocaleString('zh-TW');
-  } catch (e) {}
-  return '';
-}
-
-function safeText(v) {
-  return String(v ?? '').trim();
-}
-
-
-function computePrimaryCaseCount() {
-  const selects = document.querySelectorAll('.case-select');
-  const set = new Set();
-  selects.forEach(sel => {
-    const v = (sel.value || '').trim();
-    if (v) set.add(v);
-  });
-  return set.size;
-}
-
-function setPrimaryCaseCountCell(n) {
-  const el = document.getElementById('primaryCaseCountCell');
-  if (el) el.textContent = (n === '' || n === null || typeof n === 'undefined') ? '—' : String(n);
-}
-
-// dirty snapshot (only editor)
-function isEditorVisible() {
-  const editor = document.getElementById('editorSection');
-  return !!editor && !editor.classList.contains('d-none');
-}
-
-function computeSnapshot() {
-  if (!isEditorVisible()) return '';
-  const rows = collectCaseTableData();
-  const notes = readNotesFromUI();
-  const snapObj = { id: currentSheetId || '', meta: currentSheetMeta || {}, notes, rows };
-  try { return JSON.stringify(snapObj); } catch (e) { return String(Date.now()); }
-}
-
-function markClean() {
-  lastSavedSnapshot = computeSnapshot();
-  isDirty = false;
-}
-
-function markDirty() {
-  if (!isEditorVisible()) return;
-  const now = computeSnapshot();
-  if (now !== lastSavedSnapshot) isDirty = true;
-}
-
-function ensureUnsavedModal() {
-  if (unsavedModal) return;
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `
-  <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">偵測到未儲存變更</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          系統偵測到您有做更改但尚未按「儲存」。是否要儲存變更？
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="unsaved-cancel-btn" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-outline-danger" id="unsaved-discard-btn">不儲存</button>
-          <button type="button" class="btn btn-primary" id="unsaved-save-btn">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(wrapper.firstElementChild);
-  const modalEl = document.getElementById('unsavedChangesModal');
-  if (modalEl && window.bootstrap) {
-    unsavedModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
-  }
-}
-
-function showUnsavedChangesDialog() {
-  return new Promise((resolve) => {
-    ensureUnsavedModal();
-    if (!unsavedModal) {
-      const ok = confirm('系統偵測到您有做更改但尚未儲存。\n按「確定」=儲存，按「取消」=不儲存');
-      resolve(ok ? 'save' : 'discard');
-      return;
-    }
-    const btnSave = document.getElementById('unsaved-save-btn');
-    const btnDiscard = document.getElementById('unsaved-discard-btn');
-    const btnCancel = document.getElementById('unsaved-cancel-btn');
-
-    const cleanup = () => {
-      btnSave?.removeEventListener('click', onSave);
-      btnDiscard?.removeEventListener('click', onDiscard);
-      btnCancel?.removeEventListener('click', onCancel);
-    };
-    const onSave = () => { cleanup(); unsavedModal.hide(); resolve('save'); };
-    const onDiscard = () => { cleanup(); unsavedModal.hide(); resolve('discard'); };
-    const onCancel = () => { cleanup(); unsavedModal.hide(); resolve('cancel'); };
-
-    btnSave?.addEventListener('click', onSave);
-    btnDiscard?.addEventListener('click', onDiscard);
-    btnCancel?.addEventListener('click', onCancel);
-    unsavedModal.show();
-  });
-}
-
-function openSaveModalAndWait() {
-  return new Promise((resolve) => {
-    pendingResolveAfterSave = resolve;
-    ensureModal();
-    fillModalFromMeta();
-
-    const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-    if (!maker) {
-      alert('未偵測到登入者，無法自動帶入製表人。請先完成登入。');
-      pendingResolveAfterSave = null;
-      resolve(false);
-      return;
-    }
-
-    const modalEl = document.getElementById('sheetMetaModal');
-    const onHidden = () => {
-      modalEl?.removeEventListener('hidden.bs.modal', onHidden);
-      if (pendingResolveAfterSave) {
-        const r = pendingResolveAfterSave;
-        pendingResolveAfterSave = null;
-        r(false);
-      }
-    };
-    modalEl?.addEventListener('hidden.bs.modal', onHidden);
-    sheetMetaModal?.show();
-  });
-}
-
-async function guardUnsavedChanges(nextAction) {
-  if (!isEditorVisible()) { await nextAction(); return true; }
-  markDirty();
-  if (!isDirty) { await nextAction(); return true; }
-
-  const choice = await showUnsavedChangesDialog();
-  if (choice === 'cancel') return false;
-
-  if (choice === 'save') {
-    const ok = await openSaveModalAndWait();
-    if (!ok) return false;
-    markDirty();
-    if (isDirty) return false;
-  } else {
-    isDirty = false;
-  }
-
-  await nextAction();
-  return true;
-}
-
-async function loadSheetsList() {
-  const tbody = document.getElementById('sheetsTbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">讀取中...</td></tr>';
-
-  try {
-    // 先嘗試用 date 排序（新資料都有 date 欄位）
-    let snap = null;
-    try {
-      snap = await db.collection(COLLECTION).orderBy('date', 'desc').limit(200).get();
-    } catch (e) {
-      // 若舊資料沒有 date 欄位或尚未建立索引，退回用 updatedAt
-      snap = await db.collection(COLLECTION).orderBy('updatedAt', 'desc').limit(200).get();
-    }
-
-    const docs = snap.docs.map(d => ({ id: d.id, ...((d.data() || {})) }));
-    sheetsCache = docs;
-    updateYearFilterOptions(docs);
-    const filteredDocs = applyYearFilter(docs);
-    if (!docs.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">目前沒有任何個案分配表。</td></tr>';
-      return;
-    }
-
-    if (!filteredDocs.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">此年份沒有任何個案分配表。</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = '';
-    filteredDocs.forEach(d => {
-      const date = safeText(d.date) || safeText(d.id);
-      const title = safeText(d.title) || '(未命名)';
-      const residentTotal = safeText(d.residentTotal || d.totalResidents);
-      const primaryCaseCount = safeText(d.primaryCaseCount);
-      const maker = safeText(d.maker);
-      const updated = fmtTime(d.updatedAt);
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="text-center">${date}</td>
-        <td>${escapeHtml(title)}</td>
-        <td class="text-center">${escapeHtml(residentTotal)}</td>
-        <td class="text-center">${escapeHtml(primaryCaseCount)}</td>
-        <td class="text-center">${escapeHtml(maker)}</td>
-        <td class="text-center">${escapeHtml(updated)}</td>
-        <td class="text-center">
-          <div class="d-flex gap-1 justify-content-center">
-            <button class="btn btn-sm btn-primary open-sheet-btn" data-id="${d.id}">開啟</button>
-            <button class="btn btn-sm btn-outline-danger delete-sheet-btn" data-id="${d.id}">刪除</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    tbody.querySelectorAll('.open-sheet-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        openEditorById(id);
-      });
-    });
-
-    tbody.querySelectorAll('.delete-sheet-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-id');
-        if (!id) return;
-        if (!confirm('確定要刪除這張個案分配表嗎？刪除後無法復原。')) return;
-        try {
-          await db.collection(COLLECTION).doc(id).delete();
-          await loadSheetsList();
-        } catch (e) {
-          console.error('刪除失敗：', e);
-          alert('刪除失敗，請稍後再試。');
+    // 先嘗試用 ID 對 nurses doc.id 直接比對
+    if (rawId) {
+      try {
+        const snap = await nurseCol.doc(String(rawId)).get();
+        if (snap.exists) {
+          const n = snap.data() || {};
+          const name = n.name || n.fullName || n.displayName || rawName || String(rawId);
+          return { nurseId: snap.id, nurseName: name };
         }
+      } catch {}
+    }
+
+    // 再用姓名查（若你 nurses 有 name 欄位）
+    if (rawName) {
+      try {
+        const q = await nurseCol.where("name", "==", String(rawName)).limit(1).get();
+        if (!q.empty) {
+          const doc = q.docs[0];
+          return { nurseId: doc.id, nurseName: (doc.data()?.name || rawName) };
+        }
+      } catch {
+        // fallback：抓全部比對
+        try {
+          const all = await nurseCol.get();
+          const found = all.docs.find(d => (d.data()?.name || "").trim() === String(rawName).trim());
+          if (found) return { nurseId: found.id, nurseName: found.data()?.name || rawName };
+        } catch {}
+      }
+    }
+
+    // 如果完全抓不到，至少顯示登入者名稱（但無法鎖定申請/紀錄）
+    if (rawName) return { nurseId: "", nurseName: rawName };
+    return { nurseId: "", nurseName: "" };
+  }
+
+  function renderLoginUser(nurseName) {
+    if (!loginUserDisplay) return;
+    loginUserDisplay.textContent = nurseName ? `登入者：${nurseName}` : "登入者：未登入 / 讀取失敗";
+  }
+
+  // ===== 狀態樣式顯示 =====
+  async function loadStatuses() {
+    const snap = await statusCol.orderBy("name").get().catch(() => statusCol.get());
+    statusList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  function getStatusBadge(statusName) {
+    const found = statusList.find(s => s.name === statusName);
+    return found
+      ? `<span class="badge" style="background:${found.color};color:#fff;">${found.name}</span>`
+      : `<span class="badge bg-secondary">${statusName || ""}</span>`;
+  }
+
+  function buildRecordStatusOptions() {
+    if (!recordStatusEl) return;
+    recordStatusEl.innerHTML = `<option value="">全部</option>`;
+    statusList.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.name;
+      opt.textContent = s.name;
+      recordStatusEl.appendChild(opt);
+    });
+  }
+
+  // ===== 護理師名冊（從 nurses 抓）=====
+  function clearSelect(sel) {
+    if (!sel) return;
+    sel.innerHTML = `<option value="">請選擇護理師</option>`;
+  }
+
+  async function loadNurses() {
+    clearSelect(leaveApplicantSelect);
+    clearSelect(swapApplicantSelect);
+
+    // 優先只抓在職；若資料庫沒有 status 欄位或無索引，則回退抓全部
+    let snap;
+    try {
+      snap = await nurseCol.where("status", "==", "在職").orderBy("name").get();
+    } catch (err) {
+      snap = await nurseCol.orderBy("name").get().catch(() => nurseCol.get());
+    }
+
+    if (snap.empty) return;
+
+    snap.forEach(doc => {
+      const n = doc.data() || {};
+      const name = n.name || n.fullName || n.displayName || "";
+      if (!name) return;
+
+      [leaveApplicantSelect, swapApplicantSelect].forEach(sel => {
+        if (!sel) return;
+        const opt = document.createElement("option");
+        opt.value = doc.id;      // nurseId
+        opt.textContent = name;  // 顯示姓名
+        sel.appendChild(opt);
       });
     });
-  } catch (err) {
-    console.error('載入清單失敗：', err);
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">載入清單失敗</td></tr>';
   }
-}
 
-function showListView() {
-  document.getElementById('listSection')?.classList.remove('d-none');
-  document.getElementById('editorSection')?.classList.add('d-none');
-  currentSheetId = '';
-  currentSheetMeta = { date: '', title: '', residentTotal: '', primaryCaseCount: '', maker: '' };
-}
-
-function showEditorView() {
-  document.getElementById('listSection')?.classList.add('d-none');
-  document.getElementById('editorSection')?.classList.remove('d-none');
-}
-
-// ========== 開新表 / 開既有表 ==========
-function defaultMetaForNewSheet() {
-  const today = new Date().toISOString().slice(0, 10);
-  const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-  return { date: today, title: '', residentTotal: String(residents.length || ''), primaryCaseCount: '0', maker };
-}
-
-async function openNewSheet(copyFromId = '') {
-  if (!baseListsLoaded) return;
-
-  currentSheetId = '';
-  currentSheetMeta = defaultMetaForNewSheet();
-
-  renderCaseTable();
-  // 新表預設備註清空
-  setNotesToUI({ note1: '', note2: '', note3: '' });
-  // 新表：住民總人數=目前住民總數；主責個案數依表格計算
-  currentSheetMeta.residentTotal = String(residents.length || '');
-  setPrimaryCaseCountCell(computePrimaryCaseCount());
-
-  if (copyFromId) {
+  async function getNurseNameById(nurseId) {
+    if (!nurseId) return "";
     try {
-      const snap = await db.collection(COLLECTION).doc(copyFromId).get();
-      if (snap.exists) {
-        const data = snap.data() || {};
-        const rows = Array.isArray(data.rows) ? data.rows : [];
-        applyCaseTableRows(rows);
-        setNotesToUI({
-          note1: safeText(data.note1),
-          note2: safeText(data.note2),
-          note3: safeText(data.note3)
-        });
-      }
-    } catch (e) {
-      console.error('延用表單讀取失敗：', e);
-      alert('延用表單讀取失敗，將建立空白表。');
+      const snap = await nurseCol.doc(nurseId).get();
+      const n = snap.data() || {};
+      return n.name || n.fullName || n.displayName || "";
+    } catch {
+      return "";
     }
   }
 
-  // 重新計算 footer
-  setPrimaryCaseCountCell(computePrimaryCaseCount());
+  // ===== 載入請假申請（總覽）=====
+  function hoursText(d) {
+    const v = Number(d?.durationValue ?? 0);
+    if (v > 0) return v + " 小時";
+    return "";
+  }
 
-  renderCurrentSheetHeader();
-  showEditorView();
-  // URL 標示（不一定需要）
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set('mode', 'new');
-    url.searchParams.delete('id');
-    history.replaceState({}, '', url.toString());
-  } catch (e) {}
-}
+  async function loadLeaveRequests() {
+    leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await leaveCol.orderBy("applyDate", "desc").get();
 
-async function openEditorById(id) {
-  if (!baseListsLoaded) return;
-  if (!id) return;
-
-  currentSheetId = id;
-  renderCaseTable();
-
-  try {
-    const snap = await db.collection(COLLECTION).doc(id).get();
-    if (!snap.exists) {
-      alert('找不到此個案分配表。');
-      showListView();
+    if (snap.empty) {
+      leaveBody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">目前沒有申請資料</td></tr>`;
       return;
     }
-    const data = snap.data() || {};
-    currentSheetMeta = {
-      date: safeText(data.date) || '',
-      title: safeText(data.title) || '',
-      residentTotal: safeText(data.residentTotal || data.totalResidents) || '',
-      primaryCaseCount: safeText(data.primaryCaseCount) || '',
-      maker: safeText(data.maker) || ''
-    };
 
-    // 備註（舊資料沒有就顯示空白）
-    setNotesToUI({
-      note1: safeText(data.note1),
-      note2: safeText(data.note2),
-      note3: safeText(data.note3)
+    leaveBody.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.leaveType || ""}</td>
+        <td>${d.leaveDate || ""}</td>
+        <td>${d.shift || ""}</td>
+        <td>${hoursText(d)}</td>
+        <td>${d.reason || ""}</td>
+        <td>${getStatusBadge(d.status)}</td>
+        <td>${d.supervisorSign || ""}</td>
+        <td>${d.note || ""}</td>
+      `;
+      leaveBody.appendChild(tr);
     });
+  }
 
-    const rows = Array.isArray(data.rows) ? data.rows : [];
-    applyCaseTableRows(rows);
-    // footer 以表格內容即時計算
-    setPrimaryCaseCountCell(computePrimaryCaseCount());
+  // ===== 載入調班申請（總覽）=====
+  async function loadSwapRequests() {
+    swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">載入中...</td></tr>`;
+    const snap = await swapCol.orderBy("applyDate", "desc").get();
 
-    renderCurrentSheetHeader();
-    markClean();
-    showEditorView();
+    if (snap.empty) {
+      swapBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">目前沒有調班資料</td></tr>`;
+      return;
+    }
 
+    swapBody.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.applyDate || ""}</td>
+        <td>${d.applicant || ""}</td>
+        <td>${d.swapDate || ""}</td>
+        <td>${d.originalShift || ""}</td>
+        <td>${d.newShift || ""}</td>
+        <td>${d.reason || ""}</td>
+        <td>${getStatusBadge(d.status)}</td>
+        <td>${d.supervisorSign || ""}</td>
+        <td>${d.note || ""}</td>
+      `;
+      swapBody.appendChild(tr);
+    });
+  }
+
+  // ===== 申請紀錄（只顯示登入者）=====
+  function dateInRange(dateStr, fromStr, toStr) {
+    if (!dateStr) return false;
+    if (fromStr && dateStr < fromStr) return false; // YYYY-MM-DD 字串可直接比較
+    if (toStr && dateStr > toStr) return false;
+    return true;
+  }
+
+  function renderRecordRows(rows) {
+    if (!recordBody) return;
+    if (!rows.length) {
+      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">查無資料</td></tr>`;
+      return;
+    }
+
+    recordBody.innerHTML = "";
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.typeLabel}</td>
+        <td>${r.applyDate || ""}</td>
+        <td>${r.applicant || ""}</td>
+        <td>${r.summary || ""}</td>
+        <td>${getStatusBadge(r.status)}</td>
+        <td>${r.supervisorSign || ""}</td>
+        <td>${r.note || ""}</td>
+      `;
+      recordBody.appendChild(tr);
+    });
+  }
+
+  async function getMyDocs(col, nurseId) {
+    if (!nurseId) return [];
+    // 優先 where 篩選；若遇到索引或權限問題，回退抓全部再前端過濾
     try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('id', id);
-      url.searchParams.delete('mode');
-      history.replaceState({}, '', url.toString());
-    } catch (e) {}
-  } catch (err) {
-    console.error('讀取表單失敗：', err);
-    alert('讀取表單失敗，請稍後再試。');
-    showListView();
+      const q = await col.where("nurseId", "==", nurseId).get();
+      return q.docs;
+    } catch {
+      const all = await col.get();
+      return all.docs.filter(d => (d.data()?.nurseId || "") === nurseId);
+    }
   }
-}
 
-function renderCurrentSheetHeader() {
-  const titleEl = document.getElementById('currentSheetTitle');
-  const metaEl = document.getElementById('currentSheetMeta');
+  async function loadMyRecords(loggedIn) {
+    if (!recordBody) return;
+    recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">載入中...</td></tr>`;
 
-  const title = currentSheetMeta.title ? currentSheetMeta.title : '（未命名）';
-  const date = currentSheetMeta.date || '—';
-  const residentTotal = (residents && residents.length) ? String(residents.length) : (currentSheetMeta.residentTotal || '—');
-  const primaryCaseCount = String(computePrimaryCaseCount());
-  const maker = currentSheetMeta.maker || '—';
+    const nurseId = loggedIn?.nurseId || "";
+    const nurseName = loggedIn?.nurseName || "";
 
-  if (titleEl) titleEl.textContent = `${title}`;
-  if (metaEl) metaEl.textContent = `日期：${date}　住民總人數：${residentTotal}　主責個案數：${primaryCaseCount}　製表人：${maker}`;
-}
+    if (!nurseId) {
+      recordBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">⚠️ 無法取得登入者的 nurseId，因此無法查詢個人申請紀錄（請確認登入者資料是否有對應 nurses 的 doc.id）。</td></tr>`;
+      return;
+    }
 
-// ========== 儲存（先開 Modal） ==========
-function ensureModal() {
-  if (!sheetMetaModal) {
-    const el = document.getElementById('sheetMetaModal');
-    if (el) sheetMetaModal = new bootstrap.Modal(el);
+    const type = recordTypeEl?.value || "all";
+    const status = recordStatusEl?.value || "";
+    const from = recordFromEl?.value || "";
+    const to = recordToEl?.value || "";
+
+    const rows = [];
+
+    if (type === "all" || type === "leave") {
+      const docs = await getMyDocs(leaveCol, nurseId);
+      docs.forEach(doc => {
+        const d = doc.data() || {};
+        rows.push({
+          type: "leave",
+          typeLabel: "請假",
+          applyDate: d.applyDate || "",
+          applicant: d.applicant || nurseName,
+          status: d.status || "",
+          supervisorSign: d.supervisorSign || "",
+          note: d.note || "",
+          summary: `假別：${d.leaveType || ""}\n日期：${d.leaveDate || ""}\n班別：${d.shift || ""}\n時數：${hoursText(d)}\n理由：${d.reason || ""}`.trim()
+        });
+      });
+    }
+
+    if (type === "all" || type === "swap") {
+      const docs = await getMyDocs(swapCol, nurseId);
+      docs.forEach(doc => {
+        const d = doc.data() || {};
+        rows.push({
+          type: "swap",
+          typeLabel: "調班",
+          applyDate: d.applyDate || "",
+          applicant: d.applicant || nurseName,
+          status: d.status || "",
+          supervisorSign: d.supervisorSign || "",
+          note: d.note || "",
+          summary: `日期：${d.swapDate || ""}\n原班：${d.originalShift || ""}\n欲換：${d.newShift || ""}\n理由：${d.reason || ""}`.trim()
+        });
+      });
+    }
+
+    // 篩選
+    let filtered = rows.slice();
+
+    if (status) filtered = filtered.filter(r => (r.status || "") === status);
+    if (from || to) filtered = filtered.filter(r => dateInRange(r.applyDate, from, to));
+
+    // 依申請日期新到舊
+    filtered.sort((a, b) => (b.applyDate || "").localeCompare(a.applyDate || ""));
+
+    renderRecordRows(filtered);
   }
-}
 
+  // ===== 送出請假申請 =====
+  document.getElementById("leaveForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
 
-function ensureCopyFromModal() {
-  if (!copyFromModal) {
-    const el = document.getElementById('copyFromModal');
-    if (el) copyFromModal = new bootstrap.Modal(el);
-  }
-}
+    const nurseId = leaveApplicantSelect?.value || form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
 
-function populateCopyFromOptions() {
-  const sel = document.getElementById('copyFromSelect');
-  if (!sel) return;
-  // keep first option
-  const keep = sel.querySelector('option[value=""]');
-  sel.innerHTML = '';
-  if (keep) sel.appendChild(keep);
-  // newest first
-  (sheetsCache || []).forEach(d => {
-    const date = safeText(d.date) || safeText(d.id);
-    const title = safeText(d.title) || '(未命名)';
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = `${date}｜${title}`;
-    sel.appendChild(opt);
-  });
-}
-
-function openCopyFromModal() {
-  ensureCopyFromModal();
-  populateCopyFromOptions();
-  copyFromModal?.show();
-}
-
-function fillModalFromMeta() {
-  const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-
-  const dateEl = document.getElementById('metaDate');
-  const titleEl = document.getElementById('metaTitle');
-  const residentTotalEl = document.getElementById('metaResidentTotal');
-  const primaryCountEl = document.getElementById('metaPrimaryCaseCount');
-  const makerEl = document.getElementById('metaMaker');
-
-  if (dateEl) dateEl.value = currentSheetMeta.date || new Date().toISOString().slice(0, 10);
-  if (titleEl) titleEl.value = currentSheetMeta.title || '';
-  const residentTotal = String(residents.length || '');
-  const primaryCount = String(computePrimaryCaseCount());
-  if (residentTotalEl) residentTotalEl.value = residentTotal;
-  if (primaryCountEl) primaryCountEl.value = primaryCount;
-  if (makerEl) makerEl.value = currentSheetMeta.maker || maker;
-}
-
-function readMetaFromModal() {
-  const date = document.getElementById('metaDate')?.value || '';
-  const title = document.getElementById('metaTitle')?.value?.trim() || '';
-  const residentTotal = String(residents.length || '');
-  const primaryCaseCount = String(computePrimaryCaseCount());
-  const maker = ([currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ') || '').trim();
-
-  return { date, title, residentTotal, primaryCaseCount, maker };
-}
-
-async function saveSheetWithMeta(meta) {
-  if (saving) return;
-  saving = true;
-
-  try {
-    if (!meta.date) return alert('請填寫日期');
-    if (!meta.title) return alert('請填寫標題');
-    
-
-    const rows = collectCaseTableData();
-    const filteredRows = rows.filter(r => {
-      const hasCases = Array.isArray(r.cases) && r.cases.some(c => c && c.trim() !== '');
-      return (r.nurseId && r.nurseId.trim() !== '') || hasCases;
-    });
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇/確認申請人（護理師）");
+      return;
+    }
 
     const data = {
-      date: meta.date,
-      title: meta.title,
-      residentTotal: meta.residentTotal,
-      primaryCaseCount: meta.primaryCaseCount,
-      maker: meta.maker,
-      note1: safeText(readNotesFromUI().note1),
-      note2: safeText(readNotesFromUI().note2),
-      note3: safeText(readNotesFromUI().note3),
-      rows: filteredRows,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      nurseId,
+      applicant: nurseName,
+      applyDate: new Date().toISOString().split("T")[0],
+      leaveType: form.leaveType.value,
+      leaveDate: form.leaveDate.value,
+      shift: form.shift.value,
+      reason: form.reason.value,
+      durationValue: Number(form.durationValue.value),
+      durationUnit: "hour",
+      status: "待審核",
+      note: "",
+      supervisorSign: "",
+      // 登入者欄位（便於稽核/追蹤）
+      createdById: nurseId,
+      createdByName: nurseName,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // 新表：用 date + timestamp 組合成 doc id，避免同一天多表衝突
-    if (!currentSheetId) {
-      currentSheetId = `${meta.date}__${Date.now()}`;
-    }
+    await leaveCol.add(data);
+    alert(`✅ 已送出請假申請！（申請人：${nurseName}）`);
+    form.reset();
 
-    await db.collection(COLLECTION).doc(currentSheetId).set(data, { merge: true });
-
-    currentSheetMeta = { ...meta };
-    setPrimaryCaseCountCell(computePrimaryCaseCount());
-    renderCurrentSheetHeader();
-
-    alert('主責個案分配表已儲存完成。');
-    await loadSheetsList();
-  } catch (err) {
-    console.error('儲存失敗：', err);
-    alert('儲存失敗，請稍後再試。');
-  } finally {
-    saving = false;
-  }
-}
-
-// ========== 匯出 Excel（沿用舊版，增加標題/住民總人數） ==========
-function toRocDotDate(isoStr) {
-  if (!isoStr) return '';
-  const parts = isoStr.split('-');
-  if (parts.length !== 3) return '';
-  const y = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  const d = parseInt(parts[2], 10);
-  if (!y || !m || !d) return '';
-  const rocYear = y - 1911;
-  return `${rocYear}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
-}
-
-async function exportCaseAssignExcel() {
-  if (typeof ExcelJS === 'undefined') {
-    alert('ExcelJS 載入失敗，無法匯出 Excel。');
-    return;
-  }
-
-  const meta = currentSheetMeta || {};
-  const isoDate = meta.date || '';
-  const rocDate = toRocDotDate(isoDate);
-  const title = meta.title || '主責個案分配表';
-  const residentTotal = meta.residentTotal || '';
-  const primaryCaseCount = String(computePrimaryCaseCount());
-  const maker = meta.maker || '';
-
-  const notes = readNotesFromUI();
-
-  const titleInfo = `日期：${rocDate || isoDate} 製表人：${maker || ''} 住民總人數：${residentTotal || ''} 主責個案數：${primaryCaseCount || ''}`;
-
-  const rows = collectCaseTableData();
-  const filteredRows = rows.filter(r => {
-    const hasCases = Array.isArray(r.cases) && r.cases.some(c => c && c.trim() !== '');
-    return (r.nurseId && r.nurseId.trim() !== '') || hasCases;
+    // 送出後，申請人維持為登入者
+    if (leaveApplicantSelect) leaveApplicantSelect.value = nurseId;
   });
 
-  const workbook = new ExcelJS.Workbook();
-  const ws = workbook.addWorksheet('主責個案分配');
+  // ===== 送出調班申請 =====
+  document.getElementById("swapForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
 
-  const fontTitle = { name: '標楷體', size: 16, bold: true };
-  const fontHeader = { name: '標楷體', size: 12, bold: true };
-  const fontCell = { name: '標楷體', size: 12 };
-  const borderThin = {
-    top: { style: 'thin' },
-    left: { style: 'thin' },
-    bottom: { style: 'thin' },
-    right: { style: 'thin' }
-  };
+    const nurseId = swapApplicantSelect?.value || form.applicant?.value || "";
+    const nurseName = await getNurseNameById(nurseId);
 
-  ws.columns = [
-    { header: '員編', key: 'nurseId', width: 17 },
-    { header: '護理師', key: 'nurseName', width: 17 },
-    { header: '1', key: 'c1', width: 17 },
-    { header: '2', key: 'c2', width: 17 },
-    { header: '3', key: 'c3', width: 17 },
-    { header: '4', key: 'c4', width: 17 },
-    { header: '5', key: 'c5', width: 17 },
-    { header: '6', key: 'c6', width: 17 },
-    { header: '7', key: 'c7', width: 17 },
-    { header: '備註(個案數)', key: 'count', width: 17 }
-  ];
-
-  // 標題
-  ws.mergeCells('A1:J1');
-  const titleCell = ws.getCell('A1');
-  titleCell.value = title;
-  titleCell.font = fontTitle;
-  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-
-  // 資訊列
-  ws.mergeCells('A2:J2');
-  const infoCell = ws.getCell('A2');
-  infoCell.value = titleInfo;
-  infoCell.font = fontCell;
-  infoCell.alignment = { vertical: 'middle', horizontal: 'right' };
-
-  // 表頭（兩層）
-  ws.mergeCells('A3:A4');
-  ws.mergeCells('B3:B4');
-  ws.mergeCells('C3:I3');
-  ws.mergeCells('J3:J4');
-
-  const headerTop = ws.getRow(3);
-  headerTop.getCell(1).value = '員編';
-  headerTop.getCell(2).value = '護理師';
-  headerTop.getCell(3).value = '主責個案';
-  headerTop.getCell(10).value = '備註(個案數)';
-
-  const headerBottom = ws.getRow(4);
-  const labels = ['1', '2', '3', '4', '5', '6', '7'];
-  for (let i = 0; i < labels.length; i++) headerBottom.getCell(3 + i).value = labels[i];
-
-  [headerTop, headerBottom].forEach(row => {
-    row.height = 22;
-    row.eachCell(cell => {
-      cell.font = fontHeader;
-      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      cell.border = borderThin;
-    });
-  });
-
-  // 資料列
-  let excelRowIndex = 5;
-  filteredRows.forEach(r => {
-    const topRow = ws.getRow(excelRowIndex);
-    const bottomRow = ws.getRow(excelRowIndex + 1);
-
-    ws.mergeCells(excelRowIndex, 1, excelRowIndex + 1, 1);
-    ws.mergeCells(excelRowIndex, 2, excelRowIndex + 1, 2);
-    ws.mergeCells(excelRowIndex, 10, excelRowIndex + 1, 10);
-
-    topRow.getCell(1).value = r.nurseId || '';
-    topRow.getCell(2).value = r.nurseName || '';
-    topRow.getCell(10).value = r.caseCount || '';
-
-    for (let i = 0; i < 7; i++) {
-      topRow.getCell(3 + i).value = (r.cases && r.cases[i]) || '';
-      bottomRow.getCell(3 + i).value = (r.cases && r.cases[7 + i]) || '';
-    }
-
-    [topRow, bottomRow].forEach(row => {
-      row.height = 22;
-      row.eachCell((cell, colNumber) => {
-        cell.font = fontCell;
-        cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center', wrapText: false };
-        cell.border = borderThin;
-      });
-    });
-
-    excelRowIndex += 2;
-  });
-
-  // 底部總人數（對應你要的「備註欄最下面那格」）
-  const totalRowIndex = excelRowIndex + 1;
-  ws.mergeCells(totalRowIndex, 1, totalRowIndex, 9);
-  ws.getRow(totalRowIndex).getCell(1).value = '主責個案數';
-  ws.getRow(totalRowIndex).getCell(1).font = fontHeader;
-  ws.getRow(totalRowIndex).getCell(1).alignment = { vertical: 'middle', horizontal: 'right' };
-  ws.getRow(totalRowIndex).getCell(1).border = borderThin;
-
-  ws.getRow(totalRowIndex).getCell(10).value = primaryCaseCount || '';
-  ws.getRow(totalRowIndex).getCell(10).font = fontHeader;
-  ws.getRow(totalRowIndex).getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getRow(totalRowIndex).getCell(10).border = borderThin;
-
-  // 備註一/二/三（可空白）
-  const noteLines = [
-    { label: '備註一', text: (notes.note1 || '').trim() },
-    { label: '備註二', text: (notes.note2 || '').trim() },
-    { label: '備註三', text: (notes.note3 || '').trim() }
-  ];
-
-  let noteRowIdx = totalRowIndex + 1;
-  noteLines.forEach(nl => {
-    if (!nl.text) return;
-    ws.mergeCells(noteRowIdx, 1, noteRowIdx, 10);
-    const c = ws.getRow(noteRowIdx).getCell(1);
-    c.value = `${nl.label}：${nl.text}`;
-    c.font = fontCell;
-    c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-    c.border = borderThin;
-    ws.getRow(noteRowIdx).height = 28;
-    noteRowIdx += 1;
-  });
-
-  // 列印設定
-  ws.pageSetup = {
-    paperSize: 9,
-    orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 0,
-    margins: { left: 0.3, right: 0.3, top: 0.2, bottom: 0.4, header: 0.1, footer: 0.1 }
-  };
-  ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
-
-  const filename = isoDate
-    ? `主責個案分配表_${isoDate.replace(/-/g, '')}.xlsx`
-    : '主責個案分配表.xlsx';
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// ========== Utils ==========
-function escapeHtml(str) {
-  return String(str || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-// ========== 事件綁定 ==========
-function bindUI() {
-  // list -> new (open copy modal)
-  const newBtn = document.getElementById('newSheetBtn');
-  if (newBtn) newBtn.addEventListener('click', async () => {
-    await guardUnsavedChanges(async () => {
-      openCopyFromModal();
-    });
-  });
-
-  const confirmCopyBtn = document.getElementById('confirmCopyFromBtn');
-  if (confirmCopyBtn) confirmCopyBtn.addEventListener('click', async () => {
-    const copyFromId = document.getElementById('copyFromSelect')?.value || '';
-    copyFromModal?.hide();
-    await openNewSheet(copyFromId);
-    markClean();
-  });
-
-  // editor -> back
-  const backBtn = document.getElementById('backToListBtn');
-  if (backBtn) backBtn.addEventListener('click', async () => {
-    await guardUnsavedChanges(async () => {
-      showListView();
-      loadSheetsList();
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('id');
-        url.searchParams.delete('mode');
-        history.replaceState({}, '', url.toString());
-      } catch (e) {}
-    });
-  });
-
-  // delete sheet
-  const delBtn = document.getElementById('deleteSheetBtn');
-  if (delBtn) delBtn.addEventListener('click', async () => {
-    if (!currentSheetId) {
-      alert('此表尚未儲存，無需刪除。');
+    if (!nurseId || !nurseName) {
+      alert("⚠️ 請先選擇/確認申請人（護理師）");
       return;
     }
-    if (!confirm('確定要刪除這張個案分配表嗎？刪除後無法復原。')) return;
 
-    try {
-      await db.collection(COLLECTION).doc(currentSheetId).delete();
-      alert('已刪除。');
-      await loadSheetsList();
-      showListView();
-      isDirty = false;
-      markClean();
-    } catch (e) {
-      console.error('刪除失敗：', e);
-      alert('刪除失敗，請稍後再試。');
-    }
+    const data = {
+      nurseId,
+      applicant: nurseName,
+      applyDate: new Date().toISOString().split("T")[0],
+      swapDate: form.swapDate.value,
+      originalShift: form.originalShift.value,
+      newShift: form.newShift.value,
+      reason: form.reason.value,
+      status: "待審核",
+      note: "",
+      supervisorSign: "",
+      // 登入者欄位（便於稽核/追蹤）
+      createdById: nurseId,
+      createdByName: nurseName,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await swapCol.add(data);
+    alert(`✅ 已送出調班申請！（申請人：${nurseName}）`);
+    form.reset();
+
+    // 送出後，申請人維持為登入者
+    if (swapApplicantSelect) swapApplicantSelect.value = nurseId;
   });
 
-  // save (open modal)
-  const saveBtn = document.getElementById('saveButton');
-  if (saveBtn) {
-    const originalHtml = saveBtn.innerHTML;
+  // ===== 初始化 =====
+  await loadStatuses();
+  buildRecordStatusOptions();
 
-    saveBtn.addEventListener('click', () => {
-      if (saveBtn.disabled) return;
+  await loadNurses();
 
-      ensureModal();
-      fillModalFromMeta();
+  const loggedIn = await resolveLoggedInNurse();
+  renderLoginUser(loggedIn.nurseName);
 
-      const maker = [currentUser.staffId, currentUser.displayName].filter(Boolean).join(' ').trim();
-      if (!maker) {
-        alert('未偵測到登入者，無法自動帶入製表人。請先完成登入。');
-        return;
-      }
-
-      sheetMetaModal?.show();
-    });
-
-    const confirmBtn = document.getElementById('confirmSaveBtn');
-    if (confirmBtn) {
-      confirmBtn.addEventListener('click', async () => {
-        if (saveBtn.disabled) return;
-
-        const meta = readMetaFromModal();
-
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>儲存中...';
-        confirmBtn.disabled = true;
-
-        try {
-          await saveSheetWithMeta(meta);
-          sheetMetaModal?.hide();
-          markClean();
-          if (pendingResolveAfterSave) {
-            const r = pendingResolveAfterSave;
-            pendingResolveAfterSave = null;
-            r(true);
-          }
-        } finally {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = originalHtml;
-          confirmBtn.disabled = false;
-        }
-      });
+  // 申請人自動帶入登入者，並鎖定不可選
+  if (loggedIn?.nurseId) {
+    if (leaveApplicantSelect) {
+      leaveApplicantSelect.value = loggedIn.nurseId;
+      leaveApplicantSelect.disabled = true;
+    }
+    if (swapApplicantSelect) {
+      swapApplicantSelect.value = loggedIn.nurseId;
+      swapApplicantSelect.disabled = true;
     }
   }
 
-  // print
-  const printBtn = document.getElementById('printButton');
-  if (printBtn) printBtn.addEventListener('click', () => window.print());
+  await loadLeaveRequests();
+  await loadSwapRequests();
+  await loadMyRecords(loggedIn);
 
-  // export excel
-  const exportBtn = document.getElementById('exportExcelButton');
-  if (exportBtn) exportBtn.addEventListener('click', exportCaseAssignExcel);
-
-  // 備註一/二/三：輸入就視為變更
-  ['note1', 'note2', 'note3'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      markDirty();
-    });
+  // Record tab actions
+  recordSearchBtn?.addEventListener("click", () => loadMyRecords(loggedIn));
+  recordResetBtn?.addEventListener("click", () => {
+    if (recordTypeEl) recordTypeEl.value = "all";
+    if (recordStatusEl) recordStatusEl.value = "";
+    if (recordFromEl) recordFromEl.value = "";
+    if (recordToEl) recordToEl.value = "";
+    loadMyRecords(loggedIn);
   });
 
-  // warn before close tab
-  window.addEventListener('beforeunload', (e) => {
-    if (!isEditorVisible()) return;
-    markDirty();
-    if (!isDirty) return;
-    e.preventDefault();
-    e.returnValue = '';
-  });
-}
+  // 即時同步 Firestore 更新（總覽表格）
+  leaveCol.onSnapshot(loadLeaveRequests);
+  swapCol.onSnapshot(loadSwapRequests);
 
-
-// ========== 初始化 ==========
-async function initPage() {
-  renderLoginUserBadge();
-  ensureModal();
-  bindUI();
-
-  await loadCaseAssignBaseLists();
-  await loadSheetsList();
-
-  // 若 URL 帶 id，直接開
-  try {
-    const url = new URL(window.location.href);
-    const id = url.searchParams.get('id');
-    const mode = url.searchParams.get('mode');
-    if (id) {
-      openEditorById(id);
-    } else if (mode === 'new') {
-      openNewSheet();
-      markClean();
-    } else {
-      showListView();
-    }
-  } catch (e) {}
-}
-
-// Firebase 初始化完成後載入資料
-document.addEventListener('firebase-ready', () => {
-  initPage();
+  // 個人紀錄也同步（只要該 collection 有變動就重刷）
+  leaveCol.onSnapshot(() => loadMyRecords(loggedIn));
+  swapCol.onSnapshot(() => loadMyRecords(loggedIn));
 });
