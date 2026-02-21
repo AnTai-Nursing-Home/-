@@ -521,7 +521,8 @@ async function loadMyRecords(loggedIn) {
     }
 
     const data = {
-      nurseId,
+      nurseId: (window.__LOGIN_USER__?.staffId || ""),
+      staffId: (window.__LOGIN_USER__?.staffId || ""),
       applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       leaveType: form.leaveType.value,
@@ -535,7 +536,6 @@ async function loadMyRecords(loggedIn) {
       supervisorSign: "",
       // 登入者欄位（便於稽核/追蹤）
       applicantId: (window.__LOGIN_USER__?.staffId || ''),
-      nurseDocId: nurseId,
       createdById: (window.__LOGIN_USER__?.staffId || nurseId),
       createdByName: (window.__LOGIN_USER__?.displayName || nurseName),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -563,7 +563,9 @@ async function loadMyRecords(loggedIn) {
     }
 
     const data = {
-      nurseId,
+      nurseId: (window.__LOGIN_USER__?.staffId || ""),
+      nurseDocId: nurseId,
+      staffId: (window.__LOGIN_USER__?.staffId || ""),
       applicant: nurseName,
       applyDate: new Date().toISOString().split("T")[0],
       swapDate: form.swapDate.value,
