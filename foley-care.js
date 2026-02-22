@@ -528,12 +528,21 @@ if (filteredDocs.length === 0) {
             caregiverEnabled = (currentTime >= 8 && currentTime < 24) || isNurse;
         }
 
-        // radio + 簽名欄位（先依時間 / 身份開關）
-        document.querySelectorAll('#form-view .form-check-input, #form-view [data-signature="caregiver"]').forEach(el => {
+        // radio（先依時間 / 身份開關）
+        document.querySelectorAll('#form-view .form-check-input').forEach(el => {
             el.disabled = !caregiverEnabled;
         });
 
-        // 一鍵全Yes按鈕
+        // 簽名欄位：可填時允許輸入；一旦已加上時間戳（含 " @ "）就改成唯讀，避免被改時間
+        document.querySelectorAll('#form-view [data-signature="caregiver"]').forEach(el => {
+            el.disabled = !caregiverEnabled;
+            if (!caregiverEnabled) return;
+
+            const v = (el.value || '').trim();
+            // 只有「已簽名（含時間戳）」才鎖唯讀；空白仍可簽名
+            el.readOnly = (!isNurse && v && v.includes(' @ '));
+        });
+// 一鍵全Yes按鈕
         careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
 
         console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
@@ -554,16 +563,6 @@ if (filteredDocs.length === 0) {
                 });
             }
         });
-
-        // 另外：若照服員打開舊單/重新整理，已簽名欄位一律設為唯讀，避免再改到時間戳
-        if (!isNurse) {
-            document.querySelectorAll('#form-view [data-signature="caregiver"]').forEach(el => {
-                const v = (el.value || '').trim();
-                if (v && v.includes(' @ ')) {
-                    el.readOnly = true;
-                }
-            });
-        }
 }
 
 
@@ -1100,7 +1099,19 @@ window.addEventListener('beforeunload', (e) => {
         e.returnValue = '';
     }
 });
-
+    // 若照服員簽名欄位被設為唯讀，但其實尚未簽名（沒有時間戳），允許再次輸入
+    careTableBody.addEventListener('focusin', (e) => {
+        const target = e.target;
+        if (target && target.classList && target.classList.contains('signature-field')) {
+            if (!isNurse) {
+                const v = (target.value || '').trim();
+                // 未簽名（空白或沒有時間戳）就允許輸入
+                if (!v || !v.includes(' @ ')) {
+                    target.readOnly = false;
+                }
+            }
+        }
+    }, true);
 
     careTableBody.addEventListener('blur', (e) => {
         const target = e.target;
