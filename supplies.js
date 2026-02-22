@@ -16,6 +16,7 @@ document.addEventListener('firebase-ready', () => {
             { name: '12FR抽痰管', threshold: '＜3袋=缺' },
             { name: '14FR抽痰管', threshold: '＜3袋=缺' },
             { name: '18FR鼻胃管', threshold: '＜5條=缺' },
+            { name: '外科引流管', threshold: '＜3包=缺' },
             { name: '尿袋', threshold: '＜5個=缺' },
             { name: '氧氣鼻導管', threshold: '＜10個=缺' },
             { name: '氣切面罩', threshold: '＜10個=缺' },
