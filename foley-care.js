@@ -346,16 +346,19 @@ function updateFormPermissions() {
                 docs.push({ id: doc.id, data: doc.data() });
             });
 
-            // 解析床號（例如 "302-2" -> 302），若無法解析則排到最後
-            const bedNum = (residentName) => {
+            // 解析床號（例如 "302-2" -> room=302, sub=2），確保 219-1、219-2 依序排列；無法解析則排到最後
+            const parseBed = (residentName) => {
                 const b = residentsData[residentName]?.bedNumber || '';
-                const firstPart = String(b).split('-')[0];
-                const n = parseInt(firstPart, 10);
-                return Number.isFinite(n) ? n : 999999;
+                const parts = String(b).split('-');
+                const room = parseInt(parts[0], 10);
+                const sub = parts[1] ? parseInt(parts[1], 10) : 0;
+                return {
+                    room: Number.isFinite(room) ? room : 999999,
+                    sub: Number.isFinite(sub) ? sub : 0
+                };
             };
 
-
-            // 若為結案單且有設定篩選日期，則依「開始記錄日，若無則置放日期」進行前端篩選
+// 若為結案單且有設定篩選日期，則依「開始記錄日，若無則置放日期」進行前端篩選
             let filteredDocs = docs;
             if (currentView === 'closed' && (closedStartInput?.value || closedEndInput?.value)) {
                 const startStr = closedStartInput && closedStartInput.value ? closedStartInput.value : null;
@@ -375,10 +378,13 @@ function updateFormPermissions() {
                 filteredDocs = docs;
             }
 
-            filteredDocs.sort((a, b) => bedNum(a.data.residentName) - bedNum(b.data.residentName));
-
-
-            if (filteredDocs.length === 0) {
+            filteredDocs.sort((a, b) => {
+                const A = parseBed(a.data.residentName);
+                const B = parseBed(b.data.residentName);
+                if (A.room !== B.room) return A.room - B.room;
+                return A.sub - B.sub;
+            });
+if (filteredDocs.length === 0) {
                 careFormList.innerHTML = `<p class="text-muted mt-2">${getText('no_care_forms_found')}</p>`;
                 return;
             }
@@ -532,22 +538,33 @@ function updateFormPermissions() {
 
         console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
 
-        // 🔒 新增：日期限制（僅能操作「今天」與「今天以前」，未來日期一律鎖住）
+        // 🔒 日期限制：照服員僅能操作「今天」；護理師不限（可補登/追補）
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         document.querySelectorAll('#care-table-body tr[data-date]').forEach(row => {
             const dateStr = row.dataset.date;
             const rowDate = new Date(dateStr + 'T00:00:00');
+            const isToday = (rowDate.getTime() === today.getTime());
 
-            if (rowDate > today) {
-                // 未來日期：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
+            if (!isNurse && !isToday) {
+                // 不是今天：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
                 row.querySelectorAll('input, .fill-yes-btn').forEach(el => {
                     el.disabled = true;
                 });
             }
         });
-    }
+
+        // 另外：若照服員打開舊單/重新整理，已簽名欄位一律設為唯讀，避免再改到時間戳
+        if (!isNurse) {
+            document.querySelectorAll('#form-view [data-signature="caregiver"]').forEach(el => {
+                const v = (el.value || '').trim();
+                if (v && v.includes(' @ ')) {
+                    el.readOnly = true;
+                }
+            });
+        }
+}
 
 
     
@@ -1094,7 +1111,12 @@ window.addEventListener('beforeunload', (e) => {
                 const dateString = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
                 const timeString = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                 target.value = `${nameOnly} ${dateString} @ ${timeString}`;
-            } else {
+
+                // 🔒 簽名後鎖定：避免照服員修改簽名時間（護理師不受限）
+                if (!isNurse) {
+                    target.readOnly = true;
+                }
+} else {
                 target.value = '';
             }
         }
