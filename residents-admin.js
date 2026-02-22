@@ -1800,6 +1800,63 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     });
   }
 
+
+  // ===== 住院狀態：提醒未結案的導尿管單張 =====
+  function showTopNotice(message, level='info'){
+    try{
+      if (typeof importStatus !== 'undefined' && importStatus) {
+        importStatus.className = `alert alert-${level}`;
+        importStatus.classList.remove('d-none');
+        importStatus.style.whiteSpace = 'pre-line';
+        importStatus.textContent = message;
+      } else {
+        alert(message);
+      }
+    }catch(_e){
+      alert(message);
+    }
+  }
+
+  async function notifyHospitalizedOngoingFoley(){
+    try{
+      // 只檢查「住院」住民
+      const hospitalized = (Array.isArray(cache) ? cache : []).filter(r=>{
+        const s = (typeof normalizeLeaveStatus === 'function') ? (normalizeLeaveStatus(r) || '') : (r?.leaveStatus || '');
+        return String(s).includes('住院');
+      });
+      if(!hospitalized.length) return;
+
+      // 一次抓出所有「未結案」導尿管照護單，避免對每位住民各查一次
+      const snap = await db.collection('foley_care_records').where('closingDate', '==', null).get();
+      if(snap.empty) return;
+
+      const ongoingResidentIds = new Set();
+      snap.forEach(doc=>{
+        const d = doc.data() || {};
+        if (d.residentName) ongoingResidentIds.add(String(d.residentName));
+      });
+
+      const hits = hospitalized.filter(r=> ongoingResidentIds.has(String(r.id)));
+      if(!hits.length) return;
+
+      if(hits.length === 1){
+        const one = hits[0];
+        const name = one.residentName || one.id || '';
+        showTopNotice(`檢查到 ${name} 住民仍有進行中的導尿管單張，請記得結案。`, 'warning');
+      }else{
+        const lines = hits.map(r=>{
+          const bed = r.bedNumber || '';
+          const name = r.residentName || r.id || '';
+          return `- ${bed} ${name}`.trim();
+        }).join('\n');
+        showTopNotice(`檢查到以下住民仍有進行中的導尿管單張（目前為住院狀態），請記得結案：\n${lines}`, 'warning');
+      }
+    }catch(e){
+      console.warn('住院導尿管結案提醒檢查失敗：', e);
+    }
+  }
+
+
   async function load(){
     if(tbody) tbody.innerHTML='<tr><td colspan="14" class="text-center">讀取中...</td></tr>';
     try{
@@ -1808,6 +1865,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       cache.sort((a,b)=> bedToSortValue(a.bedNumber)-bedToSortValue(b.bedNumber));
       const tpl = getTemplate(cache);
       renderBasic(); renderFloors(tpl); renderStats(); hookEvents();
+      await notifyHospitalizedOngoingFoley();
     }catch(e){
       console.error(e);
       if(tbody) tbody.innerHTML='<tr><td colspan="14"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
