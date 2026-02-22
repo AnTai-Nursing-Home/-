@@ -1842,7 +1842,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       if(hits.length === 1){
         const one = hits[0];
         const name = one.residentName || one.id || '';
-        showTopNotice(`檢查到 ${name} 住民仍有進行中的導尿管單張，請記得結案。`, 'warning');
+        showTopNotice(`檢查到 ${name} 住民住院中但仍有進行中的導尿管單張，請記得結案。`, 'warning');
       }else{
         const lines = hits.map(r=>{
           const bed = r.bedNumber || '';
