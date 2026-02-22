@@ -189,7 +189,7 @@
     nurse: 'canNurse',
     caregiver: 'canCaregiver',
     office: 'canOffice',
-    affairs: 'canAnnualLeave'
+    affairs: 'canNutritionist'
   };
 
   const tbody = document.getElementById('tbody');
@@ -439,7 +439,7 @@
     if (a.systems.office.enabled) badges.push(`<span class="badge bg-primary badge-system">辦公室</span>`);
     if (a.systems.nurse.enabled) badges.push(`<span class="badge bg-success badge-system">護理師</span>`);
     if (a.systems.caregiver.enabled) badges.push(`<span class="badge bg-warning text-dark badge-system">照服員</span>`);
-    if (a.systems.affairs.enabled) badges.push(`<span class="badge bg-info text-dark badge-system">事務</span>`);
+    if (a.systems.affairs.enabled) badges.push(`<span class="badge bg-info text-dark badge-system">營養師</span>`);
     return badges.join('') || `<span class="text-muted">—</span>`;
   }
 
