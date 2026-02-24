@@ -24,6 +24,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let employeeDataCache = []; // 用來暫存從 Excel 讀取的原始資料
 
+    // --- 找到真正的班表工作表 ---
+    function pickScheduleSheet(workbook) {
+        // 1) 最穩：A1=員編、B1=姓名
+        let name = workbook.SheetNames.find(n => {
+            const ws = workbook.Sheets[n];
+            const a1 = (ws && ws.A1 && ws.A1.v != null) ? String(ws.A1.v).trim() : '';
+            const b1 = (ws && ws.B1 && ws.B1.v != null) ? String(ws.B1.v).trim() : '';
+            return a1.includes('員編') && (b1.includes('姓名') || b1.includes('姓') || b1.includes('名'));
+        });
+        // 2) 次優：工作表名稱含「班表」
+        if (!name) name = workbook.SheetNames.find(n => /班表/.test(n));
+        // 3) 退回第一張
+        return name || workbook.SheetNames[0];
+    }
+
+
     // --- 核心功能函式 ---
     function getRandomTime(baseTime, minuteOffset, before = true) {
         const [hour, minute] = baseTime.split(':').map(Number);
@@ -145,11 +161,16 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const targetSheetName = pickScheduleSheet(workbook);
+                const worksheet = workbook.Sheets[targetSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
                 
-                employeeDataCache = rows.slice(2);
+                // 去掉整列空白
+                const nonEmptyRows = rows.filter(r => r && r.some(v => String(v).trim() !== ''));
+                // 去掉標題列（通常第1列是『員編/姓名/1..31』）
+                const dataRows = nonEmptyRows.slice(1);
+                // 必須至少有員編+姓名才算員工資料
+                employeeDataCache = dataRows.filter(r => String(r[0]).trim() && String(r[1]).trim());
                 const reportData = generateReportData(employeeDataCache);
                 const tableHTML = generateReportHTML(reportData, false);
                 
