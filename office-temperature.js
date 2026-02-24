@@ -66,7 +66,66 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsArrayBuffer(file);
     }
 
-    function generateAndDisplayReport(data) {
+    
+
+// --- 將不同格式的班表統一成 [員編, 姓名, day1..day31] ---
+function normalizeScheduleData(rows, daysInMonth) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const isDayHeader = (v) => {
+        const n = Number(String(v).trim());
+        return Number.isFinite(n) && n >= 1 && n <= 31;
+    };
+
+    // 找到標題列（包含「員編」且包含「姓名/姓 名」）
+    let headerRowIndex = -1;
+    let idIdx = -1, nameIdx = -1, dayStartIdx = -1;
+
+    for (let r = 0; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const cells = row.map(v => String(v ?? '').trim());
+
+        const foundId = cells.findIndex(c => c.includes('員編'));
+        const foundName = cells.findIndex(c => c.replace(/\s+/g,'').includes('姓名') || (c.replace(/\s+/g,'').includes('姓') && c.replace(/\s+/g,'').includes('名')));
+        if (foundId !== -1 && foundName !== -1) {
+            const dayIdx = row.findIndex(v => isDayHeader(v));
+            if (dayIdx !== -1) {
+                headerRowIndex = r;
+                idIdx = foundId;
+                nameIdx = foundName;
+                dayStartIdx = dayIdx;
+                break;
+            }
+        }
+    }
+
+    // 找不到標題列就退回預設 A=員編、B=姓名、C 起是日期
+    if (headerRowIndex === -1) {
+        headerRowIndex = 0;
+        idIdx = 0;
+        nameIdx = 1;
+        dayStartIdx = 2;
+    }
+
+    const out = [];
+    for (let r = headerRowIndex + 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        if (!row.some(v => String(v ?? '').trim() !== '')) continue;
+
+        const empId = String(row[idIdx] ?? '').trim();
+        const empName = String(row[nameIdx] ?? '').trim();
+        if (!empId || !empName) continue;
+
+        const normRow = [empId, empName];
+        for (let d = 1; d <= daysInMonth; d++) {
+            normRow.push(row[dayStartIdx + (d - 1)] ?? '');
+        }
+        out.push(normRow);
+    }
+    return out;
+}
+
+function generateAndDisplayReport(data) {
         const [year, month] = monthSelect.value.split('-').map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -77,7 +136,9 @@ document.addEventListener('DOMContentLoaded', function() {
         tableHeader += `</tr>`;
         
         let tableBody = '';
-        data.forEach(row => {
+        const normalized = normalizeScheduleData(data, daysInMonth);
+
+        normalized.forEach(row => {
             const empId = row[0];
             const empName = row[1];
 
@@ -92,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         temp = shift;
                     } else if (shift) { // 只要有班別 (不是休假，也不是空白)，就產生體溫
                         // 現在 H, PM, Dd, D1, E2 等都會被包含在此邏輯中
-                        temp = (Math.random() * (37.3 - 36.0) + 36.0).toFixed(1);
+                        temp = (Math.random() * (37.2 - 36.0) + 36.0).toFixed(1);
                     }
                     tableBody += `<td>${temp}</td>`;
                 }
