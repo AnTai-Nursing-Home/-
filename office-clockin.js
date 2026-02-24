@@ -165,12 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const worksheet = workbook.Sheets[targetSheetName];
                 const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
                 
-                // 去掉整列空白
-                const nonEmptyRows = rows.filter(r => r && r.some(v => String(v).trim() !== ''));
-                // 去掉標題列（通常第1列是『員編/姓名/1..31』）
-                const dataRows = nonEmptyRows.slice(1);
-                // 必須至少有員編+姓名才算員工資料
-                employeeDataCache = dataRows.filter(r => String(r[0]).trim() && String(r[1]).trim());
+                // 先把班表統一成固定格式： [員編, 姓名, day1..day31]
+                employeeDataCache = normalizeScheduleData(rows, daysInMonth);
                 const reportData = generateReportData(employeeDataCache);
                 const tableHTML = generateReportHTML(reportData, false);
                 
@@ -215,4 +211,62 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 初始操作 ---
     const today = new Date();
     monthSelect.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-});
+})
+
+// --- 將不同格式的班表統一成 [員編, 姓名, day1..day31] ---
+function normalizeScheduleData(rows, daysInMonth) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const isDayHeader = (v) => {
+        const n = Number(String(v).trim());
+        return Number.isFinite(n) && n >= 1 && n <= 31;
+    };
+
+    // 找到標題列（包含「員編」且包含「姓名/姓 名」）
+    let headerRowIndex = -1;
+    let idIdx = -1, nameIdx = -1, dayStartIdx = -1;
+
+    for (let r = 0; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const cells = row.map(v => String(v ?? '').trim());
+
+        const foundId = cells.findIndex(c => c.includes('員編'));
+        const foundName = cells.findIndex(c => c.replace(/\s+/g,'').includes('姓名') || (c.replace(/\s+/g,'').includes('姓') && c.replace(/\s+/g,'').includes('名')));
+        if (foundId !== -1 && foundName !== -1) {
+            const dayIdx = row.findIndex(v => isDayHeader(v));
+            if (dayIdx !== -1) {
+                headerRowIndex = r;
+                idIdx = foundId;
+                nameIdx = foundName;
+                dayStartIdx = dayIdx;
+                break;
+            }
+        }
+    }
+
+    // 找不到標題列就退回預設 A=員編、B=姓名、C 起是日期
+    if (headerRowIndex === -1) {
+        headerRowIndex = 0;
+        idIdx = 0;
+        nameIdx = 1;
+        dayStartIdx = 2;
+    }
+
+    const out = [];
+    for (let r = headerRowIndex + 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        if (!row.some(v => String(v ?? '').trim() !== '')) continue;
+
+        const empId = String(row[idIdx] ?? '').trim();
+        const empName = String(row[nameIdx] ?? '').trim();
+        if (!empId || !empName) continue;
+
+        const normRow = [empId, empName];
+        for (let d = 1; d <= daysInMonth; d++) {
+            normRow.push(row[dayStartIdx + (d - 1)] ?? '');
+        }
+        out.push(normRow);
+    }
+    return out;
+}
+;
