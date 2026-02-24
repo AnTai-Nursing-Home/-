@@ -30,11 +30,32 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                const employeeData = rows.slice(2); 
+
+                // ✅ 自動找到「員編 / 姓名」所在的工作表（避免讀到日期模板或月曆頁）
+                let targetSheetName = workbook.SheetNames.find(name => {
+                    const ws = workbook.Sheets[name];
+                    const a1 = (ws?.A1?.v ?? '').toString().trim();
+                    const b1 = (ws?.B1?.v ?? '').toString().trim();
+                    return a1.includes('員編') && (b1.includes('姓名') || b1.includes('姓') || b1.includes('名'));
+                });
+
+                // 次佳：工作表名稱包含「班表」
+                if (!targetSheetName) {
+                    targetSheetName = workbook.SheetNames.find(n => /班表/.test(n));
+                }
+
+                // 最後退回：第一張
+                if (!targetSheetName) targetSheetName = workbook.SheetNames[0];
+
+                const worksheet = workbook.Sheets[targetSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                // ✅ 清掉空白列、移除標題列，並確保至少有「員編、姓名」
+                const employeeData = rows
+                    .filter(r => r && r.some(v => String(v).trim() !== ''))
+                    .filter((r, idx) => idx !== 0) // 去掉第 1 列標題
+                    .filter(r => String(r[0]).trim() && String(r[1]).trim());
+
                 generateAndDisplayReport(employeeData);
 
             } catch (error) {
