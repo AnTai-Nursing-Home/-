@@ -170,7 +170,7 @@
                         <span class="pill opt" id="attendance-count-pill">名單 0</span>
                         <span class="pill opt" id="attendance-checked-pill">已勾選 0</span>
                       </div>
-                      <input id="attendance-search" class="form-control" style="max-width:320px" placeholder="搜尋員工：姓名／編號">
+                      <input id="attendance-search" class="form-control" style="max-width:320px" placeholder="搜尋：姓名／編號／課程">
                     </div>
 
                     <div class="table-wrap">
@@ -203,7 +203,7 @@
                     <span class="pill opt" id="hours-total-pill">總時數 0</span>
                     <span class="pill opt" id="hours-people-pill">人數 0</span>
                   </div>
-                  <input id="hours-search" class="form-control" style="max-width:320px" placeholder="搜尋員工：姓名／編號">
+                  <input id="hours-search" class="form-control" style="max-width:320px" placeholder="搜尋：姓名／編號／課程">
                 </div>
 
                 <div class="table-wrap">
@@ -230,9 +230,39 @@
                 <div class="row g-3">
                   <div class="col-12 col-lg-4">
                     <div class="stats-card p-3 h-100">
-                      <div class="fw-bold mb-2">選擇核對課程</div>
-                      <select id="verify-course-select" class="form-select mb-2"></select>
-                      <div id="verify-course-info" class="small muted"></div>
+                      <div class="fw-bold mb-2">核對模式</div>
+                      <select id="verify-mode" class="form-select mb-2">
+                        <option value="course" selected>依課程核對</option>
+                        <option value="staff">依人員核對</option>
+                      </select>
+
+                      <div id="verify-mode-course">
+                        <div class="fw-bold mb-2 mt-2">選擇核對課程</div>
+                        <select id="verify-course-select" class="form-select mb-2"></select>
+                        <div id="verify-course-info" class="small muted"></div>
+                      </div>
+
+                      <div id="verify-mode-staff" class="d-none">
+                        <div class="fw-bold mb-2 mt-2">選擇人員</div>
+                        <select id="verify-staff-select" class="form-select mb-2"></select>
+
+                        <div class="row g-2">
+                          <div class="col-6">
+                            <label class="form-label small muted mb-1">年分</label>
+                            <select id="verify-year" class="form-select"></select>
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small muted mb-1">課程類別</label>
+                            <select id="verify-category" class="form-select">
+                              <option value="" selected>全部</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <label class="form-label small muted mt-2 mb-1">課程名稱</label>
+                        <input id="verify-course-name" class="form-control" placeholder="輸入課程名稱關鍵字">
+                        <div id="verify-staff-info" class="small muted mt-2"></div>
+                      </div>
 
                       <hr class="my-3">
 
@@ -243,10 +273,10 @@
                       </div>
 
                       <div class="small-note mt-2">
-                        說明：依課程「必修對象」決定核對名單；若未設定必修對象，則顯示全部員工。
-                        <br>「時數不符」會標示：出席但實得時數 ≠ 課程時數。
+                        依課程：顯示「該課程」有上/沒上的人員名單。<br>
+                        依人員：顯示「該人員」符合條件的所有課程，並標示是否上課與時數是否一致。
                       </div>
-                    </div>
+</div>
                   </div>
 
                   <div class="col-12 col-lg-8">
@@ -254,7 +284,7 @@
                       <div class="d-flex flex-wrap gap-2 align-items-center">
                         <span class="pill opt" id="verify-mismatch-pill">時數不符 0</span>
                       </div>
-                      <input id="verify-search" class="form-control" style="max-width:320px" placeholder="搜尋員工：姓名／編號">
+                      <input id="verify-search" class="form-control" style="max-width:320px" placeholder="搜尋：姓名／編號／課程">
                     </div>
 
                     <div class="table-wrap">
