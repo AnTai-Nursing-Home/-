@@ -193,7 +193,7 @@ document.addEventListener('edu-training-init', ()=>{
     const el = document.getElementById('loginInfo');
     if(!el) return;
     const a = actor;
-    el.textContent = (a.id==='unknown') ? '未登入' : `登入者：${a.id} ${a.name}`;
+    el.textContent = (a.id==='unknown') ? '未登入' : '登入者：' + a.id + ' ' + a.name;
   }
 
   function ensureLogin(){
