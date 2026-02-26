@@ -94,6 +94,7 @@ document.addEventListener('edu-training-init', ()=>{
   // -----------------------------
   // State
   // -----------------------------
+  let actor = { id:'unknown', name:'unknown', username:'' }; // 登入者
   let employees = [];         // unified employees
   let courses = [];           // course docs
   let attendanceMap = new Map(); // key: attendDocId -> data
@@ -155,19 +156,91 @@ document.addEventListener('edu-training-init', ()=>{
   function makeAttendDocId(courseId, emp){
     return `${courseId}__${emp.source}__${emp.staffId}`;
   }
+  // -----------------------------
+  // 登入者 / 匯出人（沿用你站內各系統存法，優先 sessionStorage）
+  // -----------------------------
+  const AUTH_KEYS = ['officeAuth', 'antai_session_user', 'nurseAuth', 'caregiverAuth'];
 
-  // 取「匯出人」：沿用 residents-admin.js 的讀法
-  function getExportUser(){
-    for (const store of [sessionStorage, localStorage]) {
-      try{
-        const raw = store.getItem('antai_session_user');
-        if(raw){
+  function getAuthUser(){
+    const stores = [sessionStorage, localStorage];
+    for (const store of stores){
+      for (const key of AUTH_KEYS){
+        try{
+          const raw = store.getItem(key);
+          if(!raw) continue;
           const a = JSON.parse(raw);
-          const staffId = String(a?.staffId || a?.username || a?.id || '').trim();
-          const displayName = String(a?.displayName || a?.name || a?.staffName || '').trim();
-          const t = [staffId, displayName].filter(Boolean).join(' ').trim();
-          if(t) return t;
-        }
+          const staffId = String(a?.staffId || a?.id || a?.empId || a?.employeeId || a?.uid || a?.username || '').trim();
+          const name = String(a?.displayName || a?.name || a?.fullName || a?.staffName || '').trim();
+          const username = String(a?.username || a?.user || '').trim();
+          if(staffId) return { staffId, name, username, _key:key };
+        }catch(_e){}
+      }
+    }
+    return null;
+  }
+
+  function getActor(){
+    const au = getAuthUser();
+    if(!au) return { id:'unknown', name:'unknown', username:'' };
+    return {
+      id: au.staffId || 'unknown',
+      name: au.name || 'unknown',
+      username: au.username || ''
+    };
+  }
+
+  function renderLoginInfo(){
+    const el = document.getElementById('loginInfo');
+    if(!el) return;
+    const a = actor;
+    el.textContent = (a.id==='unknown') ? '未登入' : `登入者：${a.id} ${a.name}`;
+  }
+
+  function ensureLogin(){
+    const au = getAuthUser();
+    if(!au){
+      alert('請先登入後再進入教育訓練管理系統。');
+      // 辦公室入口
+      location.href = 'office.html';
+      return false;
+    }
+    return true;
+  }
+
+  function getExportUser(){
+    const a = actor;
+    if(a && a.id && a.id!=='unknown'){
+      return [a.id, a.name].filter(Boolean).join(' ').trim();
+    }
+    // fallback
+    const au = getAuthUser();
+    if(!au) return '';
+    return [au.staffId, au.name].filter(Boolean).join(' ').trim();
+  }
+
+  function nowIso(){
+    const d = new Date();
+    const pad = (n)=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function attachAuditFields(obj, isNew){
+    const a = actor;
+    const time = nowIso();
+    if(isNew){
+      obj.createdAt = obj.createdAt || time;
+      obj.createdBy = obj.createdBy || getExportUser();
+      obj.createdById = obj.createdById || a.id;
+      obj.createdByName = obj.createdByName || a.name;
+      obj.createdByUsername = obj.createdByUsername || (a.username||'');
+    }
+    obj.updatedAt = time;
+    obj.updatedBy = getExportUser();
+    obj.updatedById = a.id;
+    obj.updatedByName = a.name;
+    obj.updatedByUsername = a.username || '';
+    return obj;
+  }
       }catch(_e){}
       for (const k of ['officeAuth','nurseAuth','caregiverAuth']) {
         try{
@@ -367,26 +440,14 @@ document.addEventListener('edu-training-init', ()=>{
       alert('時數格式不正確。');
       return;
     }
-
-    const exportUser = getExportUser();
     const id = safeStr(courseIdEl.value).trim();
 
     try{
       showStatus('儲存中...', 'info');
       if(id){
-        await db.collection(COL_COURSES).doc(id).set({
-          ...payload,
-          updatedAt: new Date().toISOString(),
-          updatedBy: exportUser
-        }, {merge:true});
+        await db.collection(COL_COURSES).doc(id).set(attachAuditFields({ ...payload }, false), { merge:true });
       } else {
-        await db.collection(COL_COURSES).add({
-          ...payload,
-          createdAt: new Date().toISOString(),
-          createdBy: exportUser,
-          updatedAt: new Date().toISOString(),
-          updatedBy: exportUser
-        });
+        await db.collection(COL_COURSES).add(attachAuditFields({ ...payload }, true));
       }
       if(courseModal) courseModal.hide();
       await refreshAll();
@@ -550,12 +611,11 @@ document.addEventListener('edu-training-init', ()=>{
     if(!course){ alert('請先選擇課程。'); return; }
 
     syncAttendanceRowFromDOM();
-
-    const exportUser = getExportUser();
     const batch = db.batch();
 
     currentAttendanceRows.forEach(r=>{
       const ref = db.collection(COL_ATTEND).doc(r.docId);
+      const isNew = !attendanceMap.has(r.docId);
       const payload = {
         courseId: r.courseId,
         courseDate: course.date || '',
@@ -574,7 +634,7 @@ document.addEventListener('edu-training-init', ()=>{
       };
 
       // 只要點名就寫入（避免殘留舊資料）；若你要節省容量，可改成 attended=false 的就 delete
-      batch.set(ref, payload, {merge:true});
+      batch.set(ref, attachAuditFields(payload, isNew), { merge:true });
     });
 
     try{
@@ -764,8 +824,6 @@ document.addEventListener('edu-training-init', ()=>{
       alert('ExcelJS 未載入，無法匯出。');
       return;
     }
-
-    const exportUser = getExportUser();
     const t = nowStr();
     const footer = `&L&"Microsoft JhengHei,Regular"&8匯出時間:${t}&R&"Microsoft JhengHei,Regular"&8匯出報表人:${exportUser || ''}`.trim();
 
@@ -1041,6 +1099,9 @@ document.addEventListener('edu-training-init', ()=>{
   // -----------------------------
   // Boot
   // -----------------------------
+  actor = getActor();
+  renderLoginInfo();
+  if (!ensureLogin()) return;
   refreshAll().catch(e=>{
     console.error(e);
     showStatus('初始化失敗：請確認 Firebase db 已就緒。', 'danger');
