@@ -241,21 +241,6 @@ document.addEventListener('edu-training-init', ()=>{
     obj.updatedByUsername = a.username || '';
     return obj;
   }
-      }catch(_e){}
-      for (const k of ['officeAuth','nurseAuth','caregiverAuth']) {
-        try{
-          const raw = store.getItem(k);
-          if(!raw) continue;
-          const a = JSON.parse(raw);
-          const staffId = String(a?.staffId || a?.username || a?.id || '').trim();
-          const displayName = String(a?.displayName || a?.name || a?.staffName || '').trim();
-          const t = [staffId, displayName].filter(Boolean).join(' ').trim();
-          if(t) return t;
-        }catch(_e){}
-      }
-    }
-    return '';
-  }
 
   // -----------------------------
   // Load employees (4 collections)
