@@ -282,7 +282,76 @@ function updateFormPermissions() {
         }
     }
 
+
+    // --- 結案日期 / 結案原因 綁定（兩者擇一有填，另一個必填） ---
+    function syncClosingFieldsUI() {
+        if (!closingDateInput || !closingReasonSelect) return;
+
+        const dateVal = (closingDateInput.value || '').trim();
+        const reasonVal = (closingReasonSelect.value || '').trim();
+        const hasEither = !!dateVal || !!reasonVal;
+
+        // 只要其中一個有填，兩個都視為必填
+        closingDateInput.required = hasEither;
+        closingReasonSelect.required = hasEither;
+
+        // 清除舊狀態
+        closingDateInput.classList.remove('is-invalid');
+        closingReasonSelect.classList.remove('is-invalid');
+
+        // Custom validity
+        closingDateInput.setCustomValidity('');
+        closingReasonSelect.setCustomValidity('');
+
+        if (hasEither) {
+            if (!dateVal) {
+                closingDateInput.classList.add('is-invalid');
+                closingDateInput.setCustomValidity('請選擇結案日期');
+            }
+            if (!reasonVal) {
+                closingReasonSelect.classList.add('is-invalid');
+                closingReasonSelect.setCustomValidity('請選擇結案原因');
+            }
+        }
+    }
+
+    function validateClosingFieldsOrAlert() {
+        if (!closingDateInput || !closingReasonSelect) return true;
+        syncClosingFieldsUI();
+        const ok = closingDateInput.checkValidity() && closingReasonSelect.checkValidity();
+        if (!ok) {
+            const dateVal = (closingDateInput.value || '').trim();
+            const reasonVal = (closingReasonSelect.value || '').trim();
+            if (!dateVal && reasonVal) {
+                alert('已選擇結案原因，請同時選擇結案日期。');
+                closingDateInput.focus();
+            } else if (dateVal && !reasonVal) {
+                alert('已選擇結案日期，請同時選擇結案原因。');
+                closingReasonSelect.focus();
+            } else {
+                alert('結案日期與結案原因需同時填寫。');
+            }
+        }
+        return ok;
+    }
+
+    // 在欄位變更時即時同步 UI
+    if (closingDateInput) {
+        closingDateInput.addEventListener('change', () => { syncClosingFieldsUI(); });
+        closingDateInput.addEventListener('input', () => { syncClosingFieldsUI(); });
+    }
+    if (closingReasonSelect) {
+        closingReasonSelect.addEventListener('change', () => { syncClosingFieldsUI(); });
+        closingReasonSelect.addEventListener('input', () => { syncClosingFieldsUI(); });
+    }
+
+    // 初始同步一次（避免載入既有資料時狀態不一致）
+    setTimeout(() => { syncClosingFieldsUI(); }, 0);
+
+    // --- 結案日期 / 結案原因 綁定 END ---
+
     // --- 函式定義 ---
+
     async function loadResidentsDropdowns() {
         const dropdowns = [residentFilterSelect, residentNameSelectForm];
         dropdowns.forEach(dropdown => dropdown.innerHTML = `<option value="">${getText('loading')}</option>`);
@@ -847,7 +916,9 @@ function generateReportHTML() {
 
             renderCareTable(placementDateInput.value, null);
             deleteCareFormBtn.classList.add('d-none');
-        } else {
+        
+            syncClosingFieldsUI();
+} else {
             isCurrentFormClosed = !!docData.closingDate;
             const residentData = residentsData[docData.residentName];
             residentNameSelectForm.value = docData.residentName;
@@ -866,7 +937,9 @@ function generateReportHTML() {
             }
             renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData || {});
             deleteCareFormBtn.classList.remove('d-none');
-        }
+        
+            syncClosingFieldsUI();
+}
     }
 
     async function handleSave() {
@@ -876,7 +949,12 @@ function generateReportHTML() {
             alert(getText('fill_form_first'));
             return;
         }
-        const dailyData = {};
+        
+        // 結案日期/原因必須成對
+        if (!validateClosingFieldsOrAlert()) {
+            return;
+        }
+const dailyData = {};
         careTableBody.querySelectorAll('tr[data-date]').forEach(row => {
             const date = row.dataset.date;
             const record = {};
