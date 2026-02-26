@@ -730,9 +730,7 @@ document.addEventListener('edu-training-init', ()=>{
         staffTitle: r.emp.title || '',
         attended: !!r.attended,
         hoursEarned: Number(r.hoursEarned||0),
-        updatedAt: new Date().toISOString(),
-        updatedBy: exportUser
-      };
+};
 
       // 只要點名就寫入（避免殘留舊資料）；若你要節省容量，可改成 attended=false 的就 delete
       batch.set(ref, attachAuditFields(payload, isNew), { merge:true });
@@ -925,6 +923,8 @@ document.addEventListener('edu-training-init', ()=>{
       alert('ExcelJS 未載入，無法匯出。');
       return;
     }
+
+    const exportUser = getExportUser();
     const t = nowStr();
     const footer = `&L&"Microsoft JhengHei,Regular"&8匯出時間:${t}&R&"Microsoft JhengHei,Regular"&8匯出報表人:${exportUser || ''}`.trim();
 
