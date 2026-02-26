@@ -73,6 +73,14 @@ document.addEventListener('edu-training-init', ()=>{
   const verifyAttendedPill = document.getElementById('verify-attended-pill');
   const verifyMissedPill = document.getElementById('verify-missed-pill');
   const verifyMismatchPill = document.getElementById('verify-mismatch-pill');
+  const verifyMode = document.getElementById('verify-mode');
+  const verifyModeCourse = document.getElementById('verify-mode-course');
+  const verifyModeStaff = document.getElementById('verify-mode-staff');
+  const verifyStaffSelect = document.getElementById('verify-staff-select');
+  const verifyYear = document.getElementById('verify-year');
+  const verifyCategory = document.getElementById('verify-category');
+  const verifyCourseName = document.getElementById('verify-course-name');
+  const verifyStaffInfo = document.getElementById('verify-staff-info');
 
   const hoursYear = document.getElementById('hours-year');
   const hoursRecalc = document.getElementById('hours-recalc');
@@ -112,6 +120,8 @@ document.addEventListener('edu-training-init', ()=>{
   let currentAttendanceCourseId = '';
   let currentAttendanceRows = []; // view rows (employees filtered)
   let currentVerifyRows = []; // verify view rows
+  let staffAttendanceByCourseId = new Map(); // courseId -> attendance doc
+  let currentVerifyMode = 'course';
 
   // -----------------------------
   // Utils
@@ -329,6 +339,36 @@ document.addEventListener('edu-training-init', ()=>{
     });
   }
 
+
+  async function loadAttendanceForStaff(source, staffId){
+    staffAttendanceByCourseId = new Map();
+    if(!source || !staffId) return;
+
+    try{
+      const snap = await db.collection(COL_ATTEND)
+        .where('staffSource','==', source)
+        .where('staffId','==', staffId)
+        .get();
+      snap.forEach(doc=>{
+        const d = doc.data() || {};
+        const cid = String(d.courseId || '').trim();
+        if(cid) staffAttendanceByCourseId.set(cid, {id: doc.id, ...d});
+      });
+      return;
+    }catch(e){
+      console.warn('loadAttendanceForStaff indexed query failed, fallback to scan:', e);
+    }
+
+    const snap = await db.collection(COL_ATTEND).get();
+    snap.forEach(doc=>{
+      const d = doc.data() || {};
+      if(String(d.staffSource||'')===source && String(d.staffId||'')===staffId){
+        const cid = String(d.courseId || '').trim();
+        if(cid) staffAttendanceByCourseId.set(cid, {id: doc.id, ...d});
+      }
+    });
+  }
+
   // -----------------------------
   // Render: Courses
   // -----------------------------
@@ -393,6 +433,9 @@ document.addEventListener('edu-training-init', ()=>{
 
     // verify select 同步
     renderVerifyCourseSelect();
+    renderVerifyStaffSelect();
+    fillVerifyYearOptions();
+    renderVerifyCategoryOptions();
 
     // if old not present, reset
     const still = courses.some(c=>c.id===old);
@@ -607,7 +650,33 @@ document.addEventListener('edu-training-init', ()=>{
     verifyCourseSelect.innerHTML = opts.join('');
   }
 
-  function buildVerifyRows(course){
+  
+  function setVerifyHeader(mode){
+    const ths = document.querySelectorAll('#pane-verify thead th');
+    if(!ths || ths.length<6) return;
+    if(mode==='staff'){
+      ths[1].textContent = '日期';
+      ths[2].textContent = '課程';
+      ths[3].textContent = '課程時數';
+      ths[4].textContent = '實得時數';
+      ths[5].textContent = '核對';
+    }else{
+      ths[1].textContent = '員工編號';
+      ths[2].textContent = '姓名';
+      ths[3].textContent = '職別/來源';
+      ths[4].textContent = '實得時數';
+      ths[5].textContent = '核對';
+    }
+  }
+
+  function setVerifyPills(total, attended, missed, mismatch){
+    if(verifyTotalPill) verifyTotalPill.textContent = `名單 ${total}`;
+    if(verifyAttendedPill) verifyAttendedPill.textContent = `已上課 ${attended}`;
+    if(verifyMissedPill) verifyMissedPill.textContent = `未上課 ${missed}`;
+    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符 ${mismatch}`;
+  }
+
+  function buildVerifyRowsCourse(course){
     if(!course) { currentVerifyRows = []; return; }
     const list = filterEmployeesForCourse(course);
     const courseHours = Number(course?.hours || 0);
@@ -618,11 +687,46 @@ document.addEventListener('edu-training-init', ()=>{
       const attended = existing ? !!existing.attended : false;
       const hoursEarned = existing && existing.hoursEarned!=null ? Number(existing.hoursEarned) : (attended ? courseHours : 0);
       const mismatch = attended && courseHours>0 && isFinite(hoursEarned) && Number(hoursEarned) !== Number(courseHours);
-      return { docId, emp, attended, hoursEarned: isFinite(hoursEarned)? hoursEarned : 0, mismatch };
+      return { mode:'course', docId, emp, attended, hoursEarned: isFinite(hoursEarned)? hoursEarned : 0, mismatch, course };
+    });
+  }
+
+  function buildVerifyRowsStaff(staffSource, staffId){
+    const year = Number(verifyYear?.value || new Date().getFullYear());
+    const cat = safeStr(verifyCategory?.value||'').trim();
+    const nameQ = safeStr(verifyCourseName?.value||'').trim().toLowerCase();
+
+    const start = `${year}-01-01`;
+    const end = `${year}-12-31`;
+
+    const list = courses.filter(c=>{
+      const d = safeStr(c.date);
+      if(d < start || d > end) return false;
+      if(cat && safeStr(c.category).trim() !== cat) return false;
+      if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
+      return true;
+    }).slice().sort((a,b)=> safeStr(a.date).localeCompare(safeStr(b.date)));
+
+    currentVerifyRows = list.map(course=>{
+      const a = staffAttendanceByCourseId.get(course.id);
+      const attended = a ? !!a.attended : false;
+      const hoursEarned = a && a.hoursEarned!=null ? Number(a.hoursEarned) : 0;
+      const courseHours = Number(course.hours||0);
+      const mismatch = attended && courseHours>0 && isFinite(hoursEarned) && Number(hoursEarned) !== Number(courseHours);
+      return { mode:'staff', course, attended, hoursEarned: isFinite(hoursEarned)? hoursEarned : 0, mismatch, staffSource, staffId };
     });
   }
 
   function renderVerify(){
+    if(currentVerifyMode === 'staff'){
+      renderVerifyStaff();
+    }else{
+      renderVerifyCourse();
+    }
+  }
+
+  function renderVerifyCourse(){
+    setVerifyHeader('course');
     const courseId = verifyCourseSelect?.value || '';
     const course = courses.find(c=>c.id===courseId) || null;
 
@@ -632,6 +736,91 @@ document.addEventListener('edu-training-init', ()=>{
       setVerifyPills(0,0,0,0);
       return;
     }
+
+    const info = [
+      `日期：${course.date || '-'}`,
+      `類別：${course.category || '-'}`,
+      `課程時數：${Number(course.hours||0).toFixed(1).replace(/\\.0$/,'')} 小時`,
+      `必修對象：${requiredForText(course.requiredFor)}`
+    ].join('｜');
+    if(verifyCourseInfo) verifyCourseInfo.textContent = info;
+
+    const q = safeStr(verifySearch?.value||'').trim().toLowerCase();
+    const view = currentVerifyRows.filter(r=>{
+      if(!q) return true;
+      return safeStr(r.emp.staffId).toLowerCase().includes(q) || safeStr(r.emp.name).toLowerCase().includes(q);
+    });
+
+    const total = view.length;
+    const attended = view.filter(r=>r.attended).length;
+    const missed = total - attended;
+    const mismatch = view.filter(r=>r.mismatch).length;
+    setVerifyPills(total, attended, missed, mismatch);
+
+    if(!verifyTbody) return;
+    verifyTbody.innerHTML = view.map(r=>{
+      const status = r.attended ? '<span class="badge bg-success">已上課</span>' : '<span class="badge bg-secondary">未上課</span>';
+      const role = staffSourceLabel(r.emp.source);
+      const hoursVal = (isFinite(r.hoursEarned)? r.hoursEarned : 0);
+      const check = r.attended ? (r.mismatch ? '<span class="badge bg-warning text-dark">時數不符</span>' : '<span class="badge bg-primary">OK</span>') : '-';
+      return `
+        <tr>
+          <td class="text-center">${status}</td>
+          <td class="mono">${safeStr(r.emp.staffId)}</td>
+          <td class="fw-semibold">${safeStr(r.emp.name)}</td>
+          <td>${role}${r.emp.title? `<div class="small muted">${safeStr(r.emp.title)}</div>`:''}</td>
+          <td class="text-end">${r.attended ? hoursVal.toFixed(1).replace(/\\.0$/,'') : '0'}</td>
+          <td class="text-center">${check}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="6" class="text-center text-muted py-4">沒有名單</td></tr>`;
+  }
+
+  function renderVerifyStaff(){
+    setVerifyHeader('staff');
+    const v = verifyStaffSelect?.value || '';
+    if(!v){
+      if(verifyStaffInfo) verifyStaffInfo.textContent = '尚未選擇人員。';
+      if(verifyTbody) verifyTbody.innerHTML = '';
+      setVerifyPills(0,0,0,0);
+      return;
+    }
+    const [source, staffId] = v.split('__');
+    const emp = employees.find(e=>e.source===source && String(e.staffId)===String(staffId));
+    if(verifyStaffInfo){
+      verifyStaffInfo.textContent = emp ? `人員：${emp.staffId}｜${emp.name}｜${REQ_LABEL[emp.source]||emp.source}` : '';
+    }
+
+    const q = safeStr(verifySearch?.value||'').trim().toLowerCase();
+    const view = currentVerifyRows.filter(r=>{
+      if(!q) return true;
+      return safeStr(r.course.title).toLowerCase().includes(q) || safeStr(r.course.category).toLowerCase().includes(q) || safeStr(r.course.date).toLowerCase().includes(q);
+    });
+
+    const total = view.length;
+    const attended = view.filter(r=>r.attended).length;
+    const missed = total - attended;
+    const mismatch = view.filter(r=>r.mismatch).length;
+    setVerifyPills(total, attended, missed, mismatch);
+
+    if(!verifyTbody) return;
+    verifyTbody.innerHTML = view.map(r=>{
+      const status = r.attended ? '<span class="badge bg-success">已上課</span>' : '<span class="badge bg-secondary">未上課</span>';
+      const hoursVal = (isFinite(r.hoursEarned)? r.hoursEarned : 0);
+      const courseHours = Number(r.course.hours||0);
+      const check = r.attended ? (r.mismatch ? '<span class="badge bg-warning text-dark">時數不符</span>' : '<span class="badge bg-primary">OK</span>') : '-';
+      return `
+        <tr>
+          <td class="text-center">${status}</td>
+          <td class="mono">${safeStr(r.course.date)}</td>
+          <td class="fw-semibold">${safeStr(r.course.title)}<div class="small muted">${safeStr(r.course.category||'')}</div></td>
+          <td>${courseHours.toFixed(1).replace(/\\.0$/,'')} 小時</td>
+          <td class="text-end">${r.attended ? hoursVal.toFixed(1).replace(/\\.0$/,'') : '0'}</td>
+          <td class="text-center">${check}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="6" class="text-center text-muted py-4">沒有課程</td></tr>`;
+  }
 
     const info = [
       `日期：${course.date || '-'}`,
@@ -757,6 +946,37 @@ document.addEventListener('edu-training-init', ()=>{
     const y = new Date().getFullYear();
     const years = [y-1, y, y+1];
     hoursYear.innerHTML = years.map(v=>`<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('');
+  }
+
+
+  function fillVerifyYearOptions(){
+    if(!verifyYear) return;
+    const y = new Date().getFullYear();
+    const years = [y-1, y, y+1];
+    verifyYear.innerHTML = years.map(v=>`<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('');
+  }
+
+  function renderVerifyStaffSelect(){
+    if(!verifyStaffSelect) return;
+    const old = verifyStaffSelect.value || '';
+    const opts = [`<option value="" disabled ${old?'':'selected'}>請選擇人員</option>`].concat(
+      employees.map(e=>{
+        const v = `${e.source}__${e.staffId}`;
+        const label = `${e.staffId}｜${e.name}｜${REQ_LABEL[e.source]||e.source}`;
+        const sel = (v===old) ? 'selected' : '';
+        return `<option value="${v}" ${sel}>${label}</option>`;
+      })
+    );
+    verifyStaffSelect.innerHTML = opts.join('');
+  }
+
+  function renderVerifyCategoryOptions(){
+    if(!verifyCategory) return;
+    const cats = Array.from(new Set(courses.map(c=>safeStr(c.category).trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+    const old = verifyCategory.value || '';
+    const opts = ['<option value="">全部</option>'].concat(cats.map(v=>`<option value="${v}">${v}</option>`));
+    verifyCategory.innerHTML = opts.join('');
+    if(old && cats.includes(old)) verifyCategory.value = old;
   }
 
   async function loadAllAttendanceInYear(year){
@@ -1092,6 +1312,9 @@ document.addEventListener('edu-training-init', ()=>{
     await loadCourses();
     renderCourses();
     renderVerifyCourseSelect();
+    renderVerifyStaffSelect();
+    fillVerifyYearOptions();
+    renderVerifyCategoryOptions();
     fillYearOptions();
     await renderHours();
     hideStatus();
@@ -1158,12 +1381,71 @@ document.addEventListener('edu-training-init', ()=>{
     showStatus('載入核對資料...', 'info');
     await loadAttendanceForCourse(id);
     const course = courses.find(c=>c.id===id) || null;
-    buildVerifyRows(course);
+    buildVerifyRowsCourse(course);
     renderVerify();
     hideStatus();
   });
 
   verifySearch?.addEventListener('input', ()=>renderVerify());
+
+  verifyMode?.addEventListener('change', ()=>{
+    currentVerifyMode = verifyMode.value || 'course';
+    if(currentVerifyMode === 'staff'){
+      verifyModeCourse?.classList.add('d-none');
+      verifyModeStaff?.classList.remove('d-none');
+      renderVerifyStaffSelect();
+      fillVerifyYearOptions();
+      renderVerifyCategoryOptions();
+      renderVerify();
+    }else{
+      verifyModeStaff?.classList.add('d-none');
+      verifyModeCourse?.classList.remove('d-none');
+      renderVerifyCourseSelect();
+    renderVerifyStaffSelect();
+    fillVerifyYearOptions();
+    renderVerifyCategoryOptions();
+      renderVerify();
+    }
+  });
+
+  verifyStaffSelect?.addEventListener('change', async ()=>{
+    const v = verifyStaffSelect.value || '';
+    if(!v){ currentVerifyRows = []; renderVerify(); return; }
+    const [source, staffId] = v.split('__');
+    showStatus('載入人員出席資料...', 'info');
+    await loadAttendanceForStaff(source, staffId);
+    buildVerifyRowsStaff(source, staffId);
+    renderVerify();
+    hideStatus();
+  });
+
+  verifyYear?.addEventListener('change', ()=>{
+    if(currentVerifyMode!=='staff') return;
+    const v = verifyStaffSelect?.value || '';
+    if(!v) { renderVerify(); return; }
+    const [source, staffId] = v.split('__');
+    buildVerifyRowsStaff(source, staffId);
+    renderVerify();
+  });
+
+  verifyCategory?.addEventListener('change', ()=>{
+    if(currentVerifyMode!=='staff') return;
+    const v = verifyStaffSelect?.value || '';
+    if(!v) { renderVerify(); return; }
+    const [source, staffId] = v.split('__');
+    buildVerifyRowsStaff(source, staffId);
+    renderVerify();
+  });
+
+  verifyCourseName?.addEventListener('input', ()=>{
+    if(currentVerifyMode!=='staff') return;
+    const v = verifyStaffSelect?.value || '';
+    if(!v) { renderVerify(); return; }
+    const [source, staffId] = v.split('__');
+    buildVerifyRowsStaff(source, staffId);
+    renderVerify();
+  });
+
 
   attendanceSearch?.addEventListener('input', ()=>renderAttendance());
 
