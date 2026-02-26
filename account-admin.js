@@ -374,6 +374,15 @@
     });
   }
 
+  // 依四大系統的開關狀態，刷新各權限面板的啟用/停用
+  function refreshPermPanelsEnabledState() {
+    setPermsEnabled('nurse', toggleNurse.checked);
+    setPermsEnabled('caregiver', toggleCaregiver.checked);
+    setPermsEnabled('office', toggleOffice.checked);
+    setPermsEnabled('affairs', toggleAffairs.checked);
+  }
+
+
   function checkAllPerms(sysKey) {
     const selector = `[data-sys="${sysKey}"][data-perm]`;
     document.querySelectorAll(selector).forEach(cb => {
