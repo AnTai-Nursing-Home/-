@@ -51,6 +51,7 @@ document.addEventListener('edu-training-init', ()=>{
   const btnExportExcel = document.getElementById('btn-export-excel');
 
   const courseSearch = document.getElementById('course-search');
+  const courseCategoryFilter = document.getElementById('course-category-filter');
   const coursesTbody = document.getElementById('courses-tbody');
 
   const attendanceCourseSelect = document.getElementById('attendance-course-select');
@@ -62,6 +63,16 @@ document.addEventListener('edu-training-init', ()=>{
   const attendanceSelectAll = document.getElementById('attendance-select-all');
   const attendanceClearAll = document.getElementById('attendance-clear-all');
   const attendanceSave = document.getElementById('attendance-save');
+
+  // Verify
+  const verifyCourseSelect = document.getElementById('verify-course-select');
+  const verifyCourseInfo = document.getElementById('verify-course-info');
+  const verifySearch = document.getElementById('verify-search');
+  const verifyTbody = document.getElementById('verify-tbody');
+  const verifyTotalPill = document.getElementById('verify-total-pill');
+  const verifyAttendedPill = document.getElementById('verify-attended-pill');
+  const verifyMissedPill = document.getElementById('verify-missed-pill');
+  const verifyMismatchPill = document.getElementById('verify-mismatch-pill');
 
   const hoursYear = document.getElementById('hours-year');
   const hoursRecalc = document.getElementById('hours-recalc');
@@ -100,6 +111,7 @@ document.addEventListener('edu-training-init', ()=>{
   let attendanceMap = new Map(); // key: attendDocId -> data
   let currentAttendanceCourseId = '';
   let currentAttendanceRows = []; // view rows (employees filtered)
+  let currentVerifyRows = []; // verify view rows
 
   // -----------------------------
   // Utils
@@ -324,9 +336,22 @@ document.addEventListener('edu-training-init', ()=>{
     if(!coursesTbody) return;
 
     const q = safeStr(courseSearch?.value||'').trim();
+    const cat = safeStr(courseCategoryFilter?.value||'').trim();
+
+    // populate category filter options from existing courses
+    const cats = Array.from(new Set(courses.map(c=>safeStr(c.category).trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+    if(courseCategoryFilter){
+      const old = courseCategoryFilter.value || '';
+      const opts = ['<option value="">全部</option>'].concat(cats.map(v=>`<option value="${v}">${v}</option>`));
+      courseCategoryFilter.innerHTML = opts.join('');
+      // keep selection if possible
+      if(old && cats.includes(old)) courseCategoryFilter.value = old;
+    }
+
     const rows = courses.filter(c=>{
+      if(cat && safeStr(c.category).trim() !== cat) return false;
       if(!q) return true;
-      return contains(c.title, q) || contains(c.instructor, q) || contains(c.category, q);
+      return contains(c.title, q) || contains(c.instructor, q);
     });
 
     coursesTbody.innerHTML = rows.map(c=>{
@@ -365,6 +390,9 @@ document.addEventListener('edu-training-init', ()=>{
       }));
 
     attendanceCourseSelect.innerHTML = opts.join('');
+
+    // verify select 同步
+    renderVerifyCourseSelect();
 
     // if old not present, reset
     const still = courses.some(c=>c.id===old);
@@ -556,6 +584,94 @@ document.addEventListener('edu-training-init', ()=>{
       `;
     }).join('') || `<tr><td colspan="5" class="text-center text-muted py-4">沒有員工名單</td></tr>`;
   }
+
+  // -----------------------------
+  // Verify (時數核對)
+  // -----------------------------
+  function setVerifyPills(total, attended, missed, mismatch){
+    if(verifyTotalPill) verifyTotalPill.textContent = `名單 ${total}`;
+    if(verifyAttendedPill) verifyAttendedPill.textContent = `已上課 ${attended}`;
+    if(verifyMissedPill) verifyMissedPill.textContent = `未上課 ${missed}`;
+    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符 ${mismatch}`;
+  }
+
+  function renderVerifyCourseSelect(){
+    if(!verifyCourseSelect) return;
+    const old = verifyCourseSelect.value || '';
+    const opts = [`<option value="" disabled ${old?'':'selected'}>請選擇課程</option>`]
+      .concat(courses.map(c=>{
+        const label = `${c.date || '未填日期'}｜${c.title}`;
+        const sel = (c.id===old) ? 'selected' : '';
+        return `<option value="${c.id}" ${sel}>${label}</option>`;
+      }));
+    verifyCourseSelect.innerHTML = opts.join('');
+  }
+
+  function buildVerifyRows(course){
+    if(!course) { currentVerifyRows = []; return; }
+    const list = filterEmployeesForCourse(course);
+    const courseHours = Number(course?.hours || 0);
+
+    currentVerifyRows = list.map(emp=>{
+      const docId = makeAttendDocId(course.id, emp);
+      const existing = attendanceMap.get(docId);
+      const attended = existing ? !!existing.attended : false;
+      const hoursEarned = existing && existing.hoursEarned!=null ? Number(existing.hoursEarned) : (attended ? courseHours : 0);
+      const mismatch = attended && courseHours>0 && isFinite(hoursEarned) && Number(hoursEarned) !== Number(courseHours);
+      return { docId, emp, attended, hoursEarned: isFinite(hoursEarned)? hoursEarned : 0, mismatch };
+    });
+  }
+
+  function renderVerify(){
+    const courseId = verifyCourseSelect?.value || '';
+    const course = courses.find(c=>c.id===courseId) || null;
+
+    if(!course){
+      if(verifyCourseInfo) verifyCourseInfo.textContent = '尚未選擇課程。';
+      if(verifyTbody) verifyTbody.innerHTML = '';
+      setVerifyPills(0,0,0,0);
+      return;
+    }
+
+    const info = [
+      `日期：${course.date || '-'}`,
+      `類別：${course.category || '-'}`,
+      `課程時數：${Number(course.hours||0).toFixed(1).replace(/\.0$/,'')} 小時`,
+      `必修對象：${requiredForText(course.requiredFor)}`
+    ].join('｜');
+    if(verifyCourseInfo) verifyCourseInfo.textContent = info;
+
+    const q = safeStr(verifySearch?.value||'').trim().toLowerCase();
+    const view = currentVerifyRows.filter(r=>{
+      if(!q) return true;
+      return safeStr(r.emp.staffId).toLowerCase().includes(q) || safeStr(r.emp.name).toLowerCase().includes(q);
+    });
+
+    const total = view.length;
+    const attended = view.filter(r=>r.attended).length;
+    const missed = total - attended;
+    const mismatch = view.filter(r=>r.mismatch).length;
+    setVerifyPills(total, attended, missed, mismatch);
+
+    if(!verifyTbody) return;
+    verifyTbody.innerHTML = view.map(r=>{
+      const status = r.attended ? '<span class="badge bg-success">已上課</span>' : '<span class="badge bg-secondary">未上課</span>';
+      const role = staffSourceLabel(r.emp.source);
+      const hoursVal = (isFinite(r.hoursEarned)? r.hoursEarned : 0);
+      const check = r.attended ? (r.mismatch ? '<span class="badge bg-warning text-dark">時數不符</span>' : '<span class="badge bg-primary">OK</span>') : '-';
+      return `
+        <tr>
+          <td class="text-center">${status}</td>
+          <td class="mono">${safeStr(r.emp.staffId)}</td>
+          <td class="fw-semibold">${safeStr(r.emp.name)}</td>
+          <td>${role}${r.emp.title? `<div class="small muted">${safeStr(r.emp.title)}</div>`:''}</td>
+          <td class="text-end">${r.attended ? hoursVal.toFixed(1).replace(/\.0$/,'') : '0'}</td>
+          <td class="text-center">${check}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="6" class="text-center text-muted py-4">沒有名單</td></tr>`;
+  }
+
 
   function syncAttendanceRowFromDOM(){
     const course = getSelectedCourse();
@@ -975,6 +1091,7 @@ document.addEventListener('edu-training-init', ()=>{
     await loadEmployees();
     await loadCourses();
     renderCourses();
+    renderVerifyCourseSelect();
     fillYearOptions();
     await renderHours();
     hideStatus();
@@ -986,6 +1103,7 @@ document.addEventListener('edu-training-init', ()=>{
   btnRefresh?.addEventListener('click', refreshAll);
 
   courseSearch?.addEventListener('input', renderCourses);
+  courseCategoryFilter?.addEventListener('change', renderCourses);
 
   btnAddCourse?.addEventListener('click', ()=>{
     if(!courseModal){ alert('Modal 初始化失敗'); return; }
@@ -1030,6 +1148,22 @@ document.addEventListener('edu-training-init', ()=>{
     renderAttendance();
     hideStatus();
   });
+
+  verifyCourseSelect?.addEventListener('change', async ()=>{
+    const id = verifyCourseSelect.value || '';
+    if(!id){
+      renderVerify();
+      return;
+    }
+    showStatus('載入核對資料...', 'info');
+    await loadAttendanceForCourse(id);
+    const course = courses.find(c=>c.id===id) || null;
+    buildVerifyRows(course);
+    renderVerify();
+    hideStatus();
+  });
+
+  verifySearch?.addEventListener('input', ()=>renderVerify());
 
   attendanceSearch?.addEventListener('input', ()=>renderAttendance());
 
