@@ -98,6 +98,12 @@
               <div class="tab-pane fade show active" id="pane-courses" role="tabpanel" aria-labelledby="tab-courses">
                 <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
                   <div class="d-flex flex-wrap gap-2 align-items-center">
+                      <div class="btn-group" role="group" aria-label="course-type">
+                        <button type="button" class="btn btn-outline-secondary btn-sm active" id="course-type-all">全部</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="course-type-online">線上</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="course-type-inperson">實體</button>
+                      </div>
+                      <span class="text-muted small ms-2" id="course-type-hint"></span>
                     <span class="pill opt">集合：<span class="mono">education_courses</span></span>
                     <span class="pill opt">集合：<span class="mono">education_attendance</span></span>
                   </div>
