@@ -300,12 +300,23 @@
 
   <footer class="site-footer">© 2026 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Firebase（請沿用你站內既有設定：firebase-init.js 會建立全域 db 並 dispatch firebase-ready） -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
-  <!-- ExcelJS（與你現有系統相同即可；若你站內已有引用，可移除這行） -->
+  <!-- ExcelJS -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+  <!-- 站內共用初始化（⚠️一定要有，否則 db 不會 ready，按鈕會沒反應） -->
+  <script src="firebase-init.js"></script>
+
+  <!-- 需要的話可加：idle-timeout / access-control（和你其他系統一致） -->
+  <!-- <script src="idle-timeout.js"></script> -->
+  <!-- <script src="access-control.js"></script> -->
+
   <script src="education-training-admin.js"></script>
 </body>
 </html>
