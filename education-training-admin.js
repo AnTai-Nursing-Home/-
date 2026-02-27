@@ -120,6 +120,7 @@ document.addEventListener('edu-training-init', ()=>{
   let actor = { id:'unknown', name:'unknown', username:'' }; // 登入者
   let employees = [];         // unified employees
   let courses = [];           // course docs
+  let courseTypeFilter = ''; // '', '線上', '實體'
   let attendanceMap = new Map(); // key: attendDocId -> data
   let currentAttendanceCourseId = '';
   let currentAttendanceRows = []; // view rows (employees filtered)
@@ -393,7 +394,7 @@ document.addEventListener('edu-training-init', ()=>{
     }
 
     const rows = courses.filter(c=>{
-      if(courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
+      if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
       if(!q) return true;
       return contains(c.title, q) || contains(c.instructor, q);
@@ -701,7 +702,7 @@ document.addEventListener('edu-training-init', ()=>{
     const list = courses.filter(c=>{
       const d = safeStr(c.date);
       if(d < start || d > end) return false;
-      if(courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
+      if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
       if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
       return true;
