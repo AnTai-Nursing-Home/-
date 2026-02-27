@@ -398,8 +398,7 @@ document.addEventListener('edu-training-init', ()=>{
     const rows = courses.filter(c=>{
       if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
-      if(delv && safeStr(c.delivery).trim() !== delv) return false;
-      if(!q) return true;
+if(!q) return true;
       return contains(c.title, q) || contains(c.instructor, q);
     });
 
@@ -693,7 +692,7 @@ document.addEventListener('edu-training-init', ()=>{
     if(verifyTotalPill) verifyTotalPill.textContent = `名單 ${total}`;
     if(verifyAttendedPill) verifyAttendedPill.textContent = `已上課 ${attended}`;
     if(verifyMissedPill) verifyMissedPill.textContent = `未上課 ${missed}`;
-    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符: ${mismatch} 人`;
+    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符 ${mismatch}`;
   }
 
   function buildVerifyRowsCourse(course){
@@ -725,8 +724,7 @@ document.addEventListener('edu-training-init', ()=>{
       if(d < start || d > end) return false;
       if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
-      if(delv && safeStr(c.delivery).trim() !== delv) return false;
-      if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
+if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
       return true;
     }).slice().sort((a,b)=> safeStr(a.date).localeCompare(safeStr(b.date)));
 
