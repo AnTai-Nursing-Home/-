@@ -247,7 +247,21 @@
 
                       <div id="verify-mode-course">
                         <div class="fw-bold mb-2 mt-2">選擇核對課程</div>
-                        <select id="verify-course-select" class="form-select mb-2"></select>
+                        
+                        <div class="row g-2 mb-2">
+                          <div class="col-6">
+                            <label class="form-label small muted mb-1">線上/實體</label>
+                            <select id="verify-course-delivery" class="form-select">
+                              <option value="" selected>全部</option>
+                              <option value="線上">線上</option>
+                              <option value="實體">實體</option>
+                            </select>
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small muted mb-1">課程</label>
+                            <select id="verify-course-select" class="form-select mb-2"></select>
+                          </div>
+                        </div>
                         <div id="verify-course-info" class="small muted"></div>
                       </div>
 
@@ -256,14 +270,22 @@
                         <select id="verify-staff-select" class="form-select mb-2"></select>
 
                         <div class="row g-2">
-                          <div class="col-6">
+                          <div class="col-4">
                             <label class="form-label small muted mb-1">年分</label>
                             <select id="verify-year" class="form-select"></select>
                           </div>
-                          <div class="col-6">
+                          <div class="col-4">
                             <label class="form-label small muted mb-1">課程類別</label>
                             <select id="verify-category" class="form-select">
                               <option value="" selected>全部</option>
+                            </select>
+                          </div>
+                          <div class="col-4">
+                            <label class="form-label small muted mb-1">線上/實體</label>
+                            <select id="verify-delivery" class="form-select">
+                              <option value="" selected>全部</option>
+                              <option value="線上">線上</option>
+                              <option value="實體">實體</option>
                             </select>
                           </div>
                         </div>
