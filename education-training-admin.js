@@ -70,6 +70,7 @@ document.addEventListener('edu-training-init', ()=>{
 
   // Verify
   const verifyCourseSelect = document.getElementById('verify-course-select');
+  const verifyCourseDelivery = document.getElementById('verify-course-delivery');
   const verifyCourseInfo = document.getElementById('verify-course-info');
   const verifySearch = document.getElementById('verify-search');
   const verifyTbody = document.getElementById('verify-tbody');
@@ -83,6 +84,7 @@ document.addEventListener('edu-training-init', ()=>{
   const verifyStaffSelect = document.getElementById('verify-staff-select');
   const verifyYear = document.getElementById('verify-year');
   const verifyCategory = document.getElementById('verify-category');
+  const verifyDelivery = document.getElementById('verify-delivery');
   const verifyCourseName = document.getElementById('verify-course-name');
   const verifyStaffInfo = document.getElementById('verify-staff-info');
 
@@ -396,6 +398,7 @@ document.addEventListener('edu-training-init', ()=>{
     const rows = courses.filter(c=>{
       if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
+      if(delv && safeStr(c.delivery).trim() !== delv) return false;
       if(!q) return true;
       return contains(c.title, q) || contains(c.instructor, q);
     });
@@ -428,8 +431,10 @@ document.addEventListener('edu-training-init', ()=>{
     if(!attendanceCourseSelect) return;
 
     const old = attendanceCourseSelect.value || '';
+    const delv = safeStr(verifyCourseDelivery?.value||'').trim();
+    const list = courses.filter(c=> !delv || safeStr(c.delivery).trim()===delv);
     const opts = [`<option value="" disabled ${old?'':'selected'}>請選擇課程</option>`]
-      .concat(courses.map(c=>{
+      .concat(list.map(c=>{
         const label = `${c.date || '未填日期'}｜${c.title}`;
         const sel = (c.id===old) ? 'selected' : '';
         return `<option value="${c.id}" ${sel}>${label}</option>`;
@@ -438,10 +443,12 @@ document.addEventListener('edu-training-init', ()=>{
     attendanceCourseSelect.innerHTML = opts.join('');
 
     // verify select 同步
+    renderVerifyCourseDeliveryOptions();
     renderVerifyCourseSelect();
     renderVerifyStaffSelect();
     fillVerifyYearOptions();
     renderVerifyCategoryOptions();
+    renderVerifyDeliveryOptions();
 
     // if old not present, reset
     const still = courses.some(c=>c.id===old);
@@ -638,6 +645,19 @@ document.addEventListener('edu-training-init', ()=>{
   // Verify (時數核對)
   // -----------------------------
   
+  function renderVerifyCourseDeliveryOptions(){
+    if(!verifyCourseDelivery) return;
+    const vals = Array.from(new Set(courses.map(c=>safeStr(c.delivery).trim()).filter(Boolean)));
+    const hasOnline = vals.includes('線上');
+    const hasIn = vals.includes('實體');
+    const old = verifyCourseDelivery.value || '';
+    const opts = ['<option value="">全部</option>']
+      .concat(hasOnline? ['<option value="線上">線上</option>'] : [])
+      .concat(hasIn? ['<option value="實體">實體</option>'] : []);
+    verifyCourseDelivery.innerHTML = opts.join('');
+    if(old && (old==='線上' || old==='實體')) verifyCourseDelivery.value = old;
+  }
+
   function renderVerifyCourseSelect(){
     if(!verifyCourseSelect) return;
     const old = verifyCourseSelect.value || '';
@@ -673,7 +693,7 @@ document.addEventListener('edu-training-init', ()=>{
     if(verifyTotalPill) verifyTotalPill.textContent = `名單 ${total}`;
     if(verifyAttendedPill) verifyAttendedPill.textContent = `已上課 ${attended}`;
     if(verifyMissedPill) verifyMissedPill.textContent = `未上課 ${missed}`;
-    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符 ${mismatch}`;
+    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符: ${mismatch} 人` ;
   }
 
   function buildVerifyRowsCourse(course){
@@ -694,6 +714,7 @@ document.addEventListener('edu-training-init', ()=>{
   function buildVerifyRowsStaff(staffSource, staffId){
     const year = Number(verifyYear?.value || new Date().getFullYear());
     const cat = safeStr(verifyCategory?.value||'').trim();
+    const delv = safeStr(verifyDelivery?.value||'').trim();
     const nameQ = safeStr(verifyCourseName?.value||'').trim().toLowerCase();
 
     const start = `${year}-01-01`;
@@ -704,6 +725,7 @@ document.addEventListener('edu-training-init', ()=>{
       if(d < start || d > end) return false;
       if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
       if(cat && safeStr(c.category).trim() !== cat) return false;
+      if(delv && safeStr(c.delivery).trim() !== delv) return false;
       if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
       return true;
     }).slice().sort((a,b)=> safeStr(a.date).localeCompare(safeStr(b.date)));
@@ -930,6 +952,19 @@ function syncAttendanceRowFromDOM(){
       })
     );
     verifyStaffSelect.innerHTML = opts.join('');
+  }
+
+  function renderVerifyDeliveryOptions(){
+    if(!verifyDelivery) return;
+    const vals = Array.from(new Set(courses.map(c=>safeStr(c.delivery).trim()).filter(Boolean)));
+    const hasOnline = vals.includes('線上');
+    const hasIn = vals.includes('實體');
+    const old = verifyDelivery.value || '';
+    const opts = ['<option value="">全部</option>']
+      .concat(hasOnline? ['<option value="線上">線上</option>'] : [])
+      .concat(hasIn? ['<option value="實體">實體</option>'] : []);
+    verifyDelivery.innerHTML = opts.join('');
+    if(old && (old==='線上' || old==='實體')) verifyDelivery.value = old;
   }
 
   function renderVerifyCategoryOptions(){
@@ -1273,10 +1308,12 @@ function syncAttendanceRowFromDOM(){
     await loadEmployees();
     await loadCourses();
     renderCourses();
+    renderVerifyCourseDeliveryOptions();
     renderVerifyCourseSelect();
     renderVerifyStaffSelect();
     fillVerifyYearOptions();
     renderVerifyCategoryOptions();
+    renderVerifyDeliveryOptions();
     fillYearOptions();
     await renderHours();
     hideStatus();
@@ -1347,7 +1384,24 @@ function syncAttendanceRowFromDOM(){
     hideStatus();
   });
 
-  verifyCourseSelect?.addEventListener('change', async ()=>{
+    verifyCourseDelivery?.addEventListener('change', ()=>{
+    if(currentVerifyMode!=='course') return;
+    const prev = verifyCourseSelect?.value || '';
+    renderVerifyCourseDeliveryOptions();
+    renderVerifyCourseSelect();
+    // if previous course is filtered out, clear selection
+    const delv = safeStr(verifyCourseDelivery?.value||'').trim();
+    if(prev && delv){
+      const c = courses.find(x=>x.id===prev);
+      if(c && safeStr(c.delivery).trim()!==delv){
+        if(verifyCourseSelect) verifyCourseSelect.value = '';
+        currentVerifyRows = [];
+      }
+    }
+    renderVerify();
+  });
+
+verifyCourseSelect?.addEventListener('change', async ()=>{
     const id = verifyCourseSelect.value || '';
     if(!id){
       renderVerify();
@@ -1371,14 +1425,17 @@ function syncAttendanceRowFromDOM(){
       renderVerifyStaffSelect();
       fillVerifyYearOptions();
       renderVerifyCategoryOptions();
+    renderVerifyDeliveryOptions();
       renderVerify();
     }else{
       verifyModeStaff?.classList.add('d-none');
       verifyModeCourse?.classList.remove('d-none');
-      renderVerifyCourseSelect();
+      renderVerifyCourseDeliveryOptions();
+    renderVerifyCourseSelect();
     renderVerifyStaffSelect();
     fillVerifyYearOptions();
     renderVerifyCategoryOptions();
+    renderVerifyDeliveryOptions();
       renderVerify();
     }
   });
@@ -1404,6 +1461,15 @@ function syncAttendanceRowFromDOM(){
   });
 
   verifyCategory?.addEventListener('change', ()=>{
+    if(currentVerifyMode!=='staff') return;
+    const v = verifyStaffSelect?.value || '';
+    if(!v) { renderVerify(); return; }
+    const [source, staffId] = v.split('__');
+    buildVerifyRowsStaff(source, staffId);
+    renderVerify();
+  });
+
+  verifyDelivery?.addEventListener('change', ()=>{
     if(currentVerifyMode!=='staff') return;
     const v = verifyStaffSelect?.value || '';
     if(!v) { renderVerify(); return; }
