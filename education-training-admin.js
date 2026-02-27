@@ -693,7 +693,7 @@ document.addEventListener('edu-training-init', ()=>{
     if(verifyTotalPill) verifyTotalPill.textContent = `名單 ${total}`;
     if(verifyAttendedPill) verifyAttendedPill.textContent = `已上課 ${attended}`;
     if(verifyMissedPill) verifyMissedPill.textContent = `未上課 ${missed}`;
-    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符: ${mismatch} 人` ;
+    if(verifyMismatchPill) verifyMismatchPill.textContent = `時數不符: ${mismatch} 人`;
   }
 
   function buildVerifyRowsCourse(course){
