@@ -29,13 +29,16 @@
     .w-140{width:140px}
     .w-180{width:180px}
     .w-220{width:220px}
+  
+    .container-fluid{max-width:100%;padding-left:24px;padding-right:24px;}
+    @media (max-width: 576px){ .container-fluid{padding-left:12px;padding-right:12px;} }
   </style>
 </head>
 
 <body>
-  <div class="container my-5">
+  <div class="container-fluid my-4">
     <div class="row justify-content-center">
-      <div class="col-12 col-xl-11">
+      <div class="col-12">
         <div class="card shadow">
           <div class="card-header text-center bg-dark text-white">
             <h2 class="page-title mb-0">教育訓練管理系統</h2>
@@ -365,6 +368,14 @@
             <div class="col-12 col-md-6">
               <label class="form-label">講師</label>
               <input type="text" class="form-control" id="course-instructor" placeholder="例如：王主任">
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">上課型態</label>
+              <select class="form-select" id="course-delivery">
+                <option value="實體" selected>實體</option>
+                <option value="線上">線上</option>
+              </select>
             </div>
 
             <div class="col-12">
