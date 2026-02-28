@@ -396,9 +396,14 @@ document.addEventListener('edu-training-init', ()=>{
     }
 
     const rows = courses.filter(c=>{
-      if(typeof courseTypeFilter !== 'undefined' && courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
+      // 線上 / 實體 篩選
+      if(courseTypeFilter && safeStr(c.delivery).trim() !== courseTypeFilter) return false;
+
+      // 分類篩選
       if(cat && safeStr(c.category).trim() !== cat) return false;
-if(!q) return true;
+
+      // 搜尋
+      if(!q) return true;
       return contains(c.title, q) || contains(c.instructor, q);
     });
 
@@ -410,6 +415,7 @@ if(!q) return true;
             <div class="fw-semibold">${safeStr(c.title)}</div>
             <div class="small muted">${safeStr(c.description)}</div>
           </td>
+          <td>${safeStr(c.delivery)}</td>
           <td>${safeStr(c.category)}</td>
           <td class="text-end">${Number(c.hours||0).toFixed(1).replace(/\.0$/,'')}</td>
           <td>${safeStr(c.instructor)}</td>
