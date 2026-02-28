@@ -323,6 +323,7 @@ document.addEventListener('edu-training-init', ()=>{
         date: d.date || '',
         title: d.title || '',
         category: d.category || '',
+        delivery: (d.delivery || '實體'),
         hours: Number(d.hours || 0),
         instructor: d.instructor || '',
         description: d.description || '',
@@ -413,7 +414,6 @@ document.addEventListener('edu-training-init', ()=>{
         <tr data-id="${c.id}">
           <td>${safeStr(c.date)}</td>
           <td><div class="fw-semibold">${safeStr(c.title)}</div></td>
-          <td class="text-muted">${safeStr(c.description)}</td>
           <td>${safeStr(c.delivery)}</td>
           <td>${safeStr(c.category)}</td>
           <td class="text-end">${Number(c.hours||0).toFixed(1).replace(/\.0$/,'')}</td>
