@@ -105,6 +105,7 @@ document.addEventListener('edu-training-init', ()=>{
   const courseTitleEl = document.getElementById('course-title');
   const courseCategoryEl = document.getElementById('course-category');
   const courseInstructorEl = document.getElementById('course-instructor');
+  const courseDeliveryEl = document.getElementById('course-delivery');
   const courseDescEl = document.getElementById('course-desc');
   const courseSaveBtn = document.getElementById('course-save');
 
@@ -411,10 +412,8 @@ document.addEventListener('edu-training-init', ()=>{
       return `
         <tr data-id="${c.id}">
           <td>${safeStr(c.date)}</td>
-          <td>
-            <div class="fw-semibold">${safeStr(c.title)}</div>
-            <div class="small muted">${safeStr(c.description)}</div>
-          </td>
+          <td><div class="fw-semibold">${safeStr(c.title)}</div></td>
+          <td class="text-muted">${safeStr(c.description)}</td>
           <td>${safeStr(c.delivery)}</td>
           <td>${safeStr(c.category)}</td>
           <td class="text-end">${Number(c.hours||0).toFixed(1).replace(/\.0$/,'')}</td>
@@ -499,6 +498,7 @@ document.addEventListener('edu-training-init', ()=>{
       title: safeStr(courseTitleEl.value).trim(),
       category: safeStr(courseCategoryEl.value).trim(),
       instructor: safeStr(courseInstructorEl.value).trim(),
+      delivery: safeStr(courseDeliveryEl?.value || '').trim() || '實體',
       description: safeStr(courseDescEl.value).trim(),
       requiredFor
     };
