@@ -122,6 +122,8 @@ function showMonthsView(){
   $("viewMonths").classList.remove("hidden");
   setTopTitle();
   renderMonths();
+  // 統計面板（月份頁）
+  initStatsUI();
 }
 
 async function showMonthDetail(month){
@@ -150,7 +152,10 @@ function buildYearSelect(){
   sel.onchange = () => {
     currentYear = parseInt(sel.value,10);
     if (currentMonth) showMonthDetail(currentMonth);
-    else renderMonths();
+    else {
+      renderMonths();
+      initStatsUI();
+    }
   };
 }
 
@@ -542,3 +547,309 @@ function boot(){
 
 window.addEventListener("DOMContentLoaded", boot);
 
+
+
+
+// ===================== 統計面板（同頁整合） =====================
+const AGE_BANDS = [
+  { label:"0–64", min:0, max:64 },
+  { label:"65–74", min:65, max:74 },
+  { label:"75–84", min:75, max:84 },
+  { label:"85–94", min:85, max:94 },
+  { label:"95+", min:95, max:200 },
+];
+const INJURY_LEVELS = ["無傷害","第一級","第二級","第三級","未填"];
+
+let _statsCharts = { gender:null, age:null, type:null, fallCase:null, fallOther:null };
+
+function _destroyChart(k){
+  if (_statsCharts[k]){ _statsCharts[k].destroy(); _statsCharts[k]=null; }
+}
+
+function _fmtDate(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const da=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${da}`;
+}
+
+function _endOfDay(d){
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
+}
+
+function _toTimestamp(dateObj){
+  return window.firebase.firestore.Timestamp.fromDate(dateObj);
+}
+
+function _normalizeGender(g){
+  if (!g) return "未填";
+  const s = String(g).trim();
+  if (s === "男" || s.toLowerCase()==="male") return "男";
+  if (s === "女" || s.toLowerCase()==="female") return "女";
+  return s;
+}
+
+function _bandAge(age){
+  const n = Number(age);
+  if (!Number.isFinite(n)) return "未填";
+  for (const b of AGE_BANDS){
+    if (n >= b.min && n <= b.max) return b.label;
+  }
+  return "其他";
+}
+
+function _countBy(items, keyFn){
+  const m = new Map();
+  for (const x of items){
+    const k = keyFn(x);
+    m.set(k, (m.get(k)||0)+1);
+  }
+  return m;
+}
+
+function _topN(map, n=10){
+  return Array.from(map.entries()).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+
+function _makeBar(canvas, labels, values){
+  return new Chart(canvas, {
+    type:"bar",
+    data:{ labels, datasets:[{ label:"件數", data:values }]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }},
+      scales:{
+        x:{ ticks:{ font:{ size:14 }}},
+        y:{ beginAtZero:true, ticks:{ precision:0, font:{ size:14 }}}
+      }
+    }
+  });
+}
+
+function _makePie(canvas, labels, values){
+  return new Chart(canvas, {
+    type:"pie",
+    data:{ labels, datasets:[{ data:values }]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{ legend:{ position:"bottom", labels:{ font:{ size:14 }}}}
+    }
+  });
+}
+
+function _renderStatsKPIs(total, fallTotal, uniqueResidents){
+  const box = document.getElementById("statsKpiRow");
+  if (!box) return;
+  box.innerHTML = "";
+  const mk = (label, value)=> {
+    const div = document.createElement("div");
+    div.className="pill";
+    div.textContent = `${label}：${value}`;
+    box.appendChild(div);
+  };
+  mk("事件總數", total);
+  mk("跌倒事件", fallTotal);
+  mk("涉及住民數", uniqueResidents);
+}
+
+function _buildMatrixTable(items){
+  const table = document.getElementById("tableMatrix");
+  if (!table) return;
+  table.innerHTML = "";
+
+  // type -> injury -> count
+  const matrix = new Map();
+  for (const x of items){
+    const type = (x.incidentType === "其他" && x.incidentTypeOtherText) ? `其他（${x.incidentTypeOtherText}）` : (x.incidentType || "未填");
+    const injury = x.injuryLevel || "未填";
+    if (!matrix.has(type)) matrix.set(type, new Map());
+    const inner = matrix.get(type);
+    inner.set(injury, (inner.get(injury)||0)+1);
+  }
+
+  const types = Array.from(matrix.keys()).sort((a,b)=>a.localeCompare(b,"zh-Hant"));
+
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  trh.innerHTML = `<th>事件類別</th>` + INJURY_LEVELS.map(l=>`<th>${l}</th>`).join("") + `<th>合計</th>`;
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const colTotals = new Map(INJURY_LEVELS.map(l=>[l,0]));
+  let grandTotal = 0;
+
+  for (const t of types){
+    const inner = matrix.get(t) || new Map();
+    let rowTotal = 0;
+    const tds = INJURY_LEVELS.map(l=>{
+      const c = inner.get(l)||0;
+      rowTotal += c;
+      colTotals.set(l, colTotals.get(l)+c);
+      return `<td>${c}</td>`;
+    }).join("");
+    grandTotal += rowTotal;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td style="font-weight:900">${t}</td>${tds}<td style="font-weight:900">${rowTotal}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  const trf = document.createElement("tr");
+  trf.innerHTML =
+    `<td style="font-weight:900">合計</td>` +
+    INJURY_LEVELS.map(l=>`<td style="font-weight:900">${colTotals.get(l)||0}</td>`).join("") +
+    `<td style="font-weight:900">${grandTotal}</td>`;
+  tbody.appendChild(trf);
+
+  table.appendChild(tbody);
+}
+
+async function runStatsByRange(startDate, endDate){
+  // 用 createdAt 做區間統計（不需要 composite index）
+  const q = window.db.collection("qc_incidents")
+    .where("createdAt", ">=", _toTimestamp(startDate))
+    .where("createdAt", "<=", _toTimestamp(endDate));
+
+  const snap = await q.get();
+  const items = [];
+  snap.forEach(d=> items.push(d.data()||{}));
+
+  const total = items.length;
+  const fallTotal = items.filter(x=>x.incidentType==="跌倒").length;
+  const uniqueResidents = new Set(items.map(x=>x.residentId).filter(Boolean)).size;
+  _renderStatsKPIs(total, fallTotal, uniqueResidents);
+
+  // gender
+  const gMap = _countBy(items, x=>_normalizeGender(x.residentGender));
+  const gLabels = Array.from(gMap.keys());
+  const gVals = gLabels.map(k=>gMap.get(k));
+  _destroyChart("gender");
+  _statsCharts.gender = _makePie(document.getElementById("chartGender"), gLabels, gVals);
+
+  // age bands
+  const aMap = _countBy(items, x=>_bandAge(x.residentAge));
+  const aLabels = AGE_BANDS.map(b=>b.label).concat(["未填","其他"]);
+  const aVals = aLabels.map(l=>aMap.get(l)||0);
+  _destroyChart("age");
+  _statsCharts.age = _makeBar(document.getElementById("chartAge"), aLabels, aVals);
+
+  // type top
+  const tMap = _countBy(items, x=>{
+    if (x.incidentType === "其他" && x.incidentTypeOtherText) return `其他（${x.incidentTypeOtherText}）`;
+    return x.incidentType || "未填";
+  });
+  const tTop = _topN(tMap, 12);
+  _destroyChart("type");
+  _statsCharts.type = _makeBar(document.getElementById("chartType"), tTop.map(x=>x[0]), tTop.map(x=>x[1]));
+
+  // fall factors
+  const fallCase = new Map();
+  const fallOther = new Map();
+  const add = (m, k)=> m.set(k, (m.get(k)||0)+1);
+
+  for (const x of items){
+    if (x.incidentType !== "跌倒") continue;
+    const fa = x.fallAnalysis;
+    if (!fa) continue;
+
+    const caseFactors = Array.isArray(fa.caseFactors) ? fa.caseFactors : [];
+    for (const f of caseFactors) add(fallCase, f);
+    if (caseFactors.includes("其他") && (fa.caseFactorsOtherText||"").trim()){
+      add(fallCase, `其他：${(fa.caseFactorsOtherText||"").trim()}`);
+    }
+
+    const env = Array.isArray(fa.environmentFactors) ? fa.environmentFactors : [];
+    const equip = Array.isArray(fa.equipmentFactors) ? fa.equipmentFactors : [];
+    const staff = Array.isArray(fa.staffFactors) ? fa.staffFactors : [];
+    const drug = Array.isArray(fa.drugFactors) ? fa.drugFactors : [];
+
+    env.forEach(f=> add(fallOther, `環境：${f}`));
+    equip.forEach(f=> add(fallOther, `設備：${f}`));
+    staff.forEach(f=> add(fallOther, `人員：${f}`));
+    drug.forEach(f=> add(fallOther, `藥物：${f}`));
+    if ((fa.otherText||"").trim()) add(fallOther, `其他：${(fa.otherText||"").trim()}`);
+  }
+
+  const fcTop = _topN(fallCase, 10);
+  _destroyChart("fallCase");
+  _statsCharts.fallCase = _makeBar(document.getElementById("chartFallCase"), fcTop.map(x=>x[0]), fcTop.map(x=>x[1]));
+
+  const foTop = _topN(fallOther, 12);
+  _destroyChart("fallOther");
+  _statsCharts.fallOther = _makeBar(document.getElementById("chartFallOther"), foTop.map(x=>x[0]), foTop.map(x=>x[1]));
+
+  _buildMatrixTable(items);
+
+  const rangeText = document.getElementById("statsRangeText");
+  if (rangeText) rangeText.textContent = `${_fmtDate(startDate)} ～ ${_fmtDate(endDate)}（${total} 筆）`;
+}
+
+function setStatsPresetThisYear(){
+  const y = currentYear || new Date().getFullYear();
+  const s = new Date(y,0,1,0,0,0,0);
+  const e = _endOfDay(new Date(y,11,31,0,0,0,0));
+  const startEl = document.getElementById("statsStart");
+  const endEl = document.getElementById("statsEnd");
+  if (startEl) startEl.value = _fmtDate(s);
+  if (endEl) endEl.value = _fmtDate(e);
+}
+
+function setStatsPresetLast30(){
+  const now = new Date();
+  const e = _endOfDay(now);
+  const s = new Date(now.getTime() - 29*24*60*60*1000);
+  const startEl = document.getElementById("statsStart");
+  const endEl = document.getElementById("statsEnd");
+  if (startEl) startEl.value = _fmtDate(s);
+  if (endEl) endEl.value = _fmtDate(e);
+}
+
+async function runStatsFromInputs(){
+  const startEl = document.getElementById("statsStart");
+  const endEl = document.getElementById("statsEnd");
+  const btn = document.getElementById("btnStatsRun");
+  if (!startEl || !endEl) return;
+
+  const ds = startEl.value;
+  const de = endEl.value;
+  if (!ds || !de){
+    alert("請選擇統計起訖日期");
+    return;
+  }
+  const start = new Date(ds + "T00:00:00");
+  const end = _endOfDay(new Date(de + "T00:00:00"));
+
+  if (btn) btn.disabled = true;
+  try{
+    await runStatsByRange(start, end);
+  }catch(err){
+    console.error(err);
+    alert(err.message || String(err));
+  }finally{
+    if (btn) btn.disabled = false;
+  }
+}
+
+function initStatsUI(){
+  // 若 Chart.js 沒載入就略過（避免整頁掛掉）
+  if (!window.Chart) {
+    console.warn("[qc] Chart.js not loaded, stats panel disabled");
+    return;
+  }
+
+  const by = document.getElementById("btnStatsThisYear");
+  const b30 = document.getElementById("btnStatsLast30");
+  const br = document.getElementById("btnStatsRun");
+
+  if (by) by.onclick = async ()=>{ setStatsPresetThisYear(); await runStatsFromInputs(); };
+  if (b30) b30.onclick = async ()=>{ setStatsPresetLast30(); await runStatsFromInputs(); };
+  if (br) br.onclick = async ()=>{ await runStatsFromInputs(); };
+
+  setStatsPresetThisYear();
+  // 自動跑一次
+  runStatsFromInputs();
+}
+// ===================== 統計面板 END =====================
