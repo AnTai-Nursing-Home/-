@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>品管｜意外事件系統</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111b2e; --card2:#0f172a; --text:#e5e7eb;
+      --muted:#9ca3af; --line:rgba(255,255,255,.10); --btn:#1f6feb;
+    }
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif}
+    body{margin:0;background:linear-gradient(180deg,#071022,#0b1220);color:var(--text)}
+    .app{width:100vw;height:100vh;display:flex;flex-direction:column}
+    .topbar{
+      flex:0 0 auto; display:flex; align-items:center; gap:12px;
+      padding:14px 16px; border-bottom:1px solid var(--line);
+      background:rgba(0,0,0,.12); backdrop-filter: blur(10px);
+    }
+    .title{font-weight:800;letter-spacing:.5px}
+    .spacer{flex:1}
+    .select, .btn, .input, textarea{
+      border:1px solid var(--line); background:rgba(255,255,255,.06);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      outline:none;
+    }
+    textarea{min-height:90px; resize:vertical}
+    .btn{background:rgba(31,111,235,.22); border-color:rgba(31,111,235,.35); cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .main{flex:1 1 auto; overflow:auto; padding:16px}
+    .grid{display:grid; gap:12px}
+    .months{grid-template-columns: repeat(4, minmax(220px, 1fr));}
+    @media (max-width: 1100px){ .months{grid-template-columns: repeat(2, minmax(220px,1fr));} }
+    @media (max-width: 560px){ .months{grid-template-columns: 1fr;} }
+
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      border:1px solid var(--line); border-radius:18px; padding:14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    .card h3{margin:0 0 8px 0;font-size:16px}
+    .muted{color:var(--muted);font-size:12px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      padding:12px; border-radius:16px; border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+    }
+    .item .meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px;margin-top:6px}
+    .tag{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .hidden{display:none !important;}
+    .hint{font-size:12px;color:#fca5a5;margin-top:4px}
+
+    /* modal */
+    .modalMask{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:flex; align-items:flex-start; justify-content:center;
+      padding:24px; overflow:auto;
+    }
+    .modal{
+      width:min(980px, 100%); border-radius:18px; border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(17,27,46,.98),rgba(15,23,42,.98));
+      box-shadow: 0 24px 70px rgba(0,0,0,.55);
+      padding:16px;
+    }
+    .modalHeader{display:flex;align-items:center;gap:10px}
+    .modalHeader h2{margin:0;font-size:18px}
+    .formGrid{display:grid;grid-template-columns: repeat(2, minmax(0,1fr));gap:12px;margin-top:12px}
+    @media (max-width: 860px){ .formGrid{grid-template-columns:1fr;} }
+    .field{display:flex;flex-direction:column;gap:6px}
+    .label{font-size:12px;color:var(--muted)}
+    .checkGrid{display:grid;grid-template-columns: repeat(3,minmax(0,1fr));gap:8px}
+    @media (max-width: 860px){ .checkGrid{grid-template-columns: repeat(2,minmax(0,1fr));} }
+    .check{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}
+    .divider{height:1px;background:var(--line);margin:12px 0}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title" id="topTitle">品管｜意外事件系統</div>
+      <span class="muted" id="subTitle"></span>
+      <div class="spacer"></div>
+
+      <select class="select" id="yearSelect"></select>
+      <button class="btn hidden" id="btnBack">← 返回月份</button>
+      <button class="btn hidden" id="btnAdd">＋ 新增意外事件</button>
+    </div>
+
+    <div class="main">
+      <div id="viewMonths" class="grid months"></div>
+      <div id="viewIncidents" class="list hidden"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalMask" class="modalMask hidden">
+    <div class="modal">
+      <div class="modalHeader">
+        <h2>新增意外事件</h2>
+        <div class="spacer"></div>
+        <button class="btn" id="btnCloseModal">關閉</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="formGrid">
+        <div class="field">
+          <div class="label">住民姓名（下拉）</div>
+          <select class="select" id="residentSelect"></select>
+          <div class="hint hidden" id="hintResident">請選擇住民</div>
+        </div>
+
+        <div class="field">
+          <div class="label">性別（自動帶入）</div>
+          <input class="input" id="residentGender" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">歲數（自動帶入）</div>
+          <input class="input" id="residentAge" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">診斷類別</div>
+          <select class="select" id="diagnosisCategory">
+            <option value="">請選擇</option>
+            <option value="外科疾病">外科疾病</option>
+            <option value="內科疾病">內科疾病</option>
+            <option value="腦神經性疾病">腦神經性疾病</option>
+          </select>
+          <div class="hint hidden" id="hintDiagCat">請選擇診斷類別</div>
+        </div>
+
+        <div class="field" style="grid-column:1/-1">
+          <div class="label">疾病診斷（自動帶入）</div>
+          <input class="input" id="residentDiagnosis" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">意外事件類別</div>
+          <select class="select" id="incidentType"></select>
+          <div class="hint hidden" id="hintIncidentType">請選擇意外事件類別</div>
+        </div>
+
+        <div class="field hidden" id="incidentOtherWrap">
+          <div class="label">其他（請輸入）</div>
+          <input class="input" id="incidentTypeOtherText" placeholder="請輸入其他意外事件類別" />
+          <div class="hint hidden" id="hintIncidentOther">請輸入其他類別內容</div>
+        </div>
+
+        <div class="field">
+          <div class="label">傷害等級</div>
+          <select class="select" id="injuryLevel">
+            <option value="">請選擇</option>
+            <option value="無傷害">無傷害</option>
+            <option value="第一級">第一級</option>
+            <option value="第二級">第二級</option>
+            <option value="第三級">第三級</option>
+          </select>
+          <div class="hint hidden" id="hintInjury">請選擇傷害等級</div>
+        </div>
+      </div>
+
+      <!-- Fall analysis -->
+      <div id="fallWrap" class="hidden">
+        <div class="divider"></div>
+        <div class="muted">※ 若事件類別為「跌倒」，需填寫原因分析（可複選）</div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="label">個案因素（多選）</div>
+          <div class="checkGrid" id="caseFactors"></div>
+          <div class="field hidden" id="caseOtherWrap" style="margin-top:8px;">
+            <div class="label">個案因素－其他（請輸入）</div>
+            <input class="input" id="caseFactorsOtherText" placeholder="請輸入其他個案因素" />
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label">環境因素（多選）</div>
+          <div class="checkGrid" id="envFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">設備因素（多選）</div>
+          <div class="checkGrid" id="equipFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">人員因素（多選）</div>
+          <div class="checkGrid" id="staffFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">藥物因素（多選）</div>
+          <div class="checkGrid" id="drugFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">其他（自行登打）</div>
+          <input class="input" id="fallOtherText" placeholder="請輸入其他原因" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="muted" id="saveHint"></div>
+        <button class="btn" id="btnSave">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="qc-incident.js"></script>
+</body>
+</html>
