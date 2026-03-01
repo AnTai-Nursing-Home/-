@@ -857,7 +857,7 @@ async function runStatsByRange(startDate, endDate){
   snap.forEach(d=> items.push(d.data()||{}));
 
   // 軟刪除不納入統計
-  const visibleItems = visibleItems.filter(x=>!x.isDeleted);
+  const visibleItems = items.filter(x => !x.isDeleted);
 
   const total = visibleItems.length;
   const fallTotal = visibleItems.filter(x=>x.incidentType==="跌倒").length;
