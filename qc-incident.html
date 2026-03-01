@@ -14,7 +14,7 @@
       --line:rgba(15,23,42,.14);
       --btn:#2563eb;
     }
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif;font-size:16px}
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif;font-size:20px}
     body{margin:0;background:linear-gradient(180deg,#ffffff,var(--bg));color:var(--text)}
     .app{width:100vw;height:100vh;display:flex;flex-direction:column}
     .topbar{
@@ -43,8 +43,8 @@
       border:1px solid var(--line); border-radius:18px; padding:14px;
       box-shadow: 0 10px 24px rgba(15,23,42,.08);
     }
-    .card h3{margin:0 0 8px 0;font-size:18px;font-weight:900}
-    .muted{color:var(--muted);font-size:14px}
+    .card h3{margin:0 0 8px 0;font-size:20px;font-weight:900}
+    .muted{color:var(--muted);font-size:16px}
     .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .list{display:flex;flex-direction:column;gap:10px}
     .item{
@@ -69,7 +69,7 @@
       padding:16px;
     }
     .modalHeader{display:flex;align-items:center;gap:10px}
-    .modalHeader h2{margin:0;font-size:18px}
+    .modalHeader h2{margin:0;font-size:20px}
     .formGrid{display:grid;grid-template-columns: repeat(2, minmax(0,1fr));gap:12px;margin-top:12px}
     @media (max-width: 860px){ .formGrid{grid-template-columns:1fr;} }
     .field{display:flex;flex-direction:column;gap:6px}
@@ -97,6 +97,21 @@
 .btn-back:hover{
   background:rgba(37,99,235,.20);
   transform:translateY(-1px);
+}
+
+
+
+/* 放大內文 */
+.card, .item, .muted, label, select, input, button {
+  font-size:18px !important;
+}
+
+.card h3{
+  font-size:22px !important;
+}
+
+.empty, .list-empty{
+  font-size:20px !important;
 }
 
 </style>
