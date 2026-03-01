@@ -7,31 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const countTotal = document.getElementById('count-total');
   const rangeHint = document.getElementById('range-hint');
 
-
-  function getLoginUser(){
-    // 盡量沿用其他系統的登入儲存格式（住民管理/員工系統等）
-    const candidates = [
-      {store: sessionStorage, key: 'antai_session_user'},
-      {store: localStorage,  key: 'antai_session_user'},
-      // 兼容：你其他頁可能用的鍵
-      {store: sessionStorage, key: 'currentUser'},
-      {store: localStorage,  key: 'currentUser'},
-      {store: sessionStorage, key: 'loginUser'},
-      {store: localStorage,  key: 'loginUser'},
-    ];
-    for (const c of candidates){
-      try{
-        const raw = c.store.getItem(c.key);
-        if(!raw) continue;
-        const u = JSON.parse(raw);
-        const empNo = String(u?.staffId || u?.empNo || u?.username || u?.id || '').trim();
-        const name  = String(u?.displayName || u?.name || u?.staffName || '').trim();
-        if(empNo || name) return { empNo, name, raw: u, key: c.key };
-      }catch(e){}
-    }
-    return { empNo: '', name: '', raw: null, key: '' };
-  }
-
   function todayStr() { return new Date().toISOString().split('T')[0]; }
   function addDays(dateStr, n) {
     const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n);
@@ -267,17 +242,21 @@ document.addEventListener('DOMContentLoaded', () => {
   
   if (printBtn) {
     printBtn.addEventListener('click', () => {
-      const footer = document.getElementById('print-footer');
-      const u = getLoginUser();
-      if (footer) {
-        const label = [u.empNo, u.name].filter(Boolean).join(' ');
-        footer.textContent = label ? `列印人: ${label}` : '列印人:（未登入）';
-      }
+      setPrintFooter();
       window.print();
     });
   }
-if (filterDate) filterDate.addEventListener('change', displayBookings);
+);
+  }
+
+  if (filterDate) filterDate.addEventListener('change', displayBookings);
   if (filterResident) filterResident.addEventListener('change', displayBookings);
+
+  // 支援使用者直接 Ctrl+P / 系統列印：也要補上列印人
+  window.addEventListener('beforeprint', () => {
+    try{ setPrintFooter(); }catch(e){}
+  });
+
 
   // 刪除
   bookingListContainer.addEventListener('click', async (e) => {
