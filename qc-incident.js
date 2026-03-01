@@ -182,7 +182,14 @@ async function countIncidentsOfMonth(year, month){
     .where("occurYear","==",year)
     .where("occurMonth","==",month)
     .get();
-  return snap.size;
+
+  // 軟刪除（isDeleted）不計入
+  let n = 0;
+  snap.forEach(doc=>{
+    const d = doc.data() || {};
+    if (!d.isDeleted) n++;
+  });
+  return n;
 }
 
 async function renderMonths(){
@@ -381,6 +388,40 @@ function closeModal(){
   $("modalMask").classList.add("hidden");
 }
 
+
+async function softDeleteIncident(docId){
+  ensureCurrentUser();
+  if (!docId) return;
+
+  const ok = confirm("確定要刪除此筆案件單嗎？\n\n建議：此為「軟刪除」，系統會隱藏該筆資料，但仍保留紀錄以利稽核。");
+  if (!ok) return;
+
+  try{
+    await window.db.collection("qc_incidents").doc(docId).set({
+      isDeleted: true,
+      deletedAt: serverTimestamp(),
+      deletedBy: {
+        uid: window.CurrentUser.uid,
+        name: window.CurrentUser.name || "",
+        role: window.CurrentUser.role || ""
+      },
+      updatedAt: serverTimestamp(),
+      updatedBy: {
+        uid: window.CurrentUser.uid,
+        name: window.CurrentUser.name || "",
+        role: window.CurrentUser.role || ""
+      }
+    }, { merge: true });
+
+    // 重新整理列表與月份數字
+    await renderIncidents();
+    try{ if (!currentMonth) renderMonths(); }catch(_e){}
+  }catch(err){
+    console.error("[qc_incidents] delete failed", err);
+    alert("刪除失敗：" + (err.message || err));
+  }
+}
+
 async function renderIncidents(){
   const box = $("viewIncidents");
   box.innerHTML = `<div class="muted">讀取中...</div>`;
@@ -398,8 +439,15 @@ async function renderIncidents(){
   }
 
   box.innerHTML = "";
+  let shown = 0;
+
   snap.forEach(doc=>{
     const d = doc.data() || {};
+    // 軟刪除資料預設不顯示
+    if (d.isDeleted) return;
+
+    shown++;
+
     const name = d.residentName || "(未填)";
     const gender = d.residentGender || "";
     const age = (d.residentAge ?? "") !== "" ? `${d.residentAge}歲` : "";
@@ -415,6 +463,7 @@ async function renderIncidents(){
     const el = document.createElement("div");
     el.className = "item";
     const typeLabel = type ? `${type}${other}` : "";
+
     el.innerHTML = `
       <div class="row">
         <div class="nameWrap">
@@ -424,8 +473,13 @@ async function renderIncidents(){
           </div>
           <div class="subLine muted">${gender ? `${gender}`:""}${(gender && age) ? "｜":""}${age ? `${age}`:""}</div>
         </div>
-        <div class="muted">${creator ? `填報：${creator}`:""}</div>
+
+        <div class="row" style="gap:10px; justify-content:flex-end;">
+          <div class="muted">${creator ? `填報：${creator}`:""}</div>
+          <button class="btn btn-danger" type="button" data-del="${doc.id}">刪除</button>
+        </div>
       </div>
+
       <div class="metaGrid">
         ${diagCat ? `<div class="metaBlock">
             <div class="metaTitle">診斷類別</div>
@@ -445,8 +499,19 @@ async function renderIncidents(){
         </div>`:""}
       </div>
     `;
+
+    // 綁定刪除
+    const delBtn = el.querySelector("[data-del]");
+    if (delBtn){
+      delBtn.onclick = ()=> softDeleteIncident(delBtn.getAttribute("data-del"));
+    }
+
     box.appendChild(el);
   });
+
+  if (shown === 0){
+    box.innerHTML = `<div class="card"><div class="muted">本月目前沒有可顯示的案件（可能都已刪除）。</div></div>`;
+  }
 }
 
 function validateForm(){
@@ -672,9 +737,9 @@ function _bandAge(age){
   return "其他";
 }
 
-function _countBy(items, keyFn){
+function _countBy(visibleItems, keyFn){
   const m = new Map();
-  for (const x of items){
+  for (const x of visibleItems){
     const k = keyFn(x);
     m.set(k, (m.get(k)||0)+1);
   }
@@ -735,7 +800,7 @@ function _buildMatrixTable(items){
 
   // type -> injury -> count
   const matrix = new Map();
-  for (const x of items){
+  for (const x of visibleItems){
     const type = (x.incidentType === "其他" && x.incidentTypeOtherText) ? `其他（${x.incidentTypeOtherText}）` : (x.incidentType || "未填");
     const injury = x.injuryLevel || "未填";
     if (!matrix.has(type)) matrix.set(type, new Map());
@@ -791,27 +856,30 @@ async function runStatsByRange(startDate, endDate){
   const items = [];
   snap.forEach(d=> items.push(d.data()||{}));
 
-  const total = items.length;
-  const fallTotal = items.filter(x=>x.incidentType==="跌倒").length;
-  const uniqueResidents = new Set(items.map(x=>x.residentId).filter(Boolean)).size;
+  // 軟刪除不納入統計
+  const visibleItems = visibleItems.filter(x=>!x.isDeleted);
+
+  const total = visibleItems.length;
+  const fallTotal = visibleItems.filter(x=>x.incidentType==="跌倒").length;
+  const uniqueResidents = new Set(visibleItems.map(x=>x.residentId).filter(Boolean)).size;
   _renderStatsKPIs(total, fallTotal, uniqueResidents);
 
   // gender
-  const gMap = _countBy(items, x=>_normalizeGender(x.residentGender));
+  const gMap = _countBy(visibleItems, x=>_normalizeGender(x.residentGender));
   const gLabels = Array.from(gMap.keys());
   const gVals = gLabels.map(k=>gMap.get(k));
   _destroyChart("gender");
   _statsCharts.gender = _makePie(document.getElementById("chartGender"), gLabels, gVals);
 
   // age bands
-  const aMap = _countBy(items, x=>_bandAge(x.residentAge));
+  const aMap = _countBy(visibleItems, x=>_bandAge(x.residentAge));
   const aLabels = AGE_BANDS.map(b=>b.label).concat(["未填","其他"]);
   const aVals = aLabels.map(l=>aMap.get(l)||0);
   _destroyChart("age");
   _statsCharts.age = _makeBar(document.getElementById("chartAge"), aLabels, aVals);
 
   // type top
-  const tMap = _countBy(items, x=>{
+  const tMap = _countBy(visibleItems, x=>{
     if (x.incidentType === "其他" && x.incidentTypeOtherText) return `其他（${x.incidentTypeOtherText}）`;
     return x.incidentType || "未填";
   });
@@ -824,7 +892,7 @@ async function runStatsByRange(startDate, endDate){
   const fallOther = new Map();
   const add = (m, k)=> m.set(k, (m.get(k)||0)+1);
 
-  for (const x of items){
+  for (const x of visibleItems){
     if (x.incidentType !== "跌倒") continue;
     const fa = x.fallAnalysis;
     if (!fa) continue;
@@ -855,7 +923,7 @@ async function runStatsByRange(startDate, endDate){
   _destroyChart("fallOther");
   _statsCharts.fallOther = _makeBar(document.getElementById("chartFallOther"), foTop.map(x=>x[0]), foTop.map(x=>x[1]));
 
-  _buildMatrixTable(items);
+  _buildMatrixTable(visibleItems);
 
   const rangeText = document.getElementById("statsRangeText");
   if (rangeText) rangeText.textContent = `${_fmtDate(startDate)} ～ ${_fmtDate(endDate)}（${total} 筆）`;
