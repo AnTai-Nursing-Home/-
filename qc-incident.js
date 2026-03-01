@@ -87,6 +87,19 @@ function serverTimestamp(){
   return window.firebase.firestore.FieldValue.serverTimestamp();
 }
 
+
+function bedSortKey(bed){
+  const s = String(bed || "").trim();
+  if (!s) return [999999, 999999, ""];
+  // 常見格式：201-1、219-2；也可能只有 201
+  const parts = s.split("-");
+  const room = parseInt(parts[0], 10);
+  const sub = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+  const roomKey = Number.isFinite(room) ? room : 999999;
+  const subKey = Number.isFinite(sub) ? sub : 999999;
+  return [roomKey, subKey, s];
+}
+
 function calcAgeFromBirthday(birthday){
   if (!birthday) return "";
   // birthday 可能是 "YYYY-MM-DD" 或 Timestamp
@@ -214,28 +227,63 @@ async function loadResidents(){
       name,
       gender: d.gender || "",
       birthday: d.birthday || d.birthDate || "",
-      diagnosis: d.diagnosis || ""
+      diagnosis: d.diagnosis || "",
+      bedNumber: d.bedNumber || d.bed || ""
     });
   });
-  list.sort((a,b)=> (a.name||"").localeCompare(b.name||"", "zh-Hant"));
+  list.sort((a,b)=>{
+  const ka = bedSortKey(a.bedNumber);
+  const kb = bedSortKey(b.bedNumber);
+  // 先比床號，再比名字
+  if (ka[0]!==kb[0]) return ka[0]-kb[0];
+  if (ka[1]!==kb[1]) return ka[1]-kb[1];
+  if (ka[2]!==kb[2]) return ka[2].localeCompare(kb[2]);
+  return (a.name||"").localeCompare(b.name||"", "zh-Hant");
+});
   residentsCache = list;
 }
 
 function buildResidentSelect(){
   const sel = $("residentSelect");
   sel.innerHTML = `<option value="">請選擇住民</option>`;
+
   for (const r of residentsCache){
     const opt = document.createElement("option");
     opt.value = r.id;
-    opt.textContent = r.name;
+    const bed = (r.bedNumber || "").trim();
+    const fullLabel = bed ? `${bed} ${r.name}` : r.name;
+    opt.textContent = fullLabel;
+    // 用 dataset 保存「完整顯示」與「選定後僅姓名」
+    opt.dataset.fullLabel = fullLabel;
+    opt.dataset.nameLabel = r.name;
     sel.appendChild(opt);
   }
+
+  const restoreFullLabels = () => {
+    for (const opt of sel.options){
+      if (!opt.value) continue; // placeholder
+      if (opt.dataset.fullLabel) opt.textContent = opt.dataset.fullLabel;
+    }
+  };
+
+  const showSelectedNameOnly = () => {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.value && opt.dataset.nameLabel){
+      opt.textContent = opt.dataset.nameLabel;
+    }
+  };
+
+  sel.addEventListener("focus", restoreFullLabels);
+  sel.addEventListener("click", restoreFullLabels);
+
   sel.onchange = () => {
     const rid = sel.value;
     const r = residentsCache.find(x=>x.id===rid);
     $("residentGender").value = r?.gender || "";
     $("residentAge").value = r ? String(calcAgeFromBirthday(r.birthday) ?? "") : "";
     $("residentDiagnosis").value = r?.diagnosis || "";
+    // 點選後，欄位只顯示姓名
+    showSelectedNameOnly();
   };
 }
 
