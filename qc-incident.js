@@ -954,6 +954,10 @@ function setTab(tab){
   if (tab==="stats") {
     initStatsUI();
   }
+  // 若回到案件單且已有選定月份，重新渲染
+  if (tab === "cases" && currentMonth) {
+    renderIncidents();
+  }
 }
 
 function initTabs(){
