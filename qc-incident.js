@@ -134,6 +134,8 @@ function showMonthsView(){
   $("viewIncidents").classList.add("hidden");
   $("viewMonths").classList.remove("hidden");
   setTopTitle();
+  // ✅ 確保 UI 顯示狀態與目前分頁一致（避免先前在「統計」分頁導致 cases 的 view 被設為 display:none）
+  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
   renderMonths();
   // 統計面板（月份頁）
   initStatsUI();
@@ -146,6 +148,9 @@ async function showMonthDetail(month){
   $("viewMonths").classList.add("hidden");
   $("viewIncidents").classList.remove("hidden");
   setTopTitle();
+  // ✅ 強制切回「案件單」分頁，並同步 setTab 的 display 控制
+  //    這能修正：進入月份後畫面空白，必須先點統計再回案件單才會顯示的問題。
+  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
   await renderIncidents();
 }
 
@@ -953,10 +958,6 @@ function setTab(tab){
   // 統計 tab 需要確保 charts 會初始化
   if (tab==="stats") {
     initStatsUI();
-  }
-  // 若回到案件單且已有選定月份，重新渲染
-  if (tab === "cases" && currentMonth) {
-    renderIncidents();
   }
 }
 
