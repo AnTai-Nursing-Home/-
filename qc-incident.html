@@ -78,11 +78,35 @@
     @media (max-width: 860px){ .checkGrid{grid-template-columns: repeat(2,minmax(0,1fr));} }
     .check{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}
     .divider{height:1px;background:var(--line);margin:12px 0}
-  </style>
+  
+.btn-back{
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid rgba(37,99,235,.35);
+  background:rgba(37,99,235,.12);
+  color:#1e3a8a;
+  font-weight:800;
+  transition:all .2s ease;
+  margin-right:10px;
+}
+
+.btn-back:hover{
+  background:rgba(37,99,235,.20);
+  transform:translateY(-1px);
+}
+
+</style>
 </head>
 <body>
   <div class="app">
     <div class="topbar">
+      <a href="office.html?view=dashboard" class="btn-back">
+        ← 返回儀表板
+      </a>
       <div class="title" id="topTitle">品管｜意外事件系統</div>
       <span class="muted" id="subTitle"></span>
       <div class="spacer"></div>
