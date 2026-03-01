@@ -409,15 +409,21 @@ async function renderIncidents(){
 
     const el = document.createElement("div");
     el.className = "item";
+    const typeLabel = type ? `${type}${other}` : "";
     el.innerHTML = `
       <div class="row">
-        <div style="font-weight:800">${name} <span class="muted">${gender ? `｜${gender}`:""} ${age ? `｜${age}`:""}</span></div>
+        <div class="nameWrap">
+          <div class="nameLine">
+            <span class="nameText">${name}</span>
+            ${typeLabel ? `<span class="typeBadge">${typeLabel}</span>`:""}
+          </div>
+          <div class="subLine muted">${gender ? `${gender}`:""}${(gender && age) ? "｜":""}${age ? `${age}`:""}</div>
+        </div>
         <div class="muted">${creator ? `填報：${creator}`:""}</div>
       </div>
       <div class="meta">
         ${diagCat ? `<span class="tag">${diagCat}</span>`:""}
         ${diag ? `<span class="tag">${diag}</span>`:""}
-        ${type ? `<span class="tag">${type}${other}</span>`:""}
         ${injury ? `<span class="tag">${injury}</span>`:""}
         ${fallTag ? `<span class="tag">${fallTag}</span>`:""}
       </div>
@@ -600,11 +606,13 @@ window.addEventListener("DOMContentLoaded", boot);
 
 // ===================== 統計面板（同頁整合） =====================
 const AGE_BANDS = [
-  { label:"0–64", min:0, max:64 },
-  { label:"65–74", min:65, max:74 },
-  { label:"75–84", min:75, max:84 },
-  { label:"85–94", min:85, max:94 },
-  { label:"95+", min:95, max:200 },
+  { label:"31–40", min:31, max:40 },
+  { label:"41–50", min:41, max:50 },
+  { label:"51–60", min:51, max:60 },
+  { label:"61–70", min:61, max:70 },
+  { label:"71–80", min:71, max:80 },
+  { label:"81–90", min:81, max:90 },
+  { label:"91+", min:91, max:200 },
 ];
 const INJURY_LEVELS = ["無傷害","第一級","第二級","第三級","未填"];
 
