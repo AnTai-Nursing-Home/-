@@ -6,26 +6,31 @@
   <title>品管｜意外事件系統</title>
   <style>
     :root{
-      --bg:#0b1220; --card:#111b2e; --card2:#0f172a; --text:#e5e7eb;
-      --muted:#9ca3af; --line:rgba(255,255,255,.10); --btn:#1f6feb;
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --card2:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --line:rgba(15,23,42,.14);
+      --btn:#2563eb;
     }
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif}
-    body{margin:0;background:linear-gradient(180deg,#071022,#0b1220);color:var(--text)}
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif;font-size:16px}
+    body{margin:0;background:linear-gradient(180deg,#ffffff,var(--bg));color:var(--text)}
     .app{width:100vw;height:100vh;display:flex;flex-direction:column}
     .topbar{
       flex:0 0 auto; display:flex; align-items:center; gap:12px;
       padding:14px 16px; border-bottom:1px solid var(--line);
-      background:rgba(0,0,0,.12); backdrop-filter: blur(10px);
+      background:rgba(255,255,255,.78); backdrop-filter: blur(10px);
     }
-    .title{font-weight:800;letter-spacing:.5px}
+    .title{font-weight:900;letter-spacing:.5px;font-size:20px}
     .spacer{flex:1}
     .select, .btn, .input, textarea{
-      border:1px solid var(--line); background:rgba(255,255,255,.06);
+      border:1px solid var(--line); background:#ffffff;
       color:var(--text); padding:10px 12px; border-radius:12px;
       outline:none;
     }
     textarea{min-height:90px; resize:vertical}
-    .btn{background:rgba(31,111,235,.22); border-color:rgba(31,111,235,.35); cursor:pointer}
+    .btn{background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.35); cursor:pointer; font-weight:800}
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .main{flex:1 1 auto; overflow:auto; padding:16px}
     .grid{display:grid; gap:12px}
@@ -34,17 +39,17 @@
     @media (max-width: 560px){ .months{grid-template-columns: 1fr;} }
 
     .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      background:linear-gradient(180deg,#ffffff,#f8fafc);
       border:1px solid var(--line); border-radius:18px; padding:14px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
     }
-    .card h3{margin:0 0 8px 0;font-size:16px}
-    .muted{color:var(--muted);font-size:12px}
+    .card h3{margin:0 0 8px 0;font-size:18px;font-weight:900}
+    .muted{color:var(--muted);font-size:14px}
     .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .list{display:flex;flex-direction:column;gap:10px}
     .item{
       padding:12px; border-radius:16px; border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
+      background:#ffffff;
     }
     .item .meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px;margin-top:6px}
     .tag{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
@@ -59,8 +64,8 @@
     }
     .modal{
       width:min(980px, 100%); border-radius:18px; border:1px solid var(--line);
-      background:linear-gradient(180deg,rgba(17,27,46,.98),rgba(15,23,42,.98));
-      box-shadow: 0 24px 70px rgba(0,0,0,.55);
+      background:linear-gradient(180deg,#ffffff,#f8fafc);
+      box-shadow: 0 24px 70px rgba(15,23,42,.18);
       padding:16px;
     }
     .modalHeader{display:flex;align-items:center;gap:10px}
