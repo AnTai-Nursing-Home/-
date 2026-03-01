@@ -510,9 +510,35 @@ async function init(){
   showMonthsView();
 }
 
-document.addEventListener("firebase-ready", ()=>{
-  init().catch(err=>{
-    console.error(err);
-    alert(err.message || String(err));
-  });
-});
+function boot(){
+  // 若 firebase-init 已完成（window.db 已存在）就直接啟動
+  try{
+    if (window.db) {
+      init().catch(err=>{
+        console.error(err);
+        alert(err.message || String(err));
+      });
+      return;
+    }
+  }catch(_e){}
+
+  // 否則等待 firebase-ready
+  document.addEventListener("firebase-ready", () => {
+    init().catch(err=>{
+      console.error(err);
+      alert(err.message || String(err));
+    });
+  }, { once: true });
+
+  // 保險：若 8 秒內仍沒拿到 db，給提示（避免畫面空空）
+  setTimeout(() => {
+    if (!window.db) {
+      console.warn("[qc] window.db 尚未就緒，請確認 qc-incident.html 有先載入 firebase-init.js，且路徑正確。");
+      // 不強制 alert，避免一直跳；但若你想要可打開下一行
+      // alert("尚未連線到資料庫：請確認已載入 firebase-init.js（且在本檔案之前）");
+    }
+  }, 8000);
+}
+
+window.addEventListener("DOMContentLoaded", boot);
+
