@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterDate = document.getElementById('filter-date');
   const filterResident = document.getElementById('filter-resident');
   const countTotal = document.getElementById('count-total');
+  const rangeHint = document.getElementById('range-hint');
 
   function todayStr() { return new Date().toISOString().split('T')[0]; }
   function addDays(dateStr, n) {
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const set = new Set();
     rows.forEach(r => { if (r.residentName) set.add(r.residentName); });
     const names = Array.from(set).sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant-u-kn-true'));
+
     // 清空保留第一個「全部住民」
     while (filterResident.options.length > 1) filterResident.remove(1);
     names.forEach(n => {
@@ -70,9 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return {floor,pos};
   }
 
+  function safeId(s){
+    return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  }
+
   function render(rows) {
     if (!rows || rows.length === 0) {
-      bookingListContainer.innerHTML = '<p class="text-center">目前沒有未來或今日的預約紀錄。</p>';
+      bookingListContainer.innerHTML = `
+        <div class="state-card">
+          <i class="fa-regular fa-calendar-xmark"></i>
+          <div class="fw-bold mb-1">目前沒有未來或今日的預約紀錄</div>
+          <div class="small">你可以切換「日期篩選 / 住民篩選」再確認一次</div>
+        </div>`;
       countTotal.textContent = 0;
       return;
     }
@@ -84,14 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!byDate[k]) byDate[k] = [];
       byDate[k].push(b);
     });
+
     const dates = Object.keys(byDate).sort();
-    let html = '';
     let total = 0;
 
-    dates.forEach(date => {
+    let html = `<div class="accordion" id="bookingAccordion">`;
+
+    dates.forEach((date, idx) => {
       const list = byDate[date];
       total += list.length;
-      html += `<h4 class="mt-4 mb-2">${date}</h4>`;
 
       // group by time within this date
       const byTime = {};
@@ -102,17 +114,26 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const times = Object.keys(byTime).sort();
 
-      html += `<table class="table table-bordered table-striped table-hover">
-        <thead class="table-light">
-          <tr>
-            <th style="width:90px">時段</th>
-            <th>住民姓名</th>
-            <th style="width:120px">床號</th>
-            <th>與住民關係</th>
-            <th style="width:100px;" class="no-print">操作</th>
-          </tr>
-        </thead>
-        <tbody>`;
+      const accId = `acc-${safeId(date)}-${idx}`;
+      const collapseId = `col-${safeId(date)}-${idx}`;
+
+      html += `
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="${accId}">
+            <button class="accordion-button ${idx === 0 ? '' : 'collapsed'}" type="button"
+              data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+              aria-expanded="${idx === 0 ? 'true' : 'false'}" aria-controls="${collapseId}">
+              <div class="d-flex align-items-center justify-content-between w-100 pe-2">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="fa-regular fa-calendar"></i>
+                  <span>${date}</span>
+                </div>
+                <span class="badge bg-secondary">${list.length} 筆</span>
+              </div>
+            </button>
+          </h2>
+          <div id="${collapseId}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" aria-labelledby="${accId}" data-bs-parent="#bookingAccordion">
+            <div class="accordion-body">`;
 
       times.forEach(time => {
         const items = byTime[time].slice().sort((a,b)=>{
@@ -122,31 +143,62 @@ document.addEventListener('DOMContentLoaded', () => {
           return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
         });
 
-        // subheader row for the time slot
-        html += `<tr class="slot-header">
-          <td colspan="5"><strong>${time}</strong>（${items.length} 筆）</td>
-        </tr>`;
+        html += `
+          <div class="slot-card">
+            <div class="slot-head">
+              <div>
+                <div class="slot-time"><i class="fa-regular fa-clock me-1"></i>${time}</div>
+                <div class="slot-meta">${items.length} 筆｜床號排序</div>
+              </div>
+              <span class="badge bg-light text-dark" style="border-radius:999px;border:1px solid rgba(17,24,39,.08);">時段</span>
+            </div>
+            <div class="list-group list-group-flush">`;
 
         items.forEach(b => {
-          html += `<tr>
-            <td>${time}</td>
-            <td>${b.residentName || ''}</td>
-            <td>${b.bedNumber || ''}</td>
-            <td>${b.visitorRelationship || '未填寫'}</td>
-            <td class="no-print"><button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">刪除</button></td>
-          </tr>`;
+          const rel = b.visitorRelationship || '未填寫';
+          const bed = b.bedNumber || '';
+          const name = b.residentName || '';
+          html += `
+              <div class="list-group-item">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <div class="me-auto">
+                    <div class="name">${name}</div>
+                    <div class="meta">
+                      <span class="badge badge-bed me-1">${bed || '床號未填'}</span>
+                      <span><i class="fa-solid fa-people-arrows me-1"></i>${rel}</span>
+                    </div>
+                  </div>
+                  <div class="no-print">
+                    <button class="btn btn-sm btn-danger btn-admin-delete" data-id="${b.id}">
+                      <i class="fa-solid fa-trash-can me-1"></i>刪除
+                    </button>
+                  </div>
+                </div>
+              </div>`;
         });
+
+        html += `
+            </div>
+          </div>`;
       });
 
-      html += `</tbody></table>`;
+      html += `</div></div></div>`;
     });
+
+    html += `</div>`;
 
     bookingListContainer.innerHTML = html;
     countTotal.textContent = total;
   }
 
   async function displayBookings() {
-    bookingListContainer.innerHTML = '讀取中...';
+    bookingListContainer.innerHTML = `
+      <div class="state-card">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <div class="fw-bold">讀取中...</div>
+        <div class="small">正在取得今日（含）以後的預約資料</div>
+      </div>`;
+
     try {
       const raw = await loadRawRows();
 
@@ -156,6 +208,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const who = filterResident.value || 'all';
       let rows = raw.filter(r => inDateRange(r, mode));
       if (who !== 'all') rows = rows.filter(r => r.residentName === who);
+
+      // hint
+      if (rangeHint) {
+        if (mode === 'today') rangeHint.textContent = '僅顯示今天';
+        else if (mode === 'tomorrow') rangeHint.textContent = '僅顯示明天';
+        else if (mode === 'week') rangeHint.textContent = '僅顯示本週（週一至週日）';
+        else rangeHint.textContent = '僅顯示今日（含）以後';
+      }
 
       // Sort by date -> time -> bed -> resident
       rows.sort((a,b)=>{
