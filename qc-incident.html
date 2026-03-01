@@ -158,6 +158,45 @@
       white-space:nowrap;
     }
 
+  
+    /* ===== 分頁 Tabs ===== */
+    .tabs{display:flex; gap:8px; align-items:center; margin-left:10px}
+    .tab{
+      border:1px solid var(--line);
+      background:#fff;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:900;
+      cursor:pointer;
+      color:var(--muted);
+    }
+    .tab.active{
+      border-color:rgba(37,99,235,.35);
+      background:rgba(37,99,235,.12);
+      color:#1e3a8a;
+    }
+
+    /* ===== 事件詳細資訊區塊標題 ===== */
+    .metaGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    .metaBlock{
+      background:#f8fafc;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #e2e8f0;
+    }
+    .metaTitle{
+      font-size:14px;
+      font-weight:900;
+      color:#475569;
+      margin-bottom:6px;
+      letter-spacing:.5px;
+    }
+
   </style>
 </head>
 <body>
@@ -168,6 +207,12 @@
       </a>
       <div class="title" id="topTitle">品管｜意外事件系統</div>
       <span class="muted" id="subTitle"></span>
+
+      <div class="tabs" role="tablist" aria-label="意外事件分頁">
+        <button class="tab active" id="tabBtnCases" type="button">案件單</button>
+        <button class="tab" id="tabBtnStats" type="button">統計</button>
+      </div>
+
       <div class="spacer"></div>
 
       <select class="select" id="yearSelect"></select>
@@ -178,7 +223,7 @@
     <div class="main">
 
       <!-- 統計面板（同頁整合，可滾動） -->
-      <div id="statsPanel" class="card stats">
+      <div id="statsPanel" class="card stats" style="display:none">
         <div class="row" style="justify-content:space-between; align-items:flex-start;">
           <div>
             <h3 style="margin-bottom:6px;">年度/區間統計</h3>
