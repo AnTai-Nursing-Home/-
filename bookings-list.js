@@ -7,6 +7,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const countTotal = document.getElementById('count-total');
   const rangeHint = document.getElementById('range-hint');
 
+
+  function getLoginUser(){
+    // 沿用其他系統常見的登入儲存格式（住民管理/員工系統等）
+    const candidates = [
+      {store: sessionStorage, key: 'antai_session_user'},
+      {store: localStorage,  key: 'antai_session_user'},
+      // 兼容：其他頁可能使用的鍵
+      {store: sessionStorage, key: 'currentUser'},
+      {store: localStorage,  key: 'currentUser'},
+      {store: sessionStorage, key: 'loginUser'},
+      {store: localStorage,  key: 'loginUser'},
+    ];
+    for (const c of candidates){
+      try{
+        const raw = c.store.getItem(c.key);
+        if(!raw) continue;
+        const u = JSON.parse(raw);
+        const empNo = String(u?.staffId || u?.empNo || u?.username || u?.id || '').trim();
+        const name  = String(u?.displayName || u?.name || u?.staffName || '').trim();
+        if(empNo || name) return { empNo, name };
+      }catch(e){}
+    }
+    return { empNo: '', name: '' };
+  }
+
+  function setPrintFooter(){
+    const footer = document.getElementById('print-footer');
+    if(!footer) return;
+    const u = getLoginUser();
+    const label = [u.empNo, u.name].filter(Boolean).join(' ');
+    footer.textContent = label ? `列印人: ${label}` : '列印人:（未登入）';
+  }
+
   function todayStr() { return new Date().toISOString().split('T')[0]; }
   function addDays(dateStr, n) {
     const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n);
@@ -245,8 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setPrintFooter();
       window.print();
     });
-  }
-);
   }
 
   if (filterDate) filterDate.addEventListener('change', displayBookings);
