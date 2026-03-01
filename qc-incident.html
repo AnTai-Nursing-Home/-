@@ -213,8 +213,17 @@
     </div>
   </div>
 
+  <!-- Firebase SDK（一定要先載入 app，再載入 firestore / storage） -->
+  <!-- 你全站若已經有載入 Firebase SDK，這三行可以刪掉，避免重複 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <!-- Firebase 初始化（會設定 window.db / window.storage，並發出 firebase-ready） -->
   <script src="firebase-init.js"></script>
+
+  <!-- 意外事件系統 -->
   <script src="qc-incident.js"></script>
+
 </body>
 </html>
