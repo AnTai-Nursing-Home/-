@@ -162,9 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="list-group-item">
                 <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                   <div class="me-auto">
-                    <div class="name">${name}</div>
+                    <div class="name">
+                      ${name}
+                      <span class="badge badge-bed">${bed || '床號未填'}</span>
+                    </div>
                     <div class="meta">
-                      <span class="badge badge-bed me-1">${bed || '床號未填'}</span>
                       <span><i class="fa-solid fa-people-arrows me-1"></i>${rel}</span>
                     </div>
                   </div>
