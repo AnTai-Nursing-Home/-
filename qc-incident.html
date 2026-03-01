@@ -114,7 +114,31 @@
   font-size:20px !important;
 }
 
-</style>
+
+    /* ===== 統計面板 ===== */
+    .stats{margin-bottom:12px}
+    .statsGrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      gap:12px;
+      align-items:stretch;
+    }
+    .chartBox{height:320px}
+    .chartBox canvas{width:100% !important; height:100% !important;}
+    table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden}
+    th,td{padding:10px 10px; border-bottom:1px solid var(--line); text-align:left; font-size:16px}
+    th{font-weight:900; background:#f8fafc}
+    tr:last-child td{border-bottom:none}
+    .kpi{display:flex; gap:10px; flex-wrap:wrap}
+    .kpi .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      font-weight:900;
+    }
+
+  </style>
 </head>
 <body>
   <div class="app">
@@ -132,6 +156,62 @@
     </div>
 
     <div class="main">
+
+      <!-- 統計面板（同頁整合，可滾動） -->
+      <div id="statsPanel" class="card stats">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h3 style="margin-bottom:6px;">年度/區間統計</h3>
+            <div class="muted" id="statsRangeText">—</div>
+            <div class="muted" style="margin-top:4px;">註：目前以「填報時間 createdAt」做區間統計。</div>
+          </div>
+
+          <div class="row" style="gap:8px; justify-content:flex-end;">
+            <label class="muted">起</label>
+            <input class="input" type="date" id="statsStart" />
+            <label class="muted">迄</label>
+            <input class="input" type="date" id="statsEnd" />
+            <button class="btn" id="btnStatsThisYear">今年</button>
+            <button class="btn" id="btnStatsLast30">近30天</button>
+            <button class="btn" id="btnStatsRun">套用</button>
+          </div>
+        </div>
+
+        <div class="kpi" id="statsKpiRow" style="margin-top:10px;"></div>
+
+        <div class="grid statsGrid" style="margin-top:12px;">
+          <div class="card" style="grid-column: span 4;">
+            <h3>性別分布</h3>
+            <div class="chartBox"><canvas id="chartGender"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 4;">
+            <h3>年齡區間</h3>
+            <div class="chartBox"><canvas id="chartAge"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 4;">
+            <h3>事件類別（Top 12）</h3>
+            <div class="chartBox"><canvas id="chartType"></canvas></div>
+          </div>
+
+          <div class="card" style="grid-column: span 6;">
+            <h3>跌倒原因（個案因素 Top 10）</h3>
+            <div class="chartBox"><canvas id="chartFallCase"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 6;">
+            <h3>跌倒原因（環境/設備/人員/藥物 Top 12）</h3>
+            <div class="chartBox"><canvas id="chartFallOther"></canvas></div>
+          </div>
+
+          <div class="card" style="grid-column: span 12;">
+            <h3>事件類別 × 傷害等級</h3>
+            <div class="muted">快速檢視哪類事件較容易造成較高傷害。</div>
+            <div style="overflow:auto; margin-top:10px;">
+              <table id="tableMatrix"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="viewMonths" class="grid months"></div>
       <div id="viewIncidents" class="list hidden"></div>
     </div>
@@ -265,6 +345,9 @@
 
   <!-- Firebase 初始化（會設定 window.db / window.storage，並發出 firebase-ready） -->
   <script src="firebase-init.js"></script>
+
+  <!-- Chart.js（統計面板用） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- 意外事件系統 -->
   <script src="qc-incident.js"></script>
