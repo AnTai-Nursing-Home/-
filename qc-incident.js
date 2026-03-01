@@ -510,7 +510,7 @@ async function init(){
   showMonthsView();
 }
 
-window.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("firebase-ready", ()=>{
   init().catch(err=>{
     console.error(err);
     alert(err.message || String(err));
