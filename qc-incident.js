@@ -421,11 +421,23 @@ async function renderIncidents(){
         </div>
         <div class="muted">${creator ? `填報：${creator}`:""}</div>
       </div>
-      <div class="meta">
-        ${diagCat ? `<span class="tag">${diagCat}</span>`:""}
-        ${diag ? `<span class="tag">${diag}</span>`:""}
-        ${injury ? `<span class="tag">${injury}</span>`:""}
-        ${fallTag ? `<span class="tag">${fallTag}</span>`:""}
+      <div class="metaGrid">
+        ${diagCat ? `<div class="metaBlock">
+            <div class="metaTitle">診斷類別</div>
+            <div><span class="tag">${diagCat}</span></div>
+        </div>`:""}
+        ${diag ? `<div class="metaBlock">
+            <div class="metaTitle">疾病診斷</div>
+            <div><span class="tag">${diag}</span></div>
+        </div>`:""}
+        ${injury ? `<div class="metaBlock">
+            <div class="metaTitle">傷害等級</div>
+            <div><span class="tag">${injury}</span></div>
+        </div>`:""}
+        ${fallTag ? `<div class="metaBlock">
+            <div class="metaTitle">原因分析</div>
+            <div><span class="tag">${fallTag}</span></div>
+        </div>`:""}
       </div>
     `;
     box.appendChild(el);
@@ -567,6 +579,7 @@ async function init(){
   buildResidentSelect();
 
   showMonthsView();
+  initTabs();
 }
 
 function boot(){
@@ -909,3 +922,48 @@ function initStatsUI(){
   runStatsFromInputs();
 }
 // ===================== 統計面板 END =====================
+
+
+// ===================== Tabs（案件單 / 統計） =====================
+let currentTab = "cases";
+
+function setTab(tab){
+  currentTab = tab;
+  try{ localStorage.setItem("qc_incident_tab", tab); }catch(_e){}
+
+  const btnCases = document.getElementById("tabBtnCases");
+  const btnStats = document.getElementById("tabBtnStats");
+  const stats = document.getElementById("statsPanel");
+  const vm = document.getElementById("viewMonths");
+  const vi = document.getElementById("viewIncidents");
+  const btnAdd = document.getElementById("btnAdd");
+  const btnBack = document.getElementById("btnBack");
+
+  if (btnCases) btnCases.classList.toggle("active", tab==="cases");
+  if (btnStats) btnStats.classList.toggle("active", tab==="stats");
+
+  if (stats) stats.style.display = (tab==="stats") ? "" : "none";
+  if (vm) vm.style.display = (tab==="cases" && !currentMonth) ? "" : "none";
+  if (vi) vi.style.display = (tab==="cases" && !!currentMonth) ? "" : "none";
+
+  // stats tab 不需要新增/返回月份按鈕
+  if (btnAdd) btnAdd.classList.toggle("hidden", tab==="stats" || !currentMonth);
+  if (btnBack) btnBack.classList.toggle("hidden", tab==="stats" || !currentMonth);
+
+  // 統計 tab 需要確保 charts 會初始化
+  if (tab==="stats") {
+    initStatsUI();
+  }
+}
+
+function initTabs(){
+  const btnCases = document.getElementById("tabBtnCases");
+  const btnStats = document.getElementById("tabBtnStats");
+  if (btnCases) btnCases.onclick = ()=> setTab("cases");
+  if (btnStats) btnStats.onclick = ()=> setTab("stats");
+
+  let saved = null;
+  try{ saved = localStorage.getItem("qc_incident_tab"); }catch(_e){}
+  setTab(saved==="stats" ? "stats" : "cases");
+}
+// ===================== Tabs END =====================
