@@ -484,27 +484,63 @@ function fillForm(data) {
     return years;
   }
 
-  function beginNewReassess() {
+  async function beginNewReassess() {
     if (!currentCaseData || !currentDocId) return;
 
     isEditingCaseDetail = false;
     currentReassessId = null;
+
+    // 先初始化一張新的復評表單（日期/時間/記錄人以「現在」為準）
     resetFormForNew();
+    const keepDate = $.recordDate.value;
+    const keepTime = $.recordTime.value;
+    const keepRecorder = $.recorderName.value;
 
-    $.residentSelect.value = currentCaseData.residentId || '';
-    $.bedNumber.value = currentCaseData.bedNumber || '';
-    $.residentNumber.value = currentCaseData.residentNumber || '';
+    // 需求：
+    // - 若已有復評：新增復評時先抓「最新一筆復評」資料做預填
+    // - 若為第一次復評：先抓「原始單張」資料做預填
+    let sourceData = currentCaseData;
 
-    $.woundType.value = currentCaseData.woundType || '';
-    $.onsetDate.value = currentCaseData.onsetDate || '';
-    $.woundLocation.value = currentCaseData.woundLocation || '';
-    $.pressureStage.value = currentCaseData.pressureStage || '';
-    $.woundCount.value = currentCaseData.woundCount || '';
+    try {
+      const snap = await db.collection(REASSESS_COL)
+        .where('caseId', '==', currentDocId)
+        .orderBy('recordDate', 'desc')
+        .orderBy('recordTime', 'desc')
+        .limit(1)
+        .get();
+
+      if (!snap.empty) {
+        sourceData = snap.docs[0].data() || currentCaseData;
+      }
+    } catch (e) {
+      console.warn('[wound-care] load latest reassess failed, fallback to case', e);
+      sourceData = currentCaseData;
+    }
+
+    // 預填：避免把舊的日期/時間/記錄人覆蓋掉
+    const prefill = { ...(sourceData || {}) };
+    delete prefill.recordDate;
+    delete prefill.recordTime;
+    delete prefill.recorderName;
+    delete prefill.recorderStaffId;
+    delete prefill.updatedAt;
+    delete prefill.createdAt;
+    delete prefill.createdBy;
+    delete prefill.reassessYear;
+    delete prefill.status;
+
+    fillForm(prefill);
+
+    // 恢復「現在」的日期/時間/記錄人
+    $.recordDate.value = keepDate;
+    $.recordTime.value = keepTime;
+    $.recorderName.value = keepRecorder;
 
     showReassessForm();
     if ($.btnCloseCase) $.btnCloseCase.classList.add('d-none');
     if ($.btnDelete) $.btnDelete.classList.add('d-none');
   }
+
 
 function buildListItem(docId, d) {
     const title = `${d.residentName || '(未填住民)'}｜${d.woundLocation || '未填部位'}`;
@@ -573,52 +609,54 @@ function buildListItem(docId, d) {
   }
 
   // --- Export / Print ---
-  function getDocxData() {
-    const data = collectForm();
+  function getDocxData(base) {
+    const data = base || collectForm();
     // map values to template keys (same names, but ensure human friendly)
     return {
-      facilityName: data.facilityName,
-      recordDate: data.recordDate ? data.recordDate.replaceAll('-','/') : '',
-      residentName: data.residentName,
-      bedNumber: data.bedNumber,
-      residentNumber: data.residentNumber,
-      recordTime: data.recordTime,
-      woundType: data.woundType,
-      onsetDate: data.onsetDate ? data.onsetDate.replaceAll('-','/') : '',
-      woundLocation: data.woundLocation,
-      pressureStage: data.pressureStage,
-      woundCount: data.woundCount,
-      recentDebridement: data.recentDebridement,
-      lengthCm: data.lengthCm,
-      widthCm: data.widthCm,
-      depthCm: data.depthCm,
-      exudateAmount: data.exudateAmount,
-      exudateNature: data.exudateNature,
-      tissueType: data.tissueType,
-      woundEdge: data.woundEdge,
-      surroundingSkin: data.surroundingSkin,
-      painScore: data.painScore,
-      infectionSigns: data.infectionSigns,
-      cleaningMethod: data.cleaningMethod,
-      dressingUsed: data.dressingUsed,
-      medicationOrder: data.medicationOrder,
-      repositioning: data.repositioning,
-      improved: data.improved,
-      noChange: data.noChange,
-      worsened: data.worsened,
-      needDebridementAdvice: data.needDebridementAdvice || data.needNotifyDoctor,
-      needOPD: data.needOPD || data.needReferral,
-      nursingSummary: data.nursingSummary,
-      recorderName: data.recorderName,
-      supervisorName: data.supervisorName
+      facilityName: data.facilityName || FACILITY_NAME,
+      recordDate: data.recordDate ? String(data.recordDate).replaceAll('-','/') : '',
+      residentName: data.residentName || '',
+      bedNumber: data.bedNumber || '',
+      residentNumber: data.residentNumber || '',
+      recordTime: data.recordTime || '',
+      woundType: data.woundType || '',
+      onsetDate: data.onsetDate ? String(data.onsetDate).replaceAll('-','/') : '',
+      woundLocation: data.woundLocation || '',
+      pressureStage: data.pressureStage || '',
+      woundCount: data.woundCount || '',
+      recentDebridement: data.recentDebridement || '',
+      lengthCm: data.lengthCm || '',
+      widthCm: data.widthCm || '',
+      depthCm: data.depthCm || '',
+      exudateAmount: data.exudateAmount || '',
+      exudateNature: data.exudateNature || '',
+      tissueType: data.tissueType || '',
+      woundEdge: data.woundEdge || '',
+      surroundingSkin: data.surroundingSkin || '',
+      painScore: data.painScore || '',
+      infectionSigns: data.infectionSigns || '',
+      cleaningMethod: data.cleaningMethod || '',
+      dressingUsed: data.dressingUsed || '',
+      medicationOrder: data.medicationOrder || '',
+      repositioning: data.repositioning || '',
+      improved: data.improved || '',
+      noChange: data.noChange || '',
+      worsened: data.worsened || '',
+      needDebridementAdvice: data.needDebridementAdvice || data.needNotifyDoctor || '',
+      needOPD: data.needOPD || data.needReferral || '',
+      nursingSummary: data.nursingSummary || '',
+      recorderName: data.recorderName || '',
+      supervisorName: data.supervisorName || ''
     };
   }
 
-  
-  async function exportDocx() {
-    if (!$.residentSelect.value) { alert('請先選擇住民'); return; }
 
-    const d = getDocxData();
+  async function exportDocx() {
+    // 允許在「案例摘要頁」直接匯出（不用先進入表單）
+    const base = (mode === 'case' && !isEditingCaseDetail && currentCaseData) ? currentCaseData : collectForm();
+    if (!(base && (base.residentId || base.residentName))) { alert('請先選擇住民'); return; }
+
+    const d = getDocxData(base);
     const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel } = window.docx;
 
     const font = 'Microsoft JhengHei';
@@ -754,7 +792,9 @@ function buildListItem(docId, d) {
     });
 
     const blob = await Packer.toBlob(doc);
-    const filename = `傷口紀錄單_${($.residentSelect.options[$.residentSelect.selectedIndex].text || '')}_${$.recordDate.value}.docx`;
+    const baseName = (base.residentName || '').trim();
+    const baseDate = (base.recordDate || $.recordDate.value || '').trim();
+    const filename = `傷口紀錄單_${baseName}_${baseDate}`.replace(/[\/:*?"<>|]/g, '_') + '.docx';
     saveAs(blob, filename);
   }
 
@@ -903,7 +943,25 @@ function buildListItem(docId, d) {
   function wire() {
     $.tabOpen.addEventListener('click', async () => { currentStatus='open'; await loadList(); });
     $.tabClosed.addEventListener('click', async () => { currentStatus='closed'; await loadList(); });
-    $.btnNew.addEventListener('click', () => { isEditingCaseDetail = false;  currentStatus='open'; setTabs(); resetFormForNew(); showForm(); mode='case'; currentCaseData=null; showReassessForm(); if ($.btnCloseCase) $.btnCloseCase.classList.remove('d-none'); if ($.btnDelete) $.btnDelete.classList.add('d-none'); });
+    $.btnNew.addEventListener('click', () => {
+      // 新建「原始單張」：進入表單（共用 reassessFormSection），但 mode 必須是 case
+      isEditingCaseDetail = false;
+      currentReassessId = null;
+      currentDocId = null;
+      currentCaseData = null;
+
+      currentStatus = 'open';
+      setTabs();
+      resetFormForNew();
+      showForm();
+
+      // 顯示表單區（共用），但避免誤進入復評模式
+      showReassessForm();
+      mode = 'case';
+
+      if ($.btnCloseCase) $.btnCloseCase.classList.remove('d-none');
+      if ($.btnDelete) $.btnDelete.classList.add('d-none');
+    });
     $.btnBack.addEventListener('click', async () => {
       // 復評編輯 or 原始單張完整內容編輯 → 回到案例摘要頁（CaseView）
       if (mode === 'reassess' || isEditingCaseDetail) {
@@ -950,8 +1008,8 @@ function buildListItem(docId, d) {
     }
 
     if ($.btnNewReassess) {
-      $.btnNewReassess.addEventListener('click', () => {
-        beginNewReassess();
+      $.btnNewReassess.addEventListener('click', async () => {
+        await beginNewReassess();
       });
     }
 
