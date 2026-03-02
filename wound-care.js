@@ -14,7 +14,7 @@
     'tabOpen','tabClosed','btnNew','loginBadge','btnDelete','btnDashBack',
     'listSection','editorSection','listBox','loadingText','listEmpty',
     'btnBack','btnSave','btnCloseCase','btnExportDocx','btnPrint',
-    'facilityName','recordDate','recordTime','recorderName',
+    'facilityName','recordDate','recordTime','recorderName','recordType',
     'residentSelect','bedNumber','residentNumber',
     'woundType','onsetDate','woundLocation','pressureStage','woundCount','recentDebridement',
     'lengthCm','widthCm','depthCm','exudateAmount','exudateNature','tissueType','woundEdge','surroundingSkin','painScore','infectionSigns',
@@ -167,6 +167,7 @@
 
   function showCaseView() {
     mode = 'case';
+    if ($.recordType) $.recordType.value = '初評';
     if ($.caseViewSection) $.caseViewSection.classList.remove('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.add('d-none');
 
@@ -182,6 +183,7 @@
 
   function showReassessForm() {
     mode = 'reassess';
+    if ($.recordType) $.recordType.value = '復評';
     if ($.caseViewSection) $.caseViewSection.classList.add('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.remove('d-none');
 
@@ -203,7 +205,9 @@
     $.recordTime.value = fmtTimeHHMM(now);
     $.recorderName.value = recorder.displayName || '';
 
-    $.residentSelect.value = '';
+    
+    if ($.recordType) $.recordType.value = '初評';
+$.residentSelect.value = '';
     $.bedNumber.value = '';
     $.residentNumber.value = '';
 
@@ -486,7 +490,7 @@ function fillForm(data) {
     el.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start';
     el.innerHTML = `
       <div class="me-3">
-        <div class="fw-semibold">${escapeHtml(title)}</div>
+        <div class="fw-semibold">${escapeHtml(title)} <span class="badge text-bg-warning ms-2">復評</span></div>
         <div class="text-muted small">${escapeHtml(sub)}</div>
       </div>
       <div class="text-muted small mono">${escapeHtml(docId.slice(0,6))}</div>
@@ -613,9 +617,11 @@ function fillForm(data) {
 function buildListItem(docId, d) {
     const title = `${d.residentName || '(未填住民)'}｜${d.woundLocation || '未填部位'}`;
     const sub = `${d.recordDate || ''} ${d.recordTime || ''} · 記錄：${d.recorderName || ''}`;
-    const badge = d.status === 'closed'
+    const typeBadge = '<span class="badge text-bg-primary ms-2">初評</span>';
+    const statusBadge = d.status === 'closed'
       ? '<span class="badge text-bg-secondary ms-2">已結案</span>'
       : '<span class="badge text-bg-success ms-2">進行中</span>';
+    const badge = typeBadge + statusBadge;
 
     const el = document.createElement('button');
     el.type = 'button';
