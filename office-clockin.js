@@ -166,8 +166,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
                 
                 // 先把班表統一成固定格式： [員編, 姓名, day1..day31]
+                const [year, month] = monthSelect.value.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
                 employeeDataCache = normalizeScheduleData(rows, daysInMonth);
-                const reportData = generateReportData(employeeDataCache);
+const reportData = generateReportData(employeeDataCache);
                 const tableHTML = generateReportHTML(reportData, false);
                 
                 reportContainer.innerHTML = tableHTML;
