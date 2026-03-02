@@ -137,6 +137,9 @@ function showMonthsView(){
   renderMonths();
   // 統計面板（月份頁）
   initStatsUI();
+
+  // 回到月份頁時，預設應顯示「案件單」，避免進入後出現空白
+  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
 }
 
 async function showMonthDetail(month){
@@ -146,6 +149,9 @@ async function showMonthDetail(month){
   $("viewMonths").classList.add("hidden");
   $("viewIncidents").classList.remove("hidden");
   setTopTitle();
+
+  // 進入月份後應直接顯示案件單（不需要再按一次 Tab）
+  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
   await renderIncidents();
 }
 
@@ -651,7 +657,10 @@ const AGE_BANDS = [
 ];
 const INJURY_LEVELS = ["無傷害","第一級","第二級","第三級","未填"];
 
-let _statsCharts = { gender:null, age:null, type:null, fallCase:null, fallOther:null };
+// 診斷類別（與表單選單一致；未填一定要統計到）
+const DIAG_CATS = ["外科疾病","內科疾病","腦神經性疾病","未填"];
+
+let _statsCharts = { gender:null, age:null, type:null, diagCat:null, fallCase:null, fallOther:null };
 
 function _destroyChart(k){
   if (_statsCharts[k]){ _statsCharts[k].destroy(); _statsCharts[k]=null; }
@@ -752,11 +761,6 @@ function _buildMatrixTable(items){
 
   // type -> injury -> count
   const matrix = new Map();
-  // 預先建立所有基本事件類別的列（即使本期為 0）
-  for (const t of IncidentTypes.concat(["未填"])) {
-    if (!matrix.has(t)) matrix.set(t, new Map());
-  }
-
   for (const x of items){
     const type = (x.incidentType === "其他" && x.incidentTypeOtherText) ? `其他（${x.incidentTypeOtherText}）` : (x.incidentType || "未填");
     const injury = x.injuryLevel || "未填";
@@ -765,12 +769,7 @@ function _buildMatrixTable(items){
     inner.set(injury, (inner.get(injury)||0)+1);
   }
 
-  // 固定顯示所有事件類別（即使為 0），並保留資料中出現的「其他（...）」子類別
-  const baseTypes = IncidentTypes.concat(["未填"]);
-  const extraTypes = Array.from(matrix.keys())
-    .filter(k => !baseTypes.includes(k))
-    .sort((a,b)=>a.localeCompare(b,"zh-Hant"));
-  const types = baseTypes.concat(extraTypes);
+  const types = Array.from(matrix.keys()).sort((a,b)=>a.localeCompare(b,"zh-Hant"));
 
   const thead = document.createElement("thead");
   const trh = document.createElement("tr");
@@ -823,10 +822,10 @@ async function runStatsByRange(startDate, endDate){
   const uniqueResidents = new Set(items.map(x=>x.residentId).filter(Boolean)).size;
   _renderStatsKPIs(total, fallTotal, uniqueResidents);
 
-  // gender（固定顯示所有類別，即使為 0）
+  // gender
   const gMap = _countBy(items, x=>_normalizeGender(x.residentGender));
-  const gLabels = ["男","女","其他","未填"];
-  const gVals = gLabels.map(k=>gMap.get(k)||0);
+  const gLabels = Array.from(gMap.keys());
+  const gVals = gLabels.map(k=>gMap.get(k));
   _destroyChart("gender");
   _statsCharts.gender = _makePie(document.getElementById("chartGender"), gLabels, gVals);
 
@@ -837,22 +836,28 @@ async function runStatsByRange(startDate, endDate){
   _destroyChart("age");
   _statsCharts.age = _makeBar(document.getElementById("chartAge"), aLabels, aVals);
 
-  // type（固定顯示所有事件類別，即使為 0）
+  // type top
   const tMap = _countBy(items, x=>{
     if (x.incidentType === "其他" && x.incidentTypeOtherText) return `其他（${x.incidentTypeOtherText}）`;
     return x.incidentType || "未填";
   });
-
-  // 基本類別：IncidentTypes + 未填；另外保留「其他（...）」等自訂子類別（只會在有資料時出現）
-  const baseTypeLabels = IncidentTypes.concat(["未填"]);
-  const extraTypeLabels = Array.from(tMap.keys())
-    .filter(k => !baseTypeLabels.includes(k))
-    .sort((a,b)=>a.localeCompare(b,"zh-Hant"));
-  const tLabels = baseTypeLabels.concat(extraTypeLabels);
-  const tVals = tLabels.map(l=>tMap.get(l)||0);
-
+  const tTop = _topN(tMap, 12);
   _destroyChart("type");
-  _statsCharts.type = _makeBar(document.getElementById("chartType"), tLabels, tVals);
+  _statsCharts.type = _makeBar(document.getElementById("chartType"), tTop.map(x=>x[0]), tTop.map(x=>x[1]));
+
+  // diagnosis category
+  const dMap = _countBy(items, x=> (x.diagnosisCategory || "").trim() || "未填");
+  const dOrdered = DIAG_CATS.map(k=>[k, dMap.get(k)||0]);
+  // 若資料中出現非預設類別，也一併列入（避免漏算）
+  for (const [k,v] of dMap.entries()){
+    if (!DIAG_CATS.includes(k)) dOrdered.push([k,v]);
+  }
+  const dFiltered = dOrdered.filter(x=>x[1] > 0);
+  _destroyChart("diagCat");
+  const diagCanvas = document.getElementById("chartDiagCat");
+  if (diagCanvas) {
+    _statsCharts.diagCat = _makeBar(diagCanvas, dFiltered.map(x=>x[0]), dFiltered.map(x=>x[1]));
+  }
 
   // fall factors
   const fallCase = new Map();
@@ -952,16 +957,219 @@ function initStatsUI(){
   const by = document.getElementById("btnStatsThisYear");
   const b30 = document.getElementById("btnStatsLast30");
   const br = document.getElementById("btnStatsRun");
+  const bex = document.getElementById("btnStatsExport");
 
   if (by) by.onclick = async ()=>{ setStatsPresetThisYear(); await runStatsFromInputs(); };
   if (b30) b30.onclick = async ()=>{ setStatsPresetLast30(); await runStatsFromInputs(); };
   if (br) br.onclick = async ()=>{ await runStatsFromInputs(); };
+  if (bex) bex.onclick = async ()=>{ await exportStatsWorkbook(); };
 
   setStatsPresetThisYear();
   // 自動跑一次
   runStatsFromInputs();
 }
 // ===================== 統計面板 END =====================
+
+
+// ===================== 統計 Excel 匯出（每分頁一個月份） =====================
+function _xlsTableCss(){
+  return `
+    table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial;}
+    th,td{border:1px solid #999;padding:4px 6px; mso-number-format:"\\@";}
+    th{background:#f1f3f5;font-weight:bold;}
+    .room-title{background:#e7f1ff;font-weight:bold;}
+    .sec-title{background:#fff7cc;font-weight:bold;}
+  `;
+}
+
+function _buildWorkbookHTML(sheets){
+  const worksheetXml = sheets.map(s=>`
+    <x:ExcelWorksheet>
+      <x:Name>${s.name}</x:Name>
+      <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+    </x:ExcelWorksheet>`).join('');
+  const content = sheets.map(s=>`<div id="${s.name}">${s.html}</div>`).join('');
+  return `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="UTF-8">
+      <!--[if gte mso 9]><xml>
+        <x:ExcelWorkbook>
+          <x:ExcelWorksheets>${worksheetXml}</x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+      </xml><![endif]-->
+      <style>${_xlsTableCss()}</style>
+    </head>
+    <body>${content}</body></html>`;
+}
+
+function _downloadTextAsFile(filename, content, mime){
+  const blob = new Blob([content], { type: mime || 'application/vnd.ms-excel;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_e){} }, 2000);
+}
+
+function _mapToSortedRows(map){
+  return Array.from(map.entries()).sort((a,b)=> b[1]-a[1]);
+}
+
+function _sectionTableHTML(title, rows, total){
+  let html = '<table>'; 
+  html += `<tr><th colspan="2" class="sec-title">${title}</th></tr>`;
+  html += '<tr><th>類別</th><th>數量</th></tr>';
+  for (const [k,v] of rows){
+    html += `<tr><td>${String(k||'')}</td><td>${Number(v||0)}</td></tr>`;
+  }
+  html += `<tr><th>合計</th><th>${Number(total||0)}</th></tr>`;
+  html += '</table>';
+  return html;
+}
+
+function _buildMonthStatsSheetHTML(year, month, items){
+  const ym = `${year}年${String(month).padStart(2,'0')}月`;
+
+  // ========== 案件類別：即使 0 也要顯示 ==========
+  const tMap = _countBy(items, x=>{
+    if (x.incidentType === '其他' && (x.incidentTypeOtherText||'').trim()) {
+      return `其他（${(x.incidentTypeOtherText||'').trim()}）`;
+    }
+    return (x.incidentType || '').trim() || '未填';
+  });
+
+  // 其他（xxx）合計
+  let otherSum = 0;
+  const otherDetails = [];
+  for (const [k,v] of tMap.entries()){
+    if (String(k).startsWith('其他（')) {
+      otherSum += Number(v||0);
+      otherDetails.push([k, Number(v||0)]);
+    }
+  }
+  otherDetails.sort((a,b)=>b[1]-a[1]);
+
+  const baseTypes = (Array.isArray(IncidentTypes) ? IncidentTypes.slice() : []).concat(['未填']);
+  const tRows = baseTypes.map(k=>{
+    if (k === '其他') return ['其他（自訂）', otherSum + (tMap.get('其他')||0)];
+    return [k, tMap.get(k)||0];
+  });
+
+  // 若資料中出現非預設類別，也一併列入（避免漏算）
+  for (const [k,v] of tMap.entries()){
+    if (!baseTypes.includes(k) && !String(k).startsWith('其他（')) {
+      tRows.push([k, v]);
+    }
+  }
+  // 把「其他（xxx）」明細也列出（讓你知道自訂項目有哪些）
+  if (otherDetails.length){
+    tRows.push(['— 其他明細 —', '']);
+    tRows.push(...otherDetails);
+  }
+
+  const tTotal = items.length;
+
+  // ========== 診斷類型：預設類別全部列出 ==========
+  const dMap = _countBy(items, x=> (x.diagnosisCategory || '').trim() || '未填');
+  const dRowsOrdered = DIAG_CATS.map(k=>[k, dMap.get(k)||0]);
+  for (const [k,v] of dMap.entries()){
+    if (!DIAG_CATS.includes(k)) dRowsOrdered.push([k, v]);
+  }
+  const dTotal = Array.from(dMap.values()).reduce((a,b)=>a+b,0);
+
+  // ========== 傷害等級：預設類別全部列出 ==========
+  const iMap = _countBy(items, x=> (x.injuryLevel || '').trim() || '未填');
+  const iRows = INJURY_LEVELS.map(k=>[k, iMap.get(k)||0]);
+  for (const [k,v] of iMap.entries()){
+    if (!INJURY_LEVELS.includes(k)) iRows.push([k, v]);
+  }
+  const iTotal = Array.from(iMap.values()).reduce((a,b)=>a+b,0);
+
+  // ========== 性別：男/女/未填 一定顯示 ==========
+  const gMap = _countBy(items, x=> _normalizeGender(x.residentGender));
+  const genderOrder = ['男','女','未填'];
+  const gRows = genderOrder.map(g=>[g, gMap.get(g)||0]);
+  for (const [k,v] of gMap.entries()){
+    if (!genderOrder.includes(k)) gRows.push([k, v]);
+  }
+  const gTotal = Array.from(gMap.values()).reduce((a,b)=>a+b,0);
+
+  // ========== 年齡區間：全部區間都顯示（含 0） ==========
+  const aMap = _countBy(items, x=> _bandAge(x.residentAge));
+  const aLabels = AGE_BANDS.map(b=>b.label).concat(['未填','其他']);
+  const aRows = aLabels.map(l=>[l, aMap.get(l)||0]);
+  const aTotal = Array.from(aMap.values()).reduce((a,b)=>a+b,0);
+
+  let html = '';
+  html += '<table>';
+  html += `<tr><th colspan="2" class="room-title">${ym}｜意外事件統計</th></tr>`;
+  html += `<tr><td>總筆數</td><td>${tTotal}</td></tr>`;
+  html += '</table>';
+  html += '<br/>';
+  html += _sectionTableHTML('案件類別', tRows, tTotal);
+  html += '<br/>';
+  html += _sectionTableHTML('診斷類型', dRowsOrdered, dTotal);
+  html += '<br/>';
+  html += _sectionTableHTML('傷害等級', iRows, iTotal);
+  html += '<br/>';
+  html += _sectionTableHTML('性別', gRows, gTotal);
+  html += '<br/>';
+  html += _sectionTableHTML('年齡區間', aRows, aTotal);
+  return html;
+}
+
+
+async function exportStatsWorkbook(){
+  ensureEnv();
+  const year = Number(currentYear || new Date().getFullYear());
+  const raw = (prompt('輸入要匯出月份(1-12)；或輸入 ALL 匯出全年 12 個分頁', 'ALL') || '').trim();
+  const isAll = !raw || /^all$/i.test(raw);
+  const mPick = isAll ? null : Number(raw);
+  if (!isAll && (!Number.isFinite(mPick) || mPick<1 || mPick>12)){
+    alert('月份輸入錯誤，請輸入 1~12 或 ALL');
+    return;
+  }
+
+  const btn = document.getElementById('btnStatsExport');
+  if (btn) { btn.disabled = true; btn.dataset.idleText = btn.dataset.idleText || btn.textContent; btn.textContent = '匯出中...'; }
+
+  try{
+    // 一次抓全年，再依月份分組（避免 12 次查詢）
+    const snap = await window.db.collection('qc_incidents').where('occurYear','==', year).get();
+    const byMonth = new Map();
+    snap.forEach(doc=>{
+      const d = doc.data() || {};
+      const m = Number(d.occurMonth);
+      if (!Number.isFinite(m) || m<1 || m>12) return;
+      if (!byMonth.has(m)) byMonth.set(m, []);
+      byMonth.get(m).push(d);
+    });
+
+    const months = isAll ? Array.from({length:12},(_,i)=>i+1) : [mPick];
+    const sheets = months.map(m=>{
+      const items = byMonth.get(m) || [];
+      return {
+        name: `${String(m).padStart(2,'0')}月`,
+        html: _buildMonthStatsSheetHTML(year, m, items)
+      };
+    });
+
+    const wbHtml = _buildWorkbookHTML(sheets);
+    const fn = isAll
+      ? `意外事件統計_${year}年_全年.xls`
+      : `意外事件統計_${year}年_${String(mPick).padStart(2,'0')}月.xls`;
+    _downloadTextAsFile(fn, wbHtml, 'application/vnd.ms-excel;charset=utf-8');
+  }catch(err){
+    console.error(err);
+    alert('匯出失敗：' + (err?.message || String(err)));
+  }finally{
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.idleText || '匯出Excel'; }
+  }
+}
+// ===================== 統計 Excel 匯出 END =====================
 
 
 // ===================== Tabs（案件單 / 統計） =====================
