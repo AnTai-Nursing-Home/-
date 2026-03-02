@@ -617,11 +617,9 @@ function fillForm(data) {
 function buildListItem(docId, d) {
     const title = `${d.residentName || '(未填住民)'}｜${d.woundLocation || '未填部位'}`;
     const sub = `${d.recordDate || ''} ${d.recordTime || ''} · 記錄：${d.recorderName || ''}`;
-    const typeBadge = '<span class="badge text-bg-primary ms-2">初評</span>';
-    const statusBadge = d.status === 'closed'
+    const badge = d.status === 'closed'
       ? '<span class="badge text-bg-secondary ms-2">已結案</span>'
       : '<span class="badge text-bg-success ms-2">進行中</span>';
-    const badge = typeBadge + statusBadge;
 
     const el = document.createElement('button');
     el.type = 'button';
