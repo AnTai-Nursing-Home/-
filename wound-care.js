@@ -533,11 +533,15 @@ function fillForm(data) {
   async function beginNewReassess() {
     if (!currentCaseData || !currentDocId) return;
 
+    // 保留原始 caseId（resetFormForNew 會把 currentDocId 清成 null）
+    const caseId = currentDocId;
+
     isEditingCaseDetail = false;
     currentReassessId = null;
 
     // 先初始化一張新的復評表單（日期/時間/記錄人以「現在」為準）
     resetFormForNew();
+    currentDocId = caseId;
     const keepDate = $.recordDate.value;
     const keepTime = $.recordTime.value;
     const keepRecorder = $.recorderName.value;
