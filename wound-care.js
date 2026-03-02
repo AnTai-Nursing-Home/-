@@ -90,6 +90,7 @@
     if (currentStatus === 'open') {
       $.tabOpen.className = 'btn btn-dark pill';
       $.tabClosed.className = 'btn btn-outline-dark pill';
+    updateExportButtonLabel();
     } else {
       $.tabOpen.className = 'btn btn-outline-dark pill';
       $.tabClosed.className = 'btn btn-dark pill';
@@ -161,6 +162,7 @@
     $.editorSection.classList.remove('d-none');
     updateDashBackVisibility();
     updateDeleteButtons();
+    updateExportButtonLabel();
   }
 
   function showCaseView() {
@@ -168,6 +170,7 @@
     if ($.caseViewSection) $.caseViewSection.classList.remove('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.add('d-none');
     updateDeleteButtons();
+    updateExportButtonLabel();
   }
 
   function showReassessForm() {
@@ -175,6 +178,7 @@
     if ($.caseViewSection) $.caseViewSection.classList.add('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.remove('d-none');
     updateDeleteButtons();
+    updateExportButtonLabel();
   }
 
   function resetFormForNew() {
@@ -703,7 +707,43 @@ function buildListItem(docId, d) {
 
   // --- DOCX helpers ---
   const DOCX_FONT = 'Microsoft JhengHei';
-  const docxSafeText = (v) => {
+  
+function isCaseSummaryView() {
+    return (mode === 'case' && !isEditingCaseDetail && $.caseViewSection && !$.caseViewSection.classList.contains('d-none'));
+  }
+
+  function updateExportButtonLabel() {
+    if (!$.btnExportDocx) return;
+    if (mode === 'reassess') {
+      $.btnExportDocx.textContent = '匯出本張復評WORD';
+      return;
+    }
+    if (isCaseSummaryView()) {
+      $.btnExportDocx.textContent = '匯出復評';
+      return;
+    }
+    $.btnExportDocx.textContent = '匯出 Word';
+  }
+
+  function promptReassessRange(year) {
+    const y = Number(year) || (new Date()).getFullYear();
+    const defStart = `${y}-01-01`;
+    const defEnd = `${y}-12-31`;
+    const start = prompt(`請輸入要匯出的起始日期（YYYY-MM-DD）\n（預設：${defStart}）`, defStart);
+    if (start === null) return null;
+    const end = prompt(`請輸入要匯出的結束日期（YYYY-MM-DD）\n（預設：${defEnd}）`, defEnd);
+    if (end === null) return null;
+
+    const ok = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s||'').trim());
+    const s = String(start||'').trim();
+    const e = String(end||'').trim();
+    if (!ok(s) || !ok(e) || s > e) {
+      alert('日期格式錯誤或起訖順序不正確，請使用 YYYY-MM-DD，且起始日期需小於等於結束日期。');
+      return null;
+    }
+    return { start: s, end: e, year: y };
+  }
+const docxSafeText = (v) => {
     let s = String(v ?? '');
     s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
     s = s.replace(/[\uFFFE\uFFFF]/g, '');
@@ -788,7 +828,7 @@ function buildListItem(docId, d) {
   }
 
   
-  async function exportSingleDocx(base, filenamePrefix) {
+  async function exportSingleDocx(base, titleText, opts) {
     const d = getDocxData(base);
     const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType } = window.docx;
 
@@ -800,7 +840,7 @@ function buildListItem(docId, d) {
 
     const title = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: filenamePrefix || '傷口紀錄單', font: DOCX_FONT, size: 32, bold: true }) ],
+      children: [ new TextRun({ text: titleText || '傷口紀錄單', font: DOCX_FONT, size: 32, bold: true }) ],
       spacing: { after: 240 }
     });
 
@@ -868,46 +908,65 @@ function buildListItem(docId, d) {
     });
 
     const blob = await Packer.toBlob(doc);
-    const name = (filenamePrefix || '傷口紀錄單');
+    const name = (opts && opts.filenamePrefix) ? opts.filenamePrefix : (titleText || '傷口紀錄單');
     const resident = (d.residentName || '').trim();
     const filename = `${name}_${resident || ''}_${(d.recordDate || '').replaceAll('/','-')}.docx`;
     saveAs(blob, filename);
   }
 
-  async function exportReassessSummaryDocx(caseId, year) {
+  async function exportReassessSummaryDocx(caseId, range) {
     if (!caseId) { alert('未選擇原始單張'); return; }
-    const y = Number(year) || (new Date()).getFullYear();
+    const y = Number(range?.year) || (new Date()).getFullYear();
+    const start = String(range?.start || `${y}-01-01`);
+    const end = String(range?.end || `${y}-12-31`);
 
-    // 讀取該年所有復評
+    // 讀取此 case 的所有復評（避免 Firestore 複合索引問題：不使用 orderBy/多重 where）
     let snap;
     try {
       snap = await db.collection(REASSESS_COL)
         .where('caseId','==', caseId)
-        .where('reassessYear','==', y)
-        .orderBy('recordDate','desc')
-        .orderBy('recordTime','desc')
         .get();
     } catch (e) {
       console.error(e);
-      alert('讀取復評資料失敗（可能缺少索引），請稍後再試');
+      alert('讀取復評資料失敗，請稍後再試');
       return;
     }
 
-    if (snap.empty) {
-      // 沒有復評：就匯出原始單張
-      await exportSingleDocx(currentCaseData || collectForm(), '傷口紀錄單');
-      return;
-    }
-
-    const rowsByDate = new Map(); // key: YYYY-MM-DD
+    const all = [];
     snap.forEach(doc => {
       const d = doc.data() || {};
-      const date = d.recordDate || '';
-      if (!rowsByDate.has(date)) rowsByDate.set(date, []);
-      rowsByDate.get(date).push({ id: doc.id, ...d });
+      all.push({ id: doc.id, ...d });
     });
 
-    // 日期排序（由新到舊）
+    // 依區間過濾（recordDate 為 YYYY-MM-DD，可用字串比較）
+    const filtered = all.filter(d => {
+      const rd = String(d.recordDate || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(rd)) return false;
+      return rd >= start && rd <= end;
+    });
+
+    if (filtered.length === 0) {
+      alert('所選區間內沒有復評資料');
+      return;
+    }
+
+    // 排序（由新到舊）
+    filtered.sort((a,b) => {
+      const da = String(a.recordDate || '');
+      const db = String(b.recordDate || '');
+      if (da !== db) return da < db ? 1 : -1;
+      const ta = String(a.recordTime || '');
+      const tb = String(b.recordTime || '');
+      return ta < tb ? 1 : -1;
+    });
+
+    const rowsByDate = new Map();
+    filtered.forEach(d => {
+      const date = d.recordDate || '';
+      if (!rowsByDate.has(date)) rowsByDate.set(date, []);
+      rowsByDate.get(date).push(d);
+    });
+
     const dates = Array.from(rowsByDate.keys()).sort((a,b) => (a < b ? 1 : -1));
 
     const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } = window.docx;
@@ -924,7 +983,7 @@ function buildListItem(docId, d) {
     });
     const head2 = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: `傷口復評彙整（${y}年）`, font: DOCX_FONT, size: 32, bold: true }) ],
+      children: [ new TextRun({ text: `復評彙整（${formatISOToSlash(start)}～${formatISOToSlash(end)}）`, font: DOCX_FONT, size: 32, bold: true }) ],
       spacing: { after: 200 }
     });
 
@@ -949,7 +1008,7 @@ function buildListItem(docId, d) {
     const dayTables = [];
     for (const date of dates) {
       const items = rowsByDate.get(date) || [];
-      // 同一天多筆 → 右側同一格用「時間 + 分隔線」堆疊
+
       const leftLines = [];
       leftLines.push(`日期：${formatISOToSlash(date)}`);
       items.forEach(it => {
@@ -1017,23 +1076,25 @@ function buildListItem(docId, d) {
     });
 
     const blob = await Packer.toBlob(doc);
-    const filename = `傷口復評彙整_${residentName || ''}_${y}.docx`;
+    const filename = `匯出復評_${residentName || ''}_${start}~${end}.docx`;
     saveAs(blob, filename);
   }
+
 
   async function exportDocx() {
     // 1) 在「復評單張」裡：匯出該張完整復評（表單內容）
     if (mode === 'reassess') {
       const base = collectForm();
       if (!(base && (base.residentId || base.residentName))) { alert('請先選擇住民'); return; }
-      await exportSingleDocx(base, '傷口復評紀錄單');
+      await exportSingleDocx(base, '傷口復評紀錄單', { filenamePrefix: '匯出本張復評' });
       return;
     }
 
-    // 2) 在「案例摘要頁」（第二張圖那個）：匯出所選年分內的所有復評彙整
-    const isCaseSummaryView = (mode === 'case' && !isEditingCaseDetail && $.caseViewSection && !$.caseViewSection.classList.contains('d-none'));
-    if (isCaseSummaryView) {
-      await exportReassessSummaryDocx(currentDocId, $.reassessYear?.value);
+    // 2) 在「案例摘要頁」（第二張圖那個）：匯出所選區間內的所有復評彙整
+    if (isCaseSummaryView()) {
+      const range = promptReassessRange($.reassessYear?.value);
+      if (!range) return;
+      await exportReassessSummaryDocx(currentDocId, range);
       return;
     }
 
@@ -1268,6 +1329,7 @@ function buildListItem(docId, d) {
     $.recorderName.value = recorder.displayName || '';
     await loadResidents();
     wire();
+    updateExportButtonLabel();
     updateDashBackVisibility();
     await loadList();
   });
