@@ -169,6 +169,13 @@
     mode = 'case';
     if ($.caseViewSection) $.caseViewSection.classList.remove('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.add('d-none');
+
+    // 回到原始單張：恢復顯示「護理長/主管覆核」與「護理紀錄摘要」
+    const supervisorBlock = document.getElementById('supervisorBlock');
+    const nursingSummaryBlock = document.getElementById('nursingSummaryBlock');
+    if (supervisorBlock) supervisorBlock.classList.remove('d-none');
+    if (nursingSummaryBlock) nursingSummaryBlock.classList.remove('d-none');
+
     updateDeleteButtons();
     updateExportButtonLabel();
   }
@@ -177,6 +184,13 @@
     mode = 'reassess';
     if ($.caseViewSection) $.caseViewSection.classList.add('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.remove('d-none');
+
+    // 復評：不需要「護理長/主管覆核」與「五、護理紀錄摘要」
+    const supervisorBlock = document.getElementById('supervisorBlock');
+    const nursingSummaryBlock = document.getElementById('nursingSummaryBlock');
+    if (supervisorBlock) supervisorBlock.classList.add('d-none');
+    if (nursingSummaryBlock) nursingSummaryBlock.classList.add('d-none');
+
     updateDeleteButtons();
     updateExportButtonLabel();
   }
