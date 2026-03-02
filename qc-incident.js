@@ -658,7 +658,7 @@ const AGE_BANDS = [
 const INJURY_LEVELS = ["無傷害","第一級","第二級","第三級","未填"];
 
 // 診斷類別（與表單選單一致；未填一定要統計到）
-const DIAG_CATS = ["外科疾病","內科疾病","腦神經性疾病","未填"];
+const DIAG_CATS = ["癌症","腦中風","高血壓","糖尿病","失智","骨折","腎臟疾病","頭頸部外傷","精神疾病","其他","未填"];
 
 let _statsCharts = { gender:null, age:null, type:null, diagCat:null, fallCase:null, fallOther:null };
 
