@@ -33,6 +33,7 @@
 
   let residents = [];
   let recorder = { staffId:'', displayName:'' };
+  let btnDeleteTop = null;
 
   function loadSessionUser() {
     try {
@@ -105,6 +106,47 @@
   }
 
 
+  function ensureDeleteTopButton() {
+    if (btnDeleteTop) return;
+    const host = document.querySelector('#editorSection .d-flex.gap-2.no-print');
+    if (!host) return;
+    btnDeleteTop = document.createElement('button');
+    btnDeleteTop.id = 'btnDeleteTop';
+    btnDeleteTop.type = 'button';
+    btnDeleteTop.className = 'btn btn-outline-danger pill';
+    btnDeleteTop.textContent = '刪除';
+    // 放在結案按鈕左邊（更順手）
+    const closeBtn = document.getElementById('btnCloseCase');
+    if (closeBtn && closeBtn.parentElement === host) host.insertBefore(btnDeleteTop, closeBtn);
+    else host.appendChild(btnDeleteTop);
+
+    btnDeleteTop.addEventListener('click', deleteRecord);
+  }
+
+  function updateDeleteButtons() {
+    ensureDeleteTopButton();
+    const canDeleteTop =
+      (mode === 'case' && !!currentDocId) ||
+      (mode === 'reassess' && !!currentReassessId);
+
+    if (btnDeleteTop) {
+      btnDeleteTop.classList.toggle('d-none', !canDeleteTop);
+      btnDeleteTop.disabled = !canDeleteTop;
+    }
+
+    // 底部刪除（表單內）依照是否在表單編輯狀態顯示
+    const inForm = ($.reassessFormSection && !$.reassessFormSection.classList.contains('d-none'));
+    if ($.btnDelete) {
+      const canDeleteBottom = inForm && (
+        (mode === 'case' && !!currentDocId) ||
+        (mode === 'reassess' && !!currentReassessId)
+      );
+      $.btnDelete.classList.toggle('d-none', !canDeleteBottom);
+      $.btnDelete.disabled = !canDeleteBottom;
+    }
+  }
+
+
   function showList() {
     $.editorSection.classList.add('d-none');
     $.listSection.classList.remove('d-none');
@@ -112,23 +154,27 @@
     currentReassessId = null;
     currentCaseData = null;
     updateDashBackVisibility();
+    updateDeleteButtons();
   }
   function showForm() {
     $.listSection.classList.add('d-none');
     $.editorSection.classList.remove('d-none');
     updateDashBackVisibility();
+    updateDeleteButtons();
   }
 
   function showCaseView() {
     mode = 'case';
     if ($.caseViewSection) $.caseViewSection.classList.remove('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.add('d-none');
+    updateDeleteButtons();
   }
 
   function showReassessForm() {
     mode = 'reassess';
     if ($.caseViewSection) $.caseViewSection.classList.add('d-none');
     if ($.reassessFormSection) $.reassessFormSection.classList.remove('d-none');
+    updateDeleteButtons();
   }
 
   function resetFormForNew() {
@@ -651,151 +697,346 @@ function buildListItem(docId, d) {
   }
 
 
-  async function exportDocx() {
-    // 允許在「案例摘要頁」直接匯出（不用先進入表單）
-    const base = (mode === 'case' && !isEditingCaseDetail && currentCaseData) ? currentCaseData : collectForm();
-    if (!(base && (base.residentId || base.residentName))) { alert('請先選擇住民'); return; }
+  // --- DOCX helpers ---
+  const DOCX_FONT = 'Microsoft JhengHei';
+  const docxSafeText = (v) => {
+    let s = String(v ?? '');
+    s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    s = s.replace(/[\uFFFE\uFFFF]/g, '');
+    s = s.replace(/[\uD800-\uDFFF]/g, '');
+    return s;
+  };
 
-    const d = getDocxData(base);
-    const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel } = window.docx;
+  const docxRun = (text, opts = {}) => new window.docx.TextRun({
+    text: docxSafeText(text),
+    font: DOCX_FONT,
+    size: opts.size ?? 24,
+    bold: !!opts.bold
+  });
 
-    const font = 'Microsoft JhengHei';
-    // Word / OOXML is very sensitive to illegal XML characters & lone surrogate pairs.
-    // Make export extremely defensive to avoid "內容有問題".
-    const safeText = (v) => {
-      let s = String(v ?? '');
-      // Remove ASCII control chars except TAB(\x09) / LF(\x0A) / CR(\x0D)
-      s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-      // Remove non-characters
-      s = s.replace(/[\uFFFE\uFFFF]/g, '');
-      // Remove lone surrogates (ill-formed UTF-16)
-      s = s.replace(/[\uD800-\uDFFF]/g, '');
-      return s;
-    };
-    const labelRun = (t) => new TextRun({ text: safeText(t), font, size: 24, bold: true });
-    const valRun = (t) => new TextRun({ text: safeText(t || ''), font, size: 24 });
+  const docxP = (text, opts = {}) => new window.docx.Paragraph({
+    children: [docxRun(text, opts)],
+    spacing: opts.spacing || { after: 80 }
+  });
 
-    const noBorders = {
-      top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-    };
+  const docxH = (text) => new window.docx.Paragraph({
+    children: [docxRun(text, { size: 26, bold: true })],
+    spacing: { before: 240, after: 120 }
+  });
 
-    const fieldRow = (label, value) => new TableRow({
-      children: [
-        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: noBorders,
-          children: [ new Paragraph({ children: [labelRun(label)] }) ] }),
-        new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, borders: noBorders,
-          children: [ new Paragraph({ children: [valRun(value)] }) ] }),
-      ]
+  const docxMultilineP = (text) => {
+    const lines = docxSafeText(text || '').split(/\r?\n/);
+    const children = [];
+    lines.forEach((line, idx) => {
+      children.push(new window.docx.TextRun({ text: line, font: DOCX_FONT, size: 24, break: idx === 0 ? 0 : 1 }));
     });
+    if (children.length === 0) children.push(new window.docx.TextRun({ text: '', font: DOCX_FONT, size: 24 }));
+    return new window.docx.Paragraph({ children, spacing: { after: 80 } });
+  };
+
+  const docxNoBorders = {
+    top: { style: window.docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+    bottom: { style: window.docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+    left: { style: window.docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+    right: { style: window.docx.BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  };
+
+  const docxFieldRow = (label, value) => new window.docx.TableRow({
+    children: [
+      new window.docx.TableCell({
+        width: { size: 25, type: window.docx.WidthType.PERCENTAGE },
+        borders: docxNoBorders,
+        children: [ new window.docx.Paragraph({ children: [docxRun(label, { bold: true })] }) ]
+      }),
+      new window.docx.TableCell({
+        width: { size: 75, type: window.docx.WidthType.PERCENTAGE },
+        borders: docxNoBorders,
+        children: [ new window.docx.Paragraph({ children: [docxRun(value || '')] }) ]
+      }),
+    ]
+  });
+
+  function formatISOToSlash(s) { return (s || '').replaceAll('-', '/'); }
+
+  function compactReassessLines(d) {
+    // 將「復評」整理成一個格子內的直觀內容（短行）
+    const lines = [];
+    const size = [d.lengthCm, d.widthCm, d.depthCm].filter(Boolean).join(' / ');
+    if (d.woundLocation) lines.push(`部位：${d.woundLocation}`);
+    if (size) lines.push(`長/寬/深(cm)：${size}`);
+    if (d.exudateAmount || d.exudateNature) lines.push(`滲出液：${[d.exudateAmount, d.exudateNature].filter(Boolean).join('、')}`);
+    if (d.tissueType) lines.push(`組織：${d.tissueType}`);
+    if (d.woundEdge) lines.push(`邊緣：${d.woundEdge}`);
+    if (d.surroundingSkin) lines.push(`周圍皮膚：${d.surroundingSkin}`);
+    if (d.painScore) lines.push(`疼痛：${d.painScore}`);
+    if (d.infectionSigns) lines.push(`感染徵象：${d.infectionSigns}`);
+    if (d.cleaningMethod) lines.push(`清潔：${d.cleaningMethod}`);
+    if (d.dressingUsed) lines.push(`敷料：${d.dressingUsed}`);
+    if (d.medicationOrder) lines.push(`醫囑用藥：${d.medicationOrder}`);
+    if (d.repositioning) lines.push(`翻身減壓：${d.repositioning}`);
+    const change = [d.improved ? `改善:${d.improved}` : '', d.noChange ? `無變化:${d.noChange}` : '', d.worsened ? `惡化:${d.worsened}` : ''].filter(Boolean).join('、');
+    if (change) lines.push(`變化：${change}`);
+    if (d.needDebridementAdvice) lines.push(`建議清創：${d.needDebridementAdvice}`);
+    if (d.needOPD) lines.push(`掛門診：${d.needOPD}`);
+    if (d.supervisorName) lines.push(`主管覆核：${d.supervisorName}`);
+    if (d.nursingSummary) lines.push(`摘要：${d.nursingSummary}`);
+    return lines;
+  }
+
+  
+  async function exportSingleDocx(base, filenamePrefix) {
+    const d = getDocxData(base);
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType } = window.docx;
 
     const facilityTitle = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: safeText(d.facilityName || '安泰醫療社團法人附設安泰護理之家'), font, size: 28, bold: true }) ],
+      children: [ new TextRun({ text: docxSafeText(d.facilityName || '安泰醫療社團法人附設安泰護理之家'), font: DOCX_FONT, size: 28, bold: true }) ],
       spacing: { after: 120 }
     });
 
     const title = new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [ new TextRun({ text: '傷口紀錄單', font, size: 32, bold: true }) ],
+      children: [ new TextRun({ text: filenamePrefix || '傷口紀錄單', font: DOCX_FONT, size: 32, bold: true }) ],
       spacing: { after: 240 }
     });
 
     const headerTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [        fieldRow('紀錄日期', d.recordDate),
-        fieldRow('住民姓名', d.residentName),
-        fieldRow('床號', d.bedNumber),
-        fieldRow('病歷號', d.residentNumber),
-        fieldRow('紀錄時間', d.recordTime),
-        fieldRow('記錄人員', d.recorderName),
+      rows: [
+        docxFieldRow('紀錄日期', d.recordDate),
+        docxFieldRow('住民姓名', d.residentName),
+        docxFieldRow('床號', d.bedNumber),
+        docxFieldRow('病歷號', d.residentNumber),
+        docxFieldRow('紀錄時間', d.recordTime),
+        docxFieldRow('記錄人員', d.recorderName),
       ]
     });
 
-    const h = (text) => new Paragraph({
-      children: [ new TextRun({ text, font, size: 26, bold: true }) ],
-      spacing: { before: 240, after: 120 }
-    });
-
-    const p = (text) => new Paragraph({
-      children: [ new TextRun({ text: safeText(text), font, size: 24 }) ],
-      spacing: { after: 80 }
-    });
-
-    const pMultiline = (text) => {
-      const lines = safeText(text || '').split(/\r?\n/);
-      const children = [];
-      lines.forEach((line, idx) => {
-        // Put the line break on the run itself to avoid generating empty runs.
-        children.push(new TextRun({ text: line, font, size: 24, break: idx === 0 ? 0 : 1 }));
-      });
-      // If there is no content at all, still keep a harmless empty paragraph.
-      if (children.length === 0) children.push(new TextRun({ text: '', font, size: 24 }));
-      return new Paragraph({ children, spacing: { after: 80 } });
-    };
-
     const doc = new Document({
       sections: [{
-        properties: {
-          page: {
-            margin: { top: 720, right: 720, bottom: 720, left: 720 }, // 1 inch
-          }
-        },
+        properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } },
         children: [
           facilityTitle,
           title,
           headerTable,
 
-          h('一、傷口基本資料'),
-          p(`傷口類型：${d.woundType}`),
-          p(`發生日期：${d.onsetDate}`),
-          p(`傷口位置：${d.woundLocation}`),
-          p(`壓力性損傷分期：${d.pressureStage}`),
-          p(`傷口數量：${d.woundCount}`),
-          p(`最近是否曾經清創：${d.recentDebridement}`),
+          docxH('一、傷口基本資料'),
+          docxP(`傷口類型：${d.woundType}`),
+          docxP(`發生日期：${d.onsetDate}`),
+          docxP(`傷口位置：${d.woundLocation}`),
+          docxP(`壓力性損傷分期：${d.pressureStage}`),
+          docxP(`傷口數量：${d.woundCount}`),
+          docxP(`最近是否曾經清創：${d.recentDebridement}`),
 
-          h('二、傷口評估'),
-          p(`傷口長度：${d.lengthCm} cm`),
-          p(`傷口寬度：${d.widthCm} cm`),
-          p(`傷口深度：${d.depthCm} cm`),
-          p(`滲出液量：${d.exudateAmount}`),
-          p(`滲出液性質：${d.exudateNature}`),
-          p(`傷口組織：${d.tissueType}`),
-          p(`傷口邊緣：${d.woundEdge}`),
-          p(`周圍皮膚：${d.surroundingSkin}`),
-          p(`疼痛程度（0–10分）：${d.painScore}`),
-          p(`感染徵象：${d.infectionSigns}`),
+          docxH('二、傷口評估'),
+          docxP(`傷口長度：${d.lengthCm} cm`),
+          docxP(`傷口寬度：${d.widthCm} cm`),
+          docxP(`傷口深度：${d.depthCm} cm`),
+          docxP(`滲出液量：${d.exudateAmount}`),
+          docxP(`滲出液性質：${d.exudateNature}`),
+          docxP(`傷口組織：${d.tissueType}`),
+          docxP(`傷口邊緣：${d.woundEdge}`),
+          docxP(`周圍皮膚：${d.surroundingSkin}`),
+          docxP(`疼痛程度（0–10分）：${d.painScore}`),
+          docxP(`感染徵象：${d.infectionSigns}`),
 
-          h('三、照護措施'),
-          p(`清潔方式：${d.cleaningMethod}`),
-          p(`使用敷料：${d.dressingUsed}`),
-          p(`醫囑用藥：${d.medicationOrder}`),
-          p(`翻身減壓措施：${d.repositioning}`),
+          docxH('三、照護措施'),
+          docxP(`清潔方式：${d.cleaningMethod}`),
+          docxP(`使用敷料：${d.dressingUsed}`),
+          docxP(`醫囑用藥：${d.medicationOrder}`),
+          docxP(`翻身減壓措施：${d.repositioning}`),
 
-          h('四、傷口變化評估'),
-          p(`傷口改善：${d.improved}`),
-          p(`無明顯變化：${d.noChange}`),
-          p(`傷口惡化：${d.worsened}`),
-          p(`評估後是否建議清創：${d.needDebridementAdvice}`),
-          p(`評估後是否掛門診：${d.needOPD}`),
+          docxH('四、傷口變化評估'),
+          docxP(`傷口改善：${d.improved}`),
+          docxP(`無明顯變化：${d.noChange}`),
+          docxP(`傷口惡化：${d.worsened}`),
+          docxP(`評估後是否建議清創：${d.needDebridementAdvice}`),
+          docxP(`評估後是否掛門診：${d.needOPD}`),
 
-          h('五、護理紀錄摘要'),
-          pMultiline(d.nursingSummary || ''),
+          docxH('五、護理紀錄摘要'),
+          docxMultilineP(d.nursingSummary || ''),
 
           new Paragraph({ text: '' }),
-          p(`紀錄人員：${d.recorderName}`),
-          p(`護理長／主管覆核：${d.supervisorName}`),
+          docxP(`紀錄人員：${d.recorderName}`),
+          docxP(`護理長／主管覆核：${d.supervisorName}`),
         ]
       }]
     });
 
     const blob = await Packer.toBlob(doc);
-    const baseName = (base.residentName || '').trim();
-    const baseDate = (base.recordDate || $.recordDate.value || '').trim();
-    const filename = `傷口紀錄單_${baseName}_${baseDate}`.replace(/[\/:*?"<>|]/g, '_') + '.docx';
+    const name = (filenamePrefix || '傷口紀錄單');
+    const resident = (d.residentName || '').trim();
+    const filename = `${name}_${resident || ''}_${(d.recordDate || '').replaceAll('/','-')}.docx`;
     saveAs(blob, filename);
+  }
+
+  async function exportReassessSummaryDocx(caseId, year) {
+    if (!caseId) { alert('未選擇原始單張'); return; }
+    const y = Number(year) || (new Date()).getFullYear();
+
+    // 讀取該年所有復評
+    let snap;
+    try {
+      snap = await db.collection(REASSESS_COL)
+        .where('caseId','==', caseId)
+        .where('reassessYear','==', y)
+        .orderBy('recordDate','desc')
+        .orderBy('recordTime','desc')
+        .get();
+    } catch (e) {
+      console.error(e);
+      alert('讀取復評資料失敗（可能缺少索引），請稍後再試');
+      return;
+    }
+
+    if (snap.empty) {
+      // 沒有復評：就匯出原始單張
+      await exportSingleDocx(currentCaseData || collectForm(), '傷口紀錄單');
+      return;
+    }
+
+    const rowsByDate = new Map(); // key: YYYY-MM-DD
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const date = d.recordDate || '';
+      if (!rowsByDate.has(date)) rowsByDate.set(date, []);
+      rowsByDate.get(date).push({ id: doc.id, ...d });
+    });
+
+    // 日期排序（由新到舊）
+    const dates = Array.from(rowsByDate.keys()).sort((a,b) => (a < b ? 1 : -1));
+
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } = window.docx;
+
+    const titleFacility = currentCaseData?.facilityName || FACILITY_NAME;
+    const residentName = currentCaseData?.residentName || '';
+    const bed = currentCaseData?.bedNumber || '';
+    const mrn = currentCaseData?.residentNumber || '';
+
+    const head1 = new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [ new TextRun({ text: docxSafeText(titleFacility), font: DOCX_FONT, size: 28, bold: true }) ],
+      spacing: { after: 120 }
+    });
+    const head2 = new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [ new TextRun({ text: `傷口復評彙整（${y}年）`, font: DOCX_FONT, size: 32, bold: true }) ],
+      spacing: { after: 200 }
+    });
+
+    const info = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        docxFieldRow('住民姓名', residentName),
+        docxFieldRow('床號', bed),
+        docxFieldRow('病歷號', mrn),
+        docxFieldRow('傷口位置', currentCaseData?.woundLocation || ''),
+        docxFieldRow('傷口類型', currentCaseData?.woundType || ''),
+      ]
+    });
+
+    const border = {
+      top: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+      left: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+      right: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+    };
+
+    const dayTables = [];
+    for (const date of dates) {
+      const items = rowsByDate.get(date) || [];
+      // 同一天多筆 → 右側同一格用「時間 + 分隔線」堆疊
+      const leftLines = [];
+      leftLines.push(`日期：${formatISOToSlash(date)}`);
+      items.forEach(it => {
+        const t = (it.recordTime || '').trim();
+        const who = (it.recorderName || '').trim();
+        leftLines.push(`${t || '—'}　${who || ''}`.trim());
+      });
+
+      const rightParas = [];
+      items.forEach((it, idx) => {
+        const t = (it.recordTime || '').trim();
+        const who = (it.recorderName || '').trim();
+        rightParas.push(new Paragraph({
+          children: [ new TextRun({ text: docxSafeText(`${t || ''} ${who || ''}`.trim()), font: DOCX_FONT, size: 24, bold: true }) ],
+          spacing: { after: 60 }
+        }));
+        const lines = compactReassessLines(it);
+        if (lines.length === 0) {
+          rightParas.push(docxP('（無填寫內容）', { spacing: { after: 80 } }));
+        } else {
+          lines.forEach(line => rightParas.push(docxP(line, { spacing: { after: 40 } })));
+        }
+        if (idx < items.length - 1) {
+          rightParas.push(docxP('────────────────', { spacing: { after: 80 } }));
+        }
+      });
+
+      const table = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 30, type: WidthType.PERCENTAGE },
+                borders: border,
+                children: leftLines.map((ln, i) => new Paragraph({
+                  children: [ new TextRun({ text: docxSafeText(ln), font: DOCX_FONT, size: 24, bold: i===0 }) ],
+                  spacing: { after: 60 }
+                }))
+              }),
+              new TableCell({
+                width: { size: 70, type: WidthType.PERCENTAGE },
+                borders: border,
+                children: rightParas
+              })
+            ]
+          })
+        ]
+      });
+
+      dayTables.push(docxH(`復評日：${formatISOToSlash(date)}`));
+      dayTables.push(table);
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } },
+        children: [
+          head1,
+          head2,
+          info,
+          ...dayTables
+        ]
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const filename = `傷口復評彙整_${residentName || ''}_${y}.docx`;
+    saveAs(blob, filename);
+  }
+
+  async function exportDocx() {
+    // 1) 在「復評單張」裡：匯出該張完整復評（表單內容）
+    if (mode === 'reassess') {
+      const base = collectForm();
+      if (!(base && (base.residentId || base.residentName))) { alert('請先選擇住民'); return; }
+      await exportSingleDocx(base, '傷口復評紀錄單');
+      return;
+    }
+
+    // 2) 在「案例摘要頁」（第二張圖那個）：匯出所選年分內的所有復評彙整
+    const isCaseSummaryView = (mode === 'case' && !isEditingCaseDetail && $.caseViewSection && !$.caseViewSection.classList.contains('d-none'));
+    if (isCaseSummaryView) {
+      await exportReassessSummaryDocx(currentDocId, $.reassessYear?.value);
+      return;
+    }
+
+    // 3) 其他（例如：查看完整單張 / 原始單張表單編輯中）：匯出目前單張
+    const base = (mode === 'case' && currentCaseData) ? currentCaseData : collectForm();
+    if (!(base && (base.residentId || base.residentName))) { alert('請先選擇住民'); return; }
+    await exportSingleDocx(base, '傷口紀錄單');
   }
 
 
@@ -941,6 +1182,8 @@ function buildListItem(docId, d) {
 
   // --- Wiring ---
   function wire() {
+    ensureDeleteTopButton();
+    updateDeleteButtons();
     $.tabOpen.addEventListener('click', async () => { currentStatus='open'; await loadList(); });
     $.tabClosed.addEventListener('click', async () => { currentStatus='closed'; await loadList(); });
     $.btnNew.addEventListener('click', () => {
