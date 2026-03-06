@@ -381,6 +381,13 @@
   </div>
 
 
+  <script src="access-control.js"></script>
+  <script>
+    (async () => {
+      await AccessControl.init();
+      AccessControl.guardInsideOnly(); // 不是 211.20.249.25 就擋掉
+    })();
+  </script>
   <script src="wound-care.js"></script>
 </body>
 </html>
