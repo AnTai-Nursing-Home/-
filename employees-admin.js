@@ -1,6 +1,6 @@
 function buildTableHTML(tabId) {
     const tbodyId = `${tabId}-tbody`;
-    const extraHead = (tabId === 'inactiveEmployees') ? `<th class="sortable-header" data-sort="sourceLabel">職類</th>` : '';
+    const extraHead = (tabId === 'inactiveEmployees') ? `<th class="sortable-header" data-sort="sourceLabel">職類</th><th class="sortable-header" data-sort="inactiveDate">離職日期</th>` : '';
     return `
       <div class="tab-pane fade${tabId==='nurses'?' show active':''}" id="${tabId}-panel" role="tabpanel">
         <div class="table-responsive mt-3">
@@ -87,47 +87,94 @@ document.addEventListener('firebase-ready', () => {
     loginBadgeEl.textContent = text || '登入者：—';
   }
 
+  function normalizeLoginUser(u) {
+    if (!u || typeof u !== 'object') return null;
+    const staffId = String(
+      u.staffId || u.id || u.employeeId || u.empId || u.userId || u.account || ''
+    ).trim();
+    const name = String(
+      u.displayName || u.name || u.staffName || u.username || u.fullName || u.employeeName || ''
+    ).trim();
+    if (!staffId && !name) return null;
+    return { staffId, name };
+  }
+
   function getSessionUser() {
-    try {
-      const raw = sessionStorage.getItem('antai_session_user');
-      if (!raw) return null;
-      const u = JSON.parse(raw);
-      if (!u) return null;
-      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
-      const name = u.displayName || u.name || u.staffName || u.username || '';
-      if (!staffId && !name) return null;
-      return { staffId, name };
-    } catch (e) {
-      return null;
+    const candidateKeys = [
+      'antai_session_user',
+      'currentUser',
+      'loggedInUser',
+      'user',
+      'loginUser',
+      'nurse_current_user',
+      'caregiver_current_user',
+      'employee_current_user'
+    ];
+
+    for (const store of [sessionStorage, localStorage]) {
+      for (const key of candidateKeys) {
+        try {
+          const raw = store.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          const hit = normalizeLoginUser(parsed);
+          if (hit) return hit;
+        } catch (e) {}
+      }
     }
+
+    const globals = [
+      window.currentUser,
+      window.loggedInUser,
+      window.antaiSessionUser,
+      window.__CURRENT_USER__
+    ];
+    for (const g of globals) {
+      const hit = normalizeLoginUser(g);
+      if (hit) return hit;
+    }
+
+    return null;
+  }
+
+  function applyCurrentUser(u) {
+    CURRENT_USER.staffId = u?.staffId || '';
+    CURRENT_USER.name = u?.name || '';
+    const label = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim();
+    setLoginBadge(label ? `登入者：${label}` : '登入者：—');
+    return CURRENT_USER;
   }
 
   async function loadCurrentUserForEmployees() {
-    // 1) sessionStorage 優先
+    // 1) session/local storage 與全域變數優先
     const su = getSessionUser();
-    if (su) {
-      CURRENT_USER.staffId = su.staffId || '';
-      CURRENT_USER.name = su.name || '';
-      setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
-      return CURRENT_USER;
-    }
+    if (su) return applyCurrentUser(su);
 
     // 2) Firebase Auth + userAccounts（若頁面有載 auth）
     try {
       if (firebase?.auth) {
-        const u = firebase.auth().currentUser;
+        const authObj = firebase.auth();
+        let u = authObj.currentUser;
+        if (!u) {
+          u = await new Promise(resolve => {
+            const un = authObj.onAuthStateChanged(user => {
+              try { un(); } catch (e) {}
+              resolve(user || null);
+            }, () => resolve(null));
+            setTimeout(() => resolve(null), 1500);
+          });
+        }
         if (u?.uid) {
           const acc = await db.collection('userAccounts').doc(u.uid).get();
           if (acc.exists) {
-            const d = acc.data() || {};
-            CURRENT_USER.staffId = d.staffId || d.id || '';
-            CURRENT_USER.name = d.displayName || d.name || '';
-            setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
-            return CURRENT_USER;
+            const hit = normalizeLoginUser(acc.data() || {});
+            if (hit) return applyCurrentUser(hit);
           }
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('loadCurrentUserForEmployees auth fallback failed:', e);
+    }
 
     setLoginBadge('登入者：—');
     return CURRENT_USER;
@@ -166,6 +213,7 @@ document.addEventListener('firebase-ready', () => {
   const longtermExpireDateInput = document.getElementById('employee-longtermExpireDate');
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
+  const inactiveDateInput = document.getElementById('employee-inactiveDate');
 
   let currentEditing = { collection: null, docId: null };
   let sortConfig = { key: 'sortOrder', order: 'asc' };
@@ -214,7 +262,7 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    return (tabId === 'inactiveEmployees') ? 24 : 23;
+    return (tabId === 'inactiveEmployees') ? 25 : 23;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -320,6 +368,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['id','docId'])}</td>
         <td>${pick(e, ['name'])}</td>
         ${includeSource ? sourceTd : ""}
+        ${includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : ""}
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
@@ -397,7 +446,7 @@ function loadAll() {
 function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
     const isInactive = !!row.closest('#inactiveEmployees-panel');
-    const off = isInactive ? 1 : 0; // 離職分頁多一欄「職類」
+    const off = isInactive ? 2 : 0; // 離職分頁多兩欄「職類、離職日期」
 
     // 依表頭順序
     sortOrderInput.value = cell(0);
@@ -425,6 +474,7 @@ function fillFormFromRow(row) {
 
     educationInput.value = cell(20 + off);
     schoolInput.value = cell(21 + off);
+    if (inactiveDateInput) inactiveDateInput.value = toISODateForInput(isInactive ? cell(4) : '');
   }
 
   async function handleSave() {
@@ -453,6 +503,7 @@ function fillFormFromRow(row) {
       longtermExpireDate: longtermExpireDateInput.value.trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
+      inactiveDate: formatDateInput(inactiveDateInput?.value?.trim?.() || ''),
     };
 
     if (!id || !payload.name) {
@@ -465,10 +516,11 @@ function fillFormFromRow(row) {
     try {
       // 若更改了員編，刪舊建新
       const docId = currentEditing.docId && currentEditing.docId !== id ? currentEditing.docId : id;
+      if (!payload.inactiveDate) delete payload.inactiveDate;
       if (currentEditing.docId && currentEditing.docId !== id) {
         await db.collection(col).doc(currentEditing.docId).delete();
       }
-      await db.collection(col).doc(id).set(payload);
+      await db.collection(col).doc(id).set(payload, { merge: true });
       employeeModal.hide();
       loadAll();
     } catch (err) {
@@ -502,7 +554,8 @@ function fillFormFromRow(row) {
           }
         } else {
           if (confirm(`確定設為離職：${id}？`)) {
-            db.collection(collection).doc(id).set({ isActive: false }, { merge: true }).then(loadAll);
+            const today = formatDateInput(new Date().toISOString().slice(0, 10));
+            db.collection(collection).doc(id).set({ isActive: false, inactiveDate: today }, { merge: true }).then(loadAll);
           }
         }
       }
@@ -686,12 +739,32 @@ async function generateReportHTML() {
     const tab = activeTabDef();
     const col = tab.collection;
 
-    const snap = await db.collection(col).orderBy('sortOrder').orderBy('id').get();
+    const isInactiveTab = tab.id === 'inactiveEmployees';
+    let rowsData = [];
+    if (isInactiveTab) {
+      for (const def of TAB_DEFS) {
+        if (def.id === 'inactiveEmployees') continue;
+        const snap = await db.collection(def.collection).orderBy('id').get();
+        snap.forEach(doc => {
+          const e = doc.data() || {};
+          if (e.isActive !== false) return;
+          rowsData.push({ ...e, sourceLabel: def.label });
+        });
+      }
+    } else {
+      const snap = await db.collection(col).orderBy('sortOrder').orderBy('id').get();
+      snap.forEach(doc => {
+        const e = doc.data() || {};
+        if (e.isActive === false) return;
+        rowsData.push(e);
+      });
+    }
+
     let rows = "";
-    snap.forEach(doc => {
-      const e = doc.data();
+    rowsData.forEach(e => {
       rows += `
         <tr>
+          ${isInactiveTab ? `<td>${e.sourceLabel ?? ''}</td><td>${e.inactiveDate ?? ''}</td>` : ''}
           <td>${e.sortOrder ?? ''}</td>
           <td>${e.id ?? ''}</td>
           <td>${e.name ?? ''}</td>
@@ -732,7 +805,7 @@ async function generateReportHTML() {
       <h1>安泰醫療社團法人附設安泰護理之家</h1>
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
-        <th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
+        ${isInactiveTab ? '<th>職類</th><th>離職日期</th>' : ''}<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
         <th>到職日</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
         <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
@@ -840,11 +913,11 @@ async function generateReportHTML() {
           getVal(e, ['education']),
           getVal(e, ['school']),
         ];
-        return includeSource ? [getVal(e, ['sourceLabel']), ...base] : base;
+        return includeSource ? [getVal(e, ['sourceLabel']), getVal(e, ['inactiveDate']), ...base] : base;
       }
 
       function makeTable(rows, includeSource) {
-        const headers = includeSource ? ['職類', ...headersBase] : headersBase;
+        const headers = includeSource ? ['職類', '離職日期', ...headersBase] : headersBase;
 
         const border = {
           top:    { style: BorderStyle.SINGLE, size: 1, color: "000000" },
@@ -1097,6 +1170,7 @@ async function generateReportHTML() {
         const finalCols = includeSource
           ? [
               { header:'職類', key:'sourceLabel', width: 10 },
+              { header:'離職日期', key:'inactiveDate', width: 12 },
               ...cols
             ]
           : cols;
@@ -1142,7 +1216,8 @@ async function generateReportHTML() {
             longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
-            sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined
+            sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined,
+            inactiveDate: includeSource ? getVal(e, ['inactiveDate']) : undefined
           };
 
           const values = finalCols.map(c => rowObj[c.key] ?? '');
