@@ -1,95 +1,26 @@
-/* idle-timeout.secure.js + Antai Shell Sidebar v2
- * 安泰護家系統通用插件整合版（自動啟動）
+/* idle-timeout.secure.js
+ * 安泰護家系統通用插件版（自動啟動）
  * - 閒置 3 分鐘跳提示，倒數 120 秒仍無動作則強制登出
- * - 左側系統側邊欄（日期 / 天氣 / 溫度 / 系統清單）
- * - 可只引用這一支 script
+ * - 預設使用 sessionStorage key: "antai_session_user"
+ * - 預設登出：移除 session 並重新載入目前頁面
  *
- * ✅ 基本用法
- *   <script>
- *     window.IDLE_TIMEOUT_CONFIG = {
- *       idleSeconds: 180,
- *       countdownSeconds: 120,
- *       shell: {
- *         enabled: true,
- *         systemKey: 'nurse',
- *         activeKey: 'dashboard',
- *         systems: {
- *           nurse: {
- *             label: '護理師系統',
- *             items: [
- *               { key:'dashboard', label:'儀表板', href:'nurse-dashboard.html', icon:'grid' },
- *               { key:'residents', label:'住民資料', href:'residents-admin.html', icon:'users' }
- *             ]
- *           }
- *         },
- *         weather: {
- *           enabled: true,
- *           locationName: '屏東縣東港鎮',
- *           latitude: 22.465,
- *           longitude: 120.449
- *         }
- *       }
- *     };
- *   </script>
- *   <script src="idle-timeout-integrated.js"></script>
- *
- * ✅ 也支援獨立配置 window.ANTAI_SHELL_CONFIG
- *   若 shell 未寫在 IDLE_TIMEOUT_CONFIG，會自動讀 ANTIAI_SHELL_CONFIG
+ * ✅ 用法（最簡）
+ *   <script src="idle-timeout.js"></script>
  */
 
 (function (global) {
   const DEFAULTS = {
-    // 規則
     idleSeconds: 180,
     countdownSeconds: 120,
     checkIntervalMs: 1000,
-
-    // 安泰 session
     sessionKey: "antai_session_user",
-
-    // 行為
     redirectUrl: null,
     autoStart: true,
     storageKeysToClear: [],
-
-    // UI 文案
     titleText: "閒置提醒",
     messageText: "你已閒置一段時間。若未繼續操作，系統將自動登出以保護資料安全。",
     continueBtnText: "我還在使用",
     logoutBtnText: "立即登出",
-
-    // Shell sidebar
-    shell: {
-      enabled: false,
-      side: "left",
-      collapsed: false,
-      width: 316,
-      mobileBreakpoint: 980,
-      mountToBody: true,
-      pageContainerSelector: null,
-      zIndex: 2147483000,
-      autoInjectToggle: true,
-      dateFormatter: null,
-      systemKey: "default",
-      activeKey: null,
-      title: "系統選單",
-      homeHref: null,
-      weather: {
-        enabled: true,
-        locationName: "目前位置",
-        latitude: null,
-        longitude: null,
-        units: "celsius",
-        refreshMinutes: 5,
-        provider: "open-meteo"
-      },
-      systems: {
-        default: {
-          label: "系統選單",
-          items: []
-        }
-      }
-    }
   };
 
   let cfg = null;
@@ -98,74 +29,12 @@
   let warnCountdownTimer = null;
   let warnRemaining = 0;
   let isWarningShown = false;
-
   let overlayEl = null;
   let countdownEl = null;
 
-  let shellState = {
-    cfg: null,
-    rootEl: null,
-    styleEl: null,
-    contentWrapper: null,
-    weatherTempEl: null,
-    weatherTextEl: null,
-    weatherIconEl: null,
-    dateEl: null,
-    collapseBtn: null,
-    mobileToggleBtn: null,
-    drawerBackdropEl: null,
-    refreshTimer: null,
-    isMounted: false
-  };
-
-  const ACTIVITY_EVENTS = [
-    "mousemove",
-    "mousedown",
-    "keydown",
-    "scroll",
-    "touchstart",
-    "click",
-  ];
-
-  function now() {
-    return Date.now();
-  }
-
-  function safeParseJSON(s) {
-    try { return JSON.parse(s); } catch (_) { return null; }
-  }
-
-  function deepMerge(base, override) {
-    const output = Array.isArray(base) ? base.slice() : Object.assign({}, base);
-    if (!override || typeof override !== "object") return output;
-
-    Object.keys(override).forEach((key) => {
-      const baseVal = output[key];
-      const overVal = override[key];
-
-      if (Array.isArray(overVal)) {
-        output[key] = overVal.slice();
-      } else if (
-        baseVal && typeof baseVal === "object" && !Array.isArray(baseVal) &&
-        overVal && typeof overVal === "object" && !Array.isArray(overVal)
-      ) {
-        output[key] = deepMerge(baseVal, overVal);
-      } else {
-        output[key] = overVal;
-      }
-    });
-
-    return output;
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
+  const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"];
+  const now = () => Date.now();
+  const safeParseJSON = (s) => { try { return JSON.parse(s); } catch (_) { return null; } };
 
   function defaultIsLoggedIn() {
     if (!cfg) return false;
@@ -176,13 +45,9 @@
 
   async function defaultSignOut(reason) {
     try { sessionStorage.removeItem(cfg.sessionKey); } catch (_) {}
-
     if (cfg.storageKeysToClear && cfg.storageKeysToClear.length) {
-      cfg.storageKeysToClear.forEach((k) => {
-        try { localStorage.removeItem(k); } catch (_) {}
-      });
+      cfg.storageKeysToClear.forEach((k) => { try { localStorage.removeItem(k); } catch (_) {} });
     }
-
     if (cfg.redirectUrl) {
       const url = cfg.redirectUrl.includes("?")
         ? `${cfg.redirectUrl}&reason=${encodeURIComponent(reason)}`
@@ -194,1144 +59,287 @@
   }
 
   function addListeners() {
-    ACTIVITY_EVENTS.forEach((evt) =>
-      window.addEventListener(evt, onActivity, { passive: true })
-    );
+    ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, onActivity, { passive: true }));
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("resize", onShellResize, { passive: true });
   }
-
   function removeListeners() {
-    ACTIVITY_EVENTS.forEach((evt) =>
-      window.removeEventListener(evt, onActivity)
-    );
+    ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, onActivity));
     document.removeEventListener("visibilitychange", onVisibilityChange);
-    window.removeEventListener("resize", onShellResize);
   }
-
-  function onVisibilityChange() {
-    if (!document.hidden) onActivity();
-  }
-
+  function onVisibilityChange() { if (!document.hidden) onActivity(); }
   function onActivity() {
     if (!cfg) return;
     if (cfg.isLoggedInFn && !cfg.isLoggedInFn()) return;
-
     lastActivityAt = now();
-
     if (isWarningShown) {
       hideWarning();
       resetIdleCheck();
     }
   }
-
   function resetIdleCheck() {
     clearInterval(idleTimer);
     idleTimer = setInterval(tickIdleCheck, cfg.checkIntervalMs);
   }
-
   function tickIdleCheck() {
     if (!cfg) return;
-
     if (cfg.isLoggedInFn && !cfg.isLoggedInFn()) {
       if (isWarningShown) hideWarning();
       return;
     }
-
     const idleMs = now() - lastActivityAt;
-    if (!isWarningShown && idleMs >= cfg.idleSeconds * 1000) {
-      showWarning();
-    }
+    if (!isWarningShown && idleMs >= cfg.idleSeconds * 1000) showWarning();
   }
-
   function showWarning() {
     isWarningShown = true;
     warnRemaining = cfg.countdownSeconds;
-
     ensureOverlay();
     overlayEl.style.display = "flex";
     updateCountdownText();
-
     clearInterval(warnCountdownTimer);
     warnCountdownTimer = setInterval(() => {
       warnRemaining -= 1;
       updateCountdownText();
-
-      if (warnRemaining <= 0) {
-        clearInterval(warnCountdownTimer);
-        forceLogout("idle_timeout");
-      }
+      if (warnRemaining <= 0) forceLogout("idle_timeout");
     }, 1000);
   }
-
   function hideWarning() {
     isWarningShown = false;
     clearInterval(warnCountdownTimer);
     warnCountdownTimer = null;
     if (overlayEl) overlayEl.style.display = "none";
   }
-
   function updateCountdownText() {
     if (!countdownEl) return;
-    const mm = Math.floor(warnRemaining / 60);
-    const ss = warnRemaining % 60;
-    const pad = (n) => String(n).padStart(2, "0");
-    countdownEl.textContent = `${pad(mm)}:${pad(ss)}`;
+    const mm = String(Math.floor(warnRemaining / 60)).padStart(2, "0");
+    const ss = String(warnRemaining % 60).padStart(2, "0");
+    countdownEl.textContent = `${mm}:${ss}`;
   }
-
   async function forceLogout(reason) {
-    try {
-      hideWarning();
-      if (typeof cfg.signOutFn === "function") {
-        await cfg.signOutFn(reason);
-      } else {
-        await defaultSignOut(reason);
-      }
-    } catch (err) {
-      console.error("[IdleTimeoutSecure] forceLogout error:", err);
-      try { await defaultSignOut(reason); } catch (_) {}
+    hideWarning();
+    clearInterval(idleTimer);
+    try { await cfg.signOutFn(reason); } catch (err) {
+      console.error("[idle-timeout] signOutFn failed:", err);
+      window.location.reload();
     }
   }
-
   function ensureOverlay() {
     if (overlayEl) return;
-
     const style = document.createElement("style");
     style.textContent = `
-      .it-overlay{
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,.45);
-        display:none; align-items:center; justify-content:center;
-        z-index: 99999;
-      }
-      .it-card{
-        width: min(520px, calc(100vw - 32px));
-        background: #fff;
-        border-radius: 14px;
-        box-shadow: 0 18px 50px rgba(0,0,0,.25);
-        padding: 18px;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
-      }
-      .it-title{ font-size: 18px; font-weight: 700; margin-bottom: 10px; }
-      .it-msg{ font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
-      .it-timer{
-        font-size: 22px; font-weight: 800;
-        margin-bottom: 14px; color:#b00020;
-      }
-      .it-actions{ display:flex; gap:10px; justify-content:flex-end; }
-      .it-btn{
-        border:0; border-radius: 10px;
-        padding: 10px 12px; cursor:pointer; font-size: 14px;
-      }
-      .it-btn-primary{ background:#111; color:#fff; }
-      .it-btn-ghost{ background:#eee; color:#111; }
+      .it-overlay{position:fixed;inset:0;background:rgba(10,18,35,.52);z-index:2147483647;display:none;align-items:center;justify-content:center;padding:20px}
+      .it-card{width:min(92vw,420px);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.22);padding:24px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif}
+      .it-title{font-size:22px;font-weight:800;color:#14243b;margin-bottom:10px}
+      .it-msg{font-size:15px;line-height:1.75;color:#4c5b70}
+      .it-timer{margin-top:16px;font-size:15px;color:#2f425a}
+      .it-timer span{font-size:28px;font-weight:900;color:#1859d1;letter-spacing:1px}
+      .it-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+      .it-btn{border:none;border-radius:12px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer}
+      .it-btn-primary{background:#1d63e9;color:#fff}
+      .it-btn-ghost{background:#eef3fb;color:#1f3654}
     `;
     document.head.appendChild(style);
-
     overlayEl = document.createElement("div");
     overlayEl.className = "it-overlay";
     overlayEl.innerHTML = `
       <div class="it-card">
-        <div class="it-title">${escapeHtml(cfg.titleText)}</div>
-        <div class="it-msg">${escapeHtml(cfg.messageText)}</div>
+        <div class="it-title">${cfg.titleText}</div>
+        <div class="it-msg">${cfg.messageText}</div>
         <div class="it-timer">倒數：<span id="it-countdown">02:00</span></div>
         <div class="it-actions">
-          <button class="it-btn it-btn-ghost" id="it-logout">${escapeHtml(cfg.logoutBtnText)}</button>
-          <button class="it-btn it-btn-primary" id="it-continue">${escapeHtml(cfg.continueBtnText)}</button>
+          <button class="it-btn it-btn-ghost" id="it-logout">${cfg.logoutBtnText}</button>
+          <button class="it-btn it-btn-primary" id="it-continue">${cfg.continueBtnText}</button>
         </div>
-      </div>
-    `;
+      </div>`;
     document.body.appendChild(overlayEl);
-
     countdownEl = overlayEl.querySelector("#it-countdown");
-
-    overlayEl.querySelector("#it-continue").addEventListener("click", () => {
-      onActivity();
-    });
-
-    overlayEl.querySelector("#it-logout").addEventListener("click", () => {
-      forceLogout("manual_logout");
-    });
+    overlayEl.querySelector("#it-continue").addEventListener("click", onActivity);
+    overlayEl.querySelector("#it-logout").addEventListener("click", () => forceLogout("manual_logout"));
   }
-
-
-  const AUTO_SHELL_DEFAULTS = {
-    enabled: true,
-    title: "安泰護家系統",
-    weather: {
-      enabled: true,
-      locationName: "屏東縣東港鎮",
-      latitude: 22.465,
-      longitude: 120.449,
-      refreshMinutes: 5,
-      provider: "open-meteo"
-    },
-    systems: {
-      nurse: {
-        label: "護理師系統",
-        items: [
-          { key: "admin", label: "護理師首頁", href: "admin.html", icon: "grid", description: "護理師系統總覽與快捷功能" },
-          { key: "visit", label: "訪視管理", href: "admin-visit.html", icon: "heart", description: "訪視相關作業與紀錄" },
-          { key: "duty", label: "護理排班", href: "admin-duty.html", icon: "calendar", description: "班表與值班管理" },
-          { key: "supplies", label: "物資系統", href: "admin-supplies-system.html", icon: "box", description: "護理物資與耗材管理" },
-          { key: "resident", label: "住民系統", href: "admin-resident-system.html", icon: "users", description: "住民基本資料與照護資訊" },
-          { key: "woundCare", label: "傷口照護", href: "wound-care.html", icon: "bandage", description: "傷口紀錄、追蹤與匯出" },
-          { key: "doctorRound", label: "醫師巡診", href: "doctor-rounds.html", icon: "stethoscope", description: "巡診紀錄與醫囑管理" },
-          { key: "primaryCases", label: "重點個案", href: "nurse-primary-cases.html", icon: "sparkles", description: "主要案件與照護追蹤" },
-          { key: "nurseWhiteboard", label: "護理白板", href: "nurse-whiteboard.html", icon: "clipboard", description: "交班與即時看板資訊" },
-          { key: "temperature", label: "體溫紀錄", href: "temperature-nurse.html", icon: "thermometer", description: "體溫量測與趨勢查看" }
-        ]
-      },
-      caregiver: {
-        label: "照服員系統",
-        items: [
-          { key: "caregiver", label: "照服員首頁", href: "caregiver.html", icon: "grid", description: "照服員系統總覽與快捷功能" },
-          { key: "leave", label: "請假系統", href: "leave-caregiver.html", icon: "calendar", description: "請假申請與紀錄查詢" },
-          { key: "stay", label: "外宿名冊", href: "stay-caregiver.html", icon: "moon", description: "外宿狀態與名冊查看" },
-          { key: "foley", label: "導尿管系統", href: "foley-care.html", icon: "droplet", description: "導尿管紀錄與提醒" },
-          { key: "meal", label: "餐食系統", href: "meal-caregiver.html", icon: "utensils", description: "用餐、飲食與備註管理" },
-          { key: "temperature", label: "體溫紀錄", href: "temperature-caregiver.html", icon: "thermometer", description: "體溫量測與查詢" }
-        ]
-      },
-      office: {
-        label: "辦公室系統",
-        items: [
-          { key: "office", label: "辦公室首頁", href: "office.html", icon: "grid", description: "辦公室系統總覽與快捷功能" },
-          { key: "evaluation", label: "評核系統", href: "office-evaluation.html", icon: "clipboard", description: "評核與追蹤作業" },
-          { key: "duty", label: "辦公室排班", href: "office-duty.html", icon: "calendar", description: "排班與值勤管理" },
-          { key: "employeesAdmin", label: "員工資料", href: "employees-admin.html", icon: "users", description: "員工名冊與資料管理" },
-          { key: "maintenance", label: "維修系統", href: "office-maintenance.html", icon: "settings", description: "維修申請與設備追蹤" },
-          { key: "stay", label: "外宿系統", href: "office-stay.html", icon: "moon", description: "外宿申請與審核管理" },
-          { key: "announcements", label: "公告管理", href: "announcements-admin.html", icon: "bell", description: "公告發布與管理" },
-          { key: "mealFee", label: "餐費管理", href: "meal-fee-admin.html", icon: "wallet", description: "餐費相關資料管理" },
-          { key: "accountAdmin", label: "帳號管理", href: "account-admin.html", icon: "shield", description: "登入帳號與權限設定" }
-        ]
-      }
-    }
-  };
-
-  const AUTO_PAGE_RULES = [
-    { match: ["admin.html"], systemKey: "nurse", activeKey: "admin" },
-    { match: ["admin-visit.html"], systemKey: "nurse", activeKey: "visit" },
-    { match: ["admin-duty.html"], systemKey: "nurse", activeKey: "duty" },
-    { match: ["admin-supplies-system.html"], systemKey: "nurse", activeKey: "supplies" },
-    { match: ["admin-resident-system.html"], systemKey: "nurse", activeKey: "resident" },
-    { match: ["wound-care.html"], systemKey: "nurse", activeKey: "woundCare" },
-    { match: ["doctor-rounds.html"], systemKey: "nurse", activeKey: "doctorRound" },
-    { match: ["nurse-primary-cases.html"], systemKey: "nurse", activeKey: "primaryCases" },
-    { match: ["nurse-whiteboard.html"], systemKey: "nurse", activeKey: "nurseWhiteboard" },
-    { match: ["temperature-nurse.html"], systemKey: "nurse", activeKey: "temperature" },
-
-    { match: ["caregiver.html"], systemKey: "caregiver", activeKey: "caregiver" },
-    { match: ["leave-caregiver.html"], systemKey: "caregiver", activeKey: "leave" },
-    { match: ["stay-caregiver.html"], systemKey: "caregiver", activeKey: "stay" },
-    { match: ["foley-care.html"], systemKey: "caregiver", activeKey: "foley" },
-    { match: ["meal-caregiver.html"], systemKey: "caregiver", activeKey: "meal" },
-    { match: ["temperature-caregiver.html"], systemKey: "caregiver", activeKey: "temperature" },
-
-    { match: ["office-evaluation.html"], systemKey: "office", activeKey: "evaluation" },
-    { match: ["office-duty.html"], systemKey: "office", activeKey: "duty" },
-    { match: ["employees-admin.html"], systemKey: "office", activeKey: "employeesAdmin" },
-    { match: ["office-maintenance.html"], systemKey: "office", activeKey: "maintenance" },
-    { match: ["office-stay.html"], systemKey: "office", activeKey: "stay" },
-    { match: ["announcements-admin.html"], systemKey: "office", activeKey: "announcements" },
-    { match: ["meal-fee-admin.html"], systemKey: "office", activeKey: "mealFee" },
-    { match: ["account-admin.html"], systemKey: "office", activeKey: "accountAdmin" },
-    { match: ["office.html"], systemKey: "office", activeKey: "office" }
-  ];
-
-  function getCurrentPageName() {
-    try {
-      const pathname = String(window.location.pathname || "");
-      const cleaned = pathname.split("?")[0].split("#")[0];
-      return (cleaned.split("/").pop() || "").toLowerCase();
-    } catch (_) {
-      return "";
-    }
-  }
-
-  function inferShellFromLocation() {
-    const page = getCurrentPageName();
-    if (!page) return { enabled: false };
-
-    const hit = AUTO_PAGE_RULES.find((rule) => Array.isArray(rule.match) && rule.match.some((token) => page === String(token).toLowerCase()));
-    if (!hit) return { enabled: false };
-
-    return {
-      enabled: true,
-      title: AUTO_SHELL_DEFAULTS.title,
-      systemKey: hit.systemKey,
-      activeKey: hit.activeKey,
-      systems: AUTO_SHELL_DEFAULTS.systems,
-      weather: AUTO_SHELL_DEFAULTS.weather
-    };
-  }
-
-  function getShellConfig(options) {
-    const embeddedShell = options && typeof options.shell === "object" ? options.shell : null;
-    const externalShell = global.ANTAI_SHELL_CONFIG && typeof global.ANTAI_SHELL_CONFIG === "object"
-      ? global.ANTAI_SHELL_CONFIG
-      : null;
-
-    const inferredShell = inferShellFromLocation();
-
-    const merged = deepMerge(
-      DEFAULTS.shell,
-      deepMerge(AUTO_SHELL_DEFAULTS, deepMerge(inferredShell, embeddedShell || externalShell || {}))
-    );
-
-    if (!inferredShell.enabled && !embeddedShell && !externalShell) merged.enabled = false;
-    return merged;
-  }
-
-  function mountShell(options) {
-    const shellCfg = getShellConfig(options);
-    shellState.cfg = shellCfg;
-
-    if (!shellCfg.enabled) return;
-    if (shellState.isMounted) return;
-
-    injectShellStyles(shellCfg);
-    createShellDOM(shellCfg);
-    bindShellEvents(shellCfg);
-    renderShellDate(shellCfg);
-    renderShellMenu(shellCfg);
-    renderShellWeather(shellCfg);
-    applyShellResponsiveState();
-    shellState.isMounted = true;
-  }
-
-  function injectShellStyles(shellCfg) {
-    if (shellState.styleEl) return;
-
-    const style = document.createElement("style");
-    style.id = "antai-shell-sidebar-style";
-    style.textContent = `
-      :root{
-        --antai-shell-width:${Number(shellCfg.width) || 316}px;
-        --antai-shell-radius:24px;
-        --antai-shell-blur:18px;
-        --antai-shell-bg:linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,255,.82));
-        --antai-shell-border:rgba(255,255,255,.58);
-        --antai-shell-shadow:0 14px 38px rgba(18,32,73,.12);
-        --antai-shell-text:#19324d;
-        --antai-shell-muted:#5f7187;
-        --antai-shell-accent:#3f7cff;
-        --antai-shell-accent-soft:rgba(63,124,255,.10);
-      }
-      .antai-shell-root, .antai-shell-root *{ box-sizing:border-box; }
-      .antai-shell-root{
-        position:fixed !important;
-        top:14px !important;
-        left:14px !important;
-        bottom:14px !important;
-        width:var(--antai-shell-width) !important;
-        z-index:${Number(shellCfg.zIndex) || 2147483000} !important;
-        display:flex !important;
-        visibility:visible !important;
-        opacity:1 !important;
-        pointer-events:auto !important;
-        flex-direction:column;
-        gap:12px;
-        transform:translateX(0);
-        transition:transform .28s ease, width .28s ease, opacity .28s ease;
-        font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
-      }
-      .antai-shell-root.is-collapsed{
-        width:84px;
-      }
-      .antai-shell-panel{
-        flex:1;
-        min-height:0;
-        border-radius:28px;
-        border:1px solid var(--antai-shell-border);
-        background:var(--antai-shell-bg);
-        box-shadow:var(--antai-shell-shadow);
-        backdrop-filter:blur(var(--antai-shell-blur));
-        -webkit-backdrop-filter:blur(var(--antai-shell-blur));
-        overflow:hidden;
-        display:flex;
-        flex-direction:column;
-        position:relative;
-      }
-      .antai-shell-panel::before{
-        content:"";
-        position:absolute;
-        inset:0 0 auto 0;
-        height:170px;
-        background:radial-gradient(circle at top right, rgba(102,157,255,.20), transparent 52%),
-                   radial-gradient(circle at top left, rgba(62,204,255,.14), transparent 48%);
-        pointer-events:none;
-      }
-      .antai-shell-scroll{
-        position:relative;
-        z-index:1;
-        padding:14px;
-        overflow:auto;
-        min-height:0;
-        display:flex;
-        flex-direction:column;
-        gap:12px;
-      }
-      .antai-shell-topbar{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-      }
-      .antai-shell-brand{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        min-width:0;
-      }
-      .antai-shell-badge{
-        width:40px; height:40px; border-radius:14px;
-        display:grid; place-items:center;
-        background:linear-gradient(135deg, rgba(63,124,255,.16), rgba(86,180,255,.18));
-        color:var(--antai-shell-accent);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
-        flex:0 0 auto;
-      }
-      .antai-shell-title-wrap{ min-width:0; }
-      .antai-shell-title{
-        color:var(--antai-shell-text);
-        font-size:15px; font-weight:800; line-height:1.2;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      }
-      .antai-shell-subtitle{
-        color:var(--antai-shell-muted);
-        font-size:12px; margin-top:2px;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      }
-      .antai-shell-collapse-btn,
-      .antai-shell-mobile-toggle{
-        border:0; cursor:pointer;
-        border-radius:14px;
-        background:rgba(255,255,255,.72);
-        color:var(--antai-shell-text);
-        box-shadow:0 8px 18px rgba(14,33,73,.08);
-        transition:transform .18s ease, background .18s ease;
-      }
-      .antai-shell-collapse-btn:hover,
-      .antai-shell-mobile-toggle:hover{ transform:translateY(-1px); }
-      .antai-shell-collapse-btn{
-        width:38px; height:38px;
-        display:grid; place-items:center;
-        flex:0 0 auto;
-      }
-      .antai-shell-mobile-toggle{
-        position:fixed;
-        left:14px; top:14px;
-        width:46px; height:46px;
-        z-index:${(Number(shellCfg.zIndex) || 9998) + 1};
-        display:none;
-      }
-      .antai-shell-mobile-backdrop{
-        position:fixed; inset:0;
-        background:rgba(14,22,38,.28);
-        backdrop-filter:blur(2px);
-        -webkit-backdrop-filter:blur(2px);
-        z-index:${Number(shellCfg.zIndex) || 9997};
-        display:none;
-      }
-      .antai-shell-weather{
-        position:relative;
-        overflow:hidden;
-        border-radius:24px;
-        padding:16px 16px 15px;
-        color:#fff;
-        background:linear-gradient(155deg, #5f9dff, #70c8ff 52%, #89d8ff);
-        box-shadow:0 14px 26px rgba(65,128,255,.24);
-      }
-      .antai-shell-weather::before,
-      .antai-shell-weather::after{
-        content:"";
-        position:absolute;
-        border-radius:999px;
-        background:rgba(255,255,255,.18);
-        filter:blur(2px);
-        animation:antaiFloat 7.2s ease-in-out infinite;
-      }
-      .antai-shell-weather::before{ width:140px; height:140px; top:-68px; right:-36px; }
-      .antai-shell-weather::after{ width:92px; height:92px; bottom:-34px; left:-24px; animation-delay:-2.4s; }
-      .antai-shell-weather-row{
-        display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
-        position:relative; z-index:1;
-      }
-      .antai-shell-weather-date{
-        font-size:14px; font-weight:700; opacity:.96;
-      }
-      .antai-shell-weather-place{
-        margin-top:6px; font-size:12px; opacity:.88;
-      }
-      .antai-shell-weather-right{ text-align:right; flex:0 0 auto; }
-      .antai-shell-weather-icon{
-        width:44px; height:44px; margin-left:auto; margin-bottom:8px;
-        display:grid; place-items:center;
-      }
-      .antai-shell-weather-icon svg{ width:44px; height:44px; display:block; }
-      .antai-shell-weather-text{
-        font-size:13px; font-weight:700; opacity:.95;
-      }
-      .antai-shell-weather-temp{
-        margin-top:6px; display:flex; align-items:center; justify-content:flex-end; gap:6px;
-        font-size:26px; font-weight:800; letter-spacing:-.02em;
-      }
-      .antai-shell-thermo{ width:18px; height:18px; opacity:.95; }
-      .antai-shell-section-title{
-        padding:2px 4px 0;
-        font-size:12px; font-weight:800;
-        color:var(--antai-shell-muted);
-        letter-spacing:.06em;
-      }
-      .antai-shell-menu{
-        display:flex; flex-direction:column; gap:8px;
-      }
-      .antai-shell-item{
-        display:flex; align-items:flex-start; gap:12px;
-        text-decoration:none;
-        color:var(--antai-shell-text);
-        padding:12px;
-        border-radius:18px;
-        background:rgba(255,255,255,.58);
-        border:1px solid rgba(255,255,255,.62);
-        box-shadow:0 8px 20px rgba(31,51,84,.06);
-        transition:transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
-      }
-      .antai-shell-item:hover{
-        transform:translateY(-1px);
-        box-shadow:0 12px 24px rgba(31,51,84,.10);
-        background:rgba(255,255,255,.84);
-      }
-      .antai-shell-item.is-active{
-        background:linear-gradient(180deg, rgba(63,124,255,.15), rgba(63,124,255,.10));
-        border-color:rgba(63,124,255,.30);
-      }
-      .antai-shell-item-icon{
-        width:40px; height:40px; border-radius:14px;
-        display:grid; place-items:center;
-        background:var(--antai-shell-accent-soft);
-        color:var(--antai-shell-accent);
-        flex:0 0 auto;
-      }
-      .antai-shell-item-icon svg{ width:22px; height:22px; }
-      .antai-shell-item-content{ min-width:0; flex:1; }
-      .antai-shell-item-label{
-        font-size:14px; font-weight:800; line-height:1.25;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      }
-      .antai-shell-item-desc{
-        margin-top:4px; font-size:12px; color:var(--antai-shell-muted); line-height:1.45;
-        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-title-wrap,
-      .antai-shell-root.is-collapsed .antai-shell-section-title,
-      .antai-shell-root.is-collapsed .antai-shell-item-content,
-      .antai-shell-root.is-collapsed .antai-shell-weather-place,
-      .antai-shell-root.is-collapsed .antai-shell-weather-text,
-      .antai-shell-root.is-collapsed .antai-shell-weather-temp span,
-      .antai-shell-root.is-collapsed .antai-shell-weather-date{
-        display:none;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-weather{
-        padding:12px;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-weather-row{
-        justify-content:center;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-weather-icon{
-        margin:0 auto 8px;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-item{
-        justify-content:center; padding:12px 8px;
-      }
-      .antai-shell-root.is-collapsed .antai-shell-item-icon{
-        width:44px; height:44px;
-      }
-      .antai-shell-page-shift{
-        transition:padding-left .28s ease, margin-left .28s ease;
-      }
-      body.antai-shell-has-sidebar .antai-shell-page-shift,
-      body.antai-shell-has-sidebar[data-antai-shell-shift="body"]{
-        padding-left:calc(var(--antai-shell-width) + 28px);
-      }
-      body.antai-shell-has-sidebar .antai-shell-root.is-collapsed ~ .antai-shell-page-shift,
-      body.antai-shell-has-sidebar.antai-shell-collapsed .antai-shell-page-shift,
-      body.antai-shell-has-sidebar.antai-shell-collapsed[data-antai-shell-shift="body"]{
-        padding-left:112px;
-      }
-      @keyframes antaiFloat{
-        0%,100%{ transform:translate3d(0,0,0) scale(1); }
-        50%{ transform:translate3d(8px,-8px,0) scale(1.05); }
-      }
-      @keyframes antaiSunPulse{
-        0%,100%{ transform:scale(1); opacity:.98; }
-        50%{ transform:scale(1.06); opacity:1; }
-      }
-      @keyframes antaiCloudDrift{
-        0%,100%{ transform:translateX(0); }
-        50%{ transform:translateX(4px); }
-      }
-      @keyframes antaiRainDrop{
-        0%{ transform:translateY(-1px); opacity:0; }
-        30%{ opacity:1; }
-        100%{ transform:translateY(9px); opacity:0; }
-      }
-      @keyframes antaiSnowDrop{
-        0%{ transform:translateY(-1px); opacity:.2; }
-        50%{ opacity:1; }
-        100%{ transform:translateY(8px); opacity:.15; }
-      }
-      @media (max-width:${Number(shellCfg.mobileBreakpoint) || 980}px){
-        .antai-shell-mobile-toggle{ display:grid; place-items:center; }
-        .antai-shell-root{
-          top:12px; left:12px; bottom:12px;
-          transform:translateX(calc(-100% - 18px));
-          width:min(calc(100vw - 24px), var(--antai-shell-width));
-        }
-        .antai-shell-root.is-mobile-open{ transform:translateX(0); }
-        .antai-shell-root.is-collapsed{ width:min(calc(100vw - 24px), var(--antai-shell-width)); }
-        body.antai-shell-has-sidebar .antai-shell-page-shift,
-        body.antai-shell-has-sidebar[data-antai-shell-shift="body"]{
-          padding-left:0 !important;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-    shellState.styleEl = style;
-  }
-
-  function createShellDOM(shellCfg) {
-    const root = document.createElement("aside");
-    root.className = `antai-shell-root${shellCfg.collapsed ? " is-collapsed" : ""}`;
-    root.setAttribute("aria-label", "系統側邊欄");
-
-    const panel = document.createElement("div");
-    panel.className = "antai-shell-panel";
-
-    panel.innerHTML = `
-      <div class="antai-shell-scroll">
-        <div class="antai-shell-topbar">
-          <div class="antai-shell-brand">
-            <div class="antai-shell-badge">${getIconSvg("sparkles")}</div>
-            <div class="antai-shell-title-wrap">
-              <div class="antai-shell-title">${escapeHtml(shellCfg.title || "系統選單")}</div>
-              <div class="antai-shell-subtitle">${escapeHtml(getSystemLabel(shellCfg))}</div>
-            </div>
-          </div>
-          <button type="button" class="antai-shell-collapse-btn" aria-label="收合側邊欄">${getIconSvg("chevronLeft")}</button>
-        </div>
-
-        <section class="antai-shell-weather" data-role="weather-card">
-          <div class="antai-shell-weather-row">
-            <div>
-              <div class="antai-shell-weather-date" data-role="date-text"></div>
-              <div class="antai-shell-weather-place">${escapeHtml(shellCfg.weather && shellCfg.weather.locationName ? shellCfg.weather.locationName : "目前位置")}</div>
-            </div>
-            <div class="antai-shell-weather-right">
-              <div class="antai-shell-weather-icon" data-role="weather-icon">${getWeatherVisual("loading")}</div>
-              <div class="antai-shell-weather-text" data-role="weather-text">讀取中</div>
-              <div class="antai-shell-weather-temp">
-                ${getThermometerSvg()}
-                <span data-role="weather-temp">--°C</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div class="antai-shell-section-title">功能清單</div>
-        <nav class="antai-shell-menu" data-role="menu"></nav>
-      </div>
-    `;
-
-    root.appendChild(panel);
-    (shellCfg.mountToBody === false && shellCfg.pageContainerSelector
-      ? document.querySelector(shellCfg.pageContainerSelector)
-      : document.body
-    ).appendChild(root);
-
-    const mobileToggle = document.createElement("button");
-    mobileToggle.type = "button";
-    mobileToggle.className = "antai-shell-mobile-toggle";
-    mobileToggle.setAttribute("aria-label", "開啟系統側邊欄");
-    mobileToggle.innerHTML = getIconSvg("menu");
-    document.body.appendChild(mobileToggle);
-
-    const backdrop = document.createElement("div");
-    backdrop.className = "antai-shell-mobile-backdrop";
-    document.body.appendChild(backdrop);
-
-    shellState.rootEl = root;
-    shellState.dateEl = root.querySelector('[data-role="date-text"]');
-    shellState.weatherIconEl = root.querySelector('[data-role="weather-icon"]');
-    shellState.weatherTextEl = root.querySelector('[data-role="weather-text"]');
-    shellState.weatherTempEl = root.querySelector('[data-role="weather-temp"]');
-    shellState.collapseBtn = root.querySelector('.antai-shell-collapse-btn');
-    shellState.mobileToggleBtn = mobileToggle;
-    shellState.drawerBackdropEl = backdrop;
-
-    applyShellLayoutShift(shellCfg);
-  }
-
-  function bindShellEvents(shellCfg) {
-    if (shellState.collapseBtn) {
-      shellState.collapseBtn.addEventListener("click", () => {
-        if (window.innerWidth <= shellCfg.mobileBreakpoint) {
-          toggleMobileShell();
-          return;
-        }
-        shellState.rootEl.classList.toggle("is-collapsed");
-        document.body.classList.toggle("antai-shell-collapsed", shellState.rootEl.classList.contains("is-collapsed"));
-        const iconName = shellState.rootEl.classList.contains("is-collapsed") ? "chevronRight" : "chevronLeft";
-        shellState.collapseBtn.innerHTML = getIconSvg(iconName);
-      });
-    }
-
-    if (shellState.mobileToggleBtn) {
-      shellState.mobileToggleBtn.addEventListener("click", () => {
-        toggleMobileShell();
-      });
-    }
-
-    if (shellState.drawerBackdropEl) {
-      shellState.drawerBackdropEl.addEventListener("click", () => {
-        closeMobileShell();
-      });
-    }
-  }
-
-  function applyShellLayoutShift(shellCfg) {
-    document.body.classList.add("antai-shell-has-sidebar");
-
-    if (shellCfg.pageContainerSelector) {
-      const target = document.querySelector(shellCfg.pageContainerSelector);
-      if (target) target.classList.add("antai-shell-page-shift");
-      return;
-    }
-
-    document.body.setAttribute("data-antai-shell-shift", "body");
-  }
-
-  function getSystemLabel(shellCfg) {
-    const group = shellCfg.systems && shellCfg.systems[shellCfg.systemKey];
-    return group && group.label ? group.label : shellCfg.title || "系統選單";
-  }
-
-  function renderShellDate(shellCfg) {
-    if (!shellState.dateEl) return;
-    const formatter = typeof shellCfg.dateFormatter === "function"
-      ? shellCfg.dateFormatter
-      : defaultDateFormatter;
-    shellState.dateEl.textContent = formatter(new Date());
-  }
-
-  function defaultDateFormatter(date) {
-    const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
-    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}(${weekdays[date.getDay()]})`;
-  }
-
-  function renderShellMenu(shellCfg) {
-    const menuEl = shellState.rootEl && shellState.rootEl.querySelector('[data-role="menu"]');
-    if (!menuEl) return;
-
-    const group = shellCfg.systems && shellCfg.systems[shellCfg.systemKey];
-    const items = group && Array.isArray(group.items) ? group.items : [];
-
-    menuEl.innerHTML = items.map((item) => {
-      const isActive = shellCfg.activeKey && item.key === shellCfg.activeKey;
-      const href = item.href || "javascript:void(0)";
-      return `
-        <a class="antai-shell-item${isActive ? " is-active" : ""}" href="${escapeHtml(href)}" data-key="${escapeHtml(item.key || "")}">
-          <div class="antai-shell-item-icon">${getIconSvg(item.icon || "grid")}</div>
-          <div class="antai-shell-item-content">
-            <div class="antai-shell-item-label">${escapeHtml(item.label || "未命名系統")}</div>
-            <div class="antai-shell-item-desc">${escapeHtml(item.description || item.desc || "")}</div>
-          </div>
-        </a>
-      `;
-    }).join("") || `
-      <div class="antai-shell-item">
-        <div class="antai-shell-item-icon">${getIconSvg("info")}</div>
-        <div class="antai-shell-item-content">
-          <div class="antai-shell-item-label">尚未設定系統清單</div>
-          <div class="antai-shell-item-desc">請在 shell.systems.${escapeHtml(shellCfg.systemKey)}.items 設定要顯示的系統。</div>
-        </div>
-      </div>
-    `;
-
-    menuEl.querySelectorAll('a.antai-shell-item').forEach((anchor) => {
-      anchor.addEventListener('click', () => {
-        if (window.innerWidth <= shellCfg.mobileBreakpoint) closeMobileShell();
-      });
-    });
-  }
-
-  function renderShellWeather(shellCfg) {
-    if (!shellCfg.weather || !shellCfg.weather.enabled) {
-      if (shellState.weatherTextEl) shellState.weatherTextEl.textContent = "未啟用";
-      if (shellState.weatherTempEl) shellState.weatherTempEl.textContent = "--°C";
-      if (shellState.weatherIconEl) shellState.weatherIconEl.innerHTML = getWeatherVisual("disabled");
-      return;
-    }
-
-    updateWeatherDisplay({ text: "讀取中", temp: null, visual: "loading" });
-    fetchWeather(shellCfg.weather).catch((err) => {
-      console.error('[AntaiShell] fetchWeather error:', err);
-      updateWeatherDisplay({ text: "天氣讀取失敗", temp: null, visual: "cloud" });
-    });
-
-    clearInterval(shellState.refreshTimer);
-    const refreshMs = Math.max(1, Number(shellCfg.weather.refreshMinutes) || 5) * 60 * 1000;
-    shellState.refreshTimer = setInterval(() => {
-      fetchWeather(shellCfg.weather).catch((err) => {
-        console.error('[AntaiShell] fetchWeather refresh error:', err);
-      });
-    }, refreshMs);
-  }
-
-  async function fetchWeather(weatherCfg) {
-    if (weatherCfg.provider !== "open-meteo") {
-      throw new Error("目前僅支援 open-meteo provider");
-    }
-
-    let lat = weatherCfg.latitude;
-    let lon = weatherCfg.longitude;
-
-    if ((lat == null || lon == null) && navigator.geolocation) {
-      const pos = await getCurrentPosition({ timeout: 4500, maximumAge: 5 * 60 * 1000, enableHighAccuracy: false });
-      lat = pos.coords.latitude;
-      lon = pos.coords.longitude;
-    }
-
-    if (lat == null || lon == null) {
-      throw new Error("缺少 weather latitude / longitude");
-    }
-
-    const url = new URL('https://api.open-meteo.com/v1/forecast');
-    url.searchParams.set('latitude', String(lat));
-    url.searchParams.set('longitude', String(lon));
-    url.searchParams.set('current', 'temperature_2m,weather_code,is_day');
-    url.searchParams.set('timezone', 'Asia/Taipei');
-
-    const res = await fetch(url.toString(), { method: 'GET' });
-    if (!res.ok) throw new Error(`天氣 API 失敗: ${res.status}`);
-    const data = await res.json();
-    const current = data && data.current ? data.current : null;
-    if (!current) throw new Error('天氣資料格式錯誤');
-
-    const mapped = mapWeatherCode(current.weather_code, current.is_day);
-    updateWeatherDisplay({
-      text: mapped.label,
-      temp: typeof current.temperature_2m === 'number' ? current.temperature_2m : null,
-      visual: mapped.visual
-    });
-  }
-
-  function getCurrentPosition(options) {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, options || {});
-    });
-  }
-
-  function updateWeatherDisplay(payload) {
-    if (shellState.weatherTextEl) shellState.weatherTextEl.textContent = payload.text || '--';
-    if (shellState.weatherTempEl) {
-      shellState.weatherTempEl.textContent = payload.temp == null ? '--°C' : `${Math.round(payload.temp)}°C`;
-    }
-    if (shellState.weatherIconEl) {
-      shellState.weatherIconEl.innerHTML = getWeatherVisual(payload.visual || 'cloud');
-    }
-  }
-
-  function mapWeatherCode(code, isDay) {
-    const day = Number(isDay) !== 0;
-    const rules = {
-      0: { label: day ? '晴' : '晴朗', visual: day ? 'sunny' : 'moon' },
-      1: { label: day ? '大致晴' : '少雲', visual: day ? 'partly' : 'moonCloud' },
-      2: { label: '多雲時晴', visual: 'partly' },
-      3: { label: '陰天', visual: 'cloud' },
-      45: { label: '霧', visual: 'fog' },
-      48: { label: '霧', visual: 'fog' },
-      51: { label: '毛毛雨', visual: 'drizzle' },
-      53: { label: '短暫毛雨', visual: 'drizzle' },
-      55: { label: '細雨', visual: 'rain' },
-      56: { label: '凍雨', visual: 'rain' },
-      57: { label: '凍雨', visual: 'rain' },
-      61: { label: '小雨', visual: 'rain' },
-      63: { label: '雨', visual: 'rain' },
-      65: { label: '大雨', visual: 'rain' },
-      66: { label: '凍雨', visual: 'rain' },
-      67: { label: '凍雨', visual: 'rain' },
-      71: { label: '小雪', visual: 'snow' },
-      73: { label: '下雪', visual: 'snow' },
-      75: { label: '大雪', visual: 'snow' },
-      77: { label: '雪粒', visual: 'snow' },
-      80: { label: '陣雨', visual: 'rain' },
-      81: { label: '陣雨', visual: 'rain' },
-      82: { label: '強陣雨', visual: 'rain' },
-      85: { label: '陣雪', visual: 'snow' },
-      86: { label: '陣雪', visual: 'snow' },
-      95: { label: '雷雨', visual: 'storm' },
-      96: { label: '雷雨', visual: 'storm' },
-      99: { label: '雷雨', visual: 'storm' }
-    };
-    return rules[Number(code)] || { label: '天氣', visual: 'cloud' };
-  }
-
-  function getWeatherVisual(type) {
-    const visuals = {
-      loading: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <circle cx="32" cy="32" r="10" stroke="rgba(255,255,255,.95)" stroke-width="5" stroke-linecap="round" stroke-dasharray="20 18">
-            <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="1.2s" repeatCount="indefinite" />
-          </circle>
-        </svg>`,
-      sunny: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <g style="animation:antaiSunPulse 3s ease-in-out infinite; transform-origin:32px 32px;">
-            <circle cx="32" cy="28" r="10" fill="rgba(255,214,102,.98)" />
-            <g stroke="rgba(255,245,193,.95)" stroke-linecap="round" stroke-width="3">
-              <path d="M32 8V14"/><path d="M32 42V48"/><path d="M12 28H18"/><path d="M46 28H52"/>
-              <path d="M18.5 14.5L22.5 18.5"/><path d="M41.5 37.5L45.5 41.5"/>
-              <path d="M18.5 41.5L22.5 37.5"/><path d="M41.5 18.5L45.5 14.5"/>
-            </g>
-          </g>
-        </svg>`,
-      moon: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M38 13c-8.8 2-15 9.9-15 19.1C23 42.6 31.4 51 41.8 51c3.8 0 7.3-1.1 10.2-3.1-2.1.5-4.2.8-6.5.8-13.1 0-23.7-10.6-23.7-23.7 0-4.3 1.1-8.3 3.2-11.8A19.1 19.1 0 0 1 38 13Z" fill="rgba(255,244,191,.95)"/>
-        </svg>`,
-      moonCloud: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M36 11c-7.6 1.8-13 8.6-13 16.6 0 9.2 7.5 16.7 16.7 16.7 2.4 0 4.8-.5 6.9-1.5A18.3 18.3 0 0 1 33 24.9c0-5 1.1-9.7 3-13.9Z" fill="rgba(255,244,191,.95)"/>
-          <g style="animation:antaiCloudDrift 4s ease-in-out infinite; transform-origin:34px 40px;">
-            <path d="M21 46c-4.4 0-8-3.2-8-7.2 0-3.4 2.7-6.3 6.3-7 1-5.3 5.6-9.3 11.1-9.3 5 0 9.3 3.2 10.8 7.7h.4c5.1 0 9.3 3.7 9.3 8.3 0 4.6-4.2 8.3-9.3 8.3H21Z" fill="rgba(255,255,255,.95)"/>
-          </g>
-        </svg>`,
-      partly: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <g style="animation:antaiSunPulse 3.2s ease-in-out infinite; transform-origin:21px 20px;">
-            <circle cx="21" cy="20" r="8" fill="rgba(255,214,102,.96)"/>
-          </g>
-          <g style="animation:antaiCloudDrift 4s ease-in-out infinite; transform-origin:36px 38px;">
-            <path d="M21 47c-4.4 0-8-3.2-8-7.2 0-3.4 2.7-6.3 6.3-7 1-5.3 5.6-9.3 11.1-9.3 5 0 9.3 3.2 10.8 7.7h.4c5.1 0 9.3 3.7 9.3 8.3 0 4.6-4.2 8.3-9.3 8.3H21Z" fill="rgba(255,255,255,.95)"/>
-          </g>
-        </svg>`,
-      cloud: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <g style="animation:antaiCloudDrift 4s ease-in-out infinite; transform-origin:34px 38px;">
-            <path d="M18 47c-4.9 0-9-3.7-9-8.2 0-4 3.1-7.3 7.1-8.1 1.2-5.8 6.3-10.1 12.3-10.1 5.4 0 10.1 3.5 11.8 8.5h.5c5.6 0 10.2 4.1 10.2 9 0 4.9-4.6 8.9-10.2 8.9H18Z" fill="rgba(255,255,255,.96)"/>
-          </g>
-        </svg>`,
-      fog: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M16 24h32" stroke="rgba(255,255,255,.95)" stroke-width="4" stroke-linecap="round"/>
-          <path d="M10 33h44" stroke="rgba(255,255,255,.85)" stroke-width="4" stroke-linecap="round">
-            <animate attributeName="opacity" values=".45;.95;.45" dur="2.8s" repeatCount="indefinite" />
-          </path>
-          <path d="M16 42h32" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-linecap="round"/>
-        </svg>`,
-      drizzle: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M18 35c-4.9 0-9-3.7-9-8.2 0-4 3.1-7.3 7.1-8.1 1.2-5.8 6.3-10.1 12.3-10.1 5.4 0 10.1 3.5 11.8 8.5h.5c5.6 0 10.2 4.1 10.2 9 0 4.9-4.6 8.9-10.2 8.9H18Z" fill="rgba(255,255,255,.96)"/>
-          <g fill="rgba(187,231,255,.95)">
-            <circle cx="24" cy="46" r="2">
-              <animateTransform attributeName="transform" type="translate" values="0 -2;0 5;0 -2" dur="1.3s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="34" cy="48" r="2">
-              <animateTransform attributeName="transform" type="translate" values="0 -1;0 6;0 -1" dur="1.1s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="44" cy="46" r="2">
-              <animateTransform attributeName="transform" type="translate" values="0 -2;0 5;0 -2" dur="1.25s" repeatCount="indefinite" />
-            </circle>
-          </g>
-        </svg>`,
-      rain: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M18 35c-4.9 0-9-3.7-9-8.2 0-4 3.1-7.3 7.1-8.1 1.2-5.8 6.3-10.1 12.3-10.1 5.4 0 10.1 3.5 11.8 8.5h.5c5.6 0 10.2 4.1 10.2 9 0 4.9-4.6 8.9-10.2 8.9H18Z" fill="rgba(255,255,255,.96)"/>
-          <g stroke="rgba(171,230,255,.96)" stroke-linecap="round" stroke-width="3">
-            <path d="M24 42l-2 8" style="animation:antaiRainDrop 1s linear infinite; transform-origin:24px 46px;"/>
-            <path d="M34 43l-2 8" style="animation:antaiRainDrop 1.2s linear infinite; animation-delay:-.3s; transform-origin:34px 47px;"/>
-            <path d="M44 42l-2 8" style="animation:antaiRainDrop 1.05s linear infinite; animation-delay:-.6s; transform-origin:44px 46px;"/>
-          </g>
-        </svg>`,
-      snow: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M18 35c-4.9 0-9-3.7-9-8.2 0-4 3.1-7.3 7.1-8.1 1.2-5.8 6.3-10.1 12.3-10.1 5.4 0 10.1 3.5 11.8 8.5h.5c5.6 0 10.2 4.1 10.2 9 0 4.9-4.6 8.9-10.2 8.9H18Z" fill="rgba(255,255,255,.96)"/>
-          <g stroke="rgba(224,245,255,.98)" stroke-width="2" stroke-linecap="round">
-            <path d="M24 43v7" style="animation:antaiSnowDrop 1.5s ease-in-out infinite;"/>
-            <path d="M20.5 46.5h7" style="animation:antaiSnowDrop 1.5s ease-in-out infinite;"/>
-            <path d="M21.5 44l5 5" style="animation:antaiSnowDrop 1.5s ease-in-out infinite;"/>
-            <path d="M26.5 44l-5 5" style="animation:antaiSnowDrop 1.5s ease-in-out infinite;"/>
-            <path d="M38 45v7" style="animation:antaiSnowDrop 1.8s ease-in-out infinite; animation-delay:-.4s;"/>
-            <path d="M34.5 48.5h7" style="animation:antaiSnowDrop 1.8s ease-in-out infinite; animation-delay:-.4s;"/>
-            <path d="M35.5 46l5 5" style="animation:antaiSnowDrop 1.8s ease-in-out infinite; animation-delay:-.4s;"/>
-            <path d="M40.5 46l-5 5" style="animation:antaiSnowDrop 1.8s ease-in-out infinite; animation-delay:-.4s;"/>
-          </g>
-        </svg>`,
-      storm: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M18 35c-4.9 0-9-3.7-9-8.2 0-4 3.1-7.3 7.1-8.1 1.2-5.8 6.3-10.1 12.3-10.1 5.4 0 10.1 3.5 11.8 8.5h.5c5.6 0 10.2 4.1 10.2 9 0 4.9-4.6 8.9-10.2 8.9H18Z" fill="rgba(255,255,255,.96)"/>
-          <path d="M32 40l-6 10h5l-3 10 12-14h-6l4-6Z" fill="rgba(255,224,110,.98)">
-            <animate attributeName="opacity" values="1;.7;1" dur=".9s" repeatCount="indefinite" />
-          </path>
-        </svg>`,
-      disabled: `
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <circle cx="32" cy="32" r="16" stroke="rgba(255,255,255,.85)" stroke-width="4"/>
-          <path d="M24 32h16" stroke="rgba(255,255,255,.85)" stroke-width="4" stroke-linecap="round"/>
-        </svg>`
-    };
-    return visuals[type] || visuals.cloud;
-  }
-
-  function getThermometerSvg() {
-    return `
-      <svg class="antai-shell-thermo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="rgba(255,255,255,.95)" stroke-width="2"/>
-        <path d="M12 11v6" stroke="rgba(255,255,255,.95)" stroke-width="2" stroke-linecap="round"/>
-      </svg>`;
-  }
-
-  function getIconSvg(name) {
-    const icons = {
-      sparkles: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Zm6 10l.9 2.1L21 16l-2.1.9L18 19l-.9-2.1L15 16l2.1-.9L18 13ZM6 14l1.1 2.4L9.5 17 7.1 18.1 6 20.5l-1.1-2.4L2.5 17l2.4-.6L6 14Z" fill="currentColor"/></svg>`,
-      menu: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
-      chevronLeft: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      chevronRight: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      grid: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 7v-7h7v7h-7Z" fill="currentColor"/></svg>`,
-      users: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM8 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 2c-2.7 0-8 1.35-8 4v2h16v-2c0-2.65-5.3-4-8-4ZM8 15c-.35 0-.73.02-1.12.05C4.4 15.28 0 16.52 0 19v2h6v-2c0-1.48.8-2.82 2.13-3.9A8.7 8.7 0 0 0 8 15Z" fill="currentColor"/></svg>`,
-      bandage: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.3 3.7a4.95 4.95 0 0 0-7 0L3.7 13.3a4.95 4.95 0 0 0 0 7 4.95 4.95 0 0 0 7 0l9.6-9.6a4.95 4.95 0 0 0 0-7ZM7.5 20.5l-4-4m12.99-12.99 4 4M8 8l8 8M9 11h.01M12 14h.01M13 10h.01M16 13h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      droplet: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11Z" fill="currentColor"/></svg>`,
-      heart: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-9A5.5 5.5 0 0 1 12 5a5.5 5.5 0 0 1 9.5 7c-2.5 4.65-9.5 9-9.5 9Z" fill="currentColor"/></svg>`,
-      shield: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v6c0 5 3.4 8.6 7 10 3.6-1.4 7-5 7-10V6l-7-3Z" fill="currentColor"/></svg>`,
-      settings: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Zm8 3.5-.94-.32a7.83 7.83 0 0 0-.5-1.2l.45-.9a1 1 0 0 0-.18-1.15l-1.58-1.58a1 1 0 0 0-1.15-.18l-.9.45c-.38-.2-.78-.37-1.2-.5L14 4a1 1 0 0 0-.97-1h-2.06A1 1 0 0 0 10 4l-.32.94c-.42.13-.82.3-1.2.5l-.9-.45a1 1 0 0 0-1.15.18L4.85 6.75a1 1 0 0 0-.18 1.15l.45.9c-.2.38-.37.78-.5 1.2L4 10a1 1 0 0 0-1 1v2.06a1 1 0 0 0 1 .97l.94.32c.13.42.3.82.5 1.2l-.45.9a1 1 0 0 0 .18 1.15l1.58 1.58a1 1 0 0 0 1.15.18l.9-.45c.38.2.78.37 1.2.5L10 20a1 1 0 0 0 .97 1h2.06A1 1 0 0 0 14 20l.32-.94c.42-.13.82-.3 1.2-.5l.9.45a1 1 0 0 0 1.15-.18l1.58-1.58a1 1 0 0 0 .18-1.15l-.45-.9c.2-.38.37-.78.5-1.2L20 14a1 1 0 0 0 1-.97V11a1 1 0 0 0-1-1Z" fill="currentColor"/></svg>`,
-      calendar: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 2v3M17 2v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      box: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4 7l8 4 8-4-8-4Zm8 4v10l-8 4-8-4V7M12 11v10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      stethoscope: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3v5a4 4 0 0 0 8 0V3M9 3v5a2 2 0 1 1-4 0V3M15 3v5a2 2 0 1 0 4 0V3M15 14a4 4 0 1 0 4 4v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="14" r="2" fill="currentColor"/></svg>`,
-      clipboard: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6a2 2 0 0 1 2-2Zm0 3h6V6H9v1Z" fill="currentColor"/></svg>`,
-      thermometer: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-      moon: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="currentColor"/></svg>`,
-      utensils: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3v8M4 3v5a2 2 0 0 0 4 0V3M10 3v18M16 3v7a2 2 0 1 0 4 0V3M18 10v11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      bell: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v2.2c0 .9-.3 1.8-.9 2.5L5.6 14a1 1 0 0 0 .8 1.6h11.2a1 1 0 0 0 .8-1.6l-1.5-2.3a4.2 4.2 0 0 1-.9-2.5V7a4 4 0 0 0-4-4Zm0 18a2.5 2.5 0 0 0 2.3-1.5H9.7A2.5 2.5 0 0 0 12 21Z" fill="currentColor"/></svg>`,
-      wallet: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Zm14 1V7H6v10h12v-1h-3a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3Zm-3 5h4v-2h-4v2Z" fill="currentColor"/></svg>`,
-      info: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 5.5a1.25 1.25 0 1 1-1.25 1.25A1.25 1.25 0 0 1 12 7.5ZM13.5 17h-3v-1.5H12v-4h-1.5V10H13.5v5.5H15V17Z" fill="currentColor"/></svg>`
-    };
-    return icons[name] || icons.grid;
-  }
-
-  function onShellResize() {
-    applyShellResponsiveState();
-  }
-
-  function applyShellResponsiveState() {
-    const shellCfg = shellState.cfg;
-    if (!shellCfg || !shellState.rootEl) return;
-    const isMobile = window.innerWidth <= shellCfg.mobileBreakpoint;
-    if (!isMobile) {
-      shellState.rootEl.classList.remove('is-mobile-open');
-      if (shellState.drawerBackdropEl) shellState.drawerBackdropEl.style.display = 'none';
-      if (shellState.mobileToggleBtn) shellState.mobileToggleBtn.style.display = '';
-    }
-  }
-
-  function toggleMobileShell() {
-    const shellCfg = shellState.cfg;
-    if (!shellCfg || !shellState.rootEl) return;
-    const isOpen = shellState.rootEl.classList.toggle('is-mobile-open');
-    if (shellState.drawerBackdropEl) shellState.drawerBackdropEl.style.display = isOpen ? 'block' : 'none';
-  }
-
-  function closeMobileShell() {
-    if (!shellState.rootEl) return;
-    shellState.rootEl.classList.remove('is-mobile-open');
-    if (shellState.drawerBackdropEl) shellState.drawerBackdropEl.style.display = 'none';
-  }
-
-  function destroyShell() {
-    clearInterval(shellState.refreshTimer);
-    shellState.refreshTimer = null;
-
-    if (shellState.rootEl && shellState.rootEl.parentNode) shellState.rootEl.parentNode.removeChild(shellState.rootEl);
-    if (shellState.mobileToggleBtn && shellState.mobileToggleBtn.parentNode) shellState.mobileToggleBtn.parentNode.removeChild(shellState.mobileToggleBtn);
-    if (shellState.drawerBackdropEl && shellState.drawerBackdropEl.parentNode) shellState.drawerBackdropEl.parentNode.removeChild(shellState.drawerBackdropEl);
-    if (shellState.styleEl && shellState.styleEl.parentNode) shellState.styleEl.parentNode.removeChild(shellState.styleEl);
-
-    document.body.classList.remove('antai-shell-has-sidebar', 'antai-shell-collapsed');
-    document.body.removeAttribute('data-antai-shell-shift');
-
-    shellState = {
-      cfg: null,
-      rootEl: null,
-      styleEl: null,
-      contentWrapper: null,
-      weatherTempEl: null,
-      weatherTextEl: null,
-      weatherIconEl: null,
-      dateEl: null,
-      collapseBtn: null,
-      mobileToggleBtn: null,
-      drawerBackdropEl: null,
-      refreshTimer: null,
-      isMounted: false
-    };
-  }
-
-  function start(options) {
-    cfg = deepMerge(DEFAULTS, options || {});
-
-    if (typeof cfg.isLoggedInFn !== "function") cfg.isLoggedInFn = defaultIsLoggedIn;
-
+  function init(userOptions = {}) {
+    cfg = Object.assign({}, DEFAULTS, userOptions || {});
+    cfg.isLoggedInFn = typeof cfg.isLoggedInFn === "function" ? cfg.isLoggedInFn : defaultIsLoggedIn;
+    cfg.signOutFn = typeof cfg.signOutFn === "function" ? cfg.signOutFn : defaultSignOut;
     lastActivityAt = now();
     addListeners();
     resetIdleCheck();
-    mountShell(cfg);
   }
-
-  function stop() {
-    hideWarning();
+  function destroy() {
     clearInterval(idleTimer);
-    idleTimer = null;
-    cfg = null;
+    clearInterval(warnCountdownTimer);
     removeListeners();
-    destroyShell();
+    hideWarning();
+    cfg = null;
   }
+  global.IdleTimeout = { init, destroy, forceLogout, touch: onActivity };
+  const options = global.IDLE_TIMEOUT_CONFIG || {};
+  if (options.autoStart !== false) init(options);
+})(window);
 
-  global.IdleTimeoutSecure = {
-    start,
-    stop,
-    forceLogout,
-    mountShell,
-    destroyShell,
-    refreshShellWeather: () => shellState.cfg && renderShellWeather(shellState.cfg),
+/* ---------- Antai Sidebar Shell (auto) ---------- */
+(function () {
+  const page = ((location.pathname || '').split('/').pop() || '').toLowerCase();
+  if (!page) return;
+  if (document.getElementById('antai-sidebar-root')) return;
+
+  const SYSTEMS = {
+    nurse: {
+      label: '護理師系統',
+      items: [
+        ['admin.html', '護理師首頁'],
+        ['admin-visit.html', '探視系統'],
+        ['admin-duty.html', '班務系統'],
+        ['admin-supplies-system.html', '器材／衛材系統'],
+        ['admin-resident-system.html', '住民系統'],
+        ['wound-care.html', '傷口照護'],
+        ['doctor-rounds.html', '醫師巡診系統'],
+        ['nurse-primary-cases.html', '主責個案分配'],
+        ['nurse-whiteboard.html', '電子白板'],
+        ['temperature-nurse.html', '體溫系統']
+      ]
+    },
+    caregiver: {
+      label: '照服員系統',
+      items: [
+        ['caregiver.html', '照服員首頁'],
+        ['leave-caregiver.html', '請假系統'],
+        ['stay-caregiver.html', '外宿系統'],
+        ['foley-care.html', '導尿管系統'],
+        ['meal-caregiver.html', '餐食系統'],
+        ['temperature-caregiver.html', '體溫系統']
+      ]
+    },
+    office: {
+      label: '辦公室系統',
+      items: [
+        ['office.html', '辦公室首頁'],
+        ['office-evaluation.html', '評鑑系統'],
+        ['office-duty.html', '班務系統'],
+        ['employees-admin.html', '員工資料'],
+        ['office-maintenance.html', '維修系統'],
+        ['office-stay.html', '外宿系統'],
+        ['announcements-admin.html', '公告管理'],
+        ['meal-fee-admin.html', '餐費管理'],
+        ['account-admin.html', '帳號管理']
+      ]
+    }
   };
 
-  function autoBoot() {
-    if (global.__IDLE_TIMEOUT_SECURE_STARTED__) return;
-    global.__IDLE_TIMEOUT_SECURE_STARTED__ = true;
-
-    const userCfg = global.IDLE_TIMEOUT_CONFIG && typeof global.IDLE_TIMEOUT_CONFIG === "object"
-      ? global.IDLE_TIMEOUT_CONFIG
-      : {};
-
-    const merged = deepMerge(DEFAULTS, userCfg);
-    if (!merged.autoStart) return;
-    start(merged);
+  function detectSystem() {
+    for (const [key, sys] of Object.entries(SYSTEMS)) {
+      if (sys.items.some(([href]) => href.toLowerCase() === page)) return key;
+    }
+    return null;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", autoBoot);
+  const systemKey = detectSystem();
+  if (!systemKey) return;
+  const system = SYSTEMS[systemKey];
+
+  const style = document.createElement('style');
+  style.id = 'antai-sidebar-style';
+  style.textContent = `
+    body.antai-sidebar-ready{padding-left:340px;transition:padding-left .25s ease}
+    #antai-sidebar-root{position:fixed;left:16px;top:16px;bottom:16px;width:300px;z-index:2147483000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif}
+    .antai-sidebar-panel{height:100%;display:flex;flex-direction:column;border-radius:26px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(246,249,255,.88));backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.65);box-shadow:0 16px 44px rgba(23,38,71,.16)}
+    .antai-sidebar-scroll{padding:14px;overflow:auto;min-height:0;display:flex;flex-direction:column;gap:12px}
+    .antai-weather-card{position:relative;border-radius:22px;padding:16px 16px 14px;background:linear-gradient(135deg,#1c2431,#46576e);color:#fff;overflow:hidden;box-shadow:0 10px 24px rgba(28,36,49,.22)}
+    .antai-weather-card:before,.antai-weather-card:after{content:"";position:absolute;border-radius:999px;background:rgba(255,255,255,.08);animation:antaiFloat 8s ease-in-out infinite}
+    .antai-weather-card:before{width:140px;height:140px;right:-34px;top:-46px}
+    .antai-weather-card:after{width:100px;height:100px;left:-24px;bottom:-34px;animation-delay:-3s}
+    @keyframes antaiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+    .antai-date{position:relative;z-index:1;font-size:20px;font-weight:900;letter-spacing:.5px}
+    .antai-weather-line,.antai-temp-line{position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-top:10px;font-size:15px;font-weight:700}
+    .antai-weather-line small,.antai-temp-line small{opacity:.75;font-size:12px;font-weight:600;margin-left:auto}
+    .antai-menu-card{background:#fff;border:1px solid rgba(233,238,247,.95);border-radius:22px;box-shadow:0 8px 22px rgba(30,50,90,.08);padding:10px}
+    .antai-menu-head{font-size:14px;font-weight:900;color:#24364d;padding:8px 10px 10px}
+    .antai-menu-list{display:flex;flex-direction:column;gap:6px}
+    .antai-menu-item{display:flex;align-items:center;gap:10px;text-decoration:none;color:#2a3d57;padding:11px 12px;border-radius:14px;transition:.2s ease;background:transparent}
+    .antai-menu-item:hover{background:#f4f7fd;transform:translateX(2px)}
+    .antai-menu-item.is-active{background:linear-gradient(135deg,rgba(56,114,255,.13),rgba(102,183,255,.18));color:#1546a0;font-weight:800}
+    .antai-dot{width:9px;height:9px;border-radius:50%;background:#9eb3cc;flex:0 0 auto}.antai-menu-item.is-active .antai-dot{background:#2d72ff}
+    .antai-menu-text{min-width:0}.antai-menu-title{font-size:14px;font-weight:800;line-height:1.2}.antai-menu-sub{font-size:12px;color:#6c7d95;margin-top:2px}
+    .antai-sidebar-toggle{display:none}
+    @media (max-width: 1100px){
+      body.antai-sidebar-ready{padding-left:0}
+      #antai-sidebar-root{transform:translateX(-112%);transition:transform .25s ease}
+      #antai-sidebar-root.is-open{transform:translateX(0)}
+      .antai-sidebar-toggle{position:fixed;left:14px;top:14px;z-index:2147483001;display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border:none;border-radius:14px;background:#fff;box-shadow:0 10px 22px rgba(22,40,78,.16);font-size:20px}
+    }
+  `;
+  document.head.appendChild(style);
+
+  const dayMap = ['日', '一', '二', '三', '四', '五', '六'];
+  const now = new Date();
+  const dateText = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}(${dayMap[now.getDay()]})`;
+
+  const root = document.createElement('aside');
+  root.id = 'antai-sidebar-root';
+  root.innerHTML = `
+    <div class="antai-sidebar-panel">
+      <div class="antai-sidebar-scroll">
+        <section class="antai-weather-card">
+          <div class="antai-date" id="antai-date">${dateText}</div>
+          <div class="antai-weather-line"><span id="antai-weather-icon">☀️</span><span id="antai-weather-text">天氣載入中…</span><small>東港</small></div>
+          <div class="antai-temp-line"><span>🌡️</span><span id="antai-temp-text">--°C</span><small>每 5 分更新</small></div>
+        </section>
+        <section class="antai-menu-card">
+          <div class="antai-menu-head">${system.label}</div>
+          <nav class="antai-menu-list">
+            ${system.items.map(([href, label]) => `
+              <a class="antai-menu-item ${href.toLowerCase() === page ? 'is-active' : ''}" href="${href}">
+                <span class="antai-dot"></span>
+                <span class="antai-menu-text">
+                  <span class="antai-menu-title">${label}</span>
+                  <span class="antai-menu-sub">${href}</span>
+                </span>
+              </a>
+            `).join('')}
+          </nav>
+        </section>
+      </div>
+    </div>`;
+
+  const toggle = document.createElement('button');
+  toggle.className = 'antai-sidebar-toggle';
+  toggle.type = 'button';
+  toggle.setAttribute('aria-label', '開啟系統選單');
+  toggle.textContent = '☰';
+  toggle.addEventListener('click', () => root.classList.toggle('is-open'));
+
+  function mount() {
+    if (!document.body) return;
+    document.body.classList.add('antai-sidebar-ready');
+    document.body.appendChild(root);
+    document.body.appendChild(toggle);
+  }
+
+  function updateWeather() {
+    const iconEl = document.getElementById('antai-weather-icon');
+    const textEl = document.getElementById('antai-weather-text');
+    const tempEl = document.getElementById('antai-temp-text');
+    if (!iconEl || !textEl || !tempEl) return;
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=22.465&longitude=120.449&current=temperature_2m,weather_code&timezone=Asia%2FTaipei';
+    fetch(url).then(r => r.json()).then(data => {
+      const current = data && data.current ? data.current : {};
+      const code = Number(current.weather_code);
+      const temp = current.temperature_2m;
+      const map = {
+        0:['☀️','晴'],1:['🌤️','大致晴朗'],2:['⛅','局部多雲'],3:['☁️','陰'],45:['🌫️','霧'],48:['🌫️','霧'],51:['🌦️','毛毛雨'],53:['🌦️','細雨'],55:['🌧️','小雨'],61:['🌧️','陣雨'],63:['🌧️','雨'],65:['🌧️','大雨'],71:['🌨️','小雪'],80:['🌦️','短暫陣雨'],95:['⛈️','雷雨']
+      };
+      const pair = map[code] || ['🌤️', '天氣'];
+      iconEl.textContent = pair[0];
+      textEl.textContent = pair[1];
+      tempEl.textContent = typeof temp === 'number' ? `${Math.round(temp)}°C` : '--°C';
+    }).catch(() => {
+      textEl.textContent = '天氣暫時無法取得';
+      tempEl.textContent = '--°C';
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { mount(); updateWeather(); });
   } else {
-    autoBoot();
+    mount(); updateWeather();
   }
-
-  window.addEventListener("load", () => {
-    try {
-      if (!document.querySelector('.antai-shell-root')) {
-        autoBoot();
-      }
-    } catch (_) {}
-  });
-})(window);
+  setInterval(updateWeather, 5 * 60 * 1000);
+})();
