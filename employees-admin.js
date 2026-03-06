@@ -87,6 +87,7 @@ document.addEventListener('firebase-ready', () => {
     loginBadgeEl.textContent = text || '登入者：—';
   }
 
+
   function getSessionUser() {
     try {
       const raw = sessionStorage.getItem('antai_session_user');
@@ -102,68 +103,51 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
-  function getGlobalSessionUser() {
-    const candidates = [
-      window.currentUser, window.CURRENT_USER, window.sessionUser,
-      window.loggedInUser, window.loginUser, window.userProfile
-    ];
-    for (const u of candidates) {
-      if (!u || typeof u !== 'object') continue;
-      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
-      const name = u.displayName || u.name || u.staffName || u.username || '';
-      if (staffId || name) return { staffId, name };
+  function syncLoginBadgeFromSession() {
+    const su = getSessionUser();
+    if (!su) {
+      setLoginBadge('登入者：—');
+      return null;
     }
-    return null;
+    CURRENT_USER.staffId = su.staffId || '';
+    CURRENT_USER.name = su.name || '';
+    setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+    return su;
   }
 
   async function loadCurrentUserForEmployees() {
-    const candidates = [getSessionUser(), getGlobalSessionUser()];
-    for (const su of candidates) {
-      if (su && (su.staffId || su.name)) {
-        CURRENT_USER.staffId = su.staffId || '';
-        CURRENT_USER.name = su.name || '';
-        setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
-        return CURRENT_USER;
-      }
-    }
+    const su = syncLoginBadgeFromSession();
+    if (su) return CURRENT_USER;
 
     try {
-      if (firebase?.auth) {
-        const authObj = firebase.auth();
-        let u = authObj.currentUser;
-        if (!u && typeof authObj.onAuthStateChanged === 'function') {
-          u = await new Promise(resolve => {
-            const off = authObj.onAuthStateChanged(user => { try { off && off(); } catch(e){} resolve(user || null); });
-            setTimeout(() => resolve(null), 2500);
-          });
-        }
-        if (u?.uid) {
+      if (firebase && typeof firebase.auth === 'function') {
+        const auth = firebase.auth();
+        const u = auth.currentUser || await new Promise(resolve => {
+          const off = auth.onAuthStateChanged(user => {
+            off && off();
+            resolve(user || null);
+          }, () => resolve(null));
+          setTimeout(() => resolve(auth.currentUser || null), 1500);
+        });
+        if (u && u.uid) {
           const acc = await db.collection('userAccounts').doc(u.uid).get();
           if (acc.exists) {
             const d = acc.data() || {};
             CURRENT_USER.staffId = d.staffId || d.id || d.employeeId || '';
-            CURRENT_USER.name = d.displayName || d.name || d.staffName || '';
+            CURRENT_USER.name = d.displayName || d.name || d.staffName || d.username || '';
             setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
             return CURRENT_USER;
           }
         }
       }
-    } catch (e) {}
-
-    setTimeout(() => {
-      const late = getSessionUser() || getGlobalSessionUser();
-      if (late && (late.staffId || late.name)) {
-        CURRENT_USER.staffId = late.staffId || '';
-        CURRENT_USER.name = late.name || '';
-        setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
-      } else {
-        setLoginBadge('登入者：—');
-      }
-    }, 800);
+    } catch (e) {
+      console.warn('[employees-admin] loadCurrentUserForEmployees fallback failed:', e);
+    }
 
     setLoginBadge('登入者：—');
     return CURRENT_USER;
   }
+
 
   function formatExportTime(dt = new Date()) {
     const y = dt.getFullYear();
@@ -183,7 +167,6 @@ document.addEventListener('firebase-ready', () => {
   const birthdayInput = document.getElementById('employee-birthday');
   const idCardInput = document.getElementById('employee-idCard');
   const hireDateInput = document.getElementById('employee-hireDate');
-  const inactiveDateInput = document.getElementById('employee-inactiveDate');
   const titleInput = document.getElementById('employee-title');
   const phoneInput = document.getElementById('employee-phone');
   const daytimePhoneInput = document.getElementById('employee-daytimePhone');
@@ -199,6 +182,8 @@ document.addEventListener('firebase-ready', () => {
   const longtermExpireDateInput = document.getElementById('employee-longtermExpireDate');
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
+  const inactiveDateInput = document.getElementById('employee-inactiveDate');
+  const inactiveWrap = document.getElementById('employee-inactiveDate-wrap');
 
   let currentEditing = { collection: null, docId: null };
   let sortConfig = { key: 'sortOrder', order: 'asc' };
@@ -222,6 +207,11 @@ document.addEventListener('firebase-ready', () => {
   const tbodys = {};
   TAB_DEFS.forEach(d => tbodys[d.id] = document.getElementById(`${d.id}-tbody`));
   const tableHeaders = document.querySelectorAll('.sortable-header');
+
+  syncLoginBadgeFromSession();
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === 'antai_session_user') syncLoginBadgeFromSession();
+  });
 
   function formatDateInput(v) {
     if (!v) return "";
@@ -346,6 +336,7 @@ document.addEventListener('firebase-ready', () => {
     const includeSource = !!opts.includeSource;
     const actionLabel = opts.actionLabel || '操作';
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
+    const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
@@ -353,7 +344,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['id','docId'])}</td>
         <td>${pick(e, ['name'])}</td>
         ${includeSource ? sourceTd : ""}
-        ${includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : ""}
+        ${includeSource ? inactiveDateTd : ""}
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
@@ -401,12 +392,13 @@ function loadAll() {
 
   function openForCreate() {
     employeeForm.reset();
-    if (inactiveDateInput) inactiveDateInput.value = '';
     const tab = activeTabDef();
     typeInput.value = tab.collection;
     currentEditing = { collection: tab.collection, docId: null };
     document.getElementById('employee-modal-title').textContent = `新增 - ${tab.label}`;
     idInput.disabled = false;
+    if (inactiveWrap) inactiveWrap.classList.add('d-none');
+    if (inactiveDateInput) inactiveDateInput.value = '';
     employeeModal.show();
   }
 
@@ -432,7 +424,7 @@ function loadAll() {
 function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
     const isInactive = !!row.closest('#inactiveEmployees-panel');
-    const off = isInactive ? 2 : 0; // 離職分頁多兩欄「職類 / 離職日期」
+    const off = isInactive ? 2 : 0; // 離職分頁多二欄：職類、離職日期
 
     // 依表頭順序
     sortOrderInput.value = cell(0);
@@ -443,7 +435,6 @@ function fillFormFromRow(row) {
     birthdayInput.value = toISODateForInput(cell(4 + off));
     idCardInput.value = cell(5 + off);
     hireDateInput.value = toISODateForInput(cell(6 + off));
-    inactiveDateInput.value = isInactive ? toISODateForInput(cell(4)) : '';
     titleInput.value = cell(7 + off);
     phoneInput.value = cell(8 + off);
     daytimePhoneInput.value = cell(9 + off);
@@ -461,6 +452,8 @@ function fillFormFromRow(row) {
 
     educationInput.value = cell(20 + off);
     schoolInput.value = cell(21 + off);
+    inactiveDateInput.value = toISODateForInput(isInactive ? cell(4) : '');
+    if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
   }
 
   async function handleSave() {
@@ -473,7 +466,6 @@ function fillFormFromRow(row) {
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
-      inactiveDate: formatDateInput((inactiveDateInput?.value || '').trim()),
       title: titleInput.value.trim(),
       phone: phoneInput.value.trim(),
       daytimePhone: daytimePhoneInput.value.trim(),
@@ -490,6 +482,7 @@ function fillFormFromRow(row) {
       longtermExpireDate: longtermExpireDateInput.value.trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
+      inactiveDate: formatDateInput(inactiveDateInput.value.trim()),
     };
 
     if (!id || !payload.name) {
@@ -535,11 +528,11 @@ function fillFormFromRow(row) {
         const collection = def.collection || row.dataset.collection;
         if (def.id === 'inactiveEmployees') {
           if (confirm(`確定恢復在職：${id}？`)) {
-            db.collection(collection).doc(id).set({ isActive: true, inactiveDate: '' }, { merge: true }).then(loadAll);
+            db.collection(collection).doc(id).set({ isActive: true, inactiveDate: firebase.firestore.FieldValue.delete() }, { merge: true }).then(loadAll);
           }
         } else {
           if (confirm(`確定設為離職：${id}？`)) {
-            db.collection(collection).doc(id).set({ isActive: false, inactiveDate: formatDateInput(new Date()) }, { merge: true }).then(loadAll);
+            db.collection(collection).doc(id).set({ isActive: false, inactiveDate: formatDateInput(new Date().toISOString().slice(0,10)) }, { merge: true }).then(loadAll);
           }
         }
       }
@@ -1037,7 +1030,6 @@ async function generateReportHTML() {
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號', key: 'idCard', width: 16 },
-        { header: '離職日期', key: 'inactiveDate', width: 12 },
         { header: '到職日', key: 'hireDate', width: 12 },
         { header: '職稱', key: 'title', width: 12 },
         { header: '手機', key: 'phone', width: 16 },
