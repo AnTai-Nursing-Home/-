@@ -87,94 +87,79 @@ document.addEventListener('firebase-ready', () => {
     loginBadgeEl.textContent = text || '登入者：—';
   }
 
-  function normalizeLoginUser(u) {
-    if (!u || typeof u !== 'object') return null;
-    const staffId = String(
-      u.staffId || u.id || u.employeeId || u.empId || u.userId || u.account || ''
-    ).trim();
-    const name = String(
-      u.displayName || u.name || u.staffName || u.username || u.fullName || u.employeeName || ''
-    ).trim();
-    if (!staffId && !name) return null;
-    return { staffId, name };
+  function getSessionUser() {
+    try {
+      const raw = sessionStorage.getItem('antai_session_user');
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      if (!u) return null;
+      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
+      const name = u.displayName || u.name || u.staffName || u.username || '';
+      if (!staffId && !name) return null;
+      return { staffId, name };
+    } catch (e) {
+      return null;
+    }
   }
 
-  function getSessionUser() {
-    const candidateKeys = [
-      'antai_session_user',
-      'currentUser',
-      'loggedInUser',
-      'user',
-      'loginUser',
-      'nurse_current_user',
-      'caregiver_current_user',
-      'employee_current_user'
+  function getGlobalSessionUser() {
+    const candidates = [
+      window.currentUser, window.CURRENT_USER, window.sessionUser,
+      window.loggedInUser, window.loginUser, window.userProfile
     ];
-
-    for (const store of [sessionStorage, localStorage]) {
-      for (const key of candidateKeys) {
-        try {
-          const raw = store.getItem(key);
-          if (!raw) continue;
-          const parsed = JSON.parse(raw);
-          const hit = normalizeLoginUser(parsed);
-          if (hit) return hit;
-        } catch (e) {}
-      }
+    for (const u of candidates) {
+      if (!u || typeof u !== 'object') continue;
+      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
+      const name = u.displayName || u.name || u.staffName || u.username || '';
+      if (staffId || name) return { staffId, name };
     }
-
-    const globals = [
-      window.currentUser,
-      window.loggedInUser,
-      window.antaiSessionUser,
-      window.__CURRENT_USER__
-    ];
-    for (const g of globals) {
-      const hit = normalizeLoginUser(g);
-      if (hit) return hit;
-    }
-
     return null;
   }
 
-  function applyCurrentUser(u) {
-    CURRENT_USER.staffId = u?.staffId || '';
-    CURRENT_USER.name = u?.name || '';
-    const label = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim();
-    setLoginBadge(label ? `登入者：${label}` : '登入者：—');
-    return CURRENT_USER;
-  }
-
   async function loadCurrentUserForEmployees() {
-    // 1) session/local storage 與全域變數優先
-    const su = getSessionUser();
-    if (su) return applyCurrentUser(su);
+    const candidates = [getSessionUser(), getGlobalSessionUser()];
+    for (const su of candidates) {
+      if (su && (su.staffId || su.name)) {
+        CURRENT_USER.staffId = su.staffId || '';
+        CURRENT_USER.name = su.name || '';
+        setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+        return CURRENT_USER;
+      }
+    }
 
-    // 2) Firebase Auth + userAccounts（若頁面有載 auth）
     try {
       if (firebase?.auth) {
         const authObj = firebase.auth();
         let u = authObj.currentUser;
-        if (!u) {
+        if (!u && typeof authObj.onAuthStateChanged === 'function') {
           u = await new Promise(resolve => {
-            const un = authObj.onAuthStateChanged(user => {
-              try { un(); } catch (e) {}
-              resolve(user || null);
-            }, () => resolve(null));
-            setTimeout(() => resolve(null), 1500);
+            const off = authObj.onAuthStateChanged(user => { try { off && off(); } catch(e){} resolve(user || null); });
+            setTimeout(() => resolve(null), 2500);
           });
         }
         if (u?.uid) {
           const acc = await db.collection('userAccounts').doc(u.uid).get();
           if (acc.exists) {
-            const hit = normalizeLoginUser(acc.data() || {});
-            if (hit) return applyCurrentUser(hit);
+            const d = acc.data() || {};
+            CURRENT_USER.staffId = d.staffId || d.id || d.employeeId || '';
+            CURRENT_USER.name = d.displayName || d.name || d.staffName || '';
+            setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+            return CURRENT_USER;
           }
         }
       }
-    } catch (e) {
-      console.warn('loadCurrentUserForEmployees auth fallback failed:', e);
-    }
+    } catch (e) {}
+
+    setTimeout(() => {
+      const late = getSessionUser() || getGlobalSessionUser();
+      if (late && (late.staffId || late.name)) {
+        CURRENT_USER.staffId = late.staffId || '';
+        CURRENT_USER.name = late.name || '';
+        setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+      } else {
+        setLoginBadge('登入者：—');
+      }
+    }, 800);
 
     setLoginBadge('登入者：—');
     return CURRENT_USER;
@@ -198,6 +183,7 @@ document.addEventListener('firebase-ready', () => {
   const birthdayInput = document.getElementById('employee-birthday');
   const idCardInput = document.getElementById('employee-idCard');
   const hireDateInput = document.getElementById('employee-hireDate');
+  const inactiveDateInput = document.getElementById('employee-inactiveDate');
   const titleInput = document.getElementById('employee-title');
   const phoneInput = document.getElementById('employee-phone');
   const daytimePhoneInput = document.getElementById('employee-daytimePhone');
@@ -213,7 +199,6 @@ document.addEventListener('firebase-ready', () => {
   const longtermExpireDateInput = document.getElementById('employee-longtermExpireDate');
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
-  const inactiveDateInput = document.getElementById('employee-inactiveDate');
 
   let currentEditing = { collection: null, docId: null };
   let sortConfig = { key: 'sortOrder', order: 'asc' };
@@ -416,6 +401,7 @@ function loadAll() {
 
   function openForCreate() {
     employeeForm.reset();
+    if (inactiveDateInput) inactiveDateInput.value = '';
     const tab = activeTabDef();
     typeInput.value = tab.collection;
     currentEditing = { collection: tab.collection, docId: null };
@@ -446,7 +432,7 @@ function loadAll() {
 function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
     const isInactive = !!row.closest('#inactiveEmployees-panel');
-    const off = isInactive ? 2 : 0; // 離職分頁多兩欄「職類、離職日期」
+    const off = isInactive ? 2 : 0; // 離職分頁多兩欄「職類 / 離職日期」
 
     // 依表頭順序
     sortOrderInput.value = cell(0);
@@ -457,6 +443,7 @@ function fillFormFromRow(row) {
     birthdayInput.value = toISODateForInput(cell(4 + off));
     idCardInput.value = cell(5 + off);
     hireDateInput.value = toISODateForInput(cell(6 + off));
+    inactiveDateInput.value = isInactive ? toISODateForInput(cell(4)) : '';
     titleInput.value = cell(7 + off);
     phoneInput.value = cell(8 + off);
     daytimePhoneInput.value = cell(9 + off);
@@ -474,7 +461,6 @@ function fillFormFromRow(row) {
 
     educationInput.value = cell(20 + off);
     schoolInput.value = cell(21 + off);
-    if (inactiveDateInput) inactiveDateInput.value = toISODateForInput(isInactive ? cell(4) : '');
   }
 
   async function handleSave() {
@@ -487,6 +473,7 @@ function fillFormFromRow(row) {
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
+      inactiveDate: formatDateInput((inactiveDateInput?.value || '').trim()),
       title: titleInput.value.trim(),
       phone: phoneInput.value.trim(),
       daytimePhone: daytimePhoneInput.value.trim(),
@@ -503,7 +490,6 @@ function fillFormFromRow(row) {
       longtermExpireDate: longtermExpireDateInput.value.trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
-      inactiveDate: formatDateInput(inactiveDateInput?.value?.trim?.() || ''),
     };
 
     if (!id || !payload.name) {
@@ -516,11 +502,10 @@ function fillFormFromRow(row) {
     try {
       // 若更改了員編，刪舊建新
       const docId = currentEditing.docId && currentEditing.docId !== id ? currentEditing.docId : id;
-      if (!payload.inactiveDate) delete payload.inactiveDate;
       if (currentEditing.docId && currentEditing.docId !== id) {
         await db.collection(col).doc(currentEditing.docId).delete();
       }
-      await db.collection(col).doc(id).set(payload, { merge: true });
+      await db.collection(col).doc(id).set(payload);
       employeeModal.hide();
       loadAll();
     } catch (err) {
@@ -550,12 +535,11 @@ function fillFormFromRow(row) {
         const collection = def.collection || row.dataset.collection;
         if (def.id === 'inactiveEmployees') {
           if (confirm(`確定恢復在職：${id}？`)) {
-            db.collection(collection).doc(id).set({ isActive: true }, { merge: true }).then(loadAll);
+            db.collection(collection).doc(id).set({ isActive: true, inactiveDate: '' }, { merge: true }).then(loadAll);
           }
         } else {
           if (confirm(`確定設為離職：${id}？`)) {
-            const today = formatDateInput(new Date().toISOString().slice(0, 10));
-            db.collection(collection).doc(id).set({ isActive: false, inactiveDate: today }, { merge: true }).then(loadAll);
+            db.collection(collection).doc(id).set({ isActive: false, inactiveDate: formatDateInput(new Date()) }, { merge: true }).then(loadAll);
           }
         }
       }
@@ -739,32 +723,12 @@ async function generateReportHTML() {
     const tab = activeTabDef();
     const col = tab.collection;
 
-    const isInactiveTab = tab.id === 'inactiveEmployees';
-    let rowsData = [];
-    if (isInactiveTab) {
-      for (const def of TAB_DEFS) {
-        if (def.id === 'inactiveEmployees') continue;
-        const snap = await db.collection(def.collection).orderBy('id').get();
-        snap.forEach(doc => {
-          const e = doc.data() || {};
-          if (e.isActive !== false) return;
-          rowsData.push({ ...e, sourceLabel: def.label });
-        });
-      }
-    } else {
-      const snap = await db.collection(col).orderBy('sortOrder').orderBy('id').get();
-      snap.forEach(doc => {
-        const e = doc.data() || {};
-        if (e.isActive === false) return;
-        rowsData.push(e);
-      });
-    }
-
+    const snap = await db.collection(col).orderBy('sortOrder').orderBy('id').get();
     let rows = "";
-    rowsData.forEach(e => {
+    snap.forEach(doc => {
+      const e = doc.data();
       rows += `
         <tr>
-          ${isInactiveTab ? `<td>${e.sourceLabel ?? ''}</td><td>${e.inactiveDate ?? ''}</td>` : ''}
           <td>${e.sortOrder ?? ''}</td>
           <td>${e.id ?? ''}</td>
           <td>${e.name ?? ''}</td>
@@ -805,7 +769,7 @@ async function generateReportHTML() {
       <h1>安泰醫療社團法人附設安泰護理之家</h1>
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
-        ${isInactiveTab ? '<th>職類</th><th>離職日期</th>' : ''}<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
+        <th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
         <th>到職日</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
         <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
@@ -913,11 +877,11 @@ async function generateReportHTML() {
           getVal(e, ['education']),
           getVal(e, ['school']),
         ];
-        return includeSource ? [getVal(e, ['sourceLabel']), getVal(e, ['inactiveDate']), ...base] : base;
+        return includeSource ? [getVal(e, ['sourceLabel']), ...base] : base;
       }
 
       function makeTable(rows, includeSource) {
-        const headers = includeSource ? ['職類', '離職日期', ...headersBase] : headersBase;
+        const headers = includeSource ? ['職類', ...headersBase] : headersBase;
 
         const border = {
           top:    { style: BorderStyle.SINGLE, size: 1, color: "000000" },
@@ -1073,6 +1037,7 @@ async function generateReportHTML() {
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號', key: 'idCard', width: 16 },
+        { header: '離職日期', key: 'inactiveDate', width: 12 },
         { header: '到職日', key: 'hireDate', width: 12 },
         { header: '職稱', key: 'title', width: 12 },
         { header: '手機', key: 'phone', width: 16 },
@@ -1170,7 +1135,6 @@ async function generateReportHTML() {
         const finalCols = includeSource
           ? [
               { header:'職類', key:'sourceLabel', width: 10 },
-              { header:'離職日期', key:'inactiveDate', width: 12 },
               ...cols
             ]
           : cols;
@@ -1216,8 +1180,7 @@ async function generateReportHTML() {
             longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
-            sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined,
-            inactiveDate: includeSource ? getVal(e, ['inactiveDate']) : undefined
+            sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined
           };
 
           const values = finalCols.map(c => rowObj[c.key] ?? '');
