@@ -2,39 +2,13 @@
  * 安泰護家系統通用插件整合版（自動啟動）
  * - 閒置 3 分鐘跳提示，倒數 120 秒仍無動作則強制登出
  * - 左側系統側邊欄（日期 / 天氣 / 溫度 / 系統清單）
- * - 可只引用這一支 script
+ * - 只需引用這一支 script 即可自動依頁面判斷系統群組
  *
- * ✅ 基本用法
- *   <script>
- *     window.IDLE_TIMEOUT_CONFIG = {
- *       idleSeconds: 180,
- *       countdownSeconds: 120,
- *       shell: {
- *         enabled: true,
- *         systemKey: 'nurse',
- *         activeKey: 'dashboard',
- *         systems: {
- *           nurse: {
- *             label: '護理師系統',
- *             items: [
- *               { key:'dashboard', label:'儀表板', href:'nurse-dashboard.html', icon:'grid' },
- *               { key:'residents', label:'住民資料', href:'residents-admin.html', icon:'users' }
- *             ]
- *           }
- *         },
- *         weather: {
- *           enabled: true,
- *           locationName: '屏東縣東港鎮',
- *           latitude: 22.465,
- *           longitude: 120.449
- *         }
- *       }
- *     };
- *   </script>
- *   <script src="idle-timeout-integrated.js"></script>
+ * ✅ 最簡用法
+ *   <script src="idle-timeout.js"></script>
  *
+ * ✅ 如需覆寫閒置秒數或自訂 shell，仍可在載入前設定 window.IDLE_TIMEOUT_CONFIG
  * ✅ 也支援獨立配置 window.ANTAI_SHELL_CONFIG
- *   若 shell 未寫在 IDLE_TIMEOUT_CONFIG，會自動讀 ANTIAI_SHELL_CONFIG
  */
 
 (function (global) {
@@ -354,13 +328,114 @@
     });
   }
 
+  const AUTO_SHELL_DEFAULTS = {
+    enabled: true,
+    title: "安泰護家系統",
+    weather: {
+      enabled: true,
+      locationName: "屏東縣東港鎮",
+      latitude: 22.465,
+      longitude: 120.449,
+      refreshMinutes: 5,
+      provider: "open-meteo"
+    },
+    systems: {
+      nurse: {
+        label: "護理師系統",
+        items: [
+          { key: "dashboard", label: "護理師儀表板", href: "nurse-dashboard.html", icon: "grid", description: "總覽與快速操作" },
+          { key: "whiteboard", label: "白板資訊", href: "nurse-whiteboard.html", icon: "sparkles", description: "交班與即時看板" },
+          { key: "residents", label: "住民資料", href: "residents-admin.html", icon: "users", description: "住民基本與照護資料" },
+          { key: "wound", label: "傷口照護", href: "wound-care.html", icon: "bandage", description: "傷口紀錄與追蹤" },
+          { key: "foley", label: "導尿管系統", href: "foley-care.html", icon: "droplet", description: "導尿管紀錄與提醒" },
+          { key: "rounds", label: "醫師巡診", href: "doctor-rounds.html", icon: "heart", description: "巡診與醫囑紀錄" },
+          { key: "quality", label: "品管事件", href: "qc-incident.html", icon: "shield", description: "事件登錄與統計" }
+        ]
+      },
+      admin: {
+        label: "行政管理系統",
+        items: [
+          { key: "accounts", label: "帳號管理", href: "account-admin.html", icon: "settings", description: "權限與帳號設定" },
+          { key: "employees", label: "員工資料", href: "employees-admin.html", icon: "users", description: "員工名冊與資料管理" },
+          { key: "officeStay", label: "外宿系統", href: "office-stay.html", icon: "grid", description: "外宿申請與審核" },
+          { key: "education", label: "繼續教育", href: "education-training-admin.html", icon: "sparkles", description: "課程與訓練管理" },
+          { key: "bookingList", label: "探視管理", href: "bookings-list.html", icon: "heart", description: "探視預約後台管理" }
+        ]
+      },
+      nutrition: {
+        label: "營養師系統",
+        items: [
+          { key: "meals", label: "餐食管理", href: "nutritionist-meals.html", icon: "grid", description: "餐食與飲食安排" },
+          { key: "consult", label: "營養會診", href: "consult.html", icon: "heart", description: "會診與追蹤紀錄" }
+        ]
+      },
+      family: {
+        label: "家屬探視系統",
+        items: [
+          { key: "booking", label: "預約探視", href: "bookings.html", icon: "users", description: "家屬探視預約" }
+        ]
+      }
+    }
+  };
+
+  const AUTO_PAGE_RULES = [
+    { match: ["nurse-dashboard"], systemKey: "nurse", activeKey: "dashboard" },
+    { match: ["nurse-whiteboard"], systemKey: "nurse", activeKey: "whiteboard" },
+    { match: ["residents-admin"], systemKey: "nurse", activeKey: "residents" },
+    { match: ["wound-care"], systemKey: "nurse", activeKey: "wound" },
+    { match: ["foley-care"], systemKey: "nurse", activeKey: "foley" },
+    { match: ["doctor-rounds"], systemKey: "nurse", activeKey: "rounds" },
+    { match: ["qc-incident"], systemKey: "nurse", activeKey: "quality" },
+    { match: ["account-admin"], systemKey: "admin", activeKey: "accounts" },
+    { match: ["employees-admin"], systemKey: "admin", activeKey: "employees" },
+    { match: ["office-stay"], systemKey: "admin", activeKey: "officeStay" },
+    { match: ["education-training-admin"], systemKey: "admin", activeKey: "education" },
+    { match: ["bookings-list"], systemKey: "admin", activeKey: "bookingList" },
+    { match: ["nutritionist-meals"], systemKey: "nutrition", activeKey: "meals" },
+    { match: ["consult"], systemKey: "nutrition", activeKey: "consult" },
+    { match: ["bookings"], systemKey: "family", activeKey: "booking" }
+  ];
+
+  function getCurrentPageName() {
+    try {
+      const pathname = String(window.location.pathname || "");
+      const cleaned = pathname.split("?")[0].split("#")[0];
+      return (cleaned.split("/").pop() || "").toLowerCase();
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function inferShellFromLocation() {
+    const page = getCurrentPageName();
+    if (!page) return { enabled: false };
+
+    const hit = AUTO_PAGE_RULES.find((rule) => Array.isArray(rule.match) && rule.match.some((token) => page.includes(String(token).toLowerCase())));
+    if (!hit) return { enabled: false };
+
+    return {
+      enabled: true,
+      title: AUTO_SHELL_DEFAULTS.title,
+      systemKey: hit.systemKey,
+      activeKey: hit.activeKey,
+      systems: AUTO_SHELL_DEFAULTS.systems,
+      weather: AUTO_SHELL_DEFAULTS.weather
+    };
+  }
+
   function getShellConfig(options) {
     const embeddedShell = options && typeof options.shell === "object" ? options.shell : null;
     const externalShell = global.ANTAI_SHELL_CONFIG && typeof global.ANTAI_SHELL_CONFIG === "object"
       ? global.ANTAI_SHELL_CONFIG
       : null;
+    const inferredShell = inferShellFromLocation();
 
-    const merged = deepMerge(DEFAULTS.shell, embeddedShell || externalShell || {});
+    const merged = deepMerge(
+      DEFAULTS.shell,
+      deepMerge(AUTO_SHELL_DEFAULTS, deepMerge(inferredShell, embeddedShell || externalShell || {}))
+    );
+
+    if (!inferredShell.enabled && !embeddedShell && !externalShell) merged.enabled = false;
     return merged;
   }
 
@@ -1184,7 +1259,12 @@
       ? global.IDLE_TIMEOUT_CONFIG
       : {};
 
+    const inferredShell = inferShellFromLocation();
     const merged = deepMerge(DEFAULTS, userCfg);
+    if (!userCfg.shell && !global.ANTAI_SHELL_CONFIG) {
+      merged.shell = deepMerge(merged.shell || {}, inferredShell);
+    }
+
     if (!merged.autoStart) return;
     start(merged);
   }
