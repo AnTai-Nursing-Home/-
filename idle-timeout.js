@@ -18,9 +18,9 @@
     continueBtnText: '我還在使用',
     logoutBtnText: '立即登出',
     weather: {
-      latitude: 22.465,
-      longitude: 120.449,
-      locationLabel: '東港',
+      latitude: null,
+      longitude: null,
+      locationLabel: '定位中',
       refreshMinutes: 5,
     }
   };
@@ -239,7 +239,7 @@
       .antai-menu-item{display:flex;align-items:center;gap:10px;text-decoration:none;color:#2b3d55;padding:12px 12px;border-radius:14px;transition:.18s ease}.antai-menu-item:hover{background:#f3f7fd;transform:translateX(2px)}
       .antai-menu-item.active{background:linear-gradient(135deg,rgba(71,123,255,.14),rgba(126,180,255,.18));color:#1d4ea6;font-weight:800}
       .antai-dot{width:9px;height:9px;border-radius:50%;background:#9db0c9;flex:0 0 auto}.antai-menu-item.active .antai-dot{background:#2f74ff}
-      .antai-text{min-width:0}.antai-title{font-size:14px;font-weight:800;line-height:1.25}.antai-sub{font-size:12px;color:#6c7d95;margin-top:2px;word-break:break-all}
+      .antai-text{min-width:0}.antai-title{font-size:14px;font-weight:800;line-height:1.25}
       @media (max-width: 1200px){body.antai-shell-body{padding-left:0}#antai-shell-root{display:none}}
     `;
     document.head.appendChild(style);
@@ -261,17 +261,73 @@
     return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${week})`;
   }
 
-  async function fetchWeather() {
+  function getCurrentPositionAsync() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('geolocation_not_supported'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos),
+        (err) => reject(err),
+        {
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 5 * 60 * 1000
+        }
+      );
+    });
+  }
+
+  async function reverseGeocode(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&accept-language=zh-TW`;
+    const res = await fetch(url, {
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    });
+    const data = await res.json();
+    const addr = data?.address || {};
+    return (
+      addr.city ||
+      addr.town ||
+      addr.county ||
+      addr.state ||
+      data?.name ||
+      '目前位置'
+    );
+  }
+
+  async function resolveWeatherPosition() {
     const w = cfg.weather || {};
-    const lat = w.latitude ?? DEFAULTS.weather.latitude;
-    const lon = w.longitude ?? DEFAULTS.weather.longitude;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,weather_code&timezone=Asia%2FTaipei`;
+    if (typeof w.latitude === 'number' && typeof w.longitude === 'number') {
+      return {
+        lat: w.latitude,
+        lon: w.longitude,
+        label: w.locationLabel || '目前位置'
+      };
+    }
+
+    const pos = await getCurrentPositionAsync();
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    let label = '目前位置';
+    try {
+      label = await reverseGeocode(lat, lon);
+    } catch (_) {}
+
+    return { lat, lon, label };
+  }
+
+  async function fetchWeather() {
+    const pos = await resolveWeatherPosition();
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(pos.lat)}&longitude=${encodeURIComponent(pos.lon)}&current=temperature_2m,weather_code&timezone=Asia%2FTaipei`;
     const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
     const temp = data?.current?.temperature_2m;
     const code = data?.current?.weather_code;
     const text = weatherCodeText(code);
-    return { temp, text };
+    return { temp, text, label: pos.label };
   }
   function weatherCodeText(code) {
     if (code === 0) return '晴';
@@ -291,14 +347,16 @@
     const tempEl = root.querySelector('[data-role="temp"]');
     const placeEl = root.querySelector('[data-role="place"]');
     dateEl.textContent = formatDate();
-    placeEl.textContent = (cfg.weather && cfg.weather.locationLabel) || DEFAULTS.weather.locationLabel;
+    placeEl.textContent = '定位中';
     try {
       const info = await fetchWeather();
       weatherEl.innerHTML = `${weatherIcon(info.text)}<span>${info.text}</span>`;
       tempEl.innerHTML = `${thermometerIcon()}<span>${Math.round(info.temp)}°C</span>`;
+      placeEl.textContent = info.label || '目前位置';
     } catch (err) {
       weatherEl.innerHTML = `${weatherIcon('多雲')}<span>天氣讀取中</span>`;
       tempEl.innerHTML = `${thermometerIcon()}<span>--°C</span>`;
+      placeEl.textContent = '無法定位';
     }
   }
 
@@ -316,7 +374,6 @@
         <span class="antai-dot"></span>
         <span class="antai-text">
           <span class="antai-title">${label}</span>
-          <span class="antai-sub">${href}</span>
         </span>
       </a>
     `).join('');
