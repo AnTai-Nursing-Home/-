@@ -2,13 +2,39 @@
  * 安泰護家系統通用插件整合版（自動啟動）
  * - 閒置 3 分鐘跳提示，倒數 120 秒仍無動作則強制登出
  * - 左側系統側邊欄（日期 / 天氣 / 溫度 / 系統清單）
- * - 只需引用這一支 script 即可自動依頁面判斷系統群組
+ * - 可只引用這一支 script
  *
- * ✅ 最簡用法
- *   <script src="idle-timeout.js"></script>
+ * ✅ 基本用法
+ *   <script>
+ *     window.IDLE_TIMEOUT_CONFIG = {
+ *       idleSeconds: 180,
+ *       countdownSeconds: 120,
+ *       shell: {
+ *         enabled: true,
+ *         systemKey: 'nurse',
+ *         activeKey: 'dashboard',
+ *         systems: {
+ *           nurse: {
+ *             label: '護理師系統',
+ *             items: [
+ *               { key:'dashboard', label:'儀表板', href:'nurse-dashboard.html', icon:'grid' },
+ *               { key:'residents', label:'住民資料', href:'residents-admin.html', icon:'users' }
+ *             ]
+ *           }
+ *         },
+ *         weather: {
+ *           enabled: true,
+ *           locationName: '屏東縣東港鎮',
+ *           latitude: 22.465,
+ *           longitude: 120.449
+ *         }
+ *       }
+ *     };
+ *   </script>
+ *   <script src="idle-timeout-integrated.js"></script>
  *
- * ✅ 如需覆寫閒置秒數或自訂 shell，仍可在載入前設定 window.IDLE_TIMEOUT_CONFIG
  * ✅ 也支援獨立配置 window.ANTAI_SHELL_CONFIG
+ *   若 shell 未寫在 IDLE_TIMEOUT_CONFIG，會自動讀 ANTIAI_SHELL_CONFIG
  */
 
 (function (global) {
@@ -328,6 +354,7 @@
     });
   }
 
+
   const AUTO_SHELL_DEFAULTS = {
     enabled: true,
     title: "安泰護家系統",
@@ -343,57 +370,74 @@
       nurse: {
         label: "護理師系統",
         items: [
-          { key: "dashboard", label: "護理師儀表板", href: "admin.html", icon: "grid", description: "總覽與快速操作" },
-          { key: "whiteboard", label: "白板資訊", href: "nurse-whiteboard.html", icon: "sparkles", description: "交班與即時看板" },
-          { key: "residents", label: "住民資料", href: "residents-admin.html", icon: "users", description: "住民基本與照護資料" },
-          { key: "wound", label: "傷口照護", href: "wound-care.html", icon: "bandage", description: "傷口紀錄與追蹤" },
+          { key: "admin", label: "護理師首頁", href: "admin.html", icon: "grid", description: "護理師系統總覽與快捷功能" },
+          { key: "visit", label: "訪視管理", href: "admin-visit.html", icon: "heart", description: "訪視相關作業與紀錄" },
+          { key: "duty", label: "護理排班", href: "admin-duty.html", icon: "calendar", description: "班表與值班管理" },
+          { key: "supplies", label: "物資系統", href: "admin-supplies-system.html", icon: "box", description: "護理物資與耗材管理" },
+          { key: "resident", label: "住民系統", href: "admin-resident-system.html", icon: "users", description: "住民基本資料與照護資訊" },
+          { key: "woundCare", label: "傷口照護", href: "wound-care.html", icon: "bandage", description: "傷口紀錄、追蹤與匯出" },
+          { key: "doctorRound", label: "醫師巡診", href: "doctor-rounds.html", icon: "stethoscope", description: "巡診紀錄與醫囑管理" },
+          { key: "primaryCases", label: "重點個案", href: "nurse-primary-cases.html", icon: "sparkles", description: "主要案件與照護追蹤" },
+          { key: "nurseWhiteboard", label: "護理白板", href: "nurse-whiteboard.html", icon: "clipboard", description: "交班與即時看板資訊" },
+          { key: "temperature", label: "體溫紀錄", href: "temperature-nurse.html", icon: "thermometer", description: "體溫量測與趨勢查看" }
+        ]
+      },
+      caregiver: {
+        label: "照服員系統",
+        items: [
+          { key: "caregiver", label: "照服員首頁", href: "caregiver.html", icon: "grid", description: "照服員系統總覽與快捷功能" },
+          { key: "leave", label: "請假系統", href: "leave-caregiver.html", icon: "calendar", description: "請假申請與紀錄查詢" },
+          { key: "stay", label: "外宿名冊", href: "stay-caregiver.html", icon: "moon", description: "外宿狀態與名冊查看" },
           { key: "foley", label: "導尿管系統", href: "foley-care.html", icon: "droplet", description: "導尿管紀錄與提醒" },
-          { key: "rounds", label: "醫師巡診", href: "doctor-rounds.html", icon: "heart", description: "巡診與醫囑紀錄" },
-          { key: "quality", label: "品管事件", href: "qc-incident.html", icon: "shield", description: "事件登錄與統計" }
+          { key: "meal", label: "餐食系統", href: "meal-caregiver.html", icon: "utensils", description: "用餐、飲食與備註管理" },
+          { key: "temperature", label: "體溫紀錄", href: "temperature-caregiver.html", icon: "thermometer", description: "體溫量測與查詢" }
         ]
       },
-      admin: {
-        label: "行政管理系統",
+      office: {
+        label: "辦公室系統",
         items: [
-          { key: "accounts", label: "帳號管理", href: "account-admin.html", icon: "settings", description: "權限與帳號設定" },
-          { key: "employees", label: "員工資料", href: "employees-admin.html", icon: "users", description: "員工名冊與資料管理" },
-          { key: "officeStay", label: "外宿系統", href: "office-stay.html", icon: "grid", description: "外宿申請與審核" },
-          { key: "education", label: "繼續教育", href: "education-training-admin.html", icon: "sparkles", description: "課程與訓練管理" },
-          { key: "bookingList", label: "探視管理", href: "bookings-list.html", icon: "heart", description: "探視預約後台管理" }
-        ]
-      },
-      nutrition: {
-        label: "營養師系統",
-        items: [
-          { key: "meals", label: "餐食管理", href: "nutritionist-meals.html", icon: "grid", description: "餐食與飲食安排" },
-          { key: "consult", label: "營養會診", href: "consult.html", icon: "heart", description: "會診與追蹤紀錄" }
-        ]
-      },
-      family: {
-        label: "家屬探視系統",
-        items: [
-          { key: "booking", label: "預約探視", href: "bookings.html", icon: "users", description: "家屬探視預約" }
+          { key: "office", label: "辦公室首頁", href: "office.html", icon: "grid", description: "辦公室系統總覽與快捷功能" },
+          { key: "evaluation", label: "評核系統", href: "office-evaluation.html", icon: "clipboard", description: "評核與追蹤作業" },
+          { key: "duty", label: "辦公室排班", href: "office-duty.html", icon: "calendar", description: "排班與值勤管理" },
+          { key: "employeesAdmin", label: "員工資料", href: "employees-admin.html", icon: "users", description: "員工名冊與資料管理" },
+          { key: "maintenance", label: "維修系統", href: "office-maintenance.html", icon: "settings", description: "維修申請與設備追蹤" },
+          { key: "stay", label: "外宿系統", href: "office-stay.html", icon: "moon", description: "外宿申請與審核管理" },
+          { key: "announcements", label: "公告管理", href: "announcements-admin.html", icon: "bell", description: "公告發布與管理" },
+          { key: "mealFee", label: "餐費管理", href: "meal-fee-admin.html", icon: "wallet", description: "餐費相關資料管理" },
+          { key: "accountAdmin", label: "帳號管理", href: "account-admin.html", icon: "shield", description: "登入帳號與權限設定" }
         ]
       }
     }
   };
 
   const AUTO_PAGE_RULES = [
-    { match: ["nurse-dashboard"], systemKey: "nurse", activeKey: "dashboard" },
-    { match: ["nurse-whiteboard"], systemKey: "nurse", activeKey: "whiteboard" },
-    { match: ["residents-admin"], systemKey: "nurse", activeKey: "residents" },
-    { match: ["wound-care"], systemKey: "nurse", activeKey: "wound" },
-    { match: ["foley-care"], systemKey: "nurse", activeKey: "foley" },
-    { match: ["doctor-rounds"], systemKey: "nurse", activeKey: "rounds" },
-    { match: ["qc-incident"], systemKey: "nurse", activeKey: "quality" },
-    { match: ["account-admin"], systemKey: "admin", activeKey: "accounts" },
-    { match: ["employees-admin"], systemKey: "admin", activeKey: "employees" },
-    { match: ["office-stay"], systemKey: "admin", activeKey: "officeStay" },
-    { match: ["education-training-admin"], systemKey: "admin", activeKey: "education" },
-    { match: ["bookings-list"], systemKey: "admin", activeKey: "bookingList" },
-    { match: ["nutritionist-meals"], systemKey: "nutrition", activeKey: "meals" },
-    { match: ["consult"], systemKey: "nutrition", activeKey: "consult" },
-    { match: ["bookings"], systemKey: "family", activeKey: "booking" }
+    { match: ["admin.html"], systemKey: "nurse", activeKey: "admin" },
+    { match: ["admin-visit.html"], systemKey: "nurse", activeKey: "visit" },
+    { match: ["admin-duty.html"], systemKey: "nurse", activeKey: "duty" },
+    { match: ["admin-supplies-system.html"], systemKey: "nurse", activeKey: "supplies" },
+    { match: ["admin-resident-system.html"], systemKey: "nurse", activeKey: "resident" },
+    { match: ["wound-care.html"], systemKey: "nurse", activeKey: "woundCare" },
+    { match: ["doctor-rounds.html"], systemKey: "nurse", activeKey: "doctorRound" },
+    { match: ["nurse-primary-cases.html"], systemKey: "nurse", activeKey: "primaryCases" },
+    { match: ["nurse-whiteboard.html"], systemKey: "nurse", activeKey: "nurseWhiteboard" },
+    { match: ["temperature-nurse.html"], systemKey: "nurse", activeKey: "temperature" },
+
+    { match: ["caregiver.html"], systemKey: "caregiver", activeKey: "caregiver" },
+    { match: ["leave-caregiver.html"], systemKey: "caregiver", activeKey: "leave" },
+    { match: ["stay-caregiver.html"], systemKey: "caregiver", activeKey: "stay" },
+    { match: ["foley-care.html"], systemKey: "caregiver", activeKey: "foley" },
+    { match: ["meal-caregiver.html"], systemKey: "caregiver", activeKey: "meal" },
+    { match: ["temperature-caregiver.html"], systemKey: "caregiver", activeKey: "temperature" },
+
+    { match: ["office-evaluation.html"], systemKey: "office", activeKey: "evaluation" },
+    { match: ["office-duty.html"], systemKey: "office", activeKey: "duty" },
+    { match: ["employees-admin.html"], systemKey: "office", activeKey: "employeesAdmin" },
+    { match: ["office-maintenance.html"], systemKey: "office", activeKey: "maintenance" },
+    { match: ["office-stay.html"], systemKey: "office", activeKey: "stay" },
+    { match: ["announcements-admin.html"], systemKey: "office", activeKey: "announcements" },
+    { match: ["meal-fee-admin.html"], systemKey: "office", activeKey: "mealFee" },
+    { match: ["account-admin.html"], systemKey: "office", activeKey: "accountAdmin" },
+    { match: ["office.html"], systemKey: "office", activeKey: "office" }
   ];
 
   function getCurrentPageName() {
@@ -410,7 +454,7 @@
     const page = getCurrentPageName();
     if (!page) return { enabled: false };
 
-    const hit = AUTO_PAGE_RULES.find((rule) => Array.isArray(rule.match) && rule.match.some((token) => page.includes(String(token).toLowerCase())));
+    const hit = AUTO_PAGE_RULES.find((rule) => Array.isArray(rule.match) && rule.match.some((token) => page === String(token).toLowerCase()));
     if (!hit) return { enabled: false };
 
     return {
@@ -428,6 +472,7 @@
     const externalShell = global.ANTAI_SHELL_CONFIG && typeof global.ANTAI_SHELL_CONFIG === "object"
       ? global.ANTAI_SHELL_CONFIG
       : null;
+
     const inferredShell = inferShellFromLocation();
 
     const merged = deepMerge(
@@ -1160,6 +1205,15 @@
       heart: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-9A5.5 5.5 0 0 1 12 5a5.5 5.5 0 0 1 9.5 7c-2.5 4.65-9.5 9-9.5 9Z" fill="currentColor"/></svg>`,
       shield: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v6c0 5 3.4 8.6 7 10 3.6-1.4 7-5 7-10V6l-7-3Z" fill="currentColor"/></svg>`,
       settings: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Zm8 3.5-.94-.32a7.83 7.83 0 0 0-.5-1.2l.45-.9a1 1 0 0 0-.18-1.15l-1.58-1.58a1 1 0 0 0-1.15-.18l-.9.45c-.38-.2-.78-.37-1.2-.5L14 4a1 1 0 0 0-.97-1h-2.06A1 1 0 0 0 10 4l-.32.94c-.42.13-.82.3-1.2.5l-.9-.45a1 1 0 0 0-1.15.18L4.85 6.75a1 1 0 0 0-.18 1.15l.45.9c-.2.38-.37.78-.5 1.2L4 10a1 1 0 0 0-1 1v2.06a1 1 0 0 0 1 .97l.94.32c.13.42.3.82.5 1.2l-.45.9a1 1 0 0 0 .18 1.15l1.58 1.58a1 1 0 0 0 1.15.18l.9-.45c.38.2.78.37 1.2.5L10 20a1 1 0 0 0 .97 1h2.06A1 1 0 0 0 14 20l.32-.94c.42-.13.82-.3 1.2-.5l.9.45a1 1 0 0 0 1.15-.18l1.58-1.58a1 1 0 0 0 .18-1.15l-.45-.9c.2-.38.37-.78.5-1.2L20 14a1 1 0 0 0 1-.97V11a1 1 0 0 0-1-1Z" fill="currentColor"/></svg>`,
+      calendar: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 2v3M17 2v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      box: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4 7l8 4 8-4-8-4Zm8 4v10l-8 4-8-4V7M12 11v10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      stethoscope: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3v5a4 4 0 0 0 8 0V3M9 3v5a2 2 0 1 1-4 0V3M15 3v5a2 2 0 1 0 4 0V3M15 14a4 4 0 1 0 4 4v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="14" r="2" fill="currentColor"/></svg>`,
+      clipboard: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6a2 2 0 0 1 2-2Zm0 3h6V6H9v1Z" fill="currentColor"/></svg>`,
+      thermometer: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+      moon: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="currentColor"/></svg>`,
+      utensils: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3v8M4 3v5a2 2 0 0 0 4 0V3M10 3v18M16 3v7a2 2 0 1 0 4 0V3M18 10v11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      bell: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v2.2c0 .9-.3 1.8-.9 2.5L5.6 14a1 1 0 0 0 .8 1.6h11.2a1 1 0 0 0 .8-1.6l-1.5-2.3a4.2 4.2 0 0 1-.9-2.5V7a4 4 0 0 0-4-4Zm0 18a2.5 2.5 0 0 0 2.3-1.5H9.7A2.5 2.5 0 0 0 12 21Z" fill="currentColor"/></svg>`,
+      wallet: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Zm14 1V7H6v10h12v-1h-3a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3Zm-3 5h4v-2h-4v2Z" fill="currentColor"/></svg>`,
       info: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 5.5a1.25 1.25 0 1 1-1.25 1.25A1.25 1.25 0 0 1 12 7.5ZM13.5 17h-3v-1.5H12v-4h-1.5V10H13.5v5.5H15V17Z" fill="currentColor"/></svg>`
     };
     return icons[name] || icons.grid;
@@ -1259,12 +1313,7 @@
       ? global.IDLE_TIMEOUT_CONFIG
       : {};
 
-    const inferredShell = inferShellFromLocation();
     const merged = deepMerge(DEFAULTS, userCfg);
-    if (!userCfg.shell && !global.ANTAI_SHELL_CONFIG) {
-      merged.shell = deepMerge(merged.shell || {}, inferredShell);
-    }
-
     if (!merged.autoStart) return;
     start(merged);
   }
