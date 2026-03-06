@@ -1,4 +1,4 @@
-/* idle-timeout.secure.js + Antai Shell Sidebar
+/* idle-timeout.secure.js + Antai Shell Sidebar v2
  * 安泰護家系統通用插件整合版（自動啟動）
  * - 閒置 3 分鐘跳提示，倒數 120 秒仍無動作則強制登出
  * - 左側系統側邊欄（日期 / 天氣 / 溫度 / 系統清單）
@@ -67,7 +67,7 @@
       mobileBreakpoint: 980,
       mountToBody: true,
       pageContainerSelector: null,
-      zIndex: 9998,
+      zIndex: 2147483000,
       autoInjectToggle: true,
       dateFormatter: null,
       systemKey: "default",
@@ -521,13 +521,16 @@
       }
       .antai-shell-root, .antai-shell-root *{ box-sizing:border-box; }
       .antai-shell-root{
-        position:fixed;
-        top:14px;
-        left:14px;
-        bottom:14px;
-        width:var(--antai-shell-width);
-        z-index:${Number(shellCfg.zIndex) || 9998};
-        display:flex;
+        position:fixed !important;
+        top:14px !important;
+        left:14px !important;
+        bottom:14px !important;
+        width:var(--antai-shell-width) !important;
+        z-index:${Number(shellCfg.zIndex) || 2147483000} !important;
+        display:flex !important;
+        visibility:visible !important;
+        opacity:1 !important;
+        pointer-events:auto !important;
         flex-direction:column;
         gap:12px;
         transform:translateX(0);
@@ -1323,4 +1326,12 @@
   } else {
     autoBoot();
   }
+
+  window.addEventListener("load", () => {
+    try {
+      if (!document.querySelector('.antai-shell-root')) {
+        autoBoot();
+      }
+    } catch (_) {}
+  });
 })(window);
