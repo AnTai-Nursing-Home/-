@@ -228,9 +228,30 @@
       body.antai-shell-body{padding-left:284px;box-sizing:border-box}
       #antai-shell-root{position:fixed;left:16px;top:18px;bottom:18px;width:252px;z-index:2147482000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif}
       .antai-shell-wrap{height:100%;display:flex;flex-direction:column;gap:12px}
-      .antai-weather-card{position:relative;padding:16px;border-radius:22px;color:#fff;background:linear-gradient(135deg,#2a3444,#4e5f78);box-shadow:0 16px 34px rgba(36,48,72,.22);overflow:hidden}
-      .antai-weather-card:before,.antai-weather-card:after{content:"";position:absolute;border-radius:999px;background:rgba(255,255,255,.07);animation:antai-float 7s ease-in-out infinite}.antai-weather-card:before{width:120px;height:120px;right:-18px;top:-28px}.antai-weather-card:after{width:90px;height:90px;left:-24px;bottom:-26px;animation-delay:-2s}
+      .antai-weather-card{position:relative;padding:16px;border-radius:22px;color:#fff;background:linear-gradient(135deg,#2a3444,#4e5f78);box-shadow:0 16px 34px rgba(36,48,72,.22);overflow:hidden;isolation:isolate}
+      .antai-weather-card:before,.antai-weather-card:after{content:"";position:absolute;border-radius:999px;background:rgba(255,255,255,.07);animation:antai-float 7s ease-in-out infinite;z-index:0}.antai-weather-card:before{width:120px;height:120px;right:-18px;top:-28px}.antai-weather-card:after{width:90px;height:90px;left:-24px;bottom:-26px;animation-delay:-2s}
+      .antai-weather-card > *{position:relative;z-index:2}
+      .antai-weather-card .antai-weather-anim,.antai-weather-card .antai-weather-overlay{position:absolute;inset:0;pointer-events:none;z-index:1}
+      .antai-weather-card.weather-sunny{background:linear-gradient(135deg,#4a7bff,#78c7ff)}
+      .antai-weather-card.weather-sunny .antai-weather-anim:before{content:"";position:absolute;right:-26px;top:-30px;width:126px;height:126px;border-radius:50%;background:radial-gradient(circle,rgba(255,232,132,.95) 0%,rgba(255,232,132,.55) 35%,rgba(255,232,132,.12) 65%,transparent 74%);animation:antai-sun-pulse 5.5s ease-in-out infinite}
+      .antai-weather-card.weather-cloudy{background:linear-gradient(135deg,#66768d,#90a0b5)}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:before,.antai-weather-card.weather-cloudy .antai-weather-anim:after{content:"";position:absolute;background:rgba(255,255,255,.18);border-radius:999px;filter:blur(1px)}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:before{width:110px;height:34px;left:18px;top:34px;animation:antai-cloud-drift 9s ease-in-out infinite}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:after{width:82px;height:26px;right:18px;top:68px;animation:antai-cloud-drift 11s ease-in-out infinite reverse}
+      .antai-weather-card.weather-rain{background:linear-gradient(135deg,#43566e,#2b3848)}
+      .antai-weather-card.weather-rain .antai-weather-overlay{background-image:linear-gradient(180deg,rgba(255,255,255,.00) 0%,rgba(255,255,255,.03) 100%),repeating-linear-gradient(120deg,transparent 0 14px,rgba(190,220,255,.38) 14px 16px,transparent 16px 28px);background-size:100% 100%,150px 150px;animation:antai-rain-fall .9s linear infinite;opacity:.72}
+      .antai-weather-card.weather-rain .antai-weather-anim:before{content:"";position:absolute;left:20px;top:26px;width:92px;height:28px;border-radius:999px;background:rgba(255,255,255,.16);filter:blur(1px)}
+      .antai-weather-card.weather-storm{background:linear-gradient(135deg,#2a3343,#151c28)}
+      .antai-weather-card.weather-storm .antai-weather-overlay{background-image:repeating-linear-gradient(120deg,transparent 0 18px,rgba(181,219,255,.26) 18px 20px,transparent 20px 34px);background-size:170px 170px;animation:antai-rain-fall 1s linear infinite;opacity:.46}
+      .antai-weather-card.weather-storm .antai-weather-anim:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.0);animation:antai-lightning 6s linear infinite}
+      .antai-weather-card.weather-snow{background:linear-gradient(135deg,#70869f,#a9bbcf)}
+      .antai-weather-card.weather-snow .antai-weather-overlay{background-image:radial-gradient(circle,rgba(255,255,255,.9) 0 2px,transparent 2.2px),radial-gradient(circle,rgba(255,255,255,.7) 0 1.6px,transparent 1.8px),radial-gradient(circle,rgba(255,255,255,.82) 0 1.8px,transparent 2px);background-size:90px 90px,120px 120px,140px 140px;background-position:0 0,30px 20px,60px 40px;animation:antai-snow-fall 6s linear infinite;opacity:.9}
       @keyframes antai-float{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+      @keyframes antai-sun-pulse{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.08);opacity:1}}
+      @keyframes antai-cloud-drift{0%,100%{transform:translateX(0)}50%{transform:translateX(10px)}}
+      @keyframes antai-rain-fall{0%{background-position:0 0,0 -120px}100%{background-position:0 0,-18px 40px}}
+      @keyframes antai-snow-fall{0%{background-position:0 -80px,30px -40px,60px -100px}100%{background-position:18px 70px,8px 90px,78px 80px}}
+      @keyframes antai-lightning{0%,87%,100%{background:rgba(255,255,255,0)}88%{background:rgba(255,255,255,.18)}89%{background:rgba(255,255,255,.02)}90%{background:rgba(255,255,255,.28)}91%{background:rgba(255,255,255,0)}97%{background:rgba(255,255,255,0)}98%{background:rgba(255,255,255,.12)}99%{background:rgba(255,255,255,0)}}
       .antai-w-date{position:relative;z-index:1;font-size:16px;font-weight:900;margin-bottom:10px}
       .antai-w-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;margin-top:8px}
       .antai-w-left{display:flex;align-items:center;gap:8px;min-width:0}.antai-w-left svg{width:18px;height:18px;display:block;flex:0 0 auto}.antai-w-left span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -253,6 +274,30 @@
   }
   function thermometerIcon() {
     return '<svg viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="rgba(255,255,255,.96)" stroke-width="2"/><path d="M12 11v6" stroke="rgba(255,255,255,.96)" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
+
+  function setWeatherBackground(root, weather) {
+    const card = root.querySelector('.antai-weather-card');
+    if (!card) return;
+    card.classList.remove('weather-sunny', 'weather-cloudy', 'weather-rain', 'weather-storm', 'weather-snow');
+    const t = String(weather || '');
+    if (t.includes('雷')) {
+      card.classList.add('weather-storm');
+      return;
+    }
+    if (t.includes('雪')) {
+      card.classList.add('weather-snow');
+      return;
+    }
+    if (t.includes('雨') || t.includes('毛毛雨')) {
+      card.classList.add('weather-rain');
+      return;
+    }
+    if (t.includes('晴')) {
+      card.classList.add('weather-sunny');
+      return;
+    }
+    card.classList.add('weather-cloudy');
   }
 
   function formatDate() {
@@ -351,10 +396,12 @@
     try {
       const info = await fetchWeather();
       weatherEl.innerHTML = `${weatherIcon(info.text)}<span>${info.text}</span>`;
+      setWeatherBackground(root, info.text);
       tempEl.innerHTML = `${thermometerIcon()}<span>${Math.round(info.temp)}°C</span>`;
       placeEl.textContent = info.label || '目前位置';
     } catch (err) {
       weatherEl.innerHTML = `${weatherIcon('多雲')}<span>天氣讀取中</span>`;
+      setWeatherBackground(root, '多雲');
       tempEl.innerHTML = `${thermometerIcon()}<span>--°C</span>`;
       placeEl.textContent = '無法定位';
     }
@@ -379,7 +426,9 @@
     `).join('');
     root.innerHTML = `
       <div class="antai-shell-wrap">
-        <section class="antai-weather-card">
+        <section class="antai-weather-card weather-cloudy">
+          <div class="antai-weather-anim"></div>
+          <div class="antai-weather-overlay"></div>
           <div class="antai-w-date" data-role="date"></div>
           <div class="antai-w-row"><div class="antai-w-left" data-role="weather"></div><small data-role="place"></small></div>
           <div class="antai-w-row"><div class="antai-w-left" data-role="temp"></div><small>每 ${((cfg.weather && cfg.weather.refreshMinutes) || 5)} 分更新</small></div>
