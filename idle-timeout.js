@@ -343,7 +343,7 @@
       nurse: {
         label: "護理師系統",
         items: [
-          { key: "dashboard", label: "護理師儀表板", href: "nurse-dashboard.html", icon: "grid", description: "總覽與快速操作" },
+          { key: "dashboard", label: "護理師儀表板", href: "admin.html", icon: "grid", description: "總覽與快速操作" },
           { key: "whiteboard", label: "白板資訊", href: "nurse-whiteboard.html", icon: "sparkles", description: "交班與即時看板" },
           { key: "residents", label: "住民資料", href: "residents-admin.html", icon: "users", description: "住民基本與照護資料" },
           { key: "wound", label: "傷口照護", href: "wound-care.html", icon: "bandage", description: "傷口紀錄與追蹤" },
