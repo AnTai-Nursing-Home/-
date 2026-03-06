@@ -32,12 +32,12 @@
         ['admin.html', '護理師首頁'],
         ['admin-visit.html', '探視系統'],
         ['admin-duty.html', '班務系統'],
-        ['nurse-request.html', '請假/調班系統']
+        ['nurse-request.html', '請假/調班系統'],
         ['admin-supplies-system.html', '器材／衛材系統'],
-        ['supplies.html', '衛材盤點']
-        ['nurse-maintenance.html', '器材報修']
+        ['supplies.html', '衛材盤點'],
+        ['nurse-maintenance.html', '器材報修'],
         ['admin-resident-system.html', '住民系統'],
-        ['residents-admin.html', '住民資料管理']
+        ['residents-admin.html', '住民資料管理'],
         ['wound-care.html', '傷口照護'],
         ['doctor-rounds.html', '醫師巡診系統'],
         ['nurse-primary-cases.html', '主責個案分配'],
