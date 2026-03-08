@@ -40,6 +40,7 @@ document.addEventListener('edu-training-init', ()=>{
     localCaregivers: '本國照服員',
     adminStaff: '社工/其他'
   };
+  const SOURCE_ORDER = ['nurses', 'caregivers', 'localCaregivers', 'adminStaff'];
 
   // -----------------------------
   // DOM
@@ -62,6 +63,7 @@ document.addEventListener('edu-training-init', ()=>{
   const attendanceCourseInfo = document.getElementById('attendance-course-info');
   const attendanceTbody = document.getElementById('attendance-tbody');
   const attendanceSearch = document.getElementById('attendance-search');
+  const attendanceGroupFilter = document.getElementById('attendance-group-filter');
   const attendanceCountPill = document.getElementById('attendance-count-pill');
   const attendanceCheckedPill = document.getElementById('attendance-checked-pill');
   const attendanceSelectAll = document.getElementById('attendance-select-all');
@@ -276,7 +278,7 @@ document.addEventListener('edu-training-init', ()=>{
   // Load employees (4 collections)
   // -----------------------------
   async function loadEmployees(){
-    const sources = ['adminStaff','caregivers','localCaregivers','nurses'];
+    const sources = ['nurses','caregivers','localCaregivers','adminStaff'];
     const snaps = await Promise.all(sources.map(col=>db.collection(col).get()));
     const list = [];
     snaps.forEach((snap, idx)=>{
@@ -287,27 +289,49 @@ document.addEventListener('edu-training-init', ()=>{
         const name = String(d.name || '').trim();
         const title = String(d.title || d.role || '').trim();
         const sortOrder = (d.sortOrder==null? 9999 : Number(d.sortOrder));
+        const rawGroup = d.groupNo ?? d.group ?? d.groupId ?? '';
+        const parsedGroup = Number(String(rawGroup).replace(/[^0-9]/g, ''));
+        const groupNo = (parsedGroup === 1 || parsedGroup === 2) ? parsedGroup : 99;
         if(!staffId && !doc.id) return;
         list.push({
           staffId: staffId || String(doc.id),
           name: name || '(未命名)',
           source,
           title,
+          groupNo,
           sortOrder: isNaN(sortOrder)? 9999 : sortOrder,
         });
       });
     });
 
-    // sort: by source then sortOrder then name
+    // sort: keep category order, then group 1 -> 2 -> others, then sortOrder, then name
     list.sort((a,b)=>{
-      const s = a.source.localeCompare(b.source);
+      const sa = SOURCE_ORDER.indexOf(a.source);
+      const sb = SOURCE_ORDER.indexOf(b.source);
+      const s = (sa === -1 ? 999 : sa) - (sb === -1 ? 999 : sb);
       if(s) return s;
+      const g = (a.groupNo || 99) - (b.groupNo || 99);
+      if(g) return g;
       const o = (a.sortOrder||9999) - (b.sortOrder||9999);
       if(o) return o;
       return a.name.localeCompare(b.name, 'zh-Hant', {numeric:true});
     });
 
     employees = list;
+  }
+
+  function getAttendanceGroupFilter(){
+    return safeStr(attendanceGroupFilter?.value || '').trim();
+  }
+
+  function filterAttendanceRows(rows){
+    const q = safeStr(attendanceSearch?.value||'').trim().toLowerCase();
+    const groupFilter = getAttendanceGroupFilter();
+    return rows.filter(r=>{
+      if(groupFilter && String(r.emp.groupNo || '') !== groupFilter) return false;
+      if(!q) return true;
+      return safeStr(r.emp.staffId).toLowerCase().includes(q) || safeStr(r.emp.name).toLowerCase().includes(q);
+    });
   }
 
   // -----------------------------
@@ -614,12 +638,7 @@ document.addEventListener('edu-training-init', ()=>{
 
     attendanceCourseInfo.textContent = info;
 
-    const q = safeStr(attendanceSearch?.value||'').trim().toLowerCase();
-
-    const view = currentAttendanceRows.filter(r=>{
-      if(!q) return true;
-      return safeStr(r.emp.staffId).toLowerCase().includes(q) || safeStr(r.emp.name).toLowerCase().includes(q);
-    });
+    const view = filterAttendanceRows(currentAttendanceRows);
 
     let checked = 0;
     view.forEach(r=>{ if(r.attended) checked++; });
@@ -629,6 +648,7 @@ document.addEventListener('edu-training-init', ()=>{
     attendanceTbody.innerHTML = view.map(r=>{
       const chk = r.attended ? 'checked' : '';
       const role = staffSourceLabel(r.emp.source);
+      const groupText = (r.emp.groupNo === 1 || r.emp.groupNo === 2) ? `<span class="badge text-bg-light border ms-1">${r.emp.groupNo}組</span>` : '';
       const hoursVal = (isFinite(r.hoursEarned)? r.hoursEarned : 0);
       return `
         <tr data-docid="${r.docId}">
@@ -637,7 +657,7 @@ document.addEventListener('edu-training-init', ()=>{
           </td>
           <td class="mono">${safeStr(r.emp.staffId)}</td>
           <td class="fw-semibold">${safeStr(r.emp.name)}</td>
-          <td>${role}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
+          <td>${role}${groupText}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
           <td class="text-end">
             <input type="number" step="0.5" min="0" class="form-control form-control-sm attend-hours" style="max-width:110px; margin-left:auto" value="${hoursVal}">
           </td>
@@ -788,6 +808,7 @@ if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
     verifyTbody.innerHTML = view.map(r=>{
       const status = r.attended ? '<span class="badge bg-success">已上課</span>' : '<span class="badge bg-secondary">未上課</span>';
       const role = staffSourceLabel(r.emp.source);
+      const groupText = (r.emp.groupNo === 1 || r.emp.groupNo === 2) ? `<span class="badge text-bg-light border ms-1">${r.emp.groupNo}組</span>` : '';
       const hoursVal = (isFinite(r.hoursEarned)? r.hoursEarned : 0);
       const check = r.attended ? (r.mismatch ? '<span class="badge bg-warning text-dark">時數不符</span>' : '<span class="badge bg-primary">OK</span>') : '-';
       return `
@@ -795,7 +816,7 @@ if(nameQ && !safeStr(c.title).toLowerCase().includes(nameQ)) return false;
           <td class="text-center">${status}</td>
           <td class="mono">${safeStr(r.emp.staffId)}</td>
           <td class="fw-semibold">${safeStr(r.emp.name)}</td>
-          <td>${role}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
+          <td>${role}${groupText}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
           <td class="text-end">${r.attended ? hoursVal.toFixed(1).replace(/\\.0$/,'') : '0'}</td>
           <td class="text-center">${check}</td>
         </tr>
@@ -950,7 +971,8 @@ function syncAttendanceRowFromDOM(){
     const opts = [`<option value="" disabled ${old?'':'selected'}>請選擇人員</option>`].concat(
       employees.map(e=>{
         const v = `${e.source}__${e.staffId}`;
-        const label = `${e.staffId}｜${e.name}｜${REQ_LABEL[e.source]||e.source}`;
+        const groupLabel = (e.groupNo === 1 || e.groupNo === 2) ? `｜${e.groupNo}組` : '';
+        const label = `${e.staffId}｜${e.name}｜${REQ_LABEL[e.source]||e.source}${groupLabel}`;
         const sel = (v===old) ? 'selected' : '';
         return `<option value="${v}" ${sel}>${label}</option>`;
       })
@@ -1064,11 +1086,12 @@ function syncAttendanceRowFromDOM(){
         return safeStr(x.emp.staffId).toLowerCase().includes(q) || safeStr(x.emp.name).toLowerCase().includes(q);
       })
       .sort((a,b)=>{
-        // show higher hours first, then by source/order
-        const h = (b.hours||0) - (a.hours||0);
-        if(h) return h;
-        const s = a.emp.source.localeCompare(b.emp.source);
+        const sa = SOURCE_ORDER.indexOf(a.emp.source);
+        const sb = SOURCE_ORDER.indexOf(b.emp.source);
+        const s = (sa === -1 ? 999 : sa) - (sb === -1 ? 999 : sb);
         if(s) return s;
+        const g = (a.emp.groupNo || 99) - (b.emp.groupNo || 99);
+        if(g) return g;
         const o = (a.emp.sortOrder||9999) - (b.emp.sortOrder||9999);
         if(o) return o;
         return a.emp.name.localeCompare(b.emp.name, 'zh-Hant', {numeric:true});
@@ -1086,7 +1109,7 @@ function syncAttendanceRowFromDOM(){
         <tr>
           <td class="mono">${safeStr(r.emp.staffId)}</td>
           <td class="fw-semibold">${safeStr(r.emp.name)}</td>
-          <td>${staffSourceLabel(r.emp.source)}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
+          <td>${staffSourceLabel(r.emp.source)}${(r.emp.groupNo === 1 || r.emp.groupNo === 2) ? ('<span class="badge text-bg-light border ms-1">' + r.emp.groupNo + '組</span>') : ''}${r.emp.title ? ('<div class="small muted">' + safeStr(r.emp.title) + '</div>') : ''}</td>
           <td class="text-end fw-bold">${hrs.toFixed(1).replace(/\.0$/,'')}</td>
           <td>${reqDone} 門</td>
         </tr>
@@ -1493,16 +1516,13 @@ verifyCourseSelect?.addEventListener('change', async ()=>{
 
 
   attendanceSearch?.addEventListener('input', ()=>renderAttendance());
+  attendanceGroupFilter?.addEventListener('change', ()=>renderAttendance());
 
   attendanceTbody?.addEventListener('change', (e)=>{
     if(e.target.classList.contains('attend-check') || e.target.classList.contains('attend-hours')){
       syncAttendanceRowFromDOM();
       // update pills quickly
-      const view = currentAttendanceRows.filter(r=>{
-        const q = safeStr(attendanceSearch?.value||'').trim().toLowerCase();
-        if(!q) return true;
-        return safeStr(r.emp.staffId).toLowerCase().includes(q) || safeStr(r.emp.name).toLowerCase().includes(q);
-      });
+      const view = filterAttendanceRows(currentAttendanceRows);
       const checked = view.filter(r=>r.attended).length;
       setAttendancePills(view.length, checked);
     }
