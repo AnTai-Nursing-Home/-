@@ -159,7 +159,15 @@
 
                       <hr class="my-3">
 
-                      <div class="d-flex flex-wrap gap-2">
+                      <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="input-group input-group-sm" style="max-width:180px">
+                          <span class="input-group-text">點名組別</span>
+                          <select id="attendance-group-filter" class="form-select">
+                            <option value="">全部</option>
+                            <option value="1">1組</option>
+                            <option value="2">2組</option>
+                          </select>
+                        </div>
                         <button id="attendance-select-all" class="btn btn-outline-secondary btn-sm">
                           <i class="fa-regular fa-square-check me-1"></i>全選出席
                         </button>
