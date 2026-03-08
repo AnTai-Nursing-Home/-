@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     body{background:#f8f9fa}
+    .page-shell{width:min(100%, 1800px);margin:0 auto;padding:0 12px}
+    @media (min-width: 1400px){.page-shell{width:min(100%, 1920px);padding:0 16px}}
+    .modal-xxl{max-width:min(96vw, 1600px)}
     .card{border-radius:14px;overflow:hidden}
     .card-header{background:#212529;color:#fff}
     .card-header .btn{color:#fff;border-color:rgba(255,255,255,.4)}
@@ -99,7 +102,7 @@ table td, table th {
 </style>
 </head>
 <body>
-  <div class="container my-4">
+  <div class="page-shell my-4">
     <div class="card shadow">
       <div class="card-header">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -165,7 +168,7 @@ table td, table th {
 
   <!-- Modal -->
   <div class="modal fade" id="employee-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-xxl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="employee-modal-title">新增員工</h5>
@@ -211,6 +214,14 @@ table td, table th {
               <div class="col-6 col-md-2">
                 <label class="form-label">職稱</label>
                 <input type="text" class="form-control" id="employee-title" placeholder="例：護理師/照服員/行政">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">組別</label>
+                <select id="employee-groupNo" class="form-select">
+                  <option value="">—</option>
+                  <option value="1">1 組</option>
+                  <option value="2">2 組</option>
+                </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label">地址</label>
