@@ -15,6 +15,7 @@ function buildTableHTML(tabId) {
                 <th>生日</th>
                 <th>身分證字號</th>
                 <th>到職日</th>
+                <th>組別</th>
                 <th>職稱</th>
                 <th>手機</th>
                 <th>日間電話</th>
@@ -198,6 +199,7 @@ document.addEventListener('firebase-ready', () => {
   const idCardInput = document.getElementById('employee-idCard');
   const hireDateInput = document.getElementById('employee-hireDate');
   const titleInput = document.getElementById('employee-title');
+  const groupNoInput = document.getElementById('employee-groupNo');
   const phoneInput = document.getElementById('employee-phone');
   const daytimePhoneInput = document.getElementById('employee-daytimePhone');
   const addressInput = document.getElementById('employee-address');
@@ -267,7 +269,7 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    return (tabId === 'inactiveEmployees') ? 25 : 23;
+    return (tabId === 'inactiveEmployees') ? 26 : 24;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -379,6 +381,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
         <td>${pick(e, ['hireDate'])}</td>
+        <td>${pick(e, ['groupNo','group','teamGroup'])}</td>
         <td>${pick(e, ['title'])}</td>
         <td>${pick(e, ['phone'])}</td>
         <td>${pick(e, ['daytimePhone','email'])}</td>
@@ -465,23 +468,24 @@ function fillFormFromRow(row) {
     birthdayInput.value = toISODateForInput(cell(4 + off));
     idCardInput.value = cell(5 + off);
     hireDateInput.value = toISODateForInput(cell(6 + off));
-    titleInput.value = cell(7 + off);
-    phoneInput.value = cell(8 + off);
-    daytimePhoneInput.value = cell(9 + off);
-    addressInput.value = cell(10 + off);
-    emgNameInput.value = cell(11 + off);
-    emgRelationInput.value = cell(12 + off);
-    emgPhoneInput.value = cell(13 + off);
-    nationalityInput.value = cell(14 + off);
-    licenseTypeInput.value = cell(15 + off);
-    licenseNumberInput.value = cell(16 + off);
-    licenseRenewDateInput.value = toISODateForInput(cell(17 + off));
-    longtermCertNumberInput.value = cell(18 + off);
+    groupNoInput.value = cell(7 + off);
+    titleInput.value = cell(8 + off);
+    phoneInput.value = cell(9 + off);
+    daytimePhoneInput.value = cell(10 + off);
+    addressInput.value = cell(11 + off);
+    emgNameInput.value = cell(12 + off);
+    emgRelationInput.value = cell(13 + off);
+    emgPhoneInput.value = cell(14 + off);
+    nationalityInput.value = cell(15 + off);
+    licenseTypeInput.value = cell(16 + off);
+    licenseNumberInput.value = cell(17 + off);
+    licenseRenewDateInput.value = toISODateForInput(cell(18 + off));
+    longtermCertNumberInput.value = cell(19 + off);
         // 長照證效期常是「起-迄」區間字串，不能用 <input type=date> 的 ISO 轉換
-    longtermExpireDateInput.value = cell(19 + off);
+    longtermExpireDateInput.value = cell(20 + off);
 
-    educationInput.value = cell(20 + off);
-    schoolInput.value = cell(21 + off);
+    educationInput.value = cell(21 + off);
+    schoolInput.value = cell(22 + off);
     inactiveDateInput.value = toISODateForInput(isInactive ? cell(4) : '');
     if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
   }
@@ -496,6 +500,7 @@ function fillFormFromRow(row) {
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
+      groupNo: groupNoInput.value.trim(),
       title: titleInput.value.trim(),
       phone: phoneInput.value.trim(),
       daytimePhone: daytimePhoneInput.value.trim(),
@@ -644,6 +649,10 @@ function fillFormFromRow(row) {
           "身份証字號": "idCard",
           "到職日": "hireDate",
           "到職日期": "hireDate",
+          "組別": "groupNo",
+          "組": "groupNo",
+          "Group": "groupNo",
+          "group": "groupNo",
           "職稱": "title",
           "手機": "phone",
           "日間電話": "daytimePhone",
@@ -759,6 +768,7 @@ async function generateReportHTML() {
           <td>${e.birthday ?? ''}</td>
           <td>${e.idCard ?? ''}</td>
           <td>${e.hireDate ?? ''}</td>
+          <td>${e.groupNo ?? ''}</td>
           <td>${e.title ?? ''}</td>
           <td>${e.phone ?? ''}</td>
           <td>${e.daytimePhone ?? ''}</td>
@@ -793,7 +803,7 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         <th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
-        <th>到職日</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
+        <th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
         <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
         <th>學歷</th><th>畢業學校</th>
@@ -871,7 +881,7 @@ async function generateReportHTML() {
       }
 
       const headersBase = [
-        '排序','員編','姓名','性別','生日','身分證字號','到職日','職稱','手機','日間電話','地址',
+        '排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
         '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'
       ];
 
@@ -884,6 +894,7 @@ async function generateReportHTML() {
           getVal(e, ['birthday']),
           getVal(e, ['idCard','nationalId','idNumber']),
           getVal(e, ['hireDate']),
+          getVal(e, ['groupNo','group','teamGroup']),
           getVal(e, ['title']),
           getVal(e, ['phone']),
           getVal(e, ['daytimePhone','email']),
@@ -1061,6 +1072,7 @@ async function generateReportHTML() {
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號', key: 'idCard', width: 16 },
         { header: '到職日', key: 'hireDate', width: 12 },
+        { header: '組別', key: 'groupNo', width: 8 },
         { header: '職稱', key: 'title', width: 12 },
         { header: '手機', key: 'phone', width: 16 },
         { header: '日間電話', key: 'daytimePhone', width: 16 },
@@ -1187,6 +1199,7 @@ async function generateReportHTML() {
             birthday: getVal(e, ['birthday']),
             idCard: getVal(e, ['idCard','nationalId','idNumber']),
             hireDate: getVal(e, ['hireDate']),
+            groupNo: getVal(e, ['groupNo','group','teamGroup']),
             title: getVal(e, ['title']),
             phone: getVal(e, ['phone']),
             daytimePhone: getVal(e, ['daytimePhone','email']), // 舊資料誤用 email
