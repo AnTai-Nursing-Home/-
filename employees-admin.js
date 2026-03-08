@@ -90,28 +90,55 @@ document.addEventListener('firebase-ready', () => {
 
   function getSessionUser() {
     try {
-      const raw = sessionStorage.getItem('officeAuth'');
-      if (!raw) return null;
-      const u = JSON.parse(raw);
-      if (!u) return null;
-      const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
-      const name = u.displayName || u.name || u.staffName || u.username || '';
-      if (!staffId && !name) return null;
-      return { staffId, name };
+      const candidateKeys = ['antai_session_user', 'officeAuth'];
+
+      for (const key of candidateKeys) {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) continue;
+
+        const u = JSON.parse(raw);
+        if (!u) continue;
+
+        const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
+        const name = u.displayName || u.name || u.staffName || u.username || '';
+
+        if (!staffId && !name) continue;
+
+        return {
+          staffId,
+          name,
+          sourceKey: key,
+          raw: u
+        };
+      }
+
+      return null;
     } catch (e) {
+      console.warn('[employees-admin] getSessionUser failed:', e);
       return null;
     }
   }
 
   function syncLoginBadgeFromSession() {
     const su = getSessionUser();
+
     if (!su) {
+      CURRENT_USER.staffId = '';
+      CURRENT_USER.name = '';
       setLoginBadge('登入者：—');
       return null;
     }
+
     CURRENT_USER.staffId = su.staffId || '';
     CURRENT_USER.name = su.name || '';
-    setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+
+    const label = `登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    setLoginBadge(label || '登入者：—');
+    console.log('[employees-admin] login user from session =', su.sourceKey, su);
+
     return su;
   }
 
@@ -135,7 +162,10 @@ document.addEventListener('firebase-ready', () => {
             const d = acc.data() || {};
             CURRENT_USER.staffId = d.staffId || d.id || d.employeeId || '';
             CURRENT_USER.name = d.displayName || d.name || d.staffName || d.username || '';
-            setLoginBadge(`登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim());
+            const label = `登入者：${CURRENT_USER.staffId} ${CURRENT_USER.name}`
+              .replace(/\s+/g, ' ')
+              .trim();
+            setLoginBadge(label || '登入者：—');
             return CURRENT_USER;
           }
         }
