@@ -90,7 +90,7 @@ document.addEventListener('firebase-ready', () => {
 
   function getSessionUser() {
     try {
-      const raw = sessionStorage.getItem('antai_session_user');
+      const raw = sessionStorage.getItem('officeAuth'');
       if (!raw) return null;
       const u = JSON.parse(raw);
       if (!u) return null;
