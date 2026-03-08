@@ -31,8 +31,13 @@
       items: [
         ['admin.html', '護理師首頁'],
         ['admin-visit.html', '探視系統'],
-        ['admin-duty.html', '班務系統'],
-        ['nurse-request.html', '請假/調班系統'],
+        {
+          label: '班務系統',
+          href: 'admin-duty.html',
+          children: [
+            ['nurse-request.html', '請假／調班系統']
+          ]
+        },
         ['admin-supplies-system.html', '器材／衛材系統'],
         ['supplies.html', '衛材盤點'],
         ['nurse-maintenance.html', '器材報修'],
@@ -259,6 +264,20 @@
       .antai-menu-head{font-size:15px;font-weight:900;color:#22354b;padding:8px 10px 10px}.antai-menu-list{display:flex;flex-direction:column;gap:6px}
       .antai-menu-item{display:flex;align-items:center;gap:12px;text-decoration:none;color:#2b3d55;padding:14px 16px;border-radius:16px;transition:.18s ease}.antai-menu-item:hover{background:#f3f7fd;transform:translateX(2px)}
       .antai-menu-item.active{background:linear-gradient(135deg,rgba(71,123,255,.14),rgba(126,180,255,.18));color:#1d4ea6;font-weight:800}
+      .antai-menu-group{display:flex;flex-direction:column;gap:6px}
+      .antai-menu-parent{padding:0;gap:0;overflow:hidden}
+      .antai-parent-link{display:flex;align-items:center;gap:12px;flex:1 1 auto;min-width:0;padding:14px 8px 14px 16px;text-decoration:none;color:inherit}
+      .antai-parent-link:hover{color:inherit}
+      .antai-toggle-btn{display:flex;align-items:center;justify-content:center;align-self:stretch;width:42px;border:none;background:transparent;color:#5f7088;cursor:pointer;transition:.18s ease}
+      .antai-toggle-btn:hover{background:rgba(47,116,255,.08);color:#2f74ff}
+      .antai-menu-group.expanded .antai-toggle-chevron{transform:rotate(90deg)}
+      .antai-toggle-chevron{display:inline-block;transition:transform .18s ease;font-size:15px;line-height:1}
+      .antai-submenu{display:none;flex-direction:column;gap:6px;padding:0 0 2px 24px}
+      .antai-submenu-item{display:flex;align-items:center;gap:10px;text-decoration:none;color:#3c4e67;padding:10px 12px;border-radius:14px;transition:.18s ease}
+      .antai-submenu-item:hover{background:#f3f7fd;transform:translateX(2px)}
+      .antai-submenu-item.active{background:linear-gradient(135deg,rgba(71,123,255,.10),rgba(126,180,255,.14));color:#1d4ea6;font-weight:800}
+      .antai-submenu-dot{width:8px;height:8px;border-radius:50%;background:#b3c1d5;flex:0 0 auto}
+      .antai-submenu-item.active .antai-submenu-dot{background:#2f74ff}
       .antai-dot{width:10px;height:10px;border-radius:50%;background:#9db0c9;flex:0 0 auto}.antai-menu-item.active .antai-dot{background:#2f74ff}
       .antai-text{min-width:0}.antai-title{font-size:16px;font-weight:800;line-height:1.35}
       @media (max-width: 1200px){body.antai-shell-body{padding-left:0}#antai-shell-root{display:none}}
@@ -416,14 +435,52 @@
     const root = document.createElement('aside');
     root.id = 'antai-shell-root';
     const current = pageName();
-    const links = found.group.items.map(([href, label]) => `
-      <a class="antai-menu-item${href.toLowerCase() === current ? ' active' : ''}" href="${href}">
-        <span class="antai-dot"></span>
-        <span class="antai-text">
-          <span class="antai-title">${label}</span>
-        </span>
-      </a>
-    `).join('');
+    const links = found.group.items.map((item, idx) => {
+      if (Array.isArray(item)) {
+        const [href, label] = item;
+        return `
+          <a class="antai-menu-item${href.toLowerCase() === current ? ' active' : ''}" href="${href}">
+            <span class="antai-dot"></span>
+            <span class="antai-text">
+              <span class="antai-title">${label}</span>
+            </span>
+          </a>
+        `;
+      }
+
+      const parentHref = String(item.href || '').toLowerCase();
+      const children = Array.isArray(item.children) ? item.children : [];
+      const hasActiveChild = children.some(([href]) => String(href).toLowerCase() === current);
+      const isParentActive = parentHref === current;
+      const expanded = isParentActive || hasActiveChild;
+      const sectionId = `antai-submenu-${found.key}-${idx}`;
+
+      const childLinks = children.map(([href, label]) => `
+        <a class="antai-submenu-item${String(href).toLowerCase() === current ? ' active' : ''}" href="${href}">
+          <span class="antai-submenu-dot"></span>
+          <span class="antai-submenu-title">${label}</span>
+        </a>
+      `).join('');
+
+      return `
+        <div class="antai-menu-group${expanded ? ' expanded' : ''}">
+          <div class="antai-menu-item antai-menu-parent${isParentActive ? ' active' : ''}">
+            <a class="antai-parent-link" href="${item.href}">
+              <span class="antai-dot"></span>
+              <span class="antai-text">
+                <span class="antai-title">${item.label}</span>
+              </span>
+            </a>
+            <button type="button" class="antai-toggle-btn" data-target="${sectionId}" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="展開${item.label}子選單">
+              <span class="antai-toggle-chevron">▸</span>
+            </button>
+          </div>
+          <div class="antai-submenu" id="${sectionId}" style="display:${expanded ? 'flex' : 'none'}">
+            ${childLinks}
+          </div>
+        </div>
+      `;
+    }).join('');
     root.innerHTML = `
       <div class="antai-shell-wrap">
         <section class="antai-weather-card weather-cloudy">
@@ -441,6 +498,22 @@
     `;
     document.body.appendChild(root);
     document.body.classList.add('antai-shell-body');
+
+    root.querySelectorAll('.antai-toggle-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const submenu = targetId ? root.querySelector(`#${targetId}`) : null;
+        const group = btn.closest('.antai-menu-group');
+        if (!submenu || !group) return;
+        const expanded = submenu.style.display === 'flex';
+        submenu.style.display = expanded ? 'none' : 'flex';
+        group.classList.toggle('expanded', !expanded);
+        btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      });
+    });
+
     renderWeather(root);
     clearInterval(shellRefreshTimer);
     shellRefreshTimer = setInterval(() => {
