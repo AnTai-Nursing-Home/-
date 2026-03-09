@@ -79,27 +79,117 @@
   let selectedDetectedStaffId = '';
   let scheduleShiftMap = {};
   let detectModal = null;
+  let firebaseReadyPromise = null;
 
-  function loadSessionUser() {
+  function setLoginBadge(text) {
+    if (!els.loginBadge) return;
+    els.loginBadge.textContent = text || '登入者：—';
+  }
+
+  function getSessionUser() {
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const candidateKeys = [SESSION_KEY, 'officeAuth'];
+      for (const key of candidateKeys) {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) continue;
+        const u = JSON.parse(raw);
+        if (!u) continue;
+        const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
+        const displayName = u.displayName || u.name || u.staffName || u.username || '';
+        if (!staffId && !displayName) continue;
+        return { staffId, displayName, sourceKey: key, raw: u };
+      }
+      return null;
     } catch (e) {
+      console.warn('[infection-control-log] getSessionUser failed:', e);
       return null;
     }
   }
 
-  function requireNurse() {
-    const s = loadSessionUser();
-    const isNurse = !!(s && (s.canNurse === true || s.role === 'nurse' || s.source === 'nurses'));
-    if (!isNurse) {
-      alert('此系統僅供護理師使用（未偵測到護理師登入）');
-      location.href = 'index.html';
-      return false;
+  function syncLoginBadgeFromSession() {
+    const su = getSessionUser();
+    if (!su) {
+      recorder = { staffId: '', displayName: '' };
+      setLoginBadge('登入者：—');
+      return null;
     }
-    recorder = { staffId: s.staffId || '', displayName: s.displayName || '' };
-    if (els.loginBadge) els.loginBadge.textContent = `登入者：${recorder.staffId} ${recorder.displayName}`.trim();
-    return true;
+    recorder = { staffId: su.staffId || '', displayName: su.displayName || '' };
+    const label = `登入者：${recorder.staffId} ${recorder.displayName}`.replace(/\s+/g, ' ').trim();
+    setLoginBadge(label || '登入者：—');
+    console.log('[infection-control-log] login user from session =', su.sourceKey, su);
+    return su;
+  }
+
+  async function loadCurrentUser() {
+    const su = syncLoginBadgeFromSession();
+    if (su) return recorder;
+
+    try {
+      if (firebase && typeof firebase.auth === 'function') {
+        const auth = firebase.auth();
+        const u = auth.currentUser || await new Promise((resolve) => {
+          let settled = false;
+          const finish = (val) => {
+            if (settled) return;
+            settled = true;
+            resolve(val || null);
+          };
+          const off = auth.onAuthStateChanged((user) => {
+            if (typeof off === 'function') off();
+            finish(user || null);
+          }, () => finish(null));
+          setTimeout(() => finish(auth.currentUser || null), 1500);
+        });
+        if (u && u.uid && window.db) {
+          const acc = await db.collection('userAccounts').doc(u.uid).get();
+          if (acc.exists) {
+            const d = acc.data() || {};
+            recorder = {
+              staffId: d.staffId || d.id || d.employeeId || '',
+              displayName: d.displayName || d.name || d.staffName || d.username || ''
+            };
+            const label = `登入者：${recorder.staffId} ${recorder.displayName}`.replace(/\s+/g, ' ').trim();
+            setLoginBadge(label || '登入者：—');
+            return recorder;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[infection-control-log] loadCurrentUser fallback failed:', e);
+    }
+
+    setLoginBadge('登入者：—');
+    return recorder;
+  }
+
+  function waitForFirebaseReady() {
+    if (window.db && (!window.firebase || !firebase.apps || firebase.apps.length)) return Promise.resolve(window.db);
+    if (firebaseReadyPromise) return firebaseReadyPromise;
+    firebaseReadyPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        if (!window.db) return;
+        settled = true;
+        resolve(window.db);
+      };
+      document.addEventListener('firebase-ready', finish, { once: true });
+      const timer = setInterval(() => {
+        if (window.db) {
+          clearInterval(timer);
+          finish();
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(timer);
+        if (window.db) finish();
+        else if (!settled) {
+          settled = true;
+          reject(new Error('Firebase 尚未初始化完成'));
+        }
+      }, 5000);
+    });
+    return firebaseReadyPromise;
   }
 
   function escapeHtml(str) {
@@ -424,6 +514,7 @@
       els.listBox.innerHTML = '';
       els.listEmpty.classList.add('d-none');
       els.loadingText.classList.remove('d-none');
+      await waitForFirebaseReady();
       const snap = await db.collection(COLLECTION)
         .where('year', '==', year)
         .orderBy('month', 'desc')
@@ -448,6 +539,7 @@
           <div class="text-muted small">${escapeHtml(doc.id.slice(0, 6))}</div>
         `;
         btn.addEventListener('click', async () => {
+          await waitForFirebaseReady();
           const one = await db.collection(COLLECTION).doc(doc.id).get();
           currentDocId = doc.id;
           fillForm(one.data() || emptyData(year, 1));
@@ -476,6 +568,7 @@
     if (!currentDocId) payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     if (!currentDocId) payload.createdBy = recorder.staffId || '';
     try {
+      await waitForFirebaseReady();
       if (currentDocId) await db.collection(COLLECTION).doc(currentDocId).set(payload, { merge: true });
       else {
         const ref = await db.collection(COLLECTION).add(payload);
@@ -496,6 +589,7 @@
     }
     if (!confirm('確定要刪除此工作日誌？此動作無法復原。')) return;
     try {
+      await waitForFirebaseReady();
       await db.collection(COLLECTION).doc(currentDocId).delete();
       alert('已刪除');
       currentDocId = null;
@@ -723,13 +817,32 @@
   }
 
   async function init() {
-    if (!requireNurse()) return;
+    try {
+      await waitForFirebaseReady();
+    } catch (e) {
+      console.error('[infection-control-log] waitForFirebaseReady failed:', e);
+    }
+
+    await loadCurrentUser();
     fillYearOptions();
     detectModal = new bootstrap.Modal(document.getElementById('staffDetectModal'));
     bindEvents();
     showList();
     await loadList();
+
+    window.addEventListener('storage', (ev) => {
+      if (ev.key === SESSION_KEY || ev.key === 'officeAuth') syncLoginBadgeFromSession();
+    });
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  let __booted = false;
+  document.addEventListener('DOMContentLoaded', () => {
+    const boot = () => {
+      if (__booted) return;
+      __booted = true;
+      init();
+    };
+    if (window.db) boot();
+    else document.addEventListener('firebase-ready', boot, { once: true });
+  });
 })();
