@@ -82,104 +82,24 @@
 
   function loadSessionUser() {
     try {
-      const candidateKeys = [SESSION_KEY, 'officeAuth'];
-      for (const key of candidateKeys) {
-        const raw = sessionStorage.getItem(key);
-        if (!raw) continue;
-        const u = JSON.parse(raw);
-        if (!u) continue;
-        const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
-        const displayName = u.displayName || u.name || u.staffName || u.username || '';
-        if (!staffId && !displayName) continue;
-        return { ...u, sourceKey: key, staffId, displayName };
-      }
-      return null;
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
     } catch (e) {
-      console.warn('[infection-control-log] loadSessionUser failed:', e);
       return null;
     }
   }
 
-  function setLoginBadge() {
-    if (!els.loginBadge) return;
-    const text = `登入者：${recorder.staffId || ''} ${recorder.displayName || ''}`.replace(/\s+/g, ' ').trim();
-    els.loginBadge.textContent = text || '登入者：—';
-  }
-
-  function syncLoginBadgeFromSession() {
+  function requireNurse() {
     const s = loadSessionUser();
-    if (!s) {
-      recorder = { staffId: '', displayName: '' };
-      setLoginBadge();
-      return null;
-    }
-    recorder = { staffId: s.staffId || '', displayName: s.displayName || '' };
-    setLoginBadge();
-    return s;
-  }
-
-  async function loadCurrentUser() {
-    const su = syncLoginBadgeFromSession();
-    if (su) return recorder;
-
-    try {
-      if (typeof firebase !== 'undefined' && firebase && typeof firebase.auth === 'function') {
-        const auth = firebase.auth();
-        const u = auth.currentUser || await new Promise((resolve) => {
-          let done = false;
-          const finish = (user) => {
-            if (done) return;
-            done = true;
-            resolve(user || null);
-          };
-          const off = auth.onAuthStateChanged((user) => {
-            try { if (typeof off === 'function') off(); } catch (_) {}
-            finish(user);
-          }, () => finish(null));
-          setTimeout(() => {
-            try { if (typeof off === 'function') off(); } catch (_) {}
-            finish(auth.currentUser || null);
-          }, 1500);
-        });
-
-        if (u && u.uid && typeof db !== 'undefined' && db) {
-          const acc = await db.collection('userAccounts').doc(u.uid).get();
-          if (acc.exists) {
-            const d = acc.data() || {};
-            recorder = {
-              staffId: d.staffId || d.id || d.employeeId || '',
-              displayName: d.displayName || d.name || d.staffName || d.username || ''
-            };
-            setLoginBadge();
-            return recorder;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[infection-control-log] loadCurrentUser fallback failed:', e);
-    }
-
-    recorder = { staffId: '', displayName: '' };
-    setLoginBadge();
-    return recorder;
-  }
-
-  function ensureLoggedIn() {
-    const ok = !!(recorder.staffId || recorder.displayName);
-    if (!ok) {
-      alert('未登入');
+    const isNurse = !!(s && (s.canNurse === true || s.role === 'nurse' || s.source === 'nurses'));
+    if (!isNurse) {
+      alert('此系統僅供護理師使用（未偵測到護理師登入）');
+      location.href = 'index.html';
       return false;
     }
+    recorder = { staffId: s.staffId || '', displayName: s.displayName || '' };
+    if (els.loginBadge) els.loginBadge.textContent = `登入者：${recorder.staffId} ${recorder.displayName}`.trim();
     return true;
-  }
-
-  function ensureFirebaseReady() {
-    if (typeof db !== 'undefined' && db) return Promise.resolve(db);
-    return new Promise((resolve) => {
-      const finish = () => resolve(typeof db !== 'undefined' ? db : null);
-      document.addEventListener('firebase-ready', finish, { once: true });
-      setTimeout(finish, 2000);
-    });
   }
 
   function escapeHtml(str) {
@@ -210,15 +130,16 @@
     els.logMonth.value = String(now.getMonth() + 1);
   }
 
-  function buildWeekdayColumns(year, month, shiftsByDate, specialistId) {
+  function buildWeekdayColumns(year, month, allScheduleMap, specialistId) {
     const daysInMonth = new Date(year, month, 0).getDate();
     const cols = [];
+    const staffSchedule = specialistId ? (allScheduleMap?.[specialistId] || {}) : {};
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month - 1, day);
       const week = date.getDay();
       if (week === 0 || week === 6) continue;
       const key = `${year}-${pad2(month)}-${pad2(day)}`;
-      const shift = specialistId ? String((shiftsByDate?.[key] ?? '')).trim() : '';
+      const shift = specialistId ? String((staffSchedule[key] ?? '')).trim() : '';
       const isEnabled = specialistId ? isWorkingShift(shift) : true;
       cols.push({ key, day, weekday: DAY_LABELS[week], shift, enabled: isEnabled });
     }
@@ -499,7 +420,6 @@
   }
 
   async function loadList() {
-    await ensureFirebaseReady();
     try {
       const year = Number(els.yearFilter.value);
       els.listBox.innerHTML = '';
@@ -553,7 +473,6 @@
   }
 
   async function saveDoc() {
-    await ensureFirebaseReady();
     const payload = collectPayload();
     if (!currentDocId) payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     if (!currentDocId) payload.createdBy = recorder.staffId || '';
@@ -572,7 +491,6 @@
   }
 
   async function deleteDoc() {
-    await ensureFirebaseReady();
     if (!currentDocId) {
       alert('尚未儲存，無法刪除');
       return;
@@ -806,15 +724,11 @@
   }
 
   async function init() {
+    if (!requireNurse()) return;
     fillYearOptions();
     detectModal = new bootstrap.Modal(document.getElementById('staffDetectModal'));
     bindEvents();
     showList();
-
-    await ensureFirebaseReady();
-    await loadCurrentUser();
-    if (!ensureLoggedIn()) return;
-
     await loadList();
   }
 
