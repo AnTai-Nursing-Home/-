@@ -79,14 +79,8 @@
   let selectedDetectedStaffId = '';
   let scheduleShiftMap = {};
   let detectModal = null;
-  let firebaseReadyPromise = null;
 
-  function setLoginBadge(text) {
-    if (!els.loginBadge) return;
-    els.loginBadge.textContent = text || '登入者：—';
-  }
-
-  function getSessionUser() {
+  function loadSessionUser() {
     try {
       const candidateKeys = [SESSION_KEY, 'officeAuth'];
       for (const key of candidateKeys) {
@@ -97,27 +91,31 @@
         const staffId = u.staffId || u.id || u.employeeId || u.empId || '';
         const displayName = u.displayName || u.name || u.staffName || u.username || '';
         if (!staffId && !displayName) continue;
-        return { staffId, displayName, sourceKey: key, raw: u };
+        return { ...u, sourceKey: key, staffId, displayName };
       }
       return null;
     } catch (e) {
-      console.warn('[infection-control-log] getSessionUser failed:', e);
+      console.warn('[infection-control-log] loadSessionUser failed:', e);
       return null;
     }
   }
 
+  function setLoginBadge() {
+    if (!els.loginBadge) return;
+    const text = `登入者：${recorder.staffId || ''} ${recorder.displayName || ''}`.replace(/\s+/g, ' ').trim();
+    els.loginBadge.textContent = text || '登入者：—';
+  }
+
   function syncLoginBadgeFromSession() {
-    const su = getSessionUser();
-    if (!su) {
+    const s = loadSessionUser();
+    if (!s) {
       recorder = { staffId: '', displayName: '' };
-      setLoginBadge('登入者：—');
+      setLoginBadge();
       return null;
     }
-    recorder = { staffId: su.staffId || '', displayName: su.displayName || '' };
-    const label = `登入者：${recorder.staffId} ${recorder.displayName}`.replace(/\s+/g, ' ').trim();
-    setLoginBadge(label || '登入者：—');
-    console.log('[infection-control-log] login user from session =', su.sourceKey, su);
-    return su;
+    recorder = { staffId: s.staffId || '', displayName: s.displayName || '' };
+    setLoginBadge();
+    return s;
   }
 
   async function loadCurrentUser() {
@@ -125,22 +123,26 @@
     if (su) return recorder;
 
     try {
-      if (firebase && typeof firebase.auth === 'function') {
+      if (typeof firebase !== 'undefined' && firebase && typeof firebase.auth === 'function') {
         const auth = firebase.auth();
         const u = auth.currentUser || await new Promise((resolve) => {
-          let settled = false;
-          const finish = (val) => {
-            if (settled) return;
-            settled = true;
-            resolve(val || null);
+          let done = false;
+          const finish = (user) => {
+            if (done) return;
+            done = true;
+            resolve(user || null);
           };
           const off = auth.onAuthStateChanged((user) => {
-            if (typeof off === 'function') off();
-            finish(user || null);
+            try { if (typeof off === 'function') off(); } catch (_) {}
+            finish(user);
           }, () => finish(null));
-          setTimeout(() => finish(auth.currentUser || null), 1500);
+          setTimeout(() => {
+            try { if (typeof off === 'function') off(); } catch (_) {}
+            finish(auth.currentUser || null);
+          }, 1500);
         });
-        if (u && u.uid && window.db) {
+
+        if (u && u.uid && typeof db !== 'undefined' && db) {
           const acc = await db.collection('userAccounts').doc(u.uid).get();
           if (acc.exists) {
             const d = acc.data() || {};
@@ -148,8 +150,7 @@
               staffId: d.staffId || d.id || d.employeeId || '',
               displayName: d.displayName || d.name || d.staffName || d.username || ''
             };
-            const label = `登入者：${recorder.staffId} ${recorder.displayName}`.replace(/\s+/g, ' ').trim();
-            setLoginBadge(label || '登入者：—');
+            setLoginBadge();
             return recorder;
           }
         }
@@ -158,38 +159,27 @@
       console.warn('[infection-control-log] loadCurrentUser fallback failed:', e);
     }
 
-    setLoginBadge('登入者：—');
+    recorder = { staffId: '', displayName: '' };
+    setLoginBadge();
     return recorder;
   }
 
-  function waitForFirebaseReady() {
-    if (window.db && (!window.firebase || !firebase.apps || firebase.apps.length)) return Promise.resolve(window.db);
-    if (firebaseReadyPromise) return firebaseReadyPromise;
-    firebaseReadyPromise = new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        if (!window.db) return;
-        settled = true;
-        resolve(window.db);
-      };
+  function ensureLoggedIn() {
+    const ok = !!(recorder.staffId || recorder.displayName);
+    if (!ok) {
+      alert('未登入');
+      return false;
+    }
+    return true;
+  }
+
+  function ensureFirebaseReady() {
+    if (typeof db !== 'undefined' && db) return Promise.resolve(db);
+    return new Promise((resolve) => {
+      const finish = () => resolve(typeof db !== 'undefined' ? db : null);
       document.addEventListener('firebase-ready', finish, { once: true });
-      const timer = setInterval(() => {
-        if (window.db) {
-          clearInterval(timer);
-          finish();
-        }
-      }, 100);
-      setTimeout(() => {
-        clearInterval(timer);
-        if (window.db) finish();
-        else if (!settled) {
-          settled = true;
-          reject(new Error('Firebase 尚未初始化完成'));
-        }
-      }, 5000);
+      setTimeout(finish, 2000);
     });
-    return firebaseReadyPromise;
   }
 
   function escapeHtml(str) {
@@ -509,12 +499,12 @@
   }
 
   async function loadList() {
+    await ensureFirebaseReady();
     try {
       const year = Number(els.yearFilter.value);
       els.listBox.innerHTML = '';
       els.listEmpty.classList.add('d-none');
       els.loadingText.classList.remove('d-none');
-      await waitForFirebaseReady();
       const snap = await db.collection(COLLECTION)
         .where('year', '==', year)
         .orderBy('month', 'desc')
@@ -539,7 +529,6 @@
           <div class="text-muted small">${escapeHtml(doc.id.slice(0, 6))}</div>
         `;
         btn.addEventListener('click', async () => {
-          await waitForFirebaseReady();
           const one = await db.collection(COLLECTION).doc(doc.id).get();
           currentDocId = doc.id;
           fillForm(one.data() || emptyData(year, 1));
@@ -564,11 +553,11 @@
   }
 
   async function saveDoc() {
+    await ensureFirebaseReady();
     const payload = collectPayload();
     if (!currentDocId) payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     if (!currentDocId) payload.createdBy = recorder.staffId || '';
     try {
-      await waitForFirebaseReady();
       if (currentDocId) await db.collection(COLLECTION).doc(currentDocId).set(payload, { merge: true });
       else {
         const ref = await db.collection(COLLECTION).add(payload);
@@ -583,13 +572,13 @@
   }
 
   async function deleteDoc() {
+    await ensureFirebaseReady();
     if (!currentDocId) {
       alert('尚未儲存，無法刪除');
       return;
     }
     if (!confirm('確定要刪除此工作日誌？此動作無法復原。')) return;
     try {
-      await waitForFirebaseReady();
       await db.collection(COLLECTION).doc(currentDocId).delete();
       alert('已刪除');
       currentDocId = null;
@@ -817,32 +806,17 @@
   }
 
   async function init() {
-    try {
-      await waitForFirebaseReady();
-    } catch (e) {
-      console.error('[infection-control-log] waitForFirebaseReady failed:', e);
-    }
-
-    await loadCurrentUser();
     fillYearOptions();
     detectModal = new bootstrap.Modal(document.getElementById('staffDetectModal'));
     bindEvents();
     showList();
-    await loadList();
 
-    window.addEventListener('storage', (ev) => {
-      if (ev.key === SESSION_KEY || ev.key === 'officeAuth') syncLoginBadgeFromSession();
-    });
+    await ensureFirebaseReady();
+    await loadCurrentUser();
+    if (!ensureLoggedIn()) return;
+
+    await loadList();
   }
 
-  let __booted = false;
-  document.addEventListener('DOMContentLoaded', () => {
-    const boot = () => {
-      if (__booted) return;
-      __booted = true;
-      init();
-    };
-    if (window.db) boot();
-    else document.addEventListener('firebase-ready', boot, { once: true });
-  });
+  document.addEventListener('DOMContentLoaded', init);
 })();
