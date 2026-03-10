@@ -2,7 +2,7 @@
   const COLLECTION = 'infectionControlLogs';
   const SESSION_KEY = 'antai_session_user';
   const FACILITY_NAME = '安泰醫療社團法人附設安泰護理之家';
-  const DOCX_FONT = 'Microsoft JhengHei';
+  const DOCX_FONT = 'DFKai-SB';
   const OFF_SHIFTS = ['OFF', 'OF', 'OFH', 'V', '病', '公', '休', '休假', '例休', '特休'];
   const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -724,7 +724,8 @@
       AlignmentType,
       BorderStyle,
       PageOrientation,
-      VerticalAlign
+      VerticalAlign,
+      PageBreak
     } = window.docx;
 
     const border = {
@@ -734,17 +735,11 @@
       right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
     };
 
-    const dayCount = Math.max(weekdayColumns.length, 1);
-    const pageWidthTwips = 15840; // A4 landscape printable width approx after margins
-    const col1 = 1100;
-    const col2 = 3600;
-    const dayWidth = Math.max(260, Math.floor((pageWidthTwips - col1 - col2) / dayCount));
-
-    const centerPara = (text, size = 16, bold = false) => new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
-      children: [run(text, { size, bold })]
-    });
+    const pageWidthTwips = 9020; // A4 portrait printable width approx after margins
+    const col1 = 900;
+    const col2 = 3000;
+    const datesPerPage = 8;
+    const dayWidth = Math.max(320, Math.floor((pageWidthTwips - col1 - col2) / datesPerPage));
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
       spacing: { after: 40 },
@@ -765,73 +760,89 @@
       });
     };
 
-    const rows = [];
-
-    rows.push(new TableRow({
-      children: [
-        makeCell('項次', col1, AlignmentType.CENTER, 18, true),
-        makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 18, true),
-        ...weekdayColumns.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 18, true))
-      ]
-    }));
-
-    rows.push(new TableRow({
-      children: [
-        makeCell('', col1),
-        makeCell('', col2),
-        ...weekdayColumns.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 18, true))
-      ]
-    }));
-
-    for (const row of ROWS) {
-      const children = [
-        makeCell(row.category, col1, AlignmentType.CENTER, 14, false),
-        makeCell(row.item, col2, AlignmentType.LEFT, 14, false)
-      ];
-      for (const col of weekdayColumns) {
-        const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
-        const mark = col.enabled ? (checked ? '■' : '□') : '－';
-        children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 14, false));
-      }
-      rows.push(new TableRow({ children }));
+    const chunks = [];
+    for (let i = 0; i < weekdayColumns.length; i += datesPerPage) {
+      chunks.push(weekdayColumns.slice(i, i + datesPerPage));
     }
+    if (!chunks.length) chunks.push([]);
 
-    rows.push(new TableRow({
-      children: [
-        makeCell('時數', col1, AlignmentType.CENTER, 14, true),
-        makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 14, false),
-        ...weekdayColumns.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 14, false))
-      ]
-    }));
+    const sectionChildren = [];
+    chunks.forEach((dateCols, chunkIndex) => {
+      if (chunkIndex > 0) {
+        sectionChildren.push(new Paragraph({ children: [new PageBreak()] }));
+      }
 
-    rows.push(new TableRow({
-      children: [
-        makeCell('簽章', col1, AlignmentType.CENTER, 14, true),
-        makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 14, false),
-        ...weekdayColumns.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 14, false))
-      ]
-    }));
+      const rows = [];
+      rows.push(new TableRow({
+        tableHeader: true,
+        children: [
+          makeCell('項次', col1, AlignmentType.CENTER, 18, true),
+          makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 18, true),
+          ...dateCols.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 18, true))
+        ]
+      }));
+
+      rows.push(new TableRow({
+        tableHeader: true,
+        children: [
+          makeCell('', col1),
+          makeCell('', col2),
+          ...dateCols.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 18, true))
+        ]
+      }));
+
+      for (const row of ROWS) {
+        const children = [
+          makeCell(row.category, col1, AlignmentType.CENTER, 14, false),
+          makeCell(row.item, col2, AlignmentType.LEFT, 14, false)
+        ];
+        for (const col of dateCols) {
+          const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
+          const mark = col.enabled ? (checked ? '■' : '□') : '－';
+          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 14, false));
+        }
+        rows.push(new TableRow({ children }));
+      }
+
+      rows.push(new TableRow({
+        children: [
+          makeCell('時數', col1, AlignmentType.CENTER, 14, true),
+          makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 14, false),
+          ...dateCols.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 14, false))
+        ]
+      }));
+
+      rows.push(new TableRow({
+        children: [
+          makeCell('簽章', col1, AlignmentType.CENTER, 14, true),
+          makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 14, false),
+          ...dateCols.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 14, false))
+        ]
+      }));
+
+      sectionChildren.push(
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 28, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [run('感染管制專責人員工作日誌', { size: 30, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月（第 ${chunkIndex + 1} 頁）`, { size: 22, bold: true })] }),
+        leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 18, false),
+        leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 18, false),
+        leftPara(`匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim() || '—'}`, 18, false),
+        new Table({
+          width: { size: col1 + col2 + dayWidth * Math.max(dateCols.length, 1), type: WidthType.DXA },
+          rows
+        })
+      );
+    });
 
     const doc = new Document({
       sections: [{
         properties: {
           page: {
-            size: { orientation: PageOrientation.LANDSCAPE },
+            size: { orientation: PageOrientation.PORTRAIT },
             margin: { top: 720, right: 720, bottom: 720, left: 720 }
           }
         },
-        children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 28, bold: true })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [run('感染管制專責人員工作日誌', { size: 30, bold: true })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月`, { size: 22, bold: true })] }),
-          leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 18, false),
-          leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 18, false),
-          leftPara(`匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim() || '—'}`, 18, false),
-          new Table({
-            width: { size: col1 + col2 + dayWidth * dayCount, type: WidthType.DXA },
-            rows
-          })
-        ]
+        children: sectionChildren
       }]
     });
 
