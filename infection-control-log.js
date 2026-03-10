@@ -708,74 +708,70 @@
   async function exportDocx() {
     syncTopFieldsToDoc();
     const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, PageOrientation } = window.docx;
-    const noBorder = { top:{style:BorderStyle.NONE,size:0,color:'FFFFFF'}, bottom:{style:BorderStyle.NONE,size:0,color:'FFFFFF'}, left:{style:BorderStyle.NONE,size:0,color:'FFFFFF'}, right:{style:BorderStyle.NONE,size:0,color:'FFFFFF'} };
 
-    const cols = weekdayColumns.length;
-    const dateWidth = Math.max(3, Math.floor(46 / Math.max(cols, 1)));
-    const itemWidth = 26;
-    const catWidth = 12;
+    const thinBorder = {
+      top: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+      left: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+      right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
+    };
+    const noBorder = {
+      top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+    };
 
-    const headerRows = [
-      new TableRow({
-        children: [
-          new TableCell({ rowSpan: 2, width: { size: catWidth, type: WidthType.PERCENTAGE }, children: [p('項次', { bold: true, align: AlignmentType.CENTER })] }),
-          new TableCell({ rowSpan: 2, width: { size: itemWidth, type: WidthType.PERCENTAGE }, children: [p('項目/日期/星期', { bold: true, align: AlignmentType.CENTER })] }),
-          ...weekdayColumns.map(col => new TableCell({ width: { size: dateWidth, type: WidthType.PERCENTAGE }, children: [p(String(col.day), { bold: true, align: AlignmentType.CENTER })] }))
-        ]
-      }),
-      new TableRow({
-        children: weekdayColumns.map(col => new TableCell({ width: { size: dateWidth, type: WidthType.PERCENTAGE }, children: [p(col.weekday, { bold: true, align: AlignmentType.CENTER })] }))
-      })
-    ];
+    const headerRow1 = new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('項次', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('項目/日期/星期', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
+        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(String(col.day), { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
+      ]
+    });
 
-    const catCounts = ROWS.reduce((acc, row) => { acc[row.category] = (acc[row.category] || 0) + 1; return acc; }, {});
-    const catSeen = {};
-    const bodyRows = [];
+    const headerRow2 = new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('', { size: 16 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('', { size: 16 })] }),
+        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(col.weekday, { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
+      ]
+    });
 
-    ROWS.forEach((row) => {
-      const cells = [];
-      if (!catSeen[row.category]) {
-        cells.push(new TableCell({ rowSpan: catCounts[row.category], width: { size: catWidth, type: WidthType.PERCENTAGE }, children: [p(row.category, { bold: true, align: AlignmentType.CENTER })] }));
-        catSeen[row.category] = true;
-      }
-      cells.push(new TableCell({ width: { size: itemWidth, type: WidthType.PERCENTAGE }, children: [p(row.item, { size: 18 })] }));
+    const bodyRows = ROWS.map((row, idx) => {
+      const cells = [
+        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(row.category, { align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(row.item, { size: 16 })] })
+      ];
       weekdayColumns.forEach((col) => {
         const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
         const text = col.enabled ? checkboxMark(checked) : '—';
-        cells.push(new TableCell({ width: { size: dateWidth, type: WidthType.PERCENTAGE }, children: [p(text, { align: AlignmentType.CENTER })] }));
+        cells.push(new TableCell({
+          width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE },
+          borders: thinBorder,
+          children: [p(text, { align: AlignmentType.CENTER, size: 16 })]
+        }));
       });
-      bodyRows.push(new TableRow({ children: cells }));
+      return new TableRow({ children: cells });
     });
 
     bodyRows.push(new TableRow({
       children: [
-        new TableCell({ width: { size: catWidth, type: WidthType.PERCENTAGE }, children: [p('專責執行業務之時數', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
-        new TableCell({ width: { size: itemWidth, type: WidthType.PERCENTAGE }, children: [p('專責執行業務之時數', { size: 18 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: dateWidth, type: WidthType.PERCENTAGE }, children: [p(currentDoc.hoursByDate[col.key] || '', { align: AlignmentType.CENTER, size: 18 })] }))
+        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('時數', { bold: true, align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('專責執行業務之時數', { size: 16 })] }),
+        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.hoursByDate[col.key] || '', { align: AlignmentType.CENTER, size: 16 })] }))
       ]
     }));
 
     bodyRows.push(new TableRow({
       children: [
-        new TableCell({ width: { size: catWidth, type: WidthType.PERCENTAGE }, children: [p('感染管制專責人員簽章', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
-        new TableCell({ width: { size: itemWidth, type: WidthType.PERCENTAGE }, children: [p('感染管制專責人員簽章', { size: 18 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: dateWidth, type: WidthType.PERCENTAGE }, children: [p(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : ''), { align: AlignmentType.CENTER, size: 18 })] }))
+        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('簽章', { bold: true, align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('感染管制專責人員簽章', { size: 16 })] }),
+        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : ''), { align: AlignmentType.CENTER, size: 16 })] }))
       ]
     }));
-
-    const infoTable = new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: noBorder,
-      rows: [
-        new TableRow({ children: [new TableCell({ borders: noBorder, children: [p(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount} 位；(二)感染管制 ${currentDoc.isFullTime ? '☑' : '☐'}專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours} 小時`, { size: 20 })] })] }),
-        new TableRow({ children: [new TableCell({ borders: noBorder, children: [p(`專責人員：${currentDoc.specialistName || '未指定'}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim()}`, { size: 20 })] })] })
-      ]
-    });
-
-    const mainTable = new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [...headerRows, ...bodyRows]
-    });
 
     const doc = new Document({
       sections: [{
@@ -786,10 +782,13 @@
           }
         },
         children: [
-          p(titleText(currentDoc.year, currentDoc.month), { bold: true, size: 26, align: AlignmentType.CENTER, spacing: { after: 120 } }),
-          infoTable,
-          new Paragraph({ text: '' }),
-          mainTable
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('安泰醫療社團法人附設護理之家', { size: 28, bold: true })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 180 }, children: [run('感染管制專責人員工作日誌', { size: 32, bold: true })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月`, { size: 22, bold: true })] }),
+          new Paragraph({ spacing: { after: 60 }, children: [run(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '☑' : '☐'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, { size: 18 })] }),
+          new Paragraph({ spacing: { after: 60 }, children: [run(`專責人員：${currentDoc.specialistName || '未指定'}`, { size: 18 })] }),
+          new Paragraph({ spacing: { after: 120 }, children: [run(`匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim() || '—'}`, { size: 18 })] }),
+          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow1, headerRow2, ...bodyRows] })
         ]
       }]
     });
