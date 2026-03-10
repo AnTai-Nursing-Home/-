@@ -727,7 +727,7 @@
       children: [
         new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('項次', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
         new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('項目/日期/星期', { bold: true, align: AlignmentType.CENTER, size: 18 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(String(col.day), { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
+        ...weekdayColumns.map(col => new TableCell({ width: { size: Math.floor(64 / Math.max(weekdayColumns.length, 1)), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(String(col.day), { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
       ]
     });
 
@@ -736,7 +736,7 @@
       children: [
         new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('', { size: 16 })] }),
         new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('', { size: 16 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(col.weekday, { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
+        ...weekdayColumns.map(col => new TableCell({ width: { size: Math.floor(64 / Math.max(weekdayColumns.length, 1)), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(col.weekday, { bold: true, align: AlignmentType.CENTER, size: 18 })] }))
       ]
     });
 
@@ -749,7 +749,7 @@
         const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
         const text = col.enabled ? checkboxMark(checked) : '—';
         cells.push(new TableCell({
-          width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE },
+          width: { size: Math.floor(64 / Math.max(weekdayColumns.length, 1)), type: WidthType.PERCENTAGE },
           borders: thinBorder,
           children: [p(text, { align: AlignmentType.CENTER, size: 16 })]
         }));
@@ -761,7 +761,7 @@
       children: [
         new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('時數', { bold: true, align: AlignmentType.CENTER, size: 16 })] }),
         new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('專責執行業務之時數', { size: 16 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.hoursByDate[col.key] || '', { align: AlignmentType.CENTER, size: 16 })] }))
+        ...weekdayColumns.map(col => new TableCell({ width: { size: Math.floor(64 / Math.max(weekdayColumns.length, 1)), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.hoursByDate[col.key] || '', { align: AlignmentType.CENTER, size: 16 })] }))
       ]
     }));
 
@@ -769,7 +769,7 @@
       children: [
         new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('簽章', { bold: true, align: AlignmentType.CENTER, size: 16 })] }),
         new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p('感染管制專責人員簽章', { size: 16 })] }),
-        ...weekdayColumns.map(col => new TableCell({ width: { size: 64 / Math.max(weekdayColumns.length, 1), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : ''), { align: AlignmentType.CENTER, size: 16 })] }))
+        ...weekdayColumns.map(col => new TableCell({ width: { size: Math.floor(64 / Math.max(weekdayColumns.length, 1)), type: WidthType.PERCENTAGE }, borders: thinBorder, children: [p(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : ''), { align: AlignmentType.CENTER, size: 16 })] }))
       ]
     }));
 
