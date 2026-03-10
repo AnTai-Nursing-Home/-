@@ -2,7 +2,7 @@
   const COLLECTION = 'infectionControlLogs';
   const SESSION_KEY = 'antai_session_user';
   const FACILITY_NAME = '安泰醫療社團法人附設安泰護理之家';
-  const DOCX_FONT = 'DFKai-SB';
+  const DOCX_FONT = '標楷體';
   const OFF_SHIFTS = ['OFF', 'OF', 'OFH', 'V', '病', '公', '休', '休假', '例休', '特休'];
   const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -689,7 +689,13 @@
   function run(text, opts = {}) {
     return new window.docx.TextRun({
       text: docxSafeText(text),
-      font: DOCX_FONT,
+      font: {
+        name: DOCX_FONT,
+        ascii: DOCX_FONT,
+        hAnsi: DOCX_FONT,
+        eastAsia: DOCX_FONT,
+        cs: DOCX_FONT
+      },
       size: opts.size ?? 20,
       bold: !!opts.bold
     });
@@ -725,7 +731,8 @@
       BorderStyle,
       PageOrientation,
       VerticalAlign,
-      PageBreak
+      PageBreak,
+      TableLayoutType
     } = window.docx;
 
     const border = {
@@ -735,11 +742,10 @@
       right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
     };
 
-    const pageWidthTwips = 9020; // A4 portrait printable width approx after margins
-    const col1 = 900;
-    const col2 = 3000;
-    const datesPerPage = 8;
-    const dayWidth = Math.max(320, Math.floor((pageWidthTwips - col1 - col2) / datesPerPage));
+    const pageWidthTwips = 10440; // A4 portrait printable width approx after margins
+    const col1 = 1200;
+    const col2 = 3600;
+    const maxDatesPerPage = 11;
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
       spacing: { after: 40 },
@@ -760,17 +766,32 @@
       });
     };
 
-    const chunks = [];
-    for (let i = 0; i < weekdayColumns.length; i += datesPerPage) {
-      chunks.push(weekdayColumns.slice(i, i + datesPerPage));
-    }
-    if (!chunks.length) chunks.push([]);
+    const buildBalancedChunks = (cols, maxPerPage) => {
+      if (!cols.length) return [[]];
+      const pageCount = Math.ceil(cols.length / maxPerPage);
+      const baseSize = Math.floor(cols.length / pageCount);
+      const extra = cols.length % pageCount;
+      const out = [];
+      let cursor = 0;
+      for (let i = 0; i < pageCount; i++) {
+        const size = baseSize + (i < extra ? 1 : 0);
+        out.push(cols.slice(cursor, cursor + size));
+        cursor += size;
+      }
+      return out;
+    };
+
+    const chunks = buildBalancedChunks(weekdayColumns, maxDatesPerPage);
 
     const sectionChildren = [];
     chunks.forEach((dateCols, chunkIndex) => {
       if (chunkIndex > 0) {
         sectionChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
+
+      const dateCount = Math.max(dateCols.length, 1);
+      const dayWidth = Math.max(420, Math.floor((pageWidthTwips - col1 - col2) / dateCount));
+      const tableWidth = col1 + col2 + dayWidth * dateCount;
 
       const rows = [];
       rows.push(new TableRow({
@@ -828,7 +849,8 @@
         leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 18, false),
         leftPara(`匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim() || '—'}`, 18, false),
         new Table({
-          width: { size: col1 + col2 + dayWidth * Math.max(dateCols.length, 1), type: WidthType.DXA },
+          width: { size: tableWidth, type: WidthType.DXA },
+          layout: TableLayoutType ? TableLayoutType.FIXED : undefined,
           rows
         })
       );
