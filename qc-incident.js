@@ -152,7 +152,7 @@ async function loadCurrentUserReviewPermission(){
     return true;
   }
 
-  const collections = ["accounts", "employees", "users"];
+  const collections = ["userAccounts", "employees", "users"];
   const idCandidates = Array.from(new Set([
     String(me.uid || "").trim(),
     String(me.name || "").trim(),
@@ -430,7 +430,7 @@ async function loadReviewers(){
 
   const candidates = [
     { collection: "employees", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] },
-    { collection: "accounts", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] },
+    { collection: "userAccounts", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] },
     { collection: "users", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] }
   ];
 
