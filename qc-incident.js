@@ -1377,69 +1377,77 @@ function initStatsUI(){
 // ===================== 統計面板 END =====================
 
 
-// ===================== 統計 Excel 匯出（每分頁一個月份） =====================
-function _xlsTableCss(){
-  return `
-    table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial;}
-    th,td{border:1px solid #999;padding:4px 6px; mso-number-format:"\\@";}
-    th{background:#f1f3f5;font-weight:bold;}
-    .room-title{background:#e7f1ff;font-weight:bold;}
-    .sec-title{background:#fff7cc;font-weight:bold;}
-  `;
+// ===================== 統計 Excel 匯出（真正 XLSX，每分頁一個月份） =====================
+function _styleCell(cell, cfg={}){
+  if (cfg.font) cell.font = cfg.font;
+  if (cfg.fill) cell.fill = cfg.fill;
+  if (cfg.alignment) cell.alignment = cfg.alignment;
+  if (cfg.border) cell.border = cfg.border;
+  if (cfg.numFmt) cell.numFmt = cfg.numFmt;
 }
 
-function _buildWorkbookHTML(sheets){
-  const worksheetXml = sheets.map(s=>`
-    <x:ExcelWorksheet>
-      <x:Name>${s.name}</x:Name>
-      <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-    </x:ExcelWorksheet>`).join('');
-  const content = sheets.map(s=>`<div id="${s.name}">${s.html}</div>`).join('');
-  return `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office"
-          xmlns:x="urn:schemas-microsoft-com:office:excel"
-          xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta charset="UTF-8">
-      <!--[if gte mso 9]><xml>
-        <x:ExcelWorkbook>
-          <x:ExcelWorksheets>${worksheetXml}</x:ExcelWorksheets>
-        </x:ExcelWorkbook>
-      </xml><![endif]-->
-      <style>${_xlsTableCss()}</style>
-    </head>
-    <body>${content}</body></html>`;
+function _setRowCells(ws, rowNumber, values){
+  values.forEach((v, idx) => {
+    ws.getCell(rowNumber, idx + 1).value = v;
+  });
 }
 
-function _downloadTextAsFile(filename, content, mime){
-  const blob = new Blob([content], { type: mime || 'application/vnd.ms-excel;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_e){} }, 2000);
+function _addMergedTitleRow(ws, rowNumber, text, fillArgb){
+  ws.mergeCells(rowNumber, 1, rowNumber, 2);
+  const cell = ws.getCell(rowNumber, 1);
+  cell.value = text;
+  _styleCell(cell, {
+    font: { name: 'Microsoft JhengHei', bold: true, size: 12 },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillArgb } },
+    alignment: { vertical: 'middle', horizontal: 'center' },
+    border: {
+      top: { style: 'thin', color: { argb: 'FF999999' } },
+      left: { style: 'thin', color: { argb: 'FF999999' } },
+      bottom: { style: 'thin', color: { argb: 'FF999999' } },
+      right: { style: 'thin', color: { argb: 'FF999999' } },
+    }
+  });
+  ws.getRow(rowNumber).height = 22;
 }
 
-function _mapToSortedRows(map){
-  return Array.from(map.entries()).sort((a,b)=> b[1]-a[1]);
-}
-
-function _sectionTableHTML(title, rows, total){
-  let html = '<table>'; 
-  html += `<tr><th colspan="2" class="sec-title">${title}</th></tr>`;
-  html += '<tr><th>類別</th><th>數量</th></tr>';
-  for (const [k,v] of rows){
-    html += `<tr><td>${String(k||'')}</td><td>${Number(v||0)}</td></tr>`;
+function _addKeyValueRow(ws, rowNumber, label, value, isHeader=false){
+  _setRowCells(ws, rowNumber, [label, value]);
+  for (let col=1; col<=2; col++){
+    const cell = ws.getCell(rowNumber, col);
+    _styleCell(cell, {
+      font: { name: 'Microsoft JhengHei', bold: !!isHeader },
+      fill: isHeader ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F5' } } : undefined,
+      alignment: { vertical: 'middle', horizontal: col===2 ? 'center' : 'left', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { argb: 'FF999999' } },
+        left: { style: 'thin', color: { argb: 'FF999999' } },
+        bottom: { style: 'thin', color: { argb: 'FF999999' } },
+        right: { style: 'thin', color: { argb: 'FF999999' } },
+      }
+    });
   }
-  html += `<tr><th>合計</th><th>${Number(total||0)}</th></tr>`;
-  html += '</table>';
-  return html;
 }
 
-function _buildMonthStatsSheetHTML(year, month, items){
-  const ym = `${year}年${String(month).padStart(2,'0')}月`;
+function _addSectionRows(ws, rowStart, title, rows, total){
+  let row = rowStart;
+  _addMergedTitleRow(ws, row++, title, 'FFFFF7CC');
+  _addKeyValueRow(ws, row++, '類別', '數量', true);
+  for (const [k,v] of rows){
+    _addKeyValueRow(ws, row++, String(k ?? ''), v === '' ? '' : Number(v || 0));
+  }
+  _addKeyValueRow(ws, row++, '合計', Number(total || 0), true);
+  return row;
+}
 
-  // ========== 案件類別：即使 0 也要顯示 ==========
+function _buildMonthStatsSheetXlsx(ws, year, month, items){
+  const ym = `${year}年${String(month).padStart(2,'0')}月`;
+  ws.columns = [
+    { width: 28 },
+    { width: 12 }
+  ];
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+  ws.properties.defaultRowHeight = 20;
+
   const tMap = _countBy(items, x=>{
     if (x.incidentType === '其他' && (x.incidentTypeOtherText||'').trim()) {
       return `其他（${(x.incidentTypeOtherText||'').trim()}）`;
@@ -1447,7 +1455,6 @@ function _buildMonthStatsSheetHTML(year, month, items){
     return (x.incidentType || '').trim() || '未填';
   });
 
-  // 其他（xxx）合計
   let otherSum = 0;
   const otherDetails = [];
   for (const [k,v] of tMap.entries()){
@@ -1463,22 +1470,17 @@ function _buildMonthStatsSheetHTML(year, month, items){
     if (k === '其他') return ['其他（自訂）', otherSum + (tMap.get('其他')||0)];
     return [k, tMap.get(k)||0];
   });
-
-  // 若資料中出現非預設類別，也一併列入（避免漏算）
   for (const [k,v] of tMap.entries()){
     if (!baseTypes.includes(k) && !String(k).startsWith('其他（')) {
       tRows.push([k, v]);
     }
   }
-  // 把「其他（xxx）」明細也列出（讓你知道自訂項目有哪些）
   if (otherDetails.length){
     tRows.push(['— 其他明細 —', '']);
     tRows.push(...otherDetails);
   }
-
   const tTotal = items.length;
 
-  // ========== 診斷類型：預設類別全部列出 ==========
   const dMap = _countBy(items, x=> (x.diagnosisCategory || '').trim() || '未填');
   const dRowsOrdered = DIAG_CATS.map(k=>[k, dMap.get(k)||0]);
   for (const [k,v] of dMap.entries()){
@@ -1486,7 +1488,6 @@ function _buildMonthStatsSheetHTML(year, month, items){
   }
   const dTotal = Array.from(dMap.values()).reduce((a,b)=>a+b,0);
 
-  // ========== 傷害等級：預設類別全部列出 ==========
   const iMap = _countBy(items, x=> (x.injuryLevel || '').trim() || '未填');
   const iRows = INJURY_LEVELS.map(k=>[k, iMap.get(k)||0]);
   for (const [k,v] of iMap.entries()){
@@ -1494,7 +1495,6 @@ function _buildMonthStatsSheetHTML(year, month, items){
   }
   const iTotal = Array.from(iMap.values()).reduce((a,b)=>a+b,0);
 
-  // ========== 性別：男/女/未填 一定顯示 ==========
   const gMap = _countBy(items, x=> _normalizeGender(x.residentGender));
   const genderOrder = ['男','女','未填'];
   const gRows = genderOrder.map(g=>[g, gMap.get(g)||0]);
@@ -1503,33 +1503,44 @@ function _buildMonthStatsSheetHTML(year, month, items){
   }
   const gTotal = Array.from(gMap.values()).reduce((a,b)=>a+b,0);
 
-  // ========== 年齡區間：全部區間都顯示（含 0） ==========
   const aMap = _countBy(items, x=> _bandAge(x.residentAge));
   const aLabels = AGE_BANDS.map(b=>b.label).concat(['未填','其他']);
   const aRows = aLabels.map(l=>[l, aMap.get(l)||0]);
   const aTotal = Array.from(aMap.values()).reduce((a,b)=>a+b,0);
 
-  let html = '';
-  html += '<table>';
-  html += `<tr><th colspan="2" class="room-title">${ym}｜意外事件統計</th></tr>`;
-  html += `<tr><td>總筆數</td><td>${tTotal}</td></tr>`;
-  html += '</table>';
-  html += '<br/>';
-  html += _sectionTableHTML('案件類別', tRows, tTotal);
-  html += '<br/>';
-  html += _sectionTableHTML('診斷類型', dRowsOrdered, dTotal);
-  html += '<br/>';
-  html += _sectionTableHTML('傷害等級', iRows, iTotal);
-  html += '<br/>';
-  html += _sectionTableHTML('性別', gRows, gTotal);
-  html += '<br/>';
-  html += _sectionTableHTML('年齡區間', aRows, aTotal);
-  return html;
+  let row = 1;
+  _addMergedTitleRow(ws, row++, `${ym}｜意外事件統計`, 'FFE7F1FF');
+  _addKeyValueRow(ws, row++, '總筆數', tTotal);
+  row++;
+  row = _addSectionRows(ws, row, '案件類別', tRows, tTotal);
+  row++;
+  row = _addSectionRows(ws, row, '診斷類型', dRowsOrdered, dTotal);
+  row++;
+  row = _addSectionRows(ws, row, '傷害等級', iRows, iTotal);
+  row++;
+  row = _addSectionRows(ws, row, '性別', gRows, gTotal);
+  row++;
+  _addSectionRows(ws, row, '年齡區間', aRows, aTotal);
 }
 
+function _downloadArrayBufferAsFile(filename, buffer, mime){
+  const blob = new Blob([buffer], { type: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_e){} }, 2000);
+}
 
 async function exportStatsWorkbook(){
   ensureEnv();
+  if (!window.ExcelJS) {
+    alert('找不到 ExcelJS，請確認已載入 ExcelJS 後再匯出。');
+    return;
+  }
+
   const year = Number(currentYear || new Date().getFullYear());
   const raw = (prompt('輸入要匯出月份(1-12)；或輸入 ALL 匯出全年 12 個分頁', 'ALL') || '').trim();
   const isAll = !raw || /^all$/i.test(raw);
@@ -1543,7 +1554,6 @@ async function exportStatsWorkbook(){
   if (btn) { btn.disabled = true; btn.dataset.idleText = btn.dataset.idleText || btn.textContent; btn.textContent = '匯出中...'; }
 
   try{
-    // 一次抓全年，再依月份分組（避免 12 次查詢）
     const snap = await window.db.collection('qc_incidents').where('occurYear','==', year).get();
     const byMonth = new Map();
     snap.forEach(doc=>{
@@ -1555,19 +1565,25 @@ async function exportStatsWorkbook(){
     });
 
     const months = isAll ? Array.from({length:12},(_,i)=>i+1) : [mPick];
-    const sheets = months.map(m=>{
-      const items = byMonth.get(m) || [];
-      return {
-        name: `${String(m).padStart(2,'0')}月`,
-        html: _buildMonthStatsSheetHTML(year, m, items)
-      };
+    const workbook = new window.ExcelJS.Workbook();
+    workbook.creator = 'ChatGPT';
+    workbook.lastModifiedBy = ensureCurrentUser()?.name || ensureCurrentUser()?.uid || 'unknown';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    workbook.company = 'Antai';
+    workbook.subject = '意外事件統計';
+    workbook.title = isAll ? `意外事件統計_${year}年_全年` : `意外事件統計_${year}年_${String(mPick).padStart(2,'0')}月`;
+
+    months.forEach(m => {
+      const ws = workbook.addWorksheet(`${String(m).padStart(2,'0')}月`);
+      _buildMonthStatsSheetXlsx(ws, year, m, byMonth.get(m) || []);
     });
 
-    const wbHtml = _buildWorkbookHTML(sheets);
+    const buffer = await workbook.xlsx.writeBuffer();
     const fn = isAll
-      ? `意外事件統計_${year}年_全年.xls`
-      : `意外事件統計_${year}年_${String(mPick).padStart(2,'0')}月.xls`;
-    _downloadTextAsFile(fn, wbHtml, 'application/vnd.ms-excel;charset=utf-8');
+      ? `意外事件統計_${year}年_全年.xlsx`
+      : `意外事件統計_${year}年_${String(mPick).padStart(2,'0')}月.xlsx`;
+    _downloadArrayBufferAsFile(fn, buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }catch(err){
     console.error(err);
     alert('匯出失敗：' + (err?.message || String(err)));
@@ -1575,6 +1591,7 @@ async function exportStatsWorkbook(){
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.idleText || '匯出Excel'; }
   }
 }
+
 // ===================== 統計 Excel 匯出 END =====================
 
 
