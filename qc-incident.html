@@ -305,6 +305,24 @@
 }
 
 
+
+
+    .monthAlertBadge, .reviewBadge, .reviewedBadge, .draftBadge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 10px; border-radius:999px; font-weight:900; font-size:14px;
+      border:1px solid transparent; white-space:nowrap;
+    }
+    .monthAlertBadge, .reviewBadge{
+      background:rgba(220,38,38,.10); border-color:rgba(220,38,38,.28); color:#991b1b;
+    }
+    .reviewedBadge{
+      background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.28); color:#166534;
+    }
+    .draftBadge{
+      background:rgba(37,99,235,.10); border-color:rgba(37,99,235,.28); color:#1d4ed8;
+    }
+    .monthMetaRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -400,7 +418,7 @@
   <div id="modalMask" class="modalMask hidden">
     <div class="modal">
       <div class="modalHeader">
-        <h2>新增意外事件</h2>
+        <h2 id="modalTitle">新增意外事件</h2>
         <div class="spacer"></div>
         <button class="btn" id="btnCloseModal">關閉</button>
       </div>
@@ -471,6 +489,23 @@
           </select>
           <div class="hint hidden" id="hintInjury">請選擇傷害等級</div>
         </div>
+
+        <div class="field">
+          <div class="label">覆核者</div>
+          <select class="select" id="reviewerSelect"></select>
+          <div class="hint hidden" id="hintReviewer">請選擇覆核者</div>
+        </div>
+
+        <div class="field hidden" id="reviewerOtherWrap">
+          <div class="label">覆核者（手動輸入）</div>
+          <input class="input" id="reviewerOtherText" placeholder="若清單沒有該人員，請手動輸入覆核者姓名" />
+          <div class="hint hidden" id="hintReviewerOther">請輸入覆核者姓名</div>
+        </div>
+
+        <div class="field">
+          <div class="label">覆核狀態</div>
+          <input class="input" id="reviewStatusText" value="未覆核" disabled />
+        </div>
       </div>
 
       <!-- Fall analysis -->
@@ -520,6 +555,7 @@
       <div class="row">
         <div class="muted" id="saveHint"></div>
         <button class="btn" id="btnSave">儲存</button>
+        <input type="hidden" id="editingIncidentId" value="" />
       </div>
     </div>
   </div>
