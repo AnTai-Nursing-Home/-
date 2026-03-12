@@ -55,6 +55,9 @@
     .tag{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
     .hidden{display:none !important;}
     .hint{font-size:12px;color:#fca5a5;margin-top:4px}
+    .reviewBadge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid rgba(220,38,38,.25);background:rgba(220,38,38,.10);color:#991b1b;font-weight:900;font-size:14px}
+    .reviewedBadge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid rgba(22,163,74,.25);background:rgba(22,163,74,.10);color:#166534;font-weight:900;font-size:14px}
+    .monthAlertBadge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid rgba(220,38,38,.25);background:rgba(220,38,38,.10);color:#991b1b;font-weight:900;font-size:14px}
 
     /* modal */
     .modalMask{
@@ -490,21 +493,10 @@
           <div class="hint hidden" id="hintInjury">請選擇傷害等級</div>
         </div>
 
-        <div class="field">
-          <div class="label">覆核者</div>
-          <select class="select" id="reviewerSelect"></select>
-          <div class="hint hidden" id="hintReviewer">請選擇覆核者</div>
-        </div>
-
-        <div class="field hidden" id="reviewerOtherWrap">
-          <div class="label">覆核者（手動輸入）</div>
-          <input class="input" id="reviewerOtherText" placeholder="若清單沒有該人員，請手動輸入覆核者姓名" />
-          <div class="hint hidden" id="hintReviewerOther">請輸入覆核者姓名</div>
-        </div>
-
-        <div class="field">
+        <div class="field" style="grid-column:1/-1">
           <div class="label">覆核狀態</div>
           <input class="input" id="reviewStatusText" value="未覆核" disabled />
+          <div class="muted" id="reviewModeHint">覆核權限由 Firebase 帳號欄位控制（例如 canReviewQcIncident = true）。</div>
         </div>
       </div>
 
