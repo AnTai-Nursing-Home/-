@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>護理師｜意外事件系統</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --card2:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --line:rgba(15,23,42,.14);
+      --btn:#2563eb;
+    }
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif;font-size:20px}
+    body{margin:0;background:linear-gradient(180deg,#ffffff,var(--bg));color:var(--text)}
+    .app{width:100vw;height:100vh;display:flex;flex-direction:column}
+    .topbar{
+      flex:0 0 auto; display:flex; align-items:center; gap:12px;
+      padding:14px 16px; border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.78); backdrop-filter: blur(10px);
+    }
+    .title{font-weight:900;letter-spacing:.5px;font-size:20px}
+    .spacer{flex:1}
+    .select, .btn, .input, textarea{
+      border:1px solid var(--line); background:#ffffff;
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      outline:none;
+    }
+    textarea{min-height:90px; resize:vertical}
+    .btn{background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.35); cursor:pointer; font-weight:800}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .main{flex:1 1 auto; overflow:auto; padding:16px}
+    .grid{display:grid; gap:12px}
+    .months{grid-template-columns: repeat(4, minmax(220px, 1fr));}
+    @media (max-width: 1100px){ .months{grid-template-columns: repeat(2, minmax(220px,1fr));} }
+    @media (max-width: 560px){ .months{grid-template-columns: 1fr;} }
+
+    .card{
+      background:linear-gradient(180deg,#ffffff,#f8fafc);
+      border:1px solid var(--line); border-radius:18px; padding:14px;
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
+    }
+    .card h3{margin:0 0 8px 0;font-size:20px;font-weight:900}
+    .muted{color:var(--muted);font-size:16px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      padding:12px; border-radius:16px; border:1px solid var(--line);
+      background:#ffffff;
+    }
+    .item .meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px;margin-top:6px}
+    .tag{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .hidden{display:none !important;}
+    .hint{font-size:12px;color:#fca5a5;margin-top:4px}
+
+    /* modal */
+    .modalMask{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:flex; align-items:flex-start; justify-content:center;
+      padding:24px; overflow:auto;
+    }
+    .modal{
+      width:min(980px, 100%); border-radius:18px; border:1px solid var(--line);
+      background:linear-gradient(180deg,#ffffff,#f8fafc);
+      box-shadow: 0 24px 70px rgba(15,23,42,.18);
+      padding:16px;
+    }
+    .modalHeader{display:flex;align-items:center;gap:10px}
+    .modalHeader h2{margin:0;font-size:20px}
+    .formGrid{display:grid;grid-template-columns: repeat(2, minmax(0,1fr));gap:12px;margin-top:12px}
+    @media (max-width: 860px){ .formGrid{grid-template-columns:1fr;} }
+    .field{display:flex;flex-direction:column;gap:6px}
+    .label{font-size:12px;color:var(--muted)}
+    .checkGrid{display:grid;grid-template-columns: repeat(3,minmax(0,1fr));gap:8px}
+    @media (max-width: 860px){ .checkGrid{grid-template-columns: repeat(2,minmax(0,1fr));} }
+    .check{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}
+    .divider{height:1px;background:var(--line);margin:12px 0}
+  
+.btn-back{
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid rgba(37,99,235,.35);
+  background:rgba(37,99,235,.12);
+  color:#1e3a8a;
+  font-weight:800;
+  transition:all .2s ease;
+  margin-right:10px;
+}
+
+.btn-back:hover{
+  background:rgba(37,99,235,.20);
+  transform:translateY(-1px);
+}
+
+
+
+/* 放大內文 */
+.card, .item, .muted, label, select, input, button {
+  font-size:18px !important;
+}
+
+.card h3{
+  font-size:22px !important;
+}
+
+.empty, .list-empty{
+  font-size:20px !important;
+}
+
+
+    /* ===== 統計面板 ===== */
+    .stats{margin-bottom:12px}
+    .statsGrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      gap:12px;
+      align-items:stretch;
+    }
+    .chartBox{height:320px}
+    .chartBox canvas{width:100% !important; height:100% !important;}
+    table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden}
+    th,td{padding:10px 10px; border-bottom:1px solid var(--line); text-align:left; font-size:16px}
+    th{font-weight:900; background:#f8fafc}
+    tr:last-child td{border-bottom:none}
+    .kpi{display:flex; gap:10px; flex-wrap:wrap}
+    .kpi .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      font-weight:900;
+    }
+
+  
+    /* ===== 事件清單美化：名字後顯示意外事件類別（副標題） ===== */
+    .nameWrap{display:flex; flex-direction:column; gap:2px}
+    .nameLine{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .nameText{font-weight:900; font-size:20px}
+    .subLine{font-size:16px}
+    .typeBadge{
+      display:inline-flex;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(37,99,235,.28);
+      background:rgba(37,99,235,.10);
+      color:#1e3a8a;
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:.2px;
+      white-space:nowrap;
+    }
+
+  
+    /* ===== 分頁 Tabs ===== */
+    .tabs{display:flex; gap:8px; align-items:center; margin-left:10px}
+    .tab{
+      border:1px solid var(--line);
+      background:#fff;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:900;
+      cursor:pointer;
+      color:var(--muted);
+    }
+    .tab.active{
+      border-color:rgba(37,99,235,.35);
+      background:rgba(37,99,235,.12);
+      color:#1e3a8a;
+    }
+
+    /* ===== 事件詳細資訊區塊標題 ===== */
+    .metaGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    .metaBlock{
+      background:#f8fafc;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #e2e8f0;
+    }
+    .metaTitle{
+      font-size:14px;
+      font-weight:900;
+      color:#475569;
+      margin-bottom:6px;
+      letter-spacing:.5px;
+    }
+
+  
+/* ===== 表單標題放大 ===== */
+.label{
+  font-size:20px !important;
+  font-weight:900;
+  color:#334155;
+}
+
+.modalHeader h2{
+  font-size:28px !important;
+  font-weight:900;
+}
+
+.field .label{
+  font-size:20px !important;
+}
+
+.muted{
+  font-size:18px !important;
+}
+
+/* 跌倒原因標題 */
+#fallWrap .label{
+  font-size:20px !important;
+  font-weight:900;
+}
+
+
+/* ===== 跌倒原因分析區隔強化 ===== */
+#fallWrap{
+  margin-top:18px;
+  padding:20px;
+  border:2px solid #cbd5e1;
+  border-radius:22px;
+  background:linear-gradient(180deg,#f8fbff,#eef4ff);
+  box-shadow:0 14px 32px rgba(37,99,235,.08);
+}
+
+#fallWrap::before{
+  content:"跌倒原因分析";
+  display:block;
+  font-size:24px;
+  font-weight:900;
+  color:#1e3a8a;
+  letter-spacing:.5px;
+  margin-bottom:12px;
+}
+
+#fallWrap > .muted{
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e40af;
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:18px !important;
+  font-weight:700;
+}
+
+#fallWrap > .field{
+  margin-top:14px;
+  padding:16px;
+  border:1px solid #dbeafe;
+  border-radius:18px;
+  background:#ffffff;
+  box-shadow:0 6px 16px rgba(15,23,42,.04);
+}
+
+#fallWrap > .field .label{
+  display:block;
+  font-size:22px !important;
+  font-weight:900;
+  color:#1e3a8a;
+  padding-left:10px;
+  border-left:5px solid #60a5fa;
+  margin-bottom:10px;
+}
+
+#fallWrap .checkGrid{
+  margin-top:8px;
+  gap:10px;
+}
+
+#fallWrap .check{
+  min-height:64px;
+  padding:12px 14px;
+  border:1px solid #cbd5e1;
+  border-radius:16px;
+  background:#f8fafc;
+}
+
+#fallWrap .check:hover{
+  background:#eff6ff;
+  border-color:#93c5fd;
+}
+
+#fallWrap input[type="checkbox"]{
+  transform:scale(1.15);
+}
+
+#caseOtherWrap{
+  margin-top:12px !important;
+  padding:12px;
+  border-radius:14px;
+  background:#f8fafc;
+  border:1px dashed #94a3b8;
+}
+
+
+
+
+    .monthAlertBadge, .reviewBadge, .reviewedBadge, .draftBadge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 10px; border-radius:999px; font-weight:900; font-size:14px;
+      border:1px solid transparent; white-space:nowrap;
+    }
+    .monthAlertBadge, .reviewBadge{
+      background:rgba(220,38,38,.10); border-color:rgba(220,38,38,.28); color:#991b1b;
+    }
+    .reviewedBadge{
+      background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.28); color:#166534;
+    }
+    .draftBadge{
+      background:rgba(37,99,235,.10); border-color:rgba(37,99,235,.28); color:#1d4ed8;
+    }
+    .monthMetaRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <a href="nurse.html?view=dashboard" class="btn-back">
+        ← 返回儀表板
+      </a>
+      <div class="title" id="topTitle">護理師｜意外事件系統</div>
+      <span class="muted" id="subTitle"></span>
+
+      <div class="tabs" role="tablist" aria-label="意外事件分頁">
+        <button class="tab active" id="tabBtnCases" type="button">案件單</button>
+        <button class="tab" id="tabBtnStats" type="button">統計</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <select class="select" id="yearSelect"></select>
+      <button class="btn hidden" id="btnBack">← 返回月份</button>
+      <button class="btn hidden" id="btnAdd">＋ 新增意外事件</button>
+    </div>
+
+    <div class="main">
+
+      <!-- 統計面板（同頁整合，可滾動） -->
+      <div id="statsPanel" class="card stats" style="display:none">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h3 style="margin-bottom:6px;">年度/區間統計</h3>
+            <div class="muted" id="statsRangeText">—</div>
+            <div class="muted" style="margin-top:4px;">註：目前以「填報時間 createdAt」做區間統計。</div>
+          </div>
+
+          <div class="row" style="gap:8px; justify-content:flex-end;">
+            <label class="muted">起</label>
+            <input class="input" type="date" id="statsStart" />
+            <label class="muted">迄</label>
+            <input class="input" type="date" id="statsEnd" />
+            <button class="btn" id="btnStatsThisYear">今年</button>
+            <button class="btn" id="btnStatsLast30">近30天</button>
+            <button class="btn" id="btnStatsRun">套用</button>
+            <button class="btn" id="btnStatsExport">匯出Excel</button>
+          </div>
+        </div>
+
+        <div class="kpi" id="statsKpiRow" style="margin-top:10px;"></div>
+
+        <div class="grid statsGrid" style="margin-top:12px;">
+          <div class="card" style="grid-column: span 4;">
+            <h3>性別分布</h3>
+            <div class="chartBox"><canvas id="chartGender"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 4;">
+            <h3>年齡區間</h3>
+            <div class="chartBox"><canvas id="chartAge"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 4;">
+            <h3>事件類別（Top 12）</h3>
+            <div class="chartBox"><canvas id="chartType"></canvas></div>
+          </div>
+
+          <div class="card" style="grid-column: span 4;">
+            <h3>診斷類型</h3>
+            <div class="chartBox"><canvas id="chartDiagCat"></canvas></div>
+          </div>
+
+          <div class="card" style="grid-column: span 6;">
+            <h3>跌倒原因（個案因素 Top 10）</h3>
+            <div class="chartBox"><canvas id="chartFallCase"></canvas></div>
+          </div>
+          <div class="card" style="grid-column: span 6;">
+            <h3>跌倒原因（環境/設備/人員/藥物 Top 12）</h3>
+            <div class="chartBox"><canvas id="chartFallOther"></canvas></div>
+          </div>
+
+          <div class="card" style="grid-column: span 12;">
+            <h3>事件類別 × 傷害等級</h3>
+            <div class="muted">快速檢視哪類事件較容易造成較高傷害。</div>
+            <div style="overflow:auto; margin-top:10px;">
+              <table id="tableMatrix"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewMonths" class="grid months"></div>
+      <div id="viewIncidents" class="list hidden"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalMask" class="modalMask hidden">
+    <div class="modal">
+      <div class="modalHeader">
+        <h2 id="modalTitle">新增意外事件</h2>
+        <div class="spacer"></div>
+        <button class="btn" id="btnCloseModal">關閉</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="formGrid">
+        <div class="field">
+          <div class="label">住民姓名（下拉）</div>
+          <select class="select" id="residentSelect"></select>
+          <div class="hint hidden" id="hintResident">請選擇住民</div>
+        </div>
+
+        <div class="field">
+          <div class="label">性別（自動帶入）</div>
+          <input class="input" id="residentGender" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">歲數（自動帶入）</div>
+          <input class="input" id="residentAge" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">診斷類別</div>
+          <select class="select" id="diagnosisCategory">
+            <option value="">請選擇</option>
+            <option value="癌症">癌症</option>
+            <option value="腦中風">腦中風</option>
+            <option value="高血壓">高血壓</option>
+            <option value="糖尿病">糖尿病</option>
+            <option value="失智">失智</option>
+            <option value="骨折">骨折</option>
+            <option value="腎臟疾病">腎臟疾病</option>
+            <option value="頭頸部外傷">頭頸部外傷</option>
+            <option value="精神疾病">精神疾病</option>
+            <option value="其他">其他</option>
+            <option value="未填">未填</option>
+          </select>
+          <div class="hint hidden" id="hintDiagCat">請選擇診斷類別</div>
+        </div>
+
+        <div class="field" style="grid-column:1/-1">
+          <div class="label">疾病診斷（自動帶入）</div>
+          <input class="input" id="residentDiagnosis" disabled />
+        </div>
+
+        <div class="field">
+          <div class="label">意外事件類別</div>
+          <select class="select" id="incidentType"></select>
+          <div class="hint hidden" id="hintIncidentType">請選擇意外事件類別</div>
+        </div>
+
+        <div class="field hidden" id="incidentOtherWrap">
+          <div class="label">其他（請輸入）</div>
+          <input class="input" id="incidentTypeOtherText" placeholder="請輸入其他意外事件類別" />
+          <div class="hint hidden" id="hintIncidentOther">請輸入其他類別內容</div>
+        </div>
+
+        <div class="field">
+          <div class="label">傷害等級</div>
+          <select class="select" id="injuryLevel">
+            <option value="">請選擇</option>
+            <option value="無傷害">無傷害</option>
+            <option value="第一級">第一級</option>
+            <option value="第二級">第二級</option>
+            <option value="第三級">第三級</option>
+          </select>
+          <div class="hint hidden" id="hintInjury">請選擇傷害等級</div>
+        </div>
+
+        <div class="field">
+          <div class="label">覆核者</div>
+          <select class="select" id="reviewerSelect"></select>
+          <div class="hint hidden" id="hintReviewer">請選擇覆核者</div>
+        </div>
+
+        <div class="field hidden" id="reviewerOtherWrap">
+          <div class="label">覆核者（手動輸入）</div>
+          <input class="input" id="reviewerOtherText" placeholder="若清單沒有該人員，請手動輸入覆核者姓名" />
+          <div class="hint hidden" id="hintReviewerOther">請輸入覆核者姓名</div>
+        </div>
+
+        <div class="field">
+          <div class="label">覆核狀態</div>
+          <input class="input" id="reviewStatusText" value="未覆核" disabled />
+        </div>
+      </div>
+
+      <!-- Fall analysis -->
+      <div id="fallWrap" class="hidden">
+        <div class="divider"></div>
+        <div class="muted">※ 若事件類別為「跌倒」，需填寫原因分析（可複選）</div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="label">個案因素（多選）</div>
+          <div class="checkGrid" id="caseFactors"></div>
+          <div class="field hidden" id="caseOtherWrap" style="margin-top:8px;">
+            <div class="label">個案因素－其他（請輸入）</div>
+            <input class="input" id="caseFactorsOtherText" placeholder="請輸入其他個案因素" />
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label">環境因素（多選）</div>
+          <div class="checkGrid" id="envFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">設備因素（多選）</div>
+          <div class="checkGrid" id="equipFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">人員因素（多選）</div>
+          <div class="checkGrid" id="staffFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">藥物因素（多選）</div>
+          <div class="checkGrid" id="drugFactors"></div>
+        </div>
+
+        <div class="field">
+          <div class="label">其他（自行登打）</div>
+          <input class="input" id="fallOtherText" placeholder="請輸入其他原因" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="muted" id="saveHint"></div>
+        <button class="btn" id="btnSave">儲存</button>
+        <input type="hidden" id="editingIncidentId" value="" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK（一定要先載入 app，再載入 firestore / storage） -->
+  <!-- 你全站若已經有載入 Firebase SDK，這三行可以刪掉，避免重複 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <!-- Firebase 初始化（會設定 window.db / window.storage，並發出 firebase-ready） -->
+  <script src="firebase-init.js"></script>
+
+  <!-- Chart.js（統計面板用） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- 意外事件系統 -->
+  <script src="qc-incident-nurse.js"></script>
+
+</body>
+</html>
