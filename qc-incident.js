@@ -24,9 +24,8 @@ const FallDrugFactors = ["鎮靜劑","降壓劑","降血糖","利尿劑"];
 let currentYear = new Date().getFullYear();
 let currentMonth = null; // 1~12
 let residentsCache = []; // [{id,name,gender,birthday,diagnosis}]
-let reviewersCache = []; // 舊版欄位保留，不再作為覆核者指定用途
+let reviewersCache = []; // [{uid,name,role}]
 let reviewerLoadError = null;
-let currentUserCanReview = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -125,81 +124,26 @@ function isIncidentReviewed(d){
 
 function getReviewerDisplay(d){
   const review = d?.review || {};
-  const reviewedBy = review.reviewedBy || {};
-  if (reviewedBy.name) return reviewedBy.name;
-  if (reviewedBy.uid) return reviewedBy.uid;
+  const reviewer = review.reviewer || {};
+  if (reviewer.name) return reviewer.name;
+  if (reviewer.uid) return reviewer.uid;
+  if (review.manualReviewerName) return review.manualReviewerName;
   return "";
 }
 
-function extractReviewPermissionFromObject(obj){
-  if (!obj || typeof obj !== "object") return false;
-  if (obj.canReviewQcIncident === true) return true;
-  if (obj.qcIncidentReview === true) return true;
-  if (obj.permissions && typeof obj.permissions === "object") {
-    if (obj.permissions.qcIncidentReview === true) return true;
-    if (obj.permissions.canReviewQcIncident === true) return true;
-  }
-  return false;
-}
-
-async function loadCurrentUserReviewPermission(){
-  const me = ensureCurrentUser();
-  currentUserCanReview = false;
-  if (!me) return false;
-
-  if (extractReviewPermissionFromObject(me) || extractReviewPermissionFromObject(me.raw)) {
-    currentUserCanReview = true;
-    return true;
-  }
-
-  const collections = ["accounts", "employees", "users"];
-  const idCandidates = Array.from(new Set([
-    String(me.uid || "").trim(),
-    String(me.name || "").trim(),
-    String(me.raw?.staffId || "").trim(),
-    String(me.raw?.employeeId || "").trim(),
-    String(me.raw?.username || "").trim(),
-    String(me.raw?.id || "").trim(),
-    String(me.raw?.uid || "").trim()
-  ].filter(Boolean)));
-
-  const matchFields = ["staffId", "employeeId", "uid", "username", "id", "name", "staffName", "displayName", "userName"];
-
-  for (const col of collections) {
-    try {
-      for (const id of idCandidates) {
-        try {
-          const direct = await window.db.collection(col).doc(id).get();
-          if (direct.exists && extractReviewPermissionFromObject(direct.data())) {
-            currentUserCanReview = true;
-            return true;
-          }
-        } catch(_e){}
-      }
-
-      for (const field of matchFields) {
-        for (const value of idCandidates) {
-          try {
-            const snap = await window.db.collection(col).where(field, "==", value).limit(1).get();
-            if (!snap.empty) {
-              const data = snap.docs[0].data() || {};
-              if (extractReviewPermissionFromObject(data)) {
-                currentUserCanReview = true;
-                return true;
-              }
-            }
-          } catch(_e){}
-        }
-      }
-    } catch(_e){}
-  }
-  return false;
-}
-
 function canCurrentUserReview(d){
-  ensureCurrentUser();
-  if (isIncidentReviewed(d)) return false;
-  return !!currentUserCanReview;
+  const me = ensureCurrentUser();
+  if (!me || isIncidentReviewed(d)) return false;
+  const review = d?.review || {};
+  const reviewer = review.reviewer || {};
+  const meUid = normalizePersonName(me.uid);
+  const meName = normalizePersonName(me.name);
+  const targetUid = normalizePersonName(reviewer.uid);
+  const targetName = normalizePersonName(reviewer.name || review.manualReviewerName);
+  if (targetUid && meUid && targetUid === meUid) return true;
+  if (targetName && meName && targetName === meName) return true;
+  if (targetName && meUid && targetName === meUid) return true;
+  return false;
 }
 
 
@@ -242,32 +186,54 @@ function setTopTitle(){
   }
 }
 
-function showMonthsView(){
+function showGlobalLoading(text = "讀取中..."){
+  const mask = $("globalLoading");
+  const label = $("globalLoadingText");
+  if (label) label.textContent = text;
+  if (mask) mask.classList.remove("hidden");
+}
+
+function hideGlobalLoading(){
+  const mask = $("globalLoading");
+  if (mask) mask.classList.add("hidden");
+}
+
+async function showMonthsView(){
   currentMonth = null;
   $("btnBack").classList.add("hidden");
   $("btnAdd").classList.add("hidden");
   $("viewIncidents").classList.add("hidden");
   $("viewMonths").classList.remove("hidden");
   setTopTitle();
-  renderMonths();
-  // 統計面板（月份頁）
-  initStatsUI();
+  showGlobalLoading("讀取中...");
+  try{
+    await renderMonths();
+    // 統計面板（月份頁）
+    initStatsUI();
 
-  // 回到月份頁時，預設應顯示「案件單」，避免進入後出現空白
-  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
+    // 回到月份頁時，預設應顯示「案件單」，避免進入後出現空白
+    try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
+  }finally{
+    hideGlobalLoading();
+  }
 }
 
 async function showMonthDetail(month){
-  currentMonth = month;
-  $("btnBack").classList.remove("hidden");
-  $("btnAdd").classList.remove("hidden");
-  $("viewMonths").classList.add("hidden");
-  $("viewIncidents").classList.remove("hidden");
-  setTopTitle();
+  showGlobalLoading("讀取中...");
+  try{
+    currentMonth = month;
+    $("btnBack").classList.remove("hidden");
+    $("btnAdd").classList.remove("hidden");
+    $("viewMonths").classList.add("hidden");
+    $("viewIncidents").classList.remove("hidden");
+    setTopTitle();
 
-  // 進入月份後應直接顯示案件單（不需要再按一次 Tab）
-  try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
-  await renderIncidents();
+    // 進入月份後應直接顯示案件單（不需要再按一次 Tab）
+    try{ if (typeof setTab === "function") setTab("cases"); }catch(_e){}
+    await renderIncidents();
+  }finally{
+    hideGlobalLoading();
+  }
 }
 
 function buildYearSelect(){
@@ -283,13 +249,10 @@ function buildYearSelect(){
     if (y === currentYear) opt.selected = true;
     sel.appendChild(opt);
   });
-  sel.onchange = () => {
+  sel.onchange = async () => {
     currentYear = parseInt(sel.value,10);
-    if (currentMonth) showMonthDetail(currentMonth);
-    else {
-      renderMonths();
-      initStatsUI();
-    }
+    if (currentMonth) await showMonthDetail(currentMonth);
+    else await showMonthsView();
   };
 }
 
@@ -335,7 +298,7 @@ async function renderMonths(){
 }
 
 function clearHints(){
-  ["hintResident","hintDiagCat","hintIncidentType","hintIncidentOther","hintInjury"].forEach(id=>{
+  ["hintResident","hintDiagCat","hintIncidentType","hintIncidentOther","hintInjury","hintReviewer","hintReviewerOther"].forEach(id=>{
     const el = $(id); if (el) el.classList.add("hidden");
   });
   $("saveHint").textContent = "";
@@ -624,7 +587,10 @@ function resetIncidentForm(){
   $("incidentOtherWrap").classList.add("hidden");
   $("incidentTypeOtherText").value = "";
   $("injuryLevel").value = "";
-  setReviewStatusText(currentUserCanReview ? "未覆核（你具有覆核權限）" : "未覆核");
+  $("reviewerSelect").value = "";
+  $("reviewerOtherWrap").classList.add("hidden");
+  $("reviewerOtherText").value = "";
+  setReviewStatusText("未覆核");
   $("fallWrap").classList.add("hidden");
   clearFallInputs();
 }
@@ -656,12 +622,13 @@ async function openEditModal(docId){
   $("incidentType").dispatchEvent(new Event("change"));
   $("incidentTypeOtherText").value = d.incidentTypeOtherText || "";
   $("injuryLevel").value = d.injuryLevel || "";
+  fillReviewerForm(d.review || {});
   if (isIncidentReviewed(d)) {
     const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
     const reviewedAt = formatDateDisplay(d.review?.reviewedAt, true);
     setReviewStatusText(reviewedAt ? `已覆核（${reviewedBy}｜${reviewedAt}）` : `已覆核（${reviewedBy}）`);
   } else {
-    setReviewStatusText(currentUserCanReview ? "未覆核（你具有覆核權限）" : "未覆核");
+    setReviewStatusText("未覆核");
   }
 
   if (d.incidentType === "跌倒" && d.fallAnalysis){
@@ -692,19 +659,11 @@ function closeModal(){
 
 async function reviewIncident(docId, btn){
   ensureCurrentUser();
-  if (!currentUserCanReview) {
-    alert("你目前沒有意外事件覆核權限。");
-    return;
-  }
   if (btn) btn.disabled = true;
   try{
-    const ref = window.db.collection("qc_incidents").doc(docId);
-    const snap = await ref.get();
-    const oldReview = snap.data()?.review || {};
-    await ref.update({
+    await window.db.collection("qc_incidents").doc(docId).update({
       review: {
-        ...oldReview,
-        status: "approved",
+        ...(await window.db.collection("qc_incidents").doc(docId).get()).data()?.review,
         reviewedAt: serverTimestamp(),
         reviewedBy: {
           uid: window.CurrentUser.uid,
@@ -720,7 +679,8 @@ async function reviewIncident(docId, btn){
       }
     });
     await renderIncidents();
-    await renderMonths();
+    if (!currentMonth) await renderMonths();
+    else await renderMonths();
   }catch(err){
     console.error("[qc_incidents] review failed", err);
     alert("覆核失敗：" + (err.message || err));
@@ -757,6 +717,7 @@ async function renderIncidents(){
     const injury = d.injuryLevel || "";
     const creator = d.createdBy?.name || d.createdBy?.uid || "";
     const createdAtText = formatDateDisplay(d.createdAt) || "";
+    const reviewerName = getReviewerDisplay(d);
     const reviewed = isIncidentReviewed(d);
     const canReview = canCurrentUserReview(d);
     const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
@@ -802,8 +763,8 @@ async function renderIncidents(){
         <div class="metaBlock">
             <div class="metaTitle">覆核欄</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              ${reviewed ? `<span class="reviewedBadge">已覆核：${escapeHtml(reviewedBy || '已覆核')}${reviewedAtText ? `｜${escapeHtml(reviewedAtText)}` : ''}</span>` : `<span class="reviewBadge">未覆核</span>`}
-              ${canReview ? `<span class="tag">你目前具有覆核權限</span>` : ``}
+              ${reviewerName ? `<span class="tag">覆核者：${escapeHtml(reviewerName)}</span>` : `<span class="tag">覆核者未設定</span>`}
+              ${reviewed ? `<span class="reviewedBadge">${escapeHtml(reviewedBy || '已覆核')}${reviewedAtText ? `｜${escapeHtml(reviewedAtText)}` : ''}</span>` : `<span class="reviewBadge">待覆核</span>`}
             </div>
         </div>
         ${fallTag ? `<div class="metaBlock">
@@ -876,6 +837,10 @@ function validateForm(){
   const injury = $("injuryLevel").value;
   if (!injury){ showHint("hintInjury"); ok = false; }
 
+  const reviewerSel = $("reviewerSelect").value;
+  if (!reviewerSel){ showHint("hintReviewer"); ok = false; }
+  if (reviewerSel === "__manual__" && !($("reviewerOtherText").value || "").trim()) { showHint("hintReviewerOther"); ok = false; }
+
   if (!ok) $("saveHint").textContent = "請先完成必填欄位。";
   return ok;
 }
@@ -888,6 +853,7 @@ async function saveIncident(){
   const r = residentsCache.find(x=>x.id===rid);
   const incidentType = $("incidentType").value;
   const editingId = ($("editingIncidentId").value || "").trim();
+  const reviewerPayload = getReviewerPayloadFromForm();
 
   const baseData = {
     occurYear: currentYear,
@@ -907,7 +873,8 @@ async function saveIncident(){
     fallAnalysis: null,
 
     review: {
-      status: "pending",
+      reviewer: reviewerPayload?.reviewer || { uid:"", name:"", role:"" },
+      manualReviewerName: reviewerPayload?.manualReviewerName || "",
       reviewedAt: null,
       reviewedBy: null
     },
@@ -946,11 +913,12 @@ async function saveIncident(){
       const ref = window.db.collection("qc_incidents").doc(editingId);
       const oldSnap = await ref.get();
       const oldData = oldSnap.data() || {};
+      const oldReviewerName = getReviewerDisplay(oldData);
+      const newReviewerName = reviewerPayload?.reviewer?.name || reviewerPayload?.manualReviewerName || "";
+      const reviewerChanged = normalizePersonName(oldReviewerName) !== normalizePersonName(newReviewerName);
       const payload = { ...baseData };
-      if (oldData.review && isIncidentReviewed(oldData)) {
-        payload.review = { ...oldData.review };
-      } else if (oldData.review) {
-        payload.review = { ...oldData.review, status: oldData.review.status || "pending", reviewedAt: null, reviewedBy: null };
+      if (!reviewerChanged && oldData.review){
+        payload.review = { ...oldData.review, reviewer: payload.review.reviewer, manualReviewerName: payload.review.manualReviewerName };
       }
       await ref.update(payload);
       $("saveHint").textContent = "已修改";
@@ -1010,11 +978,10 @@ async function init(){
 
   await loadResidents();
   buildResidentSelect();
-  await loadCurrentUserReviewPermission();
-  const reviewModeHint = document.getElementById("reviewModeHint");
-  if (reviewModeHint) reviewModeHint.textContent = currentUserCanReview ? "目前登入者具有覆核權限；所有未覆核案件皆可直接覆核。" : "目前登入者無覆核權限；可查看案件內容，但不可執行覆核。";
+  await loadReviewers();
+  buildReviewerSelect();
 
-  showMonthsView();
+  await showMonthsView();
   initTabs();
 }
 
