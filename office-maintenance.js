@@ -467,10 +467,11 @@
     // -------------------- Beds for room items (from residents system) --------------------
     const bedsByFloor = { "1F": [], "2F": [], "3F": [] };
     let bedsLoaded = false;
+    const FLOOR_TEMPLATE_KEY = "FLOOR_TEMPLATE_V1";
 
     function normalizeBedToken(v) {
       const s = String(v || "").trim().replace(/_/g, "-");
-      const m = s.match(/^(\d{3})-(\w+)$/);
+      const m = s.match(/^(\d{3})-([A-Za-z0-9]+)$/);
       return m ? `${m[1]}-${m[2]}` : null;
     }
 
@@ -480,10 +481,37 @@
       return uniq;
     }
 
+    function loadBedsFromTemplate() {
+      try {
+        const raw = localStorage.getItem(FLOOR_TEMPLATE_KEY);
+        if (!raw) return false;
+
+        const tpl = JSON.parse(raw);
+        const f1 = uniqSortBeds(((tpl && tpl["1"]) || []).map(normalizeBedToken).filter(Boolean));
+        const f2 = uniqSortBeds(((tpl && tpl["2"]) || []).map(normalizeBedToken).filter(Boolean));
+        const f3 = uniqSortBeds(((tpl && tpl["3"]) || []).map(normalizeBedToken).filter(Boolean));
+
+        const total = f1.length + f2.length + f3.length;
+        if (!total) return false;
+
+        bedsByFloor["1F"] = f1;
+        bedsByFloor["2F"] = f2;
+        bedsByFloor["3F"] = f3;
+        return true;
+      } catch (e) {
+        console.warn("loadBedsFromTemplate failed:", e);
+        return false;
+      }
+    }
+
     async function loadBedsOnce() {
       if (bedsLoaded) return;
       bedsLoaded = true;
       try {
+        // 優先抓住民資料系統的床位模板設定，這樣空床也會顯示
+        if (loadBedsFromTemplate()) return;
+
+        // 若模板不存在，再退回抓目前住民資料中的床號
         const snap = await colResidents.get();
         const f1 = [], f2 = [], f3 = [];
         snap.forEach((doc) => {
