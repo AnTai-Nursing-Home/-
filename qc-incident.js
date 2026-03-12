@@ -24,6 +24,8 @@ const FallDrugFactors = ["鎮靜劑","降壓劑","降血糖","利尿劑"];
 let currentYear = new Date().getFullYear();
 let currentMonth = null; // 1~12
 let residentsCache = []; // [{id,name,gender,birthday,diagnosis}]
+let reviewersCache = []; // [{uid,name,role}]
+let reviewerLoadError = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,6 +87,63 @@ function ensureEnv(){
 
 function serverTimestamp(){
   return window.firebase.firestore.FieldValue.serverTimestamp();
+}
+
+function formatDateDisplay(value, withTime=false){
+  if (!value) return "";
+  let d = null;
+  if (value && typeof value.toDate === "function") d = value.toDate();
+  else if (value instanceof Date) d = value;
+  else if (typeof value === "string" || typeof value === "number") d = new Date(value);
+  if (!d || isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  if (!withTime) return `${y}/${m}/${day}`;
+  const hh = pad2(d.getHours());
+  const mm = pad2(d.getMinutes());
+  return `${y}/${m}/${day} ${hh}:${mm}`;
+}
+
+function escapeHtml(str){
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizePersonName(name){
+  return String(name || "").trim().replace(/\s+/g, "");
+}
+
+function isIncidentReviewed(d){
+  return !!(d && d.review && d.review.reviewedBy && (d.review.reviewedBy.name || d.review.reviewedBy.uid));
+}
+
+function getReviewerDisplay(d){
+  const review = d?.review || {};
+  const reviewer = review.reviewer || {};
+  if (reviewer.name) return reviewer.name;
+  if (reviewer.uid) return reviewer.uid;
+  if (review.manualReviewerName) return review.manualReviewerName;
+  return "";
+}
+
+function canCurrentUserReview(d){
+  const me = ensureCurrentUser();
+  if (!me || isIncidentReviewed(d)) return false;
+  const review = d?.review || {};
+  const reviewer = review.reviewer || {};
+  const meUid = normalizePersonName(me.uid);
+  const meName = normalizePersonName(me.name);
+  const targetUid = normalizePersonName(reviewer.uid);
+  const targetName = normalizePersonName(reviewer.name || review.manualReviewerName);
+  if (targetUid && meUid && targetUid === meUid) return true;
+  if (targetName && meName && targetName === meName) return true;
+  if (targetName && meUid && targetName === meUid) return true;
+  return false;
 }
 
 
@@ -183,7 +242,9 @@ async function countIncidentsOfMonth(year, month){
     .where("occurYear","==",year)
     .where("occurMonth","==",month)
     .get();
-  return snap.size;
+  let unreviewed = 0;
+  snap.forEach(doc=>{ if (!isIncidentReviewed(doc.data() || {})) unreviewed++; });
+  return { total: snap.size, unreviewed };
 }
 
 async function renderMonths(){
@@ -198,19 +259,27 @@ async function renderMonths(){
         <h3>${pad2(m)} 月</h3>
         <button class="btn">查看</button>
       </div>
-      <div class="muted" id="mCount-${m}">讀取中...</div>
+      <div class="monthMetaRow">
+        <div class="muted" id="mCount-${m}">讀取中...</div>
+        <div id="mPending-${m}"></div>
+      </div>
     `;
     card.querySelector("button").onclick = ()=> showMonthDetail(m);
     box.appendChild(card);
 
     countIncidentsOfMonth(currentYear, m)
-      .then(n => { const el = $(`mCount-${m}`); if (el) el.textContent = `本月事件：${n} 筆`; })
+      .then(({ total, unreviewed }) => {
+        const el = $(`mCount-${m}`);
+        if (el) el.textContent = `本月事件：${total} 筆`;
+        const pendingEl = $(`mPending-${m}`);
+        if (pendingEl) pendingEl.innerHTML = unreviewed > 0 ? `<span class="monthAlertBadge">未覆核 ${unreviewed} 筆</span>` : ``;
+      })
       .catch(() => { const el = $(`mCount-${m}`); if (el) el.textContent = "本月事件：讀取失敗"; });
   }
 }
 
 function clearHints(){
-  ["hintResident","hintDiagCat","hintIncidentType","hintIncidentOther","hintInjury"].forEach(id=>{
+  ["hintResident","hintDiagCat","hintIncidentType","hintIncidentOther","hintInjury","hintReviewer","hintReviewerOther"].forEach(id=>{
     const el = $(id); if (el) el.classList.add("hidden");
   });
   $("saveHint").textContent = "";
@@ -293,6 +362,126 @@ function buildResidentSelect(){
   };
 }
 
+async function loadReviewers(){
+  reviewerLoadError = null;
+  const map = new Map();
+  const addReviewer = (uid, name, role="") => {
+    const cleanName = String(name || uid || "").trim();
+    const cleanUid = String(uid || cleanName || "").trim();
+    if (!cleanName && !cleanUid) return;
+    const key = `${cleanUid}__${cleanName}`;
+    if (!map.has(key)) map.set(key, { uid: cleanUid, name: cleanName, role: String(role||"").trim() });
+  };
+
+  const me = ensureCurrentUser();
+  if (me) addReviewer(me.uid, me.name, me.role);
+
+  const candidates = [
+    { collection: "employees", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] },
+    { collection: "accounts", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] },
+    { collection: "users", fields: ["staffId","employeeId","uid","username","id"], names: ["name","staffName","displayName","userName"], roles:["role","jobTitle","title","department"] }
+  ];
+
+  for (const cfg of candidates){
+    try{
+      const snap = await window.db.collection(cfg.collection).get();
+      if (!snap.empty){
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          const uid = cfg.fields.map(k=>d[k]).find(Boolean) || doc.id;
+          const name = cfg.names.map(k=>d[k]).find(Boolean) || uid;
+          const role = cfg.roles.map(k=>d[k]).find(Boolean) || "";
+          addReviewer(uid, name, role);
+        });
+        break;
+      }
+    }catch(err){
+      reviewerLoadError = err;
+    }
+  }
+
+  reviewersCache = Array.from(map.values()).sort((a,b)=>{
+    const an = String(a.name||"");
+    const bn = String(b.name||"");
+    return an.localeCompare(bn, "zh-Hant");
+  });
+}
+
+function buildReviewerSelect(){
+  const sel = $("reviewerSelect");
+  if (!sel) return;
+  sel.innerHTML = `<option value="">請選擇覆核者</option>`;
+  for (const r of reviewersCache){
+    const opt = document.createElement("option");
+    opt.value = r.uid || r.name;
+    opt.textContent = r.role ? `${r.name}（${r.role}）` : r.name;
+    opt.dataset.uid = r.uid || "";
+    opt.dataset.name = r.name || "";
+    opt.dataset.role = r.role || "";
+    sel.appendChild(opt);
+  }
+  const otherOpt = document.createElement("option");
+  otherOpt.value = "__manual__";
+  otherOpt.textContent = "其他／手動輸入";
+  sel.appendChild(otherOpt);
+
+  sel.onchange = () => {
+    const isManual = sel.value === "__manual__";
+    $("reviewerOtherWrap").classList.toggle("hidden", !isManual);
+    if (!isManual) {
+      $("reviewerOtherText").value = "";
+      $("hintReviewerOther").classList.add("hidden");
+    }
+  };
+}
+
+function getReviewerPayloadFromForm(){
+  const sel = $("reviewerSelect");
+  const manual = ($("reviewerOtherText").value || "").trim();
+  if (!sel || !sel.value) return null;
+  if (sel.value === "__manual__") {
+    if (!manual) return null;
+    return { reviewer: { uid: "", name: manual, role: "" }, manualReviewerName: manual };
+  }
+  const opt = sel.options[sel.selectedIndex];
+  return {
+    reviewer: {
+      uid: opt?.dataset?.uid || sel.value || "",
+      name: opt?.dataset?.name || opt?.textContent || sel.value || "",
+      role: opt?.dataset?.role || ""
+    },
+    manualReviewerName: ""
+  };
+}
+
+function fillReviewerForm(review = {}){
+  const sel = $("reviewerSelect");
+  const wrap = $("reviewerOtherWrap");
+  const other = $("reviewerOtherText");
+  if (!sel) return;
+  const reviewer = review.reviewer || {};
+  const targetUid = String(reviewer.uid || "").trim();
+  const targetName = String(reviewer.name || review.manualReviewerName || "").trim();
+  let matched = false;
+  for (const opt of sel.options){
+    const optUid = String(opt.dataset?.uid || opt.value || "").trim();
+    const optName = String(opt.dataset?.name || "").trim();
+    if ((targetUid && optUid && targetUid === optUid) || (targetName && optName && targetName === optName)) {
+      sel.value = opt.value;
+      matched = true;
+      break;
+    }
+  }
+  if (!matched && targetName){
+    sel.value = "__manual__";
+    if (other) other.value = targetName;
+    if (wrap) wrap.classList.remove("hidden");
+  } else {
+    if (wrap) wrap.classList.toggle("hidden", sel.value !== "__manual__");
+    if (sel.value !== "__manual__" && other) other.value = "";
+  }
+}
+
 function buildIncidentTypeSelect(){
   const sel = $("incidentType");
   sel.innerHTML = `<option value="">請選擇</option>`;
@@ -361,10 +550,15 @@ function getCheckedValues(containerId){
   return out;
 }
 
-function openModal(){
-  clearHints();
-  $("modalMask").classList.remove("hidden");
-  // reset form but keep resident list
+function setReviewStatusText(text){
+  const el = $("reviewStatusText");
+  if (el) el.value = text || "未覆核";
+}
+
+function resetIncidentForm(){
+  $("editingIncidentId").value = "";
+  $("modalTitle").textContent = "新增意外事件";
+  $("btnSave").textContent = "儲存";
   $("residentSelect").value = "";
   $("residentGender").value = "";
   $("residentAge").value = "";
@@ -374,12 +568,106 @@ function openModal(){
   $("incidentOtherWrap").classList.add("hidden");
   $("incidentTypeOtherText").value = "";
   $("injuryLevel").value = "";
+  $("reviewerSelect").value = "";
+  $("reviewerOtherWrap").classList.add("hidden");
+  $("reviewerOtherText").value = "";
+  setReviewStatusText("未覆核");
   $("fallWrap").classList.add("hidden");
   clearFallInputs();
 }
 
+function openModal(){
+  clearHints();
+  resetIncidentForm();
+  $("modalMask").classList.remove("hidden");
+}
+
+async function openEditModal(docId){
+  clearHints();
+  resetIncidentForm();
+  $("modalTitle").textContent = "編輯意外事件";
+  $("btnSave").textContent = "儲存修改";
+  $("editingIncidentId").value = docId;
+  $("modalMask").classList.remove("hidden");
+
+  const snap = await window.db.collection("qc_incidents").doc(docId).get();
+  if (!snap.exists) throw new Error("找不到案件資料");
+  const d = snap.data() || {};
+  $("residentSelect").value = d.residentId || "";
+  const r = residentsCache.find(x=>x.id === d.residentId);
+  $("residentGender").value = d.residentGender || r?.gender || "";
+  $("residentAge").value = d.residentAge ?? (r ? String(calcAgeFromBirthday(r.birthday) ?? "") : "");
+  $("residentDiagnosis").value = d.residentDiagnosis || r?.diagnosis || "";
+  $("diagnosisCategory").value = d.diagnosisCategory || "";
+  $("incidentType").value = d.incidentType || "";
+  $("incidentType").dispatchEvent(new Event("change"));
+  $("incidentTypeOtherText").value = d.incidentTypeOtherText || "";
+  $("injuryLevel").value = d.injuryLevel || "";
+  fillReviewerForm(d.review || {});
+  if (isIncidentReviewed(d)) {
+    const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
+    const reviewedAt = formatDateDisplay(d.review?.reviewedAt, true);
+    setReviewStatusText(reviewedAt ? `已覆核（${reviewedBy}｜${reviewedAt}）` : `已覆核（${reviewedBy}）`);
+  } else {
+    setReviewStatusText("未覆核");
+  }
+
+  if (d.incidentType === "跌倒" && d.fallAnalysis){
+    $("fallWrap").classList.remove("hidden");
+    const fa = d.fallAnalysis || {};
+    const setChecks = (containerId, values=[])=>{
+      const set = new Set(Array.isArray(values) ? values : []);
+      const box = $(containerId);
+      if (!box) return;
+      box.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ cb.checked = set.has(cb.value); });
+    };
+    setChecks("caseFactors", fa.caseFactors || []);
+    setChecks("envFactors", fa.environmentFactors || []);
+    setChecks("equipFactors", fa.equipmentFactors || []);
+    setChecks("staffFactors", fa.staffFactors || []);
+    setChecks("drugFactors", fa.drugFactors || []);
+    if (Array.isArray(fa.caseFactors) && fa.caseFactors.includes("其他")) {
+      $("caseOtherWrap").classList.remove("hidden");
+    }
+    $("caseFactorsOtherText").value = fa.caseFactorsOtherText || "";
+    $("fallOtherText").value = fa.otherText || "";
+  }
+}
+
 function closeModal(){
   $("modalMask").classList.add("hidden");
+}
+
+async function reviewIncident(docId, btn){
+  ensureCurrentUser();
+  if (btn) btn.disabled = true;
+  try{
+    await window.db.collection("qc_incidents").doc(docId).update({
+      review: {
+        ...(await window.db.collection("qc_incidents").doc(docId).get()).data()?.review,
+        reviewedAt: serverTimestamp(),
+        reviewedBy: {
+          uid: window.CurrentUser.uid,
+          name: window.CurrentUser.name || "",
+          role: window.CurrentUser.role || ""
+        }
+      },
+      updatedAt: serverTimestamp(),
+      updatedBy: {
+        uid: window.CurrentUser.uid,
+        name: window.CurrentUser.name || "",
+        role: window.CurrentUser.role || ""
+      }
+    });
+    await renderIncidents();
+    if (!currentMonth) await renderMonths();
+    else await renderMonths();
+  }catch(err){
+    console.error("[qc_incidents] review failed", err);
+    alert("覆核失敗：" + (err.message || err));
+  }finally{
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function renderIncidents(){
@@ -409,65 +697,102 @@ async function renderIncidents(){
     const type = d.incidentType || "";
     const injury = d.injuryLevel || "";
     const creator = d.createdBy?.name || d.createdBy?.uid || "";
+    const createdAtText = formatDateDisplay(d.createdAt) || "";
+    const reviewerName = getReviewerDisplay(d);
+    const reviewed = isIncidentReviewed(d);
+    const canReview = canCurrentUserReview(d);
+    const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
+    const reviewedAtText = formatDateDisplay(d.review?.reviewedAt, true) || "";
 
-    const other = (type === "其他" && d.incidentTypeOtherText) ? `（${d.incidentTypeOtherText}）` : "";
+    const other = (type === "其他" && d.incidentTypeOtherText) ? `（${escapeHtml(d.incidentTypeOtherText)}）` : "";
     const fallTag = (type === "跌倒" && d.fallAnalysis) ? `原因分析已填` : "";
 
     const el = document.createElement("div");
     el.className = "item";
-    const typeLabel = type ? `${type}${other}` : "";
+    const typeLabel = type ? `${escapeHtml(type)}${other}` : "";
     el.innerHTML = `
       <div class="row">
         <div class="nameWrap">
           <div class="nameLine">
-            <span class="nameText">${name}</span>
+            <span class="nameText">${escapeHtml(name)}</span>
             ${typeLabel ? `<span class="typeBadge">${typeLabel}</span>`:""}
+            ${!reviewed ? `<span class="reviewBadge">未覆核</span>` : `<span class="reviewedBadge">已覆核</span>`}
           </div>
-          <div class="subLine muted">${gender ? `${gender}`:""}${(gender && age) ? "｜":""}${age ? `${age}`:""}</div>
+          <div class="subLine muted">${gender ? `${escapeHtml(gender)}`:""}${(gender && age) ? "｜":""}${age ? `${escapeHtml(age)}`:""}</div>
         </div>
-        <div class="row" style="gap:8px; justify-content:flex-end;">
-          <div class="muted">${creator ? `填報：${creator}`:""}</div>
+        <div class="row" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+          ${createdAtText ? `<div class="muted">建立：${escapeHtml(createdAtText)}</div>` : ``}
+          <div class="muted">${creator ? `填報：${escapeHtml(creator)}`:""}</div>
+          <button class="btn" data-edit="${doc.id}" type="button">查看／編輯</button>
+          ${canReview ? `<button class="btn" data-review="${doc.id}" type="button">覆核案件</button>` : ``}
           <button class="btn" data-del="${doc.id}" type="button" style="background:rgba(220,38,38,.10);border-color:rgba(220,38,38,.35);color:#7f1d1d;">刪除</button>
         </div>
       </div>
       <div class="metaGrid">
         ${diagCat ? `<div class="metaBlock">
             <div class="metaTitle">診斷類別</div>
-            <div><span class="tag">${diagCat}</span></div>
+            <div><span class="tag">${escapeHtml(diagCat)}</span></div>
         </div>`:""}
         ${diag ? `<div class="metaBlock">
             <div class="metaTitle">疾病診斷</div>
-            <div><span class="tag">${diag}</span></div>
+            <div><span class="tag">${escapeHtml(diag)}</span></div>
         </div>`:""}
         ${injury ? `<div class="metaBlock">
             <div class="metaTitle">傷害等級</div>
-            <div><span class="tag">${injury}</span></div>
+            <div><span class="tag">${escapeHtml(injury)}</span></div>
         </div>`:""}
+        <div class="metaBlock">
+            <div class="metaTitle">覆核欄</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              ${reviewerName ? `<span class="tag">覆核者：${escapeHtml(reviewerName)}</span>` : `<span class="tag">覆核者未設定</span>`}
+              ${reviewed ? `<span class="reviewedBadge">${escapeHtml(reviewedBy || '已覆核')}${reviewedAtText ? `｜${escapeHtml(reviewedAtText)}` : ''}</span>` : `<span class="reviewBadge">待覆核</span>`}
+            </div>
+        </div>
         ${fallTag ? `<div class="metaBlock">
             <div class="metaTitle">原因分析</div>
-            <div><span class="tag">${fallTag}</span></div>
+            <div><span class="tag">${escapeHtml(fallTag)}</span></div>
         </div>`:""}
       </div>
     `;
 
-
-// 綁定刪除（硬刪除）
-const delBtn = el.querySelector('button[data-del]');
-if (delBtn){
-  delBtn.onclick = async ()=>{
-    if (!confirm("確定要刪除這筆案件單？此操作無法復原。")) return;
-    delBtn.disabled = true;
-    try{
-      await window.db.collection("qc_incidents").doc(delBtn.dataset.del).delete();
-      await renderIncidents();
-    }catch(err){
-      console.error("[qc_incidents] delete failed", err);
-      alert("刪除失敗：" + (err.message || err));
-    }finally{
-      delBtn.disabled = false;
+    const delBtn = el.querySelector('button[data-del]');
+    if (delBtn){
+      delBtn.onclick = async ()=>{
+        if (!confirm("確定要刪除這筆案件單？此操作無法復原。")) return;
+        delBtn.disabled = true;
+        try{
+          await window.db.collection("qc_incidents").doc(delBtn.dataset.del).delete();
+          await renderIncidents();
+          await renderMonths();
+        }catch(err){
+          console.error("[qc_incidents] delete failed", err);
+          alert("刪除失敗：" + (err.message || err));
+        }finally{
+          delBtn.disabled = false;
+        }
+      };
     }
-  };
-}
+
+    const editBtn = el.querySelector('button[data-edit]');
+    if (editBtn){
+      editBtn.onclick = async ()=>{
+        try{
+          await openEditModal(editBtn.dataset.edit);
+        }catch(err){
+          console.error("[qc_incidents] open edit failed", err);
+          alert("開啟案件失敗：" + (err.message || err));
+        }
+      };
+    }
+
+    const reviewBtn = el.querySelector('button[data-review]');
+    if (reviewBtn){
+      reviewBtn.onclick = async ()=>{
+        if (!confirm("確定要覆核這筆案件嗎？")) return;
+        await reviewIncident(reviewBtn.dataset.review, reviewBtn);
+      };
+    }
+
     box.appendChild(el);
   });
 }
@@ -493,6 +818,10 @@ function validateForm(){
   const injury = $("injuryLevel").value;
   if (!injury){ showHint("hintInjury"); ok = false; }
 
+  const reviewerSel = $("reviewerSelect").value;
+  if (!reviewerSel){ showHint("hintReviewer"); ok = false; }
+  if (reviewerSel === "__manual__" && !($("reviewerOtherText").value || "").trim()) { showHint("hintReviewerOther"); ok = false; }
+
   if (!ok) $("saveHint").textContent = "請先完成必填欄位。";
   return ok;
 }
@@ -503,9 +832,11 @@ async function saveIncident(){
 
   const rid = $("residentSelect").value;
   const r = residentsCache.find(x=>x.id===rid);
-
   const incidentType = $("incidentType").value;
-  const data = {
+  const editingId = ($("editingIncidentId").value || "").trim();
+  const reviewerPayload = getReviewerPayloadFromForm();
+
+  const baseData = {
     occurYear: currentYear,
     occurMonth: currentMonth,
 
@@ -522,13 +853,14 @@ async function saveIncident(){
 
     fallAnalysis: null,
 
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    createdBy: {
-      uid: window.CurrentUser.uid,
-      name: window.CurrentUser.name || "",
-      role: window.CurrentUser.role || ""
+    review: {
+      reviewer: reviewerPayload?.reviewer || { uid:"", name:"", role:"" },
+      manualReviewerName: reviewerPayload?.manualReviewerName || "",
+      reviewedAt: null,
+      reviewedBy: null
     },
+
+    updatedAt: serverTimestamp(),
     updatedBy: {
       uid: window.CurrentUser.uid,
       name: window.CurrentUser.name || "",
@@ -543,7 +875,7 @@ async function saveIncident(){
     const staffFactors = getCheckedValues("staffFactors");
     const drugFactors = getCheckedValues("drugFactors");
 
-    data.fallAnalysis = {
+    baseData.fallAnalysis = {
       caseFactors,
       caseFactorsOtherText: (caseFactors.includes("其他") ? ($("caseFactorsOtherText").value || "").trim() : ""),
       environmentFactors: envFactors,
@@ -555,18 +887,40 @@ async function saveIncident(){
   }
 
   $("btnSave").disabled = true;
-  $("saveHint").textContent = "儲存中...";
+  $("saveHint").textContent = editingId ? "修改中..." : "儲存中...";
 
   try{
-    await window.db.collection("qc_incidents").add(data);
-    $("saveHint").textContent = "已儲存";
+    if (editingId){
+      const ref = window.db.collection("qc_incidents").doc(editingId);
+      const oldSnap = await ref.get();
+      const oldData = oldSnap.data() || {};
+      const oldReviewerName = getReviewerDisplay(oldData);
+      const newReviewerName = reviewerPayload?.reviewer?.name || reviewerPayload?.manualReviewerName || "";
+      const reviewerChanged = normalizePersonName(oldReviewerName) !== normalizePersonName(newReviewerName);
+      const payload = { ...baseData };
+      if (!reviewerChanged && oldData.review){
+        payload.review = { ...oldData.review, reviewer: payload.review.reviewer, manualReviewerName: payload.review.manualReviewerName };
+      }
+      await ref.update(payload);
+      $("saveHint").textContent = "已修改";
+    } else {
+      await window.db.collection("qc_incidents").add({
+        ...baseData,
+        createdAt: serverTimestamp(),
+        createdBy: {
+          uid: window.CurrentUser.uid,
+          name: window.CurrentUser.name || "",
+          role: window.CurrentUser.role || ""
+        }
+      });
+      $("saveHint").textContent = "已儲存";
+    }
     closeModal();
     await renderIncidents();
-    // 回到月份頁也能看到更新後的數字（可選）
-    // renderMonths();
+    await renderMonths();
   }catch(err){
     console.error("[qc_incidents] save failed", err);
-    $("saveHint").textContent = `儲存失敗：${err.message || err}`;
+    $("saveHint").textContent = `${editingId ? "修改" : "儲存"}失敗：${err.message || err}`;
   }finally{
     $("btnSave").disabled = false;
   }
@@ -605,6 +959,8 @@ async function init(){
 
   await loadResidents();
   buildResidentSelect();
+  await loadReviewers();
+  buildReviewerSelect();
 
   showMonthsView();
   initTabs();
