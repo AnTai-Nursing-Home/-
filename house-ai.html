@@ -30,16 +30,101 @@ html,body{
 .house-ai-button{
   width:64px;
   height:64px;
-  border-radius:50%;
   border:none;
+  background:none;
   cursor:pointer;
-  background:linear-gradient(135deg,var(--hai-primary),var(--hai-primary-strong));
-  box-shadow:0 10px 30px rgba(255,150,80,.5);
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:28px;
-  color:white;
+  padding:0;
+}
+.house-ai-orb{
+  width:58px;
+  height:58px;
+  border-radius:50%;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    radial-gradient(circle at 30% 28%, #fff7df 0%, #ffd38a 28%, #ffb15c 58%, #ff8a3d 100%);
+  box-shadow:
+    0 0 10px rgba(255,196,120,.95),
+    0 0 24px rgba(255,145,77,.65),
+    0 0 40px rgba(255,145,77,.35),
+    inset 0 0 10px rgba(255,255,255,.75);
+  animation:house-ai-breathe 3s ease-in-out infinite;
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+.house-ai-button:hover .house-ai-orb{
+  transform:scale(1.08);
+  box-shadow:
+    0 0 14px rgba(255,196,120,1),
+    0 0 30px rgba(255,145,77,.8),
+    0 0 46px rgba(255,145,77,.45),
+    inset 0 0 12px rgba(255,255,255,.85);
+}
+.house-ai-orb::before{
+  content:"";
+  position:absolute;
+  top:8px;
+  left:13px;
+  width:16px;
+  height:10px;
+  border-radius:50%;
+  background:rgba(255,255,255,.72);
+  filter:blur(1px);
+}
+.house-ai-plus{
+  position:absolute;
+  top:7px;
+  left:7px;
+  font-size:13px;
+  font-weight:700;
+  color:#fff7ea;
+  text-shadow:0 0 8px rgba(255,255,255,.65);
+  line-height:1;
+}
+.house-ai-heart{
+  position:absolute;
+  right:9px;
+  bottom:9px;
+  font-size:11px;
+  color:#fff1d6;
+  text-shadow:0 0 8px rgba(255,255,255,.55);
+  line-height:1;
+}
+.orb-face{
+  position:absolute;
+  inset:0;
+}
+.orb-eye{
+  position:absolute;
+  top:24px;
+  width:6px;
+  height:6px;
+  background:#6a3716;
+  border-radius:50%;
+}
+.orb-eye.left{
+  left:18px;
+}
+.orb-eye.right{
+  right:18px;
+}
+.orb-smile{
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  width:14px;
+  height:7px;
+  transform:translateX(-50%);
+  border:2px solid #6a3716;
+  border-top:none;
+  border-left-color:transparent;
+  border-right-color:transparent;
+  border-bottom-left-radius:20px;
+  border-bottom-right-radius:20px;
 }
 .house-ai-chat{
   width:360px;
@@ -100,6 +185,11 @@ html,body{
   color:white;
   cursor:pointer;
 }
+@keyframes house-ai-breathe{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.06);}
+  100%{transform:scale(1);}
+}
 @media (max-width: 520px){
   .house-ai-widget{ right:12px; bottom:12px; }
   .house-ai-chat{ width:min(360px, calc(100vw - 24px)); height:min(520px, calc(100vh - 110px)); }
@@ -127,7 +217,17 @@ html,body{
     </div>
   </div>
 
-  <button class="house-ai-button" onclick="houseAIToggle()" aria-label="開啟 House AI">🧡</button>
+  <button class="house-ai-button" onclick="houseAIToggle()" aria-label="開啟 House AI">
+    <div class="house-ai-orb">
+      <span class="house-ai-plus">＋</span>
+      <div class="orb-face">
+        <span class="orb-eye left"></span>
+        <span class="orb-eye right"></span>
+        <span class="orb-smile"></span>
+      </div>
+      <span class="house-ai-heart">❤</span>
+    </div>
+  </button>
 </div>
 
 <script src="house-ai.js"></script>
