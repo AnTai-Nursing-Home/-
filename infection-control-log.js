@@ -5,6 +5,11 @@
   const DOCX_FONT = '標楷體';
   const OFF_SHIFTS = ['OFF', 'OF', 'OFH', 'V', '病', '公', '休', '休假', '例休', '特休'];
   const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+  const GOV_WORKDAY_URLS = {
+    2024: 'https://www.dgpa.gov.tw/FileConversion?filename=dgpa%2Ffiles%2F202404%2F859f9fb3-17bd-4c23-8097-f9b99b86665d.xls&name=113%E5%B9%B4%E8%BE%A6%E5%85%AC%E6%97%A5%E6%9B%86%E8%A1%A8.xls&nfix=',
+    2025: 'https://www.dgpa.gov.tw/FileConversion?filename=dgpa%2Ffiles%2F202506%2F2d00c809-b546-442a-881d-b8040802ccd0.xls&name=114%E5%B9%B4%E8%BE%A6%E5%85%AC%E6%97%A5%E6%9B%86%E8%A1%A8_%E4%BF%AE%E6%AD%A3%E7%89%88.xls&nfix=',
+    2026: 'https://www.dgpa.gov.tw/FileConversion?filename=dgpa%2Ffiles%2F202511%2F1d88999f-f893-47dd-8757-ee7df20765a5.xlsx&name=115%E5%B9%B4%E8%BE%A6%E5%85%AC%E6%97%A5%E6%9B%86%E8%A1%A8.xlsx&nfix='
+  };
 
   const ROWS = [
     { category: '(一)訂定或檢視計畫、規範、流程及報告', item: '1.定期宣導感染管制相關政策或措施' },
@@ -80,6 +85,8 @@
   let scheduleShiftMap = {};
   let detectModal = null;
   let firebaseReadyPromise = null;
+  let calendarRenderToken = 0;
+  const govCalendarPromiseCache = new Map();
 
   function setLoginBadge(text) {
     if (!els.loginBadge) return;
@@ -198,6 +205,180 @@
 
   function pad2(v) { return String(v).padStart(2, '0'); }
 
+  function normalizeCellText(value) {
+    if (value == null) return '';
+    return String(value).trim();
+  }
+
+  function parseGovDateValue(value, fallbackYear = null) {
+    if (value == null || value === '') return null;
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const raw = String(Math.trunc(value));
+      if (/^\d{8}$/.test(raw)) {
+        const maybeRoc = Number(raw.slice(0, 3));
+        const maybeAd = Number(raw.slice(0, 4));
+        if (maybeAd >= 1900) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+        if (maybeRoc >= 100 && maybeRoc <= 300) {
+          const ad = maybeRoc + 1911;
+          return `${ad}-${raw.slice(3, 5)}-${raw.slice(5, 7)}`;
+        }
+      }
+      if (value > 30000 && value < 80000 && window.XLSX?.SSF?.parse_date_code) {
+        const parsed = window.XLSX.SSF.parse_date_code(value);
+        if (parsed?.y && parsed?.m && parsed?.d) return `${parsed.y}-${pad2(parsed.m)}-${pad2(parsed.d)}`;
+      }
+    }
+
+    const text = normalizeCellText(value).replace(/\s+/g, '');
+    if (!text) return null;
+
+    let m = text.match(/^(\d{4})[\/-]?(\d{1,2})[\/-]?(\d{1,2})$/);
+    if (m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+
+    m = text.match(/^(\d{3})[\/-]?(\d{1,2})[\/-]?(\d{1,2})$/);
+    if (m) return `${Number(m[1]) + 1911}-${pad2(m[2])}-${pad2(m[3])}`;
+
+    m = text.match(/^(\d{1,2})[\/-](\d{1,2})$/);
+    if (m && fallbackYear) return `${fallbackYear}-${pad2(m[1])}-${pad2(m[2])}`;
+
+    m = text.match(/^(\d{1,2})月(\d{1,2})日$/);
+    if (m && fallbackYear) return `${fallbackYear}-${pad2(m[1])}-${pad2(m[2])}`;
+
+    return null;
+  }
+
+  function normalizeGovHolidayFlag(value, remarkText = '') {
+    const text = normalizeCellText(value).replace(/\s+/g, '').toUpperCase();
+    const remark = normalizeCellText(remarkText);
+
+    if (/補行上班|補班|上班/.test(remark) && !/放假/.test(remark)) return false;
+    if (/補假|調整放假|放假/.test(remark)) return true;
+
+    if (!text) return null;
+    if (['Y', 'YES', 'TRUE', 'T', '1', '是', '休', '假', '放假'].includes(text)) return true;
+    if (['N', 'NO', 'FALSE', 'F', '0', '否', '上班'].includes(text)) return false;
+    if (/^(是|放假|休假|假日)$/.test(text)) return true;
+    if (/^(否|上班|辦公日)$/.test(text)) return false;
+    return null;
+  }
+
+  function parseGovCalendarRows(rows, targetYear) {
+    const result = {};
+    if (!Array.isArray(rows) || !rows.length) return result;
+
+    let headerRowIndex = -1;
+    let dateIdx = -1;
+    let holidayIdx = -1;
+    let remarkIdx = -1;
+    let weekdayIdx = -1;
+
+    for (let r = 0; r < Math.min(rows.length, 20); r++) {
+      const cells = (rows[r] || []).map(v => normalizeCellText(v).replace(/\s+/g, ''));
+      const dIdx = cells.findIndex(c => /日期/.test(c));
+      const hIdx = cells.findIndex(c => /是否放假|放假/.test(c));
+      if (dIdx !== -1 && hIdx !== -1) {
+        headerRowIndex = r;
+        dateIdx = dIdx;
+        holidayIdx = hIdx;
+        remarkIdx = cells.findIndex(c => /備註|說明|註記/.test(c));
+        weekdayIdx = cells.findIndex(c => /星期/.test(c));
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      headerRowIndex = 0;
+      dateIdx = 0;
+      holidayIdx = 2;
+      remarkIdx = 3;
+      weekdayIdx = 1;
+    }
+
+    for (let r = headerRowIndex + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const dateKey = parseGovDateValue(row[dateIdx], targetYear);
+      if (!dateKey || !dateKey.startsWith(String(targetYear) + '-')) continue;
+      const remark = normalizeCellText(row[remarkIdx]);
+      let isHoliday = normalizeGovHolidayFlag(row[holidayIdx], remark);
+      if (isHoliday == null) {
+        const dt = new Date(`${dateKey}T00:00:00`);
+        const week = dt.getDay();
+        isHoliday = (week === 0 || week === 6);
+      }
+      result[dateKey] = {
+        dateKey,
+        weekday: normalizeCellText(row[weekdayIdx]),
+        remark,
+        isHoliday,
+        isWorkday: !isHoliday
+      };
+    }
+
+    return result;
+  }
+
+  async function loadGovWorkCalendar(year) {
+    if (govCalendarPromiseCache.has(year)) return govCalendarPromiseCache.get(year);
+
+    const promise = (async () => {
+      const url = GOV_WORKDAY_URLS[year];
+      if (!url || !window.fetch || !window.XLSX) return null;
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buffer = await res.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        for (const name of workbook.SheetNames) {
+          const ws = workbook.Sheets[name];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          const parsed = parseGovCalendarRows(rows, year);
+          if (Object.keys(parsed).length) return parsed;
+        }
+      } catch (err) {
+        console.warn(`[infection-control-log] loadGovWorkCalendar(${year}) failed:`, err);
+      }
+      return null;
+    })();
+
+    govCalendarPromiseCache.set(year, promise);
+    return promise;
+  }
+
+  async function buildVisibleColumnsByGovernmentCalendar(year, month, allScheduleMap, specialistId) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const cols = [];
+    const staffSchedule = specialistId ? (allScheduleMap?.[specialistId] || {}) : {};
+    const govCalendar = await loadGovWorkCalendar(year);
+    const useGovCalendar = !!govCalendar && Object.keys(govCalendar).length > 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const key = `${year}-${pad2(month)}-${pad2(day)}`;
+      const govInfo = govCalendar?.[key] || null;
+      const isGovernmentWorkday = useGovCalendar ? !!govInfo?.isWorkday : ![0, 6].includes(date.getDay());
+      if (!isGovernmentWorkday) continue;
+
+      const shift = specialistId ? String((staffSchedule[key] ?? '')).trim() : '';
+      const isEnabled = specialistId ? isWorkingShift(shift) : true;
+      cols.push({
+        key,
+        day,
+        weekday: DAY_LABELS[date.getDay()],
+        shift,
+        enabled: isEnabled,
+        govRemark: govInfo?.remark || '',
+        isGovWorkday: true
+      });
+    }
+
+    return cols;
+  }
+
   function getRocYear(adYear) { return Number(adYear) - 1911; }
 
   function titleText(year, month) {
@@ -218,26 +399,6 @@
     els.yearFilter.value = String(currentYear);
     els.logYear.value = String(currentYear);
     els.logMonth.value = String(now.getMonth() + 1);
-  }
-
-  function buildWeekdayColumns(year, month, allScheduleMap, specialistId) {
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const cols = [];
-    const staffSchedule = specialistId ? (allScheduleMap?.[specialistId] || {}) : {};
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day);
-      const week = date.getDay();
-      if (week === 0 || week === 6) continue;
-
-      const key = `${year}-${pad2(month)}-${pad2(day)}`;
-      const shift = specialistId ? String((staffSchedule[key] ?? '')).trim() : '';
-      const isEnabled = specialistId ? isWorkingShift(shift) : true;
-
-      cols.push({ key, day, weekday: DAY_LABELS[week], shift, enabled: isEnabled });
-    }
-
-    return cols;
   }
 
   function isWorkingShift(shift) {
@@ -351,7 +512,7 @@
       specialistId: '',
       specialistName: '',
       specialistCandidates: [],
-      weekdayColumns: buildWeekdayColumns(year, month, {}, ''),
+      weekdayColumns: [],
       scheduleShiftMap: {},
       scheduleSource: '',
       checks: {},
@@ -385,9 +546,18 @@
     if (!currentDoc.signByDate || typeof currentDoc.signByDate !== 'object') currentDoc.signByDate = {};
   }
 
-  function renderTable() {
+  async function renderTable() {
     ensureCheckMap();
-    weekdayColumns = buildWeekdayColumns(Number(els.logYear.value), Number(els.logMonth.value), currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
+    const renderToken = ++calendarRenderToken;
+    const nextColumns = await buildVisibleColumnsByGovernmentCalendar(
+      Number(els.logYear.value),
+      Number(els.logMonth.value),
+      currentDoc.scheduleShiftMap || {},
+      currentDoc.specialistId || ''
+    );
+    if (renderToken !== calendarRenderToken) return;
+
+    weekdayColumns = nextColumns;
     currentDoc.weekdayColumns = weekdayColumns;
 
     els.tableHead.innerHTML = `
@@ -421,7 +591,7 @@
         const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
         const disabledClass = col.enabled ? 'enabled-day' : 'disabled-day';
         tr.push(`
-          <td class="${disabledClass}">
+          <td class="${disabledClass}" title="${escapeHtml(col.govRemark || '')}">
             <input class="form-check-input day-check" type="checkbox"
               data-row-id="${row.id}" data-date-key="${col.key}" ${checked ? 'checked' : ''} ${col.enabled ? '' : 'disabled'}>
           </td>
@@ -437,7 +607,7 @@
     weekdayColumns.forEach((col) => {
       const value = currentDoc.hoursByDate[col.key] ?? '';
       const disabledClass = col.enabled ? 'enabled-day' : 'disabled-day';
-      html.push(`<td class="${disabledClass}"><input class="form-control form-control-sm hours-input day-hours" data-date-key="${col.key}" value="${escapeHtml(value)}" ${col.enabled ? '' : 'disabled'}></td>`);
+      html.push(`<td class="${disabledClass}" title="${escapeHtml(col.govRemark || '')}"><input class="form-control form-control-sm hours-input day-hours" data-date-key="${col.key}" value="${escapeHtml(value)}" ${col.enabled ? '' : 'disabled'}></td>`);
     });
     html.push('</tr>');
 
@@ -448,7 +618,7 @@
       const defaultSign = col.enabled && currentDoc.specialistName ? currentDoc.specialistName : '';
       const value = currentDoc.signByDate[col.key] ?? defaultSign;
       const disabledClass = col.enabled ? 'enabled-day' : 'disabled-day';
-      html.push(`<td class="${disabledClass}"><input class="form-control form-control-sm sign-input day-sign" data-date-key="${col.key}" value="${escapeHtml(value)}" ${col.enabled ? '' : 'disabled'}></td>`);
+      html.push(`<td class="${disabledClass}" title="${escapeHtml(col.govRemark || '')}"><input class="form-control form-control-sm sign-input day-sign" data-date-key="${col.key}" value="${escapeHtml(value)}" ${col.enabled ? '' : 'disabled'}></td>`);
     });
     html.push('</tr>');
 
@@ -500,7 +670,7 @@
     els.scheduleSourceText.value = currentDoc.scheduleSource || '尚未匯入班表';
     populateSpecialistSelect(currentDoc.specialistCandidates || [], currentDoc.specialistId || '');
     updateEditorHeader();
-    renderTable();
+    void renderTable();
   }
 
   function collectPayload() {
@@ -609,7 +779,7 @@
   function rebuildMonth() {
     syncTopFieldsToDoc();
     currentDoc.weekdayColumns = buildWeekdayColumns(currentDoc.year, currentDoc.month, currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
-    renderTable();
+    void renderTable();
   }
 
   async function handleScheduleUpload(e) {
@@ -669,13 +839,13 @@
     const picked = specialistCandidates.find(s => s.staffId === currentDoc.specialistId);
     currentDoc.specialistName = picked?.staffName || '';
     populateSpecialistSelect(specialistCandidates, currentDoc.specialistId);
-    rebuildMonth();
+    void rebuildMonth();
     detectModal.hide();
   }
 
   function handleSpecialistChange() {
     syncTopFieldsToDoc();
-    rebuildMonth();
+    void rebuildMonth();
   }
 
   function docxSafeText(v) {
