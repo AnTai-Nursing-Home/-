@@ -913,7 +913,7 @@
 
       rows.push(new TableRow({
         tableHeader: true,
-        height: { value: 520, rule: 'atLeast' },
+        height: { value: 420, rule: 'atLeast' },
         children: [
           makeCell('項次', col1, AlignmentType.CENTER, 18, true),
           makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 18, true),
@@ -952,33 +952,35 @@
           const mark = col.enabled ? (checked ? '■' : '□') : '－';
           children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 12, false));
         }
-        rows.push(new TableRow({ height: { value: 500, rule: 'atLeast' }, children }));
+        rows.push(new TableRow({ height: { value: 430, rule: 'atLeast' }, children }));
       });
 
-      rows.push(new TableRow({
-        height: { value: 500, rule: 'atLeast' },
-        children: [
-          makeCategoryCell('時數', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
-          makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 14, false),
-          ...allDateCols.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 12, false))
-        ]
-      }));
+      if (groupIndex === groupDefs.length - 1) {
+        rows.push(new TableRow({
+          height: { value: 460, rule: 'atLeast' },
+          children: [
+            makeCategoryCell('時數', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
+            makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 13, false),
+            ...allDateCols.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 11, false))
+          ]
+        }));
 
-      rows.push(new TableRow({
-        height: { value: 520, rule: 'atLeast' },
-        children: [
-          makeCategoryCell('簽章', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
-          makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 14, false),
-          ...allDateCols.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 11, false))
-        ]
-      }));
+        rows.push(new TableRow({
+          height: { value: 480, rule: 'atLeast' },
+          children: [
+            makeCategoryCell('簽章', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
+            makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 13, false),
+            ...allDateCols.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 10, false))
+          ]
+        }));
+      }
 
       sectionChildren.push(
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 24, bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [run('感染管制專責人員工作日誌', { size: 28, bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 90 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月　${group.title}`, { size: 18, bold: true })] }),
-        leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 14, false),
-        leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 14, false),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 22, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [run('感染管制專責人員工作日誌', { size: 24, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 70 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月　${group.title}`, { size: 16, bold: true })] }),
+        leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 13, false),
+        leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 13, false),
         new Table({
           width: { size: tableWidth, type: WidthType.DXA },
           layout: TableLayoutType ? TableLayoutType.FIXED : undefined,
