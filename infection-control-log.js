@@ -839,9 +839,9 @@
       right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
     };
 
-    const pageWidthTwips = 15840;
-    const col1 = 980;
-    const col2 = 3000;
+    const pageWidthTwips = 16400;
+    const col1 = 520;
+    const col2 = 3050;
     const allDateCols = weekdayColumns || [];
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
@@ -852,31 +852,34 @@
     const makeCell = (text, width, align = AlignmentType.CENTER, size = 16, bold = false, extra = {}) => {
       const para = new Paragraph({
         alignment: align,
-        spacing: { after: 20 },
+        spacing: { after: 0, before: 0, line: 260 },
         children: [run(text, { size, bold })]
       });
       return new TableCell({
         width: { size: width, type: WidthType.DXA },
         verticalAlign: VerticalAlign.CENTER,
         borders: border,
+        margins: { top: 40, bottom: 40, left: 40, right: 40 },
         children: [para],
         ...extra
       });
     };
 
-    const makeVerticalCategoryCell = (text, width, mergeType) => {
+    const makeCategoryCell = (text, width, mergeType) => {
       const extra = {};
       if (mergeType && VerticalMergeType) extra.verticalMerge = mergeType;
-      if (TextDirection) extra.textDirection = TextDirection.BOTTOM_TO_TOP_LEFT_TO_RIGHT;
-      const children = mergeType === VerticalMergeType?.CONTINUE ? [new Paragraph('')] : [new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
-        children: [run(text, { size: 12, bold: true })]
-      })];
+      const children = mergeType === VerticalMergeType?.CONTINUE
+        ? [new Paragraph({ spacing: { after: 0, before: 0 } })]
+        : [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 0, before: 0, line: 260 },
+            children: [run(text, { size: 14, bold: true })]
+          })];
       return new TableCell({
         width: { size: width, type: WidthType.DXA },
         verticalAlign: VerticalAlign.CENTER,
         borders: border,
+        margins: { top: 40, bottom: 40, left: 20, right: 20 },
         children,
         ...extra
       });
@@ -904,25 +907,27 @@
       }
 
       const dateCount = Math.max(allDateCols.length, 1);
-      const dayWidth = Math.max(320, Math.floor((pageWidthTwips - col1 - col2) / dateCount));
+      const dayWidth = Math.max(400, Math.floor((pageWidthTwips - col1 - col2) / dateCount));
       const tableWidth = col1 + col2 + dayWidth * dateCount;
       const rows = [];
 
       rows.push(new TableRow({
         tableHeader: true,
+        height: { value: 520, rule: 'atLeast' },
         children: [
-          makeCell('項次', col1, AlignmentType.CENTER, 16, true),
-          makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 16, true),
-          ...allDateCols.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 14, true))
+          makeCell('項次', col1, AlignmentType.CENTER, 18, true),
+          makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 18, true),
+          ...allDateCols.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 16, true))
         ]
       }));
 
       rows.push(new TableRow({
         tableHeader: true,
+        height: { value: 460, rule: 'atLeast' },
         children: [
           makeCell('', col1),
           makeCell('', col2),
-          ...allDateCols.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 12, true))
+          ...allDateCols.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 13, true))
         ]
       }));
 
@@ -932,46 +937,48 @@
         const children = [];
 
         if (VerticalMergeType) {
-          children.push(makeVerticalCategoryCell(
+          children.push(makeCategoryCell(
             isFirstOfCategory ? row.category : '',
             col1,
             isFirstOfCategory ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE
           ));
         } else {
-          children.push(makeCell(isFirstOfCategory ? row.category : '', col1, AlignmentType.CENTER, 12, isFirstOfCategory));
+          children.push(makeCell(isFirstOfCategory ? row.category : '', col1, AlignmentType.CENTER, 14, isFirstOfCategory));
         }
 
-        children.push(makeCell(row.item, col2, AlignmentType.LEFT, 12, false));
+        children.push(makeCell(row.item, col2, AlignmentType.LEFT, 14, false));
         for (const col of allDateCols) {
           const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
           const mark = col.enabled ? (checked ? '■' : '□') : '－';
-          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 11, false));
+          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 12, false));
         }
-        rows.push(new TableRow({ children }));
+        rows.push(new TableRow({ height: { value: 500, rule: 'atLeast' }, children }));
       });
 
       rows.push(new TableRow({
+        height: { value: 500, rule: 'atLeast' },
         children: [
-          makeVerticalCategoryCell('時數', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
-          makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 12, false),
-          ...allDateCols.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 11, false))
+          makeCategoryCell('時數', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
+          makeCell('專責執行業務之時數', col2, AlignmentType.LEFT, 14, false),
+          ...allDateCols.map(col => makeCell(String(currentDoc.hoursByDate[col.key] || ''), dayWidth, AlignmentType.CENTER, 12, false))
         ]
       }));
 
       rows.push(new TableRow({
+        height: { value: 520, rule: 'atLeast' },
         children: [
-          makeVerticalCategoryCell('簽章', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
-          makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 12, false),
-          ...allDateCols.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 10, false))
+          makeCategoryCell('簽章', col1, VerticalMergeType ? VerticalMergeType.RESTART : undefined),
+          makeCell('感染管制專責人員簽章', col2, AlignmentType.LEFT, 14, false),
+          ...allDateCols.map(col => makeCell(String(currentDoc.signByDate[col.key] || (col.enabled ? currentDoc.specialistName : '')), dayWidth, AlignmentType.CENTER, 11, false))
         ]
       }));
 
       sectionChildren.push(
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 22, bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('感染管制專責人員工作日誌', { size: 24, bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 110 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月　${group.title}`, { size: 16, bold: true })] }),
-        leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 12, false),
-        leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 12, false),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 24, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [run('感染管制專責人員工作日誌', { size: 28, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 90 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月　${group.title}`, { size: 18, bold: true })] }),
+        leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 14, false),
+        leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 14, false),
         new Table({
           width: { size: tableWidth, type: WidthType.DXA },
           layout: TableLayoutType ? TableLayoutType.FIXED : undefined,
@@ -985,7 +992,7 @@
         properties: {
           page: {
             size: { orientation: PageOrientation.LANDSCAPE },
-            margin: { top: 300, right: 280, bottom: 300, left: 280 }
+            margin: { top: 220, right: 180, bottom: 220, left: 180 }
           }
         },
         children: sectionChildren
