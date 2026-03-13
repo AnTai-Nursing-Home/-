@@ -68,7 +68,11 @@
     editorTitle: $('editorTitle'),
     editorSub: $('editorSub'),
     detectedStaffList: $('detectedStaffList'),
-    btnConfirmDetectedStaff: $('btnConfirmDetectedStaff')
+    btnConfirmDetectedStaff: $('btnConfirmDetectedStaff'),
+    tableWrap: $('tableWrap'),
+    tableScrollTop: $('tableScrollTop'),
+    tableScrollTopInner: $('tableScrollTopInner'),
+    logTable: $('logTable')
   };
 
   let recorder = { staffId: '', displayName: '' };
@@ -220,16 +224,68 @@
     els.logMonth.value = String(now.getMonth() + 1);
   }
 
+  const GOV_WORKDAY_RULES = {
+    2024: {
+      holidays: [
+        '2024-01-01',
+        '2024-02-08', '2024-02-09', '2024-02-12', '2024-02-13', '2024-02-14',
+        '2024-02-28',
+        '2024-04-04', '2024-04-05',
+        '2024-06-10',
+        '2024-09-17',
+        '2024-10-10',
+        '2024-10-11'
+      ],
+      makeUpWorkdays: ['2024-02-17']
+    },
+    2025: {
+      holidays: [
+        '2025-01-01',
+        '2025-01-27', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
+        '2025-02-28',
+        '2025-04-03', '2025-04-04',
+        '2025-05-01', '2025-05-30',
+        '2025-09-29',
+        '2025-10-06', '2025-10-10', '2025-10-24',
+        '2025-12-25'
+      ],
+      makeUpWorkdays: []
+    },
+    2026: {
+      holidays: [
+        '2026-01-01',
+        '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-27',
+        '2026-04-03', '2026-04-06',
+        '2026-06-19',
+        '2026-09-25', '2026-09-28',
+        '2026-10-09', '2026-10-26',
+        '2026-12-25'
+      ],
+      makeUpWorkdays: []
+    }
+  };
+
+  function isGovernmentWorkday(year, month, day) {
+    const date = new Date(year, month - 1, day);
+    const weekday = date.getDay();
+    const key = `${year}-${pad2(month)}-${pad2(day)}`;
+    const rules = GOV_WORKDAY_RULES[year];
+
+    if (rules?.holidays?.includes(key)) return false;
+    if (rules?.makeUpWorkdays?.includes(key)) return true;
+    return weekday !== 0 && weekday !== 6;
+  }
+
   function buildWeekdayColumns(year, month, allScheduleMap, specialistId) {
     const daysInMonth = new Date(year, month, 0).getDate();
     const cols = [];
     const staffSchedule = specialistId ? (allScheduleMap?.[specialistId] || {}) : {};
 
     for (let day = 1; day <= daysInMonth; day++) {
+      if (!isGovernmentWorkday(year, month, day)) continue;
+
       const date = new Date(year, month - 1, day);
       const week = date.getDay();
-      if (week === 0 || week === 6) continue;
-
       const key = `${year}-${pad2(month)}-${pad2(day)}`;
       const shift = specialistId ? String((staffSchedule[key] ?? '')).trim() : '';
       const isEnabled = specialistId ? isWorkingShift(shift) : true;
@@ -330,15 +386,13 @@
   }
 
   function showList() {
-    if (els.editorSection) els.editorSection.classList.add('d-none');
-    if (els.listSection) els.listSection.classList.remove('d-none');
-    document.body.dataset.pageMode = 'list';
+    els.editorSection.classList.add('d-none');
+    els.listSection.classList.remove('d-none');
   }
 
   function showEditor() {
-    if (els.listSection) els.listSection.classList.add('d-none');
-    if (els.editorSection) els.editorSection.classList.remove('d-none');
-    document.body.dataset.pageMode = 'editor';
+    els.listSection.classList.add('d-none');
+    els.editorSection.classList.remove('d-none');
   }
 
   function emptyData(year, month) {
@@ -389,15 +443,13 @@
 
   function renderTable() {
     ensureCheckMap();
-    const renderYear = Number(els.logYear?.value || currentDoc.year || new Date().getFullYear());
-    const renderMonth = Number(els.logMonth?.value || currentDoc.month || (new Date().getMonth() + 1));
-    weekdayColumns = buildWeekdayColumns(renderYear, renderMonth, currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
+    weekdayColumns = buildWeekdayColumns(Number(els.logYear.value), Number(els.logMonth.value), currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
     currentDoc.weekdayColumns = weekdayColumns;
 
     els.tableHead.innerHTML = `
       <tr>
-        <th rowspan="2">項次</th>
-        <th rowspan="2">項目/日期/星期</th>
+        <th rowspan="2" class="sticky-col-1">項次</th>
+        <th rowspan="2" class="sticky-col-2">項目/日期/星期</th>
         ${weekdayColumns.map(c => `<th class="date-head">${c.day}</th>`).join('')}
       </tr>
       <tr>
@@ -460,7 +512,6 @@
     bindDynamicInputs();
     syncTableScrollbars();
   }
-
 
   function syncTableScrollbars() {
     const wrap = els.tableWrap;
@@ -652,6 +703,7 @@
 
   function rebuildMonth() {
     syncTopFieldsToDoc();
+    currentDoc.weekdayColumns = buildWeekdayColumns(currentDoc.year, currentDoc.month, currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
     renderTable();
   }
 
@@ -785,10 +837,10 @@
       right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
     };
 
-    const pageWidthTwips = 15120; // A4 landscape printable width approx after margins
-    const col1 = 1100;
-    const col2 = 3400;
-    const maxDatesPerPage = 9;
+    const pageWidthTwips = 14500; // A4 landscape printable width approx after margins
+    const col1 = 1200;
+    const col2 = 3600;
+    const maxDatesPerPage = 16;
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
       spacing: { after: 40 },
@@ -903,7 +955,7 @@
         properties: {
           page: {
             size: { orientation: PageOrientation.LANDSCAPE },
-            margin: { top: 540, right: 540, bottom: 540, left: 540 }
+            margin: { top: 720, right: 720, bottom: 720, left: 720 }
           }
         },
         children: sectionChildren
@@ -949,7 +1001,6 @@
       console.error('[infection-control-log] waitForFirebaseReady failed:', e);
     }
 
-    showList();
     await loadCurrentUser();
     fillYearOptions();
     detectModal = new bootstrap.Modal(document.getElementById('staffDetectModal'));
@@ -960,7 +1011,6 @@
     window.addEventListener('storage', (ev) => {
       if (ev.key === SESSION_KEY || ev.key === 'officeAuth') syncLoginBadgeFromSession();
     });
-    window.addEventListener('resize', syncTableScrollbars);
   }
 
   let __booted = false;
