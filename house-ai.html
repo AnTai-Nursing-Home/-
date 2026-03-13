@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>House AI Widget</title>
+
+<style>
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei",sans-serif;
+}
+
+/* ===== House AI Button ===== */
+.house-ai-widget{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  z-index:99999;
+}
+
+.house-ai-button{
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  border:none;
+  cursor:pointer;
+  background:linear-gradient(135deg,#ffb15c,#ff8a3d);
+  box-shadow:0 10px 30px rgba(255,150,80,.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  color:white;
+}
+
+/* ===== Chat Window ===== */
+.house-ai-chat{
+  width:360px;
+  height:520px;
+  background:#fffaf3;
+  border-radius:20px;
+  box-shadow:0 20px 40px rgba(0,0,0,.15);
+  position:absolute;
+  bottom:80px;
+  right:0;
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* Header */
+.house-ai-header{
+  background:linear-gradient(135deg,#ffb15c,#ff8a3d);
+  color:white;
+  padding:14px 16px;
+  font-weight:bold;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* Messages */
+.house-ai-messages{
+  flex:1;
+  padding:14px;
+  overflow:auto;
+  font-size:14px;
+}
+
+/* Bubble */
+.house-ai-msg{
+  margin-bottom:10px;
+}
+
+.ai{
+  background:#fff;
+  border:1px solid #ffd8a6;
+  padding:10px 12px;
+  border-radius:12px;
+}
+
+.user{
+  background:#ffb15c;
+  color:white;
+  padding:10px 12px;
+  border-radius:12px;
+  text-align:right;
+}
+
+/* Input */
+.house-ai-input-area{
+  border-top:1px solid #ffe0b6;
+  display:flex;
+}
+
+.house-ai-input{
+  flex:1;
+  border:none;
+  padding:12px;
+  outline:none;
+}
+
+.house-ai-send{
+  border:none;
+  padding:0 16px;
+  background:#ff8a3d;
+  color:white;
+  cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="house-ai-widget">
+
+  <div class="house-ai-chat" id="houseAIChat">
+
+    <div class="house-ai-header">
+      House AI
+      <button onclick="houseAIClose()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">×</button>
+    </div>
+
+    <div class="house-ai-messages" id="houseAIMessages">
+      <div class="house-ai-msg ai">
+        您好，我是 House AI。<br>
+        我可以協助查詢住民資料與生成護理紀錄。
+      </div>
+    </div>
+
+    <div class="house-ai-input-area">
+      <input class="house-ai-input" id="houseAIInput" placeholder="輸入問題..." />
+      <button class="house-ai-send" onclick="houseAISend()">送出</button>
+    </div>
+
+  </div>
+
+  <button class="house-ai-button" onclick="houseAIToggle()">🧡</button>
+
+</div>
+
+<script src="house-ai.js"></script>
+
+</body>
+</html>
