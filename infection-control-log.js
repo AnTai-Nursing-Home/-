@@ -220,68 +220,16 @@
     els.logMonth.value = String(now.getMonth() + 1);
   }
 
-  const GOV_WORKDAY_RULES = {
-    2024: {
-      holidays: [
-        '2024-01-01',
-        '2024-02-08', '2024-02-09', '2024-02-12', '2024-02-13', '2024-02-14',
-        '2024-02-28',
-        '2024-04-04', '2024-04-05',
-        '2024-06-10',
-        '2024-09-17',
-        '2024-10-10',
-        '2024-10-11'
-      ],
-      makeUpWorkdays: ['2024-02-17']
-    },
-    2025: {
-      holidays: [
-        '2025-01-01',
-        '2025-01-27', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
-        '2025-02-28',
-        '2025-04-03', '2025-04-04',
-        '2025-05-01', '2025-05-30',
-        '2025-09-29',
-        '2025-10-06', '2025-10-10', '2025-10-24',
-        '2025-12-25'
-      ],
-      makeUpWorkdays: []
-    },
-    2026: {
-      holidays: [
-        '2026-01-01',
-        '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-27',
-        '2026-04-03', '2026-04-06',
-        '2026-06-19',
-        '2026-09-25', '2026-09-28',
-        '2026-10-09', '2026-10-26',
-        '2026-12-25'
-      ],
-      makeUpWorkdays: []
-    }
-  };
-
-  function isGovernmentWorkday(year, month, day) {
-    const date = new Date(year, month - 1, day);
-    const weekday = date.getDay();
-    const key = `${year}-${pad2(month)}-${pad2(day)}`;
-    const rules = GOV_WORKDAY_RULES[year];
-
-    if (rules?.holidays?.includes(key)) return false;
-    if (rules?.makeUpWorkdays?.includes(key)) return true;
-    return weekday !== 0 && weekday !== 6;
-  }
-
   function buildWeekdayColumns(year, month, allScheduleMap, specialistId) {
     const daysInMonth = new Date(year, month, 0).getDate();
     const cols = [];
     const staffSchedule = specialistId ? (allScheduleMap?.[specialistId] || {}) : {};
 
     for (let day = 1; day <= daysInMonth; day++) {
-      if (!isGovernmentWorkday(year, month, day)) continue;
-
       const date = new Date(year, month - 1, day);
       const week = date.getDay();
+      if (week === 0 || week === 6) continue;
+
       const key = `${year}-${pad2(month)}-${pad2(day)}`;
       const shift = specialistId ? String((staffSchedule[key] ?? '')).trim() : '';
       const isEnabled = specialistId ? isWorkingShift(shift) : true;
@@ -506,6 +454,41 @@
 
     els.tableBody.innerHTML = html.join('');
     bindDynamicInputs();
+    syncTableScrollbars();
+  }
+
+
+  function syncTableScrollbars() {
+    const wrap = els.tableWrap;
+    const top = els.tableScrollTop;
+    const inner = els.tableScrollTopInner;
+    const table = els.logTable;
+    if (!wrap || !top || !inner || !table) return;
+
+    inner.style.width = `${Math.max(table.scrollWidth, wrap.clientWidth)}px`;
+
+    if (!wrap.dataset.syncBound) {
+      let syncing = false;
+      wrap.addEventListener('scroll', () => {
+        if (syncing) return;
+        syncing = true;
+        top.scrollLeft = wrap.scrollLeft;
+        requestAnimationFrame(() => { syncing = false; });
+      });
+      top.addEventListener('scroll', () => {
+        if (syncing) return;
+        syncing = true;
+        wrap.scrollLeft = top.scrollLeft;
+        requestAnimationFrame(() => { syncing = false; });
+      });
+      window.addEventListener('resize', () => {
+        inner.style.width = `${Math.max(table.scrollWidth, wrap.clientWidth)}px`;
+        top.scrollLeft = wrap.scrollLeft;
+      });
+      wrap.dataset.syncBound = '1';
+    }
+
+    top.scrollLeft = wrap.scrollLeft;
   }
 
   function bindDynamicInputs() {
@@ -794,10 +777,10 @@
       right: { style: BorderStyle.SINGLE, size: 4, color: '000000' }
     };
 
-    const pageWidthTwips = 10440; // A4 portrait printable width approx after margins
-    const col1 = 1200;
-    const col2 = 3600;
-    const maxDatesPerPage = 11;
+    const pageWidthTwips = 15120; // A4 landscape printable width approx after margins
+    const col1 = 1100;
+    const col2 = 3400;
+    const maxDatesPerPage = 9;
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
       spacing: { after: 40 },
@@ -899,7 +882,6 @@
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月（第 ${chunkIndex + 1} 頁）`, { size: 22, bold: true })] }),
         leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 18, false),
         leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 18, false),
-        leftPara(`匯出時間：${new Date().toLocaleString('zh-TW', { hour12: false })}    匯出人：${`${recorder.staffId || ''} ${recorder.displayName || ''}`.trim() || '—'}`, 18, false),
         new Table({
           width: { size: tableWidth, type: WidthType.DXA },
           layout: TableLayoutType ? TableLayoutType.FIXED : undefined,
@@ -912,8 +894,8 @@
       sections: [{
         properties: {
           page: {
-            size: { orientation: PageOrientation.PORTRAIT },
-            margin: { top: 720, right: 720, bottom: 720, left: 720 }
+            size: { orientation: PageOrientation.LANDSCAPE },
+            margin: { top: 540, right: 540, bottom: 540, left: 540 }
           }
         },
         children: sectionChildren
@@ -969,6 +951,7 @@
     window.addEventListener('storage', (ev) => {
       if (ev.key === SESSION_KEY || ev.key === 'officeAuth') syncLoginBadgeFromSession();
     });
+    window.addEventListener('resize', syncTableScrollbars);
   }
 
   let __booted = false;
