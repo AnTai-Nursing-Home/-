@@ -952,7 +952,7 @@
           const mark = col.enabled ? (checked ? '■' : '□') : '－';
           children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 12, false));
         }
-        rows.push(new TableRow({ height: { value: 430, rule: 'atLeast' }, children }));
+        rows.push(new TableRow({ height: { value: 340, rule: 'atLeast' }, children }));
       });
 
       if (groupIndex === groupDefs.length - 1) {
