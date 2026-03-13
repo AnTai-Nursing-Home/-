@@ -917,7 +917,7 @@
         children: [
           makeCell('項次', col1, AlignmentType.CENTER, 18, true),
           makeCell('項目/日期/星期', col2, AlignmentType.CENTER, 18, true),
-          ...allDateCols.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 16, true))
+          ...allDateCols.map(col => makeCell(String(col.day), dayWidth, AlignmentType.CENTER, 18, true))
         ]
       }));
 
