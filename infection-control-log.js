@@ -840,7 +840,8 @@
     const pageWidthTwips = 14500; // A4 landscape printable width approx after margins
     const col1 = 1200;
     const col2 = 3600;
-    const maxDatesPerPage = 16;
+    // 一個月份以「一個跨頁」為原則：單月內容最多拆成雙面兩頁，不再拆成更多頁。
+    const maxPagesPerMonth = 2;
 
     const leftPara = (text, size = 16, bold = false) => new Paragraph({
       spacing: { after: 40 },
@@ -861,22 +862,17 @@
       });
     };
 
-    const buildBalancedChunks = (cols, maxPerPage) => {
+    const buildDuplexMonthChunks = (cols) => {
       if (!cols.length) return [[]];
-      const pageCount = Math.ceil(cols.length / maxPerPage);
-      const baseSize = Math.floor(cols.length / pageCount);
-      const extra = cols.length % pageCount;
-      const out = [];
-      let cursor = 0;
-      for (let i = 0; i < pageCount; i++) {
-        const size = baseSize + (i < extra ? 1 : 0);
-        out.push(cols.slice(cursor, cursor + size));
-        cursor += size;
-      }
-      return out;
+      if (cols.length <= 16) return [cols];
+
+      const pageCount = Math.min(maxPagesPerMonth, 2);
+      const firstSize = Math.ceil(cols.length / pageCount);
+      const secondSize = cols.length - firstSize;
+      return [cols.slice(0, firstSize), cols.slice(firstSize, firstSize + secondSize)].filter(chunk => chunk.length);
     };
 
-    const chunks = buildBalancedChunks(weekdayColumns, maxDatesPerPage);
+    const chunks = buildDuplexMonthChunks(weekdayColumns);
 
     const sectionChildren = [];
     chunks.forEach((dateCols, chunkIndex) => {
@@ -939,7 +935,7 @@
       sectionChildren.push(
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run('安泰醫療社團法人附設安泰護理之家', { size: 28, bold: true })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [run('感染管制專責人員工作日誌', { size: 30, bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月（第 ${chunkIndex + 1} 頁）`, { size: 22, bold: true })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [run(`${getRocYear(currentDoc.year)} 年 ${pad2(currentDoc.month)} 月（雙面列印第 ${chunkIndex + 1} 面）`, { size: 22, bold: true })] }),
         leftPara(`一、機構基本資料：(一)立案床數 ${currentDoc.bedCount || ''} 位；(二)感染管制 ${currentDoc.isFullTime ? '■' : '□'} 專責專任；(三)每週專責執行業務之時數 ${currentDoc.weeklyHours || ''} 小時`, 18, false),
         leftPara(`專責人員：${currentDoc.specialistName || '未指定'}`, 18, false),
         new Table({
