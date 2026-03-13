@@ -4,27 +4,36 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>House AI Widget</title>
-
 <style>
-body{
+:root{
+  --hai-primary:#ffb15c;
+  --hai-primary-strong:#ff8a3d;
+  --hai-surface:#fffaf3;
+  --hai-border:#ffd8a6;
+  --hai-shadow:0 20px 40px rgba(0,0,0,.15);
+}
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:transparent;
+  overflow:hidden;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei",sans-serif;
 }
-
-/* ===== House AI Button ===== */
 .house-ai-widget{
   position:fixed;
   right:24px;
   bottom:24px;
   z-index:99999;
 }
-
 .house-ai-button{
   width:64px;
   height:64px;
   border-radius:50%;
   border:none;
   cursor:pointer;
-  background:linear-gradient(135deg,#ffb15c,#ff8a3d);
+  background:linear-gradient(135deg,var(--hai-primary),var(--hai-primary-strong));
   box-shadow:0 10px 30px rgba(255,150,80,.5);
   display:flex;
   align-items:center;
@@ -32,14 +41,12 @@ body{
   font-size:28px;
   color:white;
 }
-
-/* ===== Chat Window ===== */
 .house-ai-chat{
   width:360px;
   height:520px;
-  background:#fffaf3;
+  background:var(--hai-surface);
   border-radius:20px;
-  box-shadow:0 20px 40px rgba(0,0,0,.15);
+  box-shadow:var(--hai-shadow);
   position:absolute;
   bottom:80px;
   right:0;
@@ -47,10 +54,8 @@ body{
   flex-direction:column;
   overflow:hidden;
 }
-
-/* Header */
 .house-ai-header{
-  background:linear-gradient(135deg,#ffb15c,#ff8a3d);
+  background:linear-gradient(135deg,var(--hai-primary),var(--hai-primary-strong));
   color:white;
   padding:14px 16px;
   font-weight:bold;
@@ -58,65 +63,52 @@ body{
   justify-content:space-between;
   align-items:center;
 }
-
-/* Messages */
 .house-ai-messages{
   flex:1;
   padding:14px;
   overflow:auto;
   font-size:14px;
 }
-
-/* Bubble */
-.house-ai-msg{
-  margin-bottom:10px;
-}
-
+.house-ai-msg{margin-bottom:10px;}
 .ai{
   background:#fff;
-  border:1px solid #ffd8a6;
+  border:1px solid var(--hai-border);
   padding:10px 12px;
   border-radius:12px;
 }
-
 .user{
-  background:#ffb15c;
+  background:var(--hai-primary);
   color:white;
   padding:10px 12px;
   border-radius:12px;
   text-align:right;
 }
-
-/* Input */
 .house-ai-input-area{
   border-top:1px solid #ffe0b6;
   display:flex;
 }
-
 .house-ai-input{
   flex:1;
   border:none;
   padding:12px;
   outline:none;
 }
-
 .house-ai-send{
   border:none;
   padding:0 16px;
-  background:#ff8a3d;
+  background:var(--hai-primary-strong);
   color:white;
   cursor:pointer;
 }
-
+@media (max-width: 520px){
+  .house-ai-widget{ right:12px; bottom:12px; }
+  .house-ai-chat{ width:min(360px, calc(100vw - 24px)); height:min(520px, calc(100vh - 110px)); }
+}
 </style>
 </head>
-
 <body>
-
 <div class="house-ai-widget">
-
   <div class="house-ai-chat" id="houseAIChat">
-
     <div class="house-ai-header">
       House AI
       <button onclick="houseAIClose()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">×</button>
@@ -133,14 +125,11 @@ body{
       <input class="house-ai-input" id="houseAIInput" placeholder="輸入問題..." />
       <button class="house-ai-send" onclick="houseAISend()">送出</button>
     </div>
-
   </div>
 
-  <button class="house-ai-button" onclick="houseAIToggle()">🧡</button>
-
+  <button class="house-ai-button" onclick="houseAIToggle()" aria-label="開啟 House AI">🧡</button>
 </div>
 
 <script src="house-ai.js"></script>
-
 </body>
 </html>
