@@ -26,53 +26,19 @@
     .list-item:hover { background:#f8fafc; }
     .page-title { font-size: 1.4rem; font-weight: 800; }
     .card-soft { border:0; box-shadow:0 8px 24px rgba(15,23,42,.08); }
-    .sticky-tools { position: sticky; top: 10px; z-index: 20; }
-    .table-area { position: relative; }
-    .table-scroll-top {
-      position: sticky;
-      top: 0;
-      z-index: 18;
-      overflow-x: auto;
-      overflow-y: hidden;
-      border: 1px solid #e5e7eb;
-      border-bottom: 0;
-      border-radius: 16px 16px 0 0;
-      background: #fff;
-      height: 18px;
-    }
-    .table-scroll-top-inner { height: 1px; }
-    .table-wrap {
-      overflow: auto;
-      border: 1px solid #e5e7eb;
-      border-radius: 0 0 16px 16px;
-      background: #fff;
-      max-height: calc(100vh - 300px);
-      position: relative;
-    }
-    .log-table { min-width: 1480px; font-size: .9rem; border-collapse: separate; border-spacing: 0; }
-    .log-table thead th { position: sticky; background:#0f172a; color:#fff; }
-    .log-table thead tr:first-child th { top: 0; z-index: 12; }
-    .log-table thead tr:nth-child(2) th { top: 45px; z-index: 11; }
+    .sticky-tools { position: sticky; top: 10px; z-index: 5; }
+    .table-wrap { overflow:auto; border:1px solid #e5e7eb; border-radius:16px; background:#fff; max-height:70vh; }
+    .table-scroll-top { overflow-x:auto; overflow-y:hidden; height:18px; border:1px solid #e5e7eb; border-bottom:0; border-radius:16px 16px 0 0; background:#fff; }
+    .table-scroll-top-inner { height:1px; }
+    body[data-page-mode='list'] #editorSection { display:none !important; }
+    body[data-page-mode='editor'] #listSection { display:none !important; }
+    .log-table { min-width: 1480px; font-size: .9rem; }
+    .log-table thead th { position: sticky; top: 0; z-index: 4; background:#0f172a; color:#fff; }
+    .log-table thead th.sticky-col-1 { left:0; z-index:7; }
+    .log-table thead th.sticky-col-2 { left:130px; z-index:7; }
     .log-table th, .log-table td { vertical-align: middle; text-align: center; }
-    .log-table .cat-cell {
-      background:#f8fafc;
-      font-weight:700;
-      min-width: 130px;
-      position: sticky;
-      left: 0;
-      z-index: 9;
-    }
-    .log-table .item-cell {
-      text-align:left;
-      min-width: 280px;
-      background:#fcfcfd;
-      position: sticky;
-      left: 130px;
-      z-index: 8;
-    }
-    .log-table thead tr:first-child th:first-child { left: 0; z-index: 16; }
-    .log-table thead tr:first-child th:nth-child(2) { left: 130px; z-index: 15; }
-    .log-table tfoot th, .log-table tfoot td { position: sticky; bottom: 0; background: #fff; }
+    .log-table .cat-cell { background:#f8fafc; font-weight:700; min-width: 130px; position: sticky; left:0; z-index:3; }
+    .log-table .item-cell { text-align:left; min-width: 280px; background:#fcfcfd; position: sticky; left:130px; z-index:3; }
     .log-table .date-head { min-width: 66px; }
     .log-table .disabled-day,
     .log-table .disabled-day input,
@@ -153,7 +119,6 @@
             <button id="btnExportDocx" class="btn btn-primary pill"><i class="fas fa-file-word me-1"></i>匯出 Word</button>
             <button id="btnDelete" class="btn btn-outline-danger pill">刪除</button>
           </div>
-          </div>
         </div>
       </div>
     </div>
@@ -216,14 +181,12 @@
           <div class="fw-semibold">工作日誌表格</div>
           <div class="section-note">日期依政府辦公日曆表顯示；國定假日、補休日不顯示，補班日會顯示。若已選專責人員，非上班日將自動反灰不可勾選。</div>
         </div>
-        <div class="table-area">
-          <div class="table-scroll-top" id="tableScrollTop"><div class="table-scroll-top-inner" id="tableScrollTopInner"></div></div>
-          <div class="table-wrap" id="tableWrap">
-            <table class="table table-bordered align-middle mb-0 log-table" id="logTable">
-              <thead id="tableHead"></thead>
-              <tbody id="tableBody"></tbody>
-            </table>
-          </div>
+        <div id="tableScrollTop" class="table-scroll-top mb-0"><div id="tableScrollTopInner" class="table-scroll-top-inner"></div></div>
+        <div id="tableWrap" class="table-wrap">
+          <table class="table table-bordered align-middle mb-0 log-table" id="logTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
