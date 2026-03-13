@@ -330,13 +330,15 @@
   }
 
   function showList() {
-    els.editorSection.classList.add('d-none');
-    els.listSection.classList.remove('d-none');
+    if (els.editorSection) els.editorSection.classList.add('d-none');
+    if (els.listSection) els.listSection.classList.remove('d-none');
+    document.body.dataset.pageMode = 'list';
   }
 
   function showEditor() {
-    els.listSection.classList.add('d-none');
-    els.editorSection.classList.remove('d-none');
+    if (els.listSection) els.listSection.classList.add('d-none');
+    if (els.editorSection) els.editorSection.classList.remove('d-none');
+    document.body.dataset.pageMode = 'editor';
   }
 
   function emptyData(year, month) {
@@ -364,11 +366,11 @@
   }
 
   function updateEditorHeader() {
-    const year = Number(els.logYear.value);
-    const month = Number(els.logMonth.value);
-    els.editorTitle.textContent = titleText(year, month);
+    const year = Number(els.logYear?.value || currentDoc?.year || new Date().getFullYear());
+    const month = Number(els.logMonth?.value || currentDoc?.month || (new Date().getMonth() + 1));
+    if (els.editorTitle) els.editorTitle.textContent = titleText(year, month);
     const specialist = currentDoc?.specialistName ? `｜專責人員：${currentDoc.specialistName}` : '';
-    els.editorSub.textContent = `${year}/${pad2(month)}${specialist}`;
+    if (els.editorSub) els.editorSub.textContent = `${year}/${pad2(month)}${specialist}`;
   }
 
   function populateSpecialistSelect(candidates, selectedId) {
@@ -387,7 +389,9 @@
 
   function renderTable() {
     ensureCheckMap();
-    weekdayColumns = buildWeekdayColumns(Number(els.logYear.value), Number(els.logMonth.value), currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
+    const renderYear = Number(els.logYear?.value || currentDoc.year || new Date().getFullYear());
+    const renderMonth = Number(els.logMonth?.value || currentDoc.month || (new Date().getMonth() + 1));
+    weekdayColumns = buildWeekdayColumns(renderYear, renderMonth, currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
     currentDoc.weekdayColumns = weekdayColumns;
 
     els.tableHead.innerHTML = `
@@ -513,15 +517,20 @@
   }
 
   function syncTopFieldsToDoc() {
-    currentDoc.year = Number(els.logYear.value);
-    currentDoc.month = Number(els.logMonth.value);
+    currentDoc = currentDoc || emptyData(new Date().getFullYear(), new Date().getMonth() + 1);
+
+    const safeYear = Number(els.logYear?.value || currentDoc.year || new Date().getFullYear());
+    const safeMonth = Number(els.logMonth?.value || currentDoc.month || (new Date().getMonth() + 1));
+
+    currentDoc.year = safeYear;
+    currentDoc.month = safeMonth;
     currentDoc.title = titleText(currentDoc.year, currentDoc.month);
-    currentDoc.bedCount = Number(els.bedCount.value || 0);
-    currentDoc.isFullTime = !!els.isFullTime.checked;
-    currentDoc.weeklyHours = Number(els.weeklyHours.value || 0);
-    currentDoc.specialistId = els.specialistSelect.value || '';
+    currentDoc.bedCount = Number(els.bedCount?.value || currentDoc.bedCount || 0);
+    currentDoc.isFullTime = !!els.isFullTime?.checked;
+    currentDoc.weeklyHours = Number(els.weeklyHours?.value || currentDoc.weeklyHours || 0);
+    currentDoc.specialistId = els.specialistSelect?.value || currentDoc.specialistId || '';
     const specialist = specialistCandidates.find(s => s.staffId === currentDoc.specialistId);
-    currentDoc.specialistName = specialist?.staffName || '';
+    currentDoc.specialistName = specialist?.staffName || currentDoc.specialistName || '';
     updateEditorHeader();
   }
 
@@ -643,7 +652,6 @@
 
   function rebuildMonth() {
     syncTopFieldsToDoc();
-    currentDoc.weekdayColumns = buildWeekdayColumns(currentDoc.year, currentDoc.month, currentDoc.scheduleShiftMap || {}, currentDoc.specialistId || '');
     renderTable();
   }
 
@@ -941,6 +949,7 @@
       console.error('[infection-control-log] waitForFirebaseReady failed:', e);
     }
 
+    showList();
     await loadCurrentUser();
     fillYearOptions();
     detectModal = new bootstrap.Modal(document.getElementById('staffDetectModal'));
