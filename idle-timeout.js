@@ -233,25 +233,21 @@
       body.antai-shell-body{padding-left:284px;box-sizing:border-box}
       #antai-shell-root{position:fixed;left:16px;top:18px;bottom:18px;width:252px;z-index:2147482000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif}
       .antai-shell-wrap{height:100%;display:flex;flex-direction:column;gap:12px}
-      .antai-weather-card{position:relative;padding:16px;border-radius:22px;color:#fff;background:linear-gradient(135deg,#2a3444,#4e5f78);box-shadow:0 16px 34px rgba(36,48,72,.22);overflow:hidden;isolation:isolate}
-      .antai-weather-card:before,.antai-weather-card:after{content:"";position:absolute;border-radius:999px;background:rgba(255,255,255,.07);animation:antai-float 7s ease-in-out infinite;z-index:0}.antai-weather-card:before{width:120px;height:120px;right:-18px;top:-28px}.antai-weather-card:after{width:90px;height:90px;left:-24px;bottom:-26px;animation-delay:-2s}
+      .antai-weather-card{position:relative;padding:16px;border-radius:22px;color:#fff;background-color:#5f738d;background-size:cover;background-position:center;background-repeat:no-repeat;box-shadow:0 16px 34px rgba(36,48,72,.22);overflow:hidden;isolation:isolate}
+      .antai-weather-card:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,18,33,.10) 0%,rgba(8,20,36,.20) 45%,rgba(6,14,26,.38) 100%);z-index:0}
+      .antai-weather-card:after{content:"";position:absolute;inset:auto -18% -45% -18%;height:70%;background:radial-gradient(ellipse at center,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 28%,rgba(255,255,255,0) 68%);filter:blur(14px);z-index:0}
       .antai-weather-card > *{position:relative;z-index:2}
       .antai-weather-card .antai-weather-anim,.antai-weather-card .antai-weather-overlay{position:absolute;inset:0;pointer-events:none;z-index:1}
-      .antai-weather-card.weather-sunny{background:linear-gradient(135deg,#4a7bff,#78c7ff)}
-      .antai-weather-card.weather-sunny .antai-weather-anim:before{content:"";position:absolute;right:-26px;top:-30px;width:126px;height:126px;border-radius:50%;background:radial-gradient(circle,rgba(255,232,132,.95) 0%,rgba(255,232,132,.55) 35%,rgba(255,232,132,.12) 65%,transparent 74%);animation:antai-sun-pulse 5.5s ease-in-out infinite}
-      .antai-weather-card.weather-cloudy{background:linear-gradient(135deg,#66768d,#90a0b5)}
-      .antai-weather-card.weather-cloudy .antai-weather-anim:before,.antai-weather-card.weather-cloudy .antai-weather-anim:after{content:"";position:absolute;background:rgba(255,255,255,.18);border-radius:999px;filter:blur(1px)}
-      .antai-weather-card.weather-cloudy .antai-weather-anim:before{width:110px;height:34px;left:18px;top:34px;animation:antai-cloud-drift 9s ease-in-out infinite}
-      .antai-weather-card.weather-cloudy .antai-weather-anim:after{width:82px;height:26px;right:18px;top:68px;animation:antai-cloud-drift 11s ease-in-out infinite reverse}
-      .antai-weather-card.weather-rain{background:linear-gradient(135deg,#43566e,#2b3848)}
-      .antai-weather-card.weather-rain .antai-weather-overlay{background-image:linear-gradient(180deg,rgba(255,255,255,.00) 0%,rgba(255,255,255,.03) 100%),repeating-linear-gradient(120deg,transparent 0 14px,rgba(190,220,255,.38) 14px 16px,transparent 16px 28px);background-size:100% 100%,150px 150px;animation:antai-rain-fall .9s linear infinite;opacity:.72}
-      .antai-weather-card.weather-rain .antai-weather-anim:before{content:"";position:absolute;left:20px;top:26px;width:92px;height:28px;border-radius:999px;background:rgba(255,255,255,.16);filter:blur(1px)}
-      .antai-weather-card.weather-storm{background:linear-gradient(135deg,#2a3343,#151c28)}
-      .antai-weather-card.weather-storm .antai-weather-overlay{background-image:repeating-linear-gradient(120deg,transparent 0 18px,rgba(181,219,255,.26) 18px 20px,transparent 20px 34px);background-size:170px 170px;animation:antai-rain-fall 1s linear infinite;opacity:.46}
-      .antai-weather-card.weather-storm .antai-weather-anim:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.0);animation:antai-lightning 6s linear infinite}
-      .antai-weather-card.weather-snow{background:linear-gradient(135deg,#70869f,#a9bbcf)}
-      .antai-weather-card.weather-snow .antai-weather-overlay{background-image:radial-gradient(circle,rgba(255,255,255,.9) 0 2px,transparent 2.2px),radial-gradient(circle,rgba(255,255,255,.7) 0 1.6px,transparent 1.8px),radial-gradient(circle,rgba(255,255,255,.82) 0 1.8px,transparent 2px);background-size:90px 90px,120px 120px,140px 140px;background-position:0 0,30px 20px,60px 40px;animation:antai-snow-fall 6s linear infinite;opacity:.9}
-      @keyframes antai-float{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+      .antai-weather-card.weather-sunny .antai-weather-anim:before{content:"";position:absolute;right:-18px;top:-18px;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle,rgba(255,233,165,.96) 0%,rgba(255,224,127,.62) 28%,rgba(255,214,94,.12) 56%,transparent 72%);animation:antai-sun-pulse 7s ease-in-out infinite}
+      .antai-weather-card.weather-sunny .antai-weather-overlay{background:linear-gradient(180deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,0) 45%,rgba(10,18,30,.12) 100%)}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:before,.antai-weather-card.weather-cloudy .antai-weather-anim:after,.antai-weather-card.weather-rain .antai-weather-anim:before{content:"";position:absolute;background:rgba(255,255,255,.18);border-radius:999px;filter:blur(2px)}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:before{width:132px;height:36px;left:18px;top:32px;animation:antai-cloud-drift 11s ease-in-out infinite}
+      .antai-weather-card.weather-cloudy .antai-weather-anim:after{width:92px;height:28px;right:16px;top:72px;animation:antai-cloud-drift 13s ease-in-out infinite reverse}
+      .antai-weather-card.weather-rain .antai-weather-overlay{background-image:linear-gradient(180deg,rgba(255,255,255,.00) 0%,rgba(255,255,255,.04) 100%),repeating-linear-gradient(118deg,transparent 0 12px,rgba(190,220,255,.42) 12px 14px,transparent 14px 26px);background-size:100% 100%,150px 150px;animation:antai-rain-fall .95s linear infinite;opacity:.7}
+      .antai-weather-card.weather-rain .antai-weather-anim:before{width:120px;height:34px;left:16px;top:24px}
+      .antai-weather-card.weather-storm .antai-weather-overlay{background-image:repeating-linear-gradient(118deg,transparent 0 16px,rgba(181,219,255,.26) 16px 18px,transparent 18px 30px);background-size:170px 170px;animation:antai-rain-fall 1.05s linear infinite;opacity:.48}
+      .antai-weather-card.weather-storm .antai-weather-anim:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,0);animation:antai-lightning 6s linear infinite}
+      .antai-weather-card.weather-snow .antai-weather-overlay{background-image:radial-gradient(circle,rgba(255,255,255,.92) 0 2px,transparent 2.2px),radial-gradient(circle,rgba(255,255,255,.78) 0 1.6px,transparent 1.8px),radial-gradient(circle,rgba(255,255,255,.84) 0 1.8px,transparent 2px);background-size:90px 90px,120px 120px,140px 140px;background-position:0 0,30px 20px,60px 40px;animation:antai-snow-fall 6s linear infinite;opacity:.9}
       @keyframes antai-sun-pulse{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.08);opacity:1}}
       @keyframes antai-cloud-drift{0%,100%{transform:translateX(0)}50%{transform:translateX(10px)}}
       @keyframes antai-rain-fall{0%{background-position:0 0,0 -120px}100%{background-position:0 0,-18px 40px}}
@@ -295,28 +291,97 @@
     return '<svg viewBox="0 0 24 24" fill="none"><path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z" stroke="rgba(255,255,255,.96)" stroke-width="2"/><path d="M12 11v6" stroke="rgba(255,255,255,.96)" stroke-width="2" stroke-linecap="round"/></svg>';
   }
 
+  function svgToDataUri(svg) {
+    return `url("data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}")`;
+  }
+
+  function weatherSceneBackground(kind) {
+    const base = {
+      sunny: { skyTop: '#5ca6ff', skyMid: '#97d2ff', skyBottom: '#f3d59a', haze: 'rgba(255,242,214,.46)' },
+      cloudy: { skyTop: '#6f8398', skyMid: '#9db0c2', skyBottom: '#d9dfdf', haze: 'rgba(246,247,248,.34)' },
+      rain: { skyTop: '#526173', skyMid: '#79889b', skyBottom: '#bcc6cd', haze: 'rgba(226,233,239,.20)' },
+      storm: { skyTop: '#2a3442', skyMid: '#465261', skyBottom: '#67707a', haze: 'rgba(220,229,238,.12)' },
+      snow: { skyTop: '#8fa4b8', skyMid: '#bccddb', skyBottom: '#eff5fb', haze: 'rgba(255,255,255,.38)' }
+    }[kind] || { skyTop: '#6f8398', skyMid: '#9db0c2', skyBottom: '#d9dfdf', haze: 'rgba(246,247,248,.34)' };
+
+    const extras = {
+      sunny: `
+        <circle cx="255" cy="38" r="24" fill="rgba(255,237,168,.98)"/>
+        <circle cx="255" cy="38" r="42" fill="rgba(255,232,150,.28)"/>
+        <ellipse cx="82" cy="58" rx="42" ry="14" fill="rgba(255,255,255,.56)"/>
+        <ellipse cx="112" cy="56" rx="24" ry="10" fill="rgba(255,255,255,.48)"/>
+        <ellipse cx="205" cy="78" rx="34" ry="12" fill="rgba(255,255,255,.40)"/>
+      `,
+      cloudy: `
+        <ellipse cx="78" cy="56" rx="54" ry="18" fill="rgba(255,255,255,.54)"/>
+        <ellipse cx="112" cy="54" rx="30" ry="13" fill="rgba(255,255,255,.46)"/>
+        <ellipse cx="205" cy="76" rx="48" ry="17" fill="rgba(255,255,255,.38)"/>
+        <ellipse cx="232" cy="74" rx="26" ry="11" fill="rgba(255,255,255,.30)"/>
+      `,
+      rain: `
+        <ellipse cx="88" cy="52" rx="62" ry="19" fill="rgba(233,239,245,.46)"/>
+        <ellipse cx="126" cy="51" rx="34" ry="12" fill="rgba(233,239,245,.34)"/>
+        <ellipse cx="210" cy="70" rx="54" ry="18" fill="rgba(219,228,236,.28)"/>
+        <g stroke="rgba(185,210,232,.44)" stroke-width="2" stroke-linecap="round">
+          <path d="M52 86l-8 16"/><path d="M76 88l-8 16"/><path d="M104 90l-8 16"/><path d="M192 92l-8 16"/><path d="M220 94l-8 16"/><path d="M246 96l-8 16"/>
+        </g>
+      `,
+      storm: `
+        <ellipse cx="94" cy="54" rx="68" ry="20" fill="rgba(216,223,232,.28)"/>
+        <ellipse cx="138" cy="54" rx="36" ry="12" fill="rgba(216,223,232,.20)"/>
+        <ellipse cx="214" cy="70" rx="58" ry="18" fill="rgba(216,223,232,.16)"/>
+        <path d="M198 62l-10 24h10l-8 20 26-31h-11l10-13z" fill="rgba(255,238,159,.72)"/>
+      `,
+      snow: `
+        <ellipse cx="88" cy="52" rx="60" ry="18" fill="rgba(255,255,255,.42)"/>
+        <ellipse cx="126" cy="51" rx="32" ry="12" fill="rgba(255,255,255,.30)"/>
+        <ellipse cx="210" cy="72" rx="56" ry="18" fill="rgba(255,255,255,.26)"/>
+        <g fill="rgba(255,255,255,.86)">
+          <circle cx="60" cy="90" r="2"/><circle cx="88" cy="98" r="2"/><circle cx="112" cy="86" r="1.8"/><circle cx="178" cy="92" r="2"/><circle cx="210" cy="101" r="2"/><circle cx="238" cy="89" r="1.8"/>
+        </g>
+      `
+    }[kind] || '';
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 140" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${base.skyTop}"/>
+            <stop offset="58%" stop-color="${base.skyMid}"/>
+            <stop offset="100%" stop-color="${base.skyBottom}"/>
+          </linearGradient>
+          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(28,44,60,.12)"/>
+            <stop offset="100%" stop-color="rgba(10,19,30,.54)"/>
+          </linearGradient>
+          <filter id="blur"><feGaussianBlur stdDeviation="5"/></filter>
+        </defs>
+        <rect width="300" height="140" fill="url(#sky)"/>
+        <ellipse cx="150" cy="104" rx="190" ry="54" fill="${base.haze}" filter="url(#blur)"/>
+        ${extras}
+        <path d="M0 116 C35 105,72 112,110 104 C144 96,170 108,204 100 C236 93,262 101,300 92 L300 140 L0 140 Z" fill="rgba(18,33,49,.28)"/>
+        <path d="M0 122 C42 112,74 118,118 109 C152 102,184 112,220 106 C252 101,274 106,300 101 L300 140 L0 140 Z" fill="url(#ground)"/>
+      </svg>
+    `;
+    return `linear-gradient(180deg, rgba(7,18,33,.04) 0%, rgba(7,18,33,.10) 100%), ${svgToDataUri(svg)}`;
+  }
+
   function setWeatherBackground(root, weather) {
     const card = root.querySelector('.antai-weather-card');
     if (!card) return;
+
     card.classList.remove('weather-sunny', 'weather-cloudy', 'weather-rain', 'weather-storm', 'weather-snow');
+
     const t = String(weather || '');
-    if (t.includes('雷')) {
-      card.classList.add('weather-storm');
-      return;
-    }
-    if (t.includes('雪')) {
-      card.classList.add('weather-snow');
-      return;
-    }
-    if (t.includes('雨') || t.includes('毛毛雨')) {
-      card.classList.add('weather-rain');
-      return;
-    }
-    if (t.includes('晴')) {
-      card.classList.add('weather-sunny');
-      return;
-    }
-    card.classList.add('weather-cloudy');
+    let kind = 'cloudy';
+
+    if (t.includes('雷')) kind = 'storm';
+    else if (t.includes('雪')) kind = 'snow';
+    else if (t.includes('雨') || t.includes('毛毛雨')) kind = 'rain';
+    else if (t.includes('晴')) kind = 'sunny';
+
+    card.classList.add(`weather-${kind}`);
+    card.style.backgroundImage = weatherSceneBackground(kind);
   }
 
   function formatDate() {
