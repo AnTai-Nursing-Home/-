@@ -950,7 +950,7 @@
         for (const col of allDateCols) {
           const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
           const mark = col.enabled ? (checked ? '■' : '□') : '－';
-          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 12, false));
+          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 14, false));
         }
         rows.push(new TableRow({ height: { value: 340, rule: 'atLeast' }, children }));
       });
