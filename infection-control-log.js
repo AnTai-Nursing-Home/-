@@ -927,7 +927,7 @@
         children: [
           makeCell('', col1),
           makeCell('', col2),
-          ...allDateCols.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 13, true))
+          ...allDateCols.map(col => makeCell(col.weekday, dayWidth, AlignmentType.CENTER, 16, true))
         ]
       }));
 
@@ -943,14 +943,14 @@
             isFirstOfCategory ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE
           ));
         } else {
-          children.push(makeCell(isFirstOfCategory ? row.category : '', col1, AlignmentType.CENTER, 14, isFirstOfCategory));
+          children.push(makeCell(isFirstOfCategory ? row.category : '', col1, AlignmentType.CENTER, 16, isFirstOfCategory));
         }
 
         children.push(makeCell(row.item, col2, AlignmentType.LEFT, 14, false));
         for (const col of allDateCols) {
           const checked = !!(currentDoc.checks[row.id] && currentDoc.checks[row.id][col.key]);
           const mark = col.enabled ? (checked ? '■' : '□') : '－';
-          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 14, false));
+          children.push(makeCell(mark, dayWidth, AlignmentType.CENTER, 16, false));
         }
         rows.push(new TableRow({ height: { value: 340, rule: 'atLeast' }, children }));
       });
