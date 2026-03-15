@@ -19,6 +19,8 @@
   const headerStaffName = document.getElementById('loginStaffName-rehab');
   const logoutBtn = document.getElementById('logoutBtnRehab');
 
+  const originalLoginHtml = loginButton ? loginButton.innerHTML : '';
+
   function setVisible(el, visible) {
     if (!el) return;
     el.classList.toggle('d-none', !visible);
@@ -73,6 +75,14 @@
     if (headerStaffName) headerStaffName.textContent = '';
   }
 
+  function setLoginLoading(isLoading) {
+    if (!loginButton) return;
+    loginButton.disabled = !!isLoading;
+    loginButton.innerHTML = isLoading
+      ? '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>登入中...'
+      : originalLoginHtml;
+  }
+
   function showLogin() {
     setVisible(loginSection, true);
     setVisible(dashboardSection, false);
@@ -85,6 +95,7 @@
     setVisible(dashboardSection, true);
     hideError();
     renderHeaderUser(user);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function findAccountByUsername(username) {
@@ -120,7 +131,7 @@
       return;
     }
 
-    if (loginButton) loginButton.disabled = true;
+    setLoginLoading(true);
     hideError();
 
     try {
@@ -148,7 +159,7 @@
       console.error('復健師登入錯誤：', e);
       showError('登入時發生錯誤，請稍後再試');
     } finally {
-      if (loginButton) loginButton.disabled = false;
+      setLoginLoading(false);
     }
   }
 
