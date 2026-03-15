@@ -132,7 +132,7 @@
 
   // -------- Login session (Office/Nurse) --------
   function getLoggedInUser() {
-    const keys = ['antai_session_user', 'officeAuth', 'office_user', 'nurse_user'];
+    const keys = ['antai_session_user', 'officeAuth', 'office_user', 'nurse_user', 'nutritionistAuth', 'nutritionist_user'];
     for (const k of keys) {
       try {
         const raw = sessionStorage.getItem(k);
