@@ -43,6 +43,7 @@
   };
 
   function showToast(message, ms = 2600) {
+    if (!els.toast) return;
     els.toast.textContent = message;
     els.toast.classList.add('show');
     clearTimeout(showToast._t);
@@ -64,11 +65,45 @@
       return '';
     }
   }
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
-  function getDb() {
+  async function waitForFirebaseReady(timeoutMs = 12000) {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      if (window.db) return window.db;
+
+      try {
+        if (window.firebase && Array.isArray(window.firebase.apps) && window.firebase.apps.length > 0) {
+          const db = window.firebase.firestore();
+          window.db = db;
+          return db;
+        }
+      } catch (_) {}
+
+      try {
+        if (window.firebase && typeof window.firebase.initializeApp === 'function') {
+          const cfg = window.firebaseConfig || window.FIREBASE_CONFIG || window.__firebaseConfig || null;
+          if (cfg && (!window.firebase.apps || window.firebase.apps.length === 0)) {
+            window.firebase.initializeApp(cfg);
+            const db = window.firebase.firestore();
+            window.db = db;
+            return db;
+          }
+        }
+      } catch (_) {}
+
+      await sleep(120);
+    }
+
+    throw new Error('Firebase 尚未初始化完成，請確認 firebase-init.js 是否正確載入，或是否已呼叫 firebase.initializeApp()');
+  }
+
+  async function getDb() {
     if (window.db) return window.db;
-    if (window.firebase?.firestore) return window.firebase.firestore();
-    throw new Error('找不到 Firestore，請先載入 firebase-init.js 或初始化 db');
+    return await waitForFirebaseReady();
   }
 
   function getCurrentUser() {
@@ -142,11 +177,10 @@
     }
     els.monthsGrid.innerHTML = '';
     els.monthsGrid.appendChild(frag);
-    refreshMonthCounts();
   }
 
   async function refreshMonthCounts() {
-    const db = getDb();
+    const db = await getDb();
     for (let month = 1; month <= 12; month++) {
       const countEl = document.getElementById(`month-count-${month}`);
       if (!countEl) continue;
@@ -162,7 +196,7 @@
   }
 
   async function loadResidents() {
-    const db = getDb();
+    const db = await getDb();
     const snap = await db.collection(COLLECTION_RESIDENTS).get();
     const items = [];
     snap.forEach(doc => {
@@ -217,7 +251,7 @@
   }
 
   async function loadMonthEntries() {
-    const db = getDb();
+    const db = await getDb();
     const docRef = db.collection(COLLECTION_EXTRA_MEALS).doc(state.currentDocId);
     const snap = await docRef.get();
     const data = snap.exists ? snap.data() : {};
@@ -257,7 +291,7 @@
   }
 
   async function saveCurrentEntries() {
-    const db = getDb();
+    const db = await getDb();
     const docRef = db.collection(COLLECTION_EXTRA_MEALS).doc(state.currentDocId);
     await docRef.set({
       year: state.currentYear,
@@ -352,7 +386,7 @@
   async function loadSourceEntries() {
     const year = Number(els.copyYearSelect.value);
     const month = Number(els.copyMonthSelect.value);
-    const db = getDb();
+    const db = await getDb();
     const snap = await db.collection(COLLECTION_EXTRA_MEALS).doc(monthDocId(year, month)).get();
     const entries = snap.exists ? (snap.data().entries || []) : [];
     state.sourceEntries = entries.slice().sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
@@ -419,19 +453,22 @@
   }
 
   function bindEvents() {
-    els.prevYearBtn.addEventListener('click', () => {
+    els.prevYearBtn.addEventListener('click', async () => {
       state.currentYear -= 1;
       setupYearControls();
       renderMonthsGrid();
+      await refreshMonthCounts();
     });
-    els.nextYearBtn.addEventListener('click', () => {
+    els.nextYearBtn.addEventListener('click', async () => {
       state.currentYear += 1;
       setupYearControls();
       renderMonthsGrid();
+      await refreshMonthCounts();
     });
-    els.yearSelect.addEventListener('change', () => {
+    els.yearSelect.addEventListener('change', async () => {
       state.currentYear = Number(els.yearSelect.value);
       renderMonthsGrid();
+      await refreshMonthCounts();
     });
     els.residentSelect.addEventListener('change', syncSelectedResident);
     els.addEntryBtn.addEventListener('click', () => {
@@ -451,6 +488,8 @@
 
   async function init() {
     try {
+      els.loginUserText.textContent = '登入者：初始化中...';
+      await waitForFirebaseReady();
       state.user = getCurrentUser();
       els.loginUserText.textContent = state.user.id === 'guest' ? '登入者：未登入使用者' : `登入者：${state.user.id} ${state.user.name}`;
       bindModalClosers();
@@ -458,6 +497,7 @@
       setupYearControls();
       renderMonthsGrid();
       setupCopySelectors();
+      await refreshMonthCounts();
       await loadResidents();
     } catch (err) {
       console.error(err);
