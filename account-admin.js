@@ -49,6 +49,14 @@
     { page: 'office-stay.html', system: 'office', perm: 'stay', dashboard: 'office.html' },
     { page: 'announcements-admin.html', system: 'office', perm: 'announcements', dashboard: 'office.html' },
     { page: 'meal-fee-admin.html', system: 'office', perm: 'mealFee', dashboard: 'office.html' },
+
+    // 復健師系統
+    { page: 'rehab.html', system: 'rehab', perm: null, dashboard: 'rehab.html' },
+    { page: 'rehab-records.html', system: 'rehab', perm: 'records', dashboard: 'rehab.html' },
+    { page: 'rehab-training.html', system: 'rehab', perm: 'training', dashboard: 'rehab.html' },
+    { page: 'rehab-assessment.html', system: 'rehab', perm: 'assessment', dashboard: 'rehab.html' },
+    { page: 'rehab-consult.html', system: 'rehab', perm: 'consult', dashboard: 'rehab.html' },
+
     { page: 'account-admin.html', system: null, perm: null, dashboard: 'office.html' }, // 帳號管理：只要有登入即可（非管理員只看自己）
   ];
 
@@ -148,7 +156,7 @@
 
 
 
-  // 四大系統：護理師 / 照服員 / 辦公室 / 事務
+  // 四大系統：護理師 / 照服員 / 辦公室 / 復健師
   // ✅ 你之後要加更多權限，只要在這裡加項目即可（不會再把表格越拉越寬）
   const PERMISSION_CATALOG = {
     nurse: [
@@ -179,18 +187,22 @@
       { key: 'mealFee', label: '餐費管理' },
       { key: 'accountAdmin', label: '帳號管理' }
     ],
-    affairs: [
-      { key: 'nutritionist', label: '營養師系統' }
+    rehab: [
+      { key: 'records', label: '復健紀錄系統' },
+      { key: 'training', label: '復健訓練系統' },
+      { key: 'assessment', label: '功能評估系統' },
+      { key: 'consult', label: '照會系統' }
     ]
   };
 
   // 舊欄位相容（既有資料仍會讀/寫）
   const LEGACY_SYSTEM_FLAG = {
-    nurse: 'canNurse',
-    caregiver: 'canCaregiver',
-    office: 'canOffice',
-    affairs: 'canNutritionist'
+    nurse: ['canNurse'],
+    caregiver: ['canCaregiver'],
+    office: ['canOffice'],
+    rehab: ['canRehab', 'canRehabilitation', 'canTherapist', 'canRehabTherapist', 'canNutritionist']
   };
+
 
   const tbody = document.getElementById('tbody');
   const msg = document.getElementById('msg');
@@ -220,12 +232,12 @@
   const toggleNurse = document.getElementById('toggleNurse');
   const toggleCaregiver = document.getElementById('toggleCaregiver');
   const toggleOffice = document.getElementById('toggleOffice');
-  const toggleAffairs = document.getElementById('toggleAffairs');
+  const toggleRehab = document.getElementById('toggleRehab');
 
   const nursePerms = document.getElementById('nursePerms');
   const caregiverPerms = document.getElementById('caregiverPerms');
   const officePerms = document.getElementById('officePerms');
-  const affairsPerms = document.getElementById('affairsPerms');
+  const rehabPerms = document.getElementById('rehabPerms');
 
   let rowsAll = [];
   let accountsMap = new Map();
@@ -330,12 +342,17 @@
     acc.systems = acc.systems && typeof acc.systems === 'object' ? acc.systems : {};
 
     // 確保四大系統都有物件
-    for (const k of ['nurse', 'caregiver', 'office', 'affairs']) {
+    // 舊資料若仍用 affairs，轉成 rehab
+    if ((!acc.systems.rehab || typeof acc.systems.rehab !== 'object') && acc.systems.affairs && typeof acc.systems.affairs === 'object') {
+      acc.systems.rehab = { ...acc.systems.affairs };
+    }
+
+    for (const k of ['nurse', 'caregiver', 'office', 'rehab']) {
       if (!acc.systems[k] || typeof acc.systems[k] !== 'object') acc.systems[k] = {};
       if (typeof acc.systems[k].enabled !== 'boolean') {
         // 從舊欄位推導
-        const legacyKey = LEGACY_SYSTEM_FLAG[k];
-        acc.systems[k].enabled = acc[legacyKey] === true;
+        const legacyKeys = Array.isArray(LEGACY_SYSTEM_FLAG[k]) ? LEGACY_SYSTEM_FLAG[k] : [LEGACY_SYSTEM_FLAG[k]];
+        acc.systems[k].enabled = legacyKeys.some(key => acc[key] === true);
       }
       acc.systems[k].perms = acc.systems[k].perms && typeof acc.systems[k].perms === 'object' ? acc.systems[k].perms : {};
     }
@@ -344,11 +361,17 @@
   }
 
   function deriveLegacyFlagsFromSystems(acc) {
-    for (const [sys, legacyKey] of Object.entries(LEGACY_SYSTEM_FLAG)) {
-      acc[legacyKey] = acc.systems?.[sys]?.enabled === true;
+    for (const [sys, legacyKeys] of Object.entries(LEGACY_SYSTEM_FLAG)) {
+      const keys = Array.isArray(legacyKeys) ? legacyKeys : [legacyKeys];
+      const enabled = acc.systems?.[sys]?.enabled === true;
+      keys.forEach((key, idx) => {
+        if (!key) return;
+        acc[key] = enabled;
+      });
     }
     return acc;
   }
+
 
   function buildPermGrid(container, sysKey) {
     if (!container) return;
@@ -379,7 +402,7 @@
     setPermsEnabled('nurse', toggleNurse.checked);
     setPermsEnabled('caregiver', toggleCaregiver.checked);
     setPermsEnabled('office', toggleOffice.checked);
-    setPermsEnabled('affairs', toggleAffairs.checked);
+    setPermsEnabled('rehab', toggleRehab.checked);
   }
 
 
@@ -397,10 +420,10 @@
     toggleNurse.checked = a.systems.nurse.enabled === true;
     toggleCaregiver.checked = a.systems.caregiver.enabled === true;
     toggleOffice.checked = a.systems.office.enabled === true;
-    toggleAffairs.checked = a.systems.affairs.enabled === true;
+    toggleRehab.checked = a.systems.rehab.enabled === true;
 
     // perms
-    for (const sysKey of ['nurse', 'caregiver', 'office', 'affairs']) {
+    for (const sysKey of ['nurse', 'caregiver', 'office', 'rehab']) {
       const enabled = a.systems[sysKey].enabled === true;
       setPermsEnabled(sysKey, enabled);
 
@@ -420,9 +443,9 @@
     out.systems.nurse.enabled = toggleNurse.checked;
     out.systems.caregiver.enabled = toggleCaregiver.checked;
     out.systems.office.enabled = toggleOffice.checked;
-    out.systems.affairs.enabled = toggleAffairs.checked;
+    out.systems.rehab.enabled = toggleRehab.checked;
 
-    for (const sysKey of ['nurse', 'caregiver', 'office', 'affairs']) {
+    for (const sysKey of ['nurse', 'caregiver', 'office', 'rehab']) {
       out.systems[sysKey].perms = out.systems[sysKey].perms || {};
       const enabled = out.systems[sysKey].enabled === true;
 
@@ -448,7 +471,7 @@
     if (a.systems.office.enabled) badges.push(`<span class="badge bg-primary badge-system">辦公室</span>`);
     if (a.systems.nurse.enabled) badges.push(`<span class="badge bg-success badge-system">護理師</span>`);
     if (a.systems.caregiver.enabled) badges.push(`<span class="badge bg-warning text-dark badge-system">照服員</span>`);
-    if (a.systems.affairs.enabled) badges.push(`<span class="badge bg-info text-dark badge-system">營養師</span>`);
+    if (a.systems.rehab.enabled) badges.push(`<span class="badge bg-info text-dark badge-system">復健師</span>`);
     return badges.join('') || `<span class="text-muted">—</span>`;
   }
 
@@ -686,9 +709,9 @@
       setPermsEnabled('office', toggleOffice.checked);
       if (toggleOffice.checked) checkAllPerms('office');
     });
-    toggleAffairs.addEventListener('change', () => {
-      setPermsEnabled('affairs', toggleAffairs.checked);
-      if (toggleAffairs.checked) checkAllPerms('affairs');
+    toggleRehab.addEventListener('change', () => {
+      setPermsEnabled('rehab', toggleRehab.checked);
+      if (toggleRehab.checked) checkAllPerms('rehab');
     });
   }
 
@@ -889,7 +912,7 @@
             nurse: { enabled: false, perms: {} },
             caregiver: { enabled: false, perms: {} },
             office: { enabled: false, perms: {} },
-            affairs: { enabled: false, perms: {} },
+            rehab: { enabled: false, perms: {} },
           }
         });
         deriveLegacyFlagsFromSystems(acc);
@@ -978,7 +1001,7 @@
     buildPermGrid(nursePerms, 'nurse');
     buildPermGrid(caregiverPerms, 'caregiver');
     buildPermGrid(officePerms, 'office');
-    buildPermGrid(affairsPerms, 'affairs');
+    buildPermGrid(rehabPerms, 'rehab');
 
     modal = new bootstrap.Modal(editModalEl);
 
