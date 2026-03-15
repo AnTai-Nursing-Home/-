@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>加餐系統</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;--card:#ffffff;--line:#dfe5ef;--text:#1f2937;--muted:#6b7280;
+      --primary:#3b82f6;--primary-2:#2563eb;--danger:#dc2626;--ok:#16a34a;
+      --shadow:0 8px 24px rgba(15,23,42,.08);--radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .app{max-width:1400px;margin:0 auto;padding:20px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+    .title-wrap h1{margin:0;font-size:32px}
+    .subtitle{color:var(--muted);margin-top:6px;font-size:14px}
+    .user-badge{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);padding:10px 14px;border-radius:999px;font-size:14px}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .panel-head h2,.panel-head h3{margin:0}
+    .panel-body{padding:18px 20px}
+    .year-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    button,.btn{border:none;border-radius:12px;padding:10px 14px;font-size:14px;cursor:pointer;background:#eef2ff;color:#1e3a8a}
+    button.primary{background:var(--primary);color:#fff}
+    button.primary:hover{background:var(--primary-2)}
+    button.ghost{background:#f3f4f6;color:#374151}
+    button.danger{background:#fee2e2;color:#991b1b}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    select,input{width:100%;padding:11px 12px;border:1px solid #cfd7e6;border-radius:12px;font-size:14px;background:#fff}
+    .months{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .month-btn{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid var(--line);cursor:pointer}
+    .month-btn:hover{border-color:#93c5fd;background:#eff6ff}
+    .month-btn .count{font-size:12px;color:var(--muted)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .toolbar > *{flex:1 1 180px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    th,td{padding:12px 14px;border-bottom:1px solid #edf2f7;text-align:left;white-space:nowrap}
+    th{background:#f8fafc;font-size:13px;color:#475569}
+    tr:hover td{background:#fcfdff}
+    .empty{padding:28px;text-align:center;color:var(--muted)}
+    .modal{position:fixed;inset:0;background:rgba(15,23,42,.38);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+    .modal.show{display:flex}
+    .modal-card{width:min(760px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;box-shadow:0 24px 60px rgba(15,23,42,.22)}
+    .modal-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .modal-body{padding:20px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .field label{display:block;margin-bottom:7px;font-size:13px;color:#475569;font-weight:700}
+    .field.full{grid-column:1/-1}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .modal-foot{padding:18px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+    .toast{position:fixed;right:18px;bottom:18px;background:#111827;color:#fff;padding:12px 14px;border-radius:14px;box-shadow:var(--shadow);display:none;z-index:1200;max-width:min(420px,calc(100vw - 36px))}
+    .toast.show{display:block}
+    .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}
+    .split{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+    .copy-list{max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+    .copy-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #edf2f7;gap:10px}
+    .copy-item:last-child{border-bottom:none}
+    .muted{color:var(--muted)}
+    @media (max-width: 980px){.layout,.split,.grid{grid-template-columns:1fr}.months{grid-template-columns:1fr}.app{padding:14px}.title-wrap h1{font-size:26px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title-wrap">
+        <h1>加餐系統</h1>
+        <div class="subtitle">營養師系統｜月份清單、加餐名單、新增與複製</div>
+      </div>
+      <div class="user-badge" id="loginUserText">登入者：讀取中...</div>
+    </div>
+
+    <div class="layout">
+      <section class="card">
+        <div class="panel-head">
+          <h2>月份清單</h2>
+          <div class="year-tools">
+            <button id="prevYearBtn" class="ghost">← 上一年</button>
+            <select id="yearSelect" style="width:110px"></select>
+            <button id="nextYearBtn" class="ghost">下一年 →</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="months" id="monthsGrid"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="panel-head">
+          <div>
+            <h2 id="currentMonthTitle">請先選擇月份</h2>
+            <div class="subtitle" id="currentMonthSubtitle">會顯示該月份所有有加餐的住民</div>
+          </div>
+          <div class="toolbar">
+            <button id="addEntryBtn" class="primary" disabled>新增加餐名單</button>
+            <button id="copyBtn" class="ghost" disabled>複製其他月份名單</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:120px">床號</th>
+                  <th style="width:180px">住民姓名</th>
+                  <th style="width:160px">加餐飲食</th>
+                  <th>建立者</th>
+                  <th style="width:180px">建立時間</th>
+                  <th style="width:90px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="entriesTbody">
+                <tr><td colspan="6" class="empty">請先從左邊選一個月份</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="entryModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>新增加餐名單</h3>
+        <button type="button" class="ghost" data-close="entryModal">關閉</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid">
+          <div class="field full">
+            <label for="residentSelect">床號</label>
+            <select id="residentSelect"></select>
+            <div class="hint">下拉會顯示「床號｜姓名」，選完後系統儲存時床號欄位只會顯示床號。</div>
+          </div>
+          <div class="field">
+            <label for="bedNumberInput">床號</label>
+            <input id="bedNumberInput" readonly />
+          </div>
+          <div class="field">
+            <label for="residentNameInput">住民姓名</label>
+            <input id="residentNameInput" readonly />
+          </div>
+          <div class="field full">
+            <label for="mealTypeSelect">加餐飲食</label>
+            <select id="mealTypeSelect">
+              <option value="">請選擇</option>
+              <option value="牛奶">牛奶</option>
+              <option value="普通餐">普通餐</option>
+              <option value="剁碎飯">剁碎飯</option>
+              <option value="剁碎粥">剁碎粥</option>
+              <option value="攪打餐">攪打餐</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="ghost" data-close="entryModal">取消</button>
+        <button type="button" class="primary" id="saveEntryBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="copyModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>複製其他月份名單</h3>
+        <button type="button" class="ghost" data-close="copyModal">關閉</button>
+      </div>
+      <div class="modal-body split">
+        <div class="card" style="box-shadow:none">
+          <div class="panel-head"><h3>來源月份</h3></div>
+          <div class="panel-body">
+            <div class="grid">
+              <div class="field">
+                <label for="copyYearSelect">來源年份</label>
+                <select id="copyYearSelect"></select>
+              </div>
+              <div class="field">
+                <label for="copyMonthSelect">來源月份</label>
+                <select id="copyMonthSelect"></select>
+              </div>
+            </div>
+            <div class="hint" id="copySourceHint">請選擇要複製的來源年份與月份。</div>
+            <div class="copy-list" id="copyList" style="margin-top:14px">
+              <div class="empty">尚未載入來源名單</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="box-shadow:none">
+          <div class="panel-head"><h3>快速操作</h3></div>
+          <div class="panel-body">
+            <p class="muted">你可以選單筆複製，或把整個月份全部複製到目前月份。</p>
+            <button type="button" class="primary" id="copyAllBtn" style="width:100%">整個月份全複製</button>
+            <div class="hint" style="margin-top:10px">若目標月份已經有相同住民，會自動跳過避免重複。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="extra-meals.js"></script>
+</body>
+</html>
