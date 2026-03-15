@@ -9,266 +9,1001 @@
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <style>
     :root{
-      --bg:#f4f8fb;
+      --bg:#eef6f8;
+      --bg-2:#f9fcfd;
       --card:#ffffff;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --line:rgba(17,24,39,.08);
-      --shadow:0 10px 30px rgba(15,23,42,.08);
-      --shadow-hover:0 16px 34px rgba(15,23,42,.12);
-      --brand-1:#14532d;
-      --brand-2:#1f7a5b;
-      --accent:#dcfce7;
+      --text:#15323a;
+      --muted:#67808a;
+      --line:rgba(19,62,74,.10);
+      --brand:#0f766e;
+      --brand-2:#14b8a6;
+      --brand-3:#5eead4;
+      --mint:#ecfeff;
+      --shadow:0 18px 40px rgba(15,118,110,.10);
+      --shadow-hover:0 24px 48px rgba(15,118,110,.16);
+      --radius:24px;
     }
+
+    *{ box-sizing:border-box; }
     body{
-      background:
-        radial-gradient(circle at top left, rgba(255,255,255,.92), transparent 28%),
-        linear-gradient(180deg, #fbfdff 0%, var(--bg) 100%);
-      font-family:"Noto Sans TC", sans-serif;
+      margin:0;
+      min-height:100vh;
       color:var(--text);
+      font-family:"Noto Sans TC", sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(94,234,212,.25), transparent 18%),
+        radial-gradient(circle at 88% 12%, rgba(20,184,166,.16), transparent 20%),
+        linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 100%);
     }
-    .header-bar{
-      background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+
+    .page-shell{
+      width:min(1320px, calc(100% - 28px));
+      margin:18px auto 28px;
+    }
+
+    .topbar{
+      background:linear-gradient(135deg, rgba(15,118,110,.95), rgba(20,184,166,.92));
+      border:1px solid rgba(255,255,255,.12);
       color:#fff;
-      min-height: 92px;
-      padding: 18px 22px;
+      border-radius:28px;
+      box-shadow:0 20px 44px rgba(15,118,110,.18);
+      padding:18px 22px;
       display:flex;
       align-items:center;
-      justify-content:center;
+      justify-content:space-between;
+      gap:18px;
       position:relative;
-      box-shadow: 0 8px 24px rgba(0,0,0,.14);
+      overflow:hidden;
     }
-    .header-bar h1{
-      margin:0;
-      font-weight:900;
-      font-size:clamp(1.4rem, 2.1vw, 2rem);
-      letter-spacing:.06em;
-      text-shadow: 0 1px 2px rgba(0,0,0,.18);
-    }
-    .header-right{
+    .topbar::before,
+    .topbar::after{
+      content:"";
       position:absolute;
-      right:22px;
-      top:50%;
-      transform: translateY(-50%);
-      min-width: 220px;
-      max-width: 320px;
-      padding:10px 12px;
-      border-radius:16px;
-      background: rgba(255,255,255,.14);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      border-radius:999px;
+      background:rgba(255,255,255,.12);
+      pointer-events:none;
+    }
+    .topbar::before{ width:220px; height:220px; right:-80px; top:-90px; }
+    .topbar::after{ width:130px; height:130px; left:-30px; bottom:-70px; }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      position:relative;
+      z-index:1;
+      min-width:0;
+    }
+    .brand-logo{
+      width:62px;
+      height:62px;
+      border-radius:20px;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.22);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.15);
+      font-size:1.6rem;
+    }
+    .brand-title{
+      font-size:clamp(1.35rem, 2.2vw, 2.15rem);
+      font-weight:900;
+      line-height:1.08;
+      letter-spacing:.05em;
+      margin:0;
+    }
+    .brand-sub{
+      margin-top:5px;
+      font-size:.93rem;
+      opacity:.92;
+      max-width:620px;
+    }
+
+    .header-right{
+      position:relative;
+      z-index:1;
+      min-width:250px;
+      max-width:350px;
+      width:100%;
+      margin-left:auto;
+      padding:12px 14px;
+      border-radius:20px;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
     }
     .login-chip-label{
       font-size:.74rem;
-      opacity:.86;
       letter-spacing:.08em;
-      margin-bottom:4px;
+      opacity:.84;
+      margin-bottom:6px;
     }
     .login-chip-user{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
+      gap:12px;
       flex-wrap:wrap;
     }
-    .login-chip-main{
-      min-width:0;
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
+    .login-chip-main{ display:flex; align-items:center; gap:10px; min-width:0; }
     .login-chip-icon{
-      width:36px;
-      height:36px;
-      border-radius:12px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      background: rgba(255,255,255,.18);
-      border:1px solid rgba(255,255,255,.15);
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.16);
       flex:0 0 auto;
     }
-    .login-chip-text{
-      min-width:0;
-      line-height:1.2;
-    }
-    .login-chip-id{
-      font-weight:800;
-      font-size:.96rem;
-      white-space:nowrap;
-    }
+    .login-chip-id{ font-size:1rem; font-weight:800; line-height:1.1; }
     .login-chip-name{
-      font-size:.82rem;
+      font-size:.84rem;
       opacity:.95;
+      white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      white-space:nowrap;
-      max-width:160px;
+      max-width:170px;
     }
     #logoutBtnRehab{
       margin:0 !important;
-      border-color: rgba(255,255,255,.35);
+      border-color:rgba(255,255,255,.34);
       color:#fff;
       font-weight:700;
-      padding:.28rem .65rem;
       border-radius:999px;
+      padding:.34rem .8rem;
+      white-space:nowrap;
     }
     #logoutBtnRehab:hover{
-      background: rgba(255,255,255,.14);
-      border-color: rgba(255,255,255,.5);
+      background:rgba(255,255,255,.14);
       color:#fff;
+      border-color:rgba(255,255,255,.5);
     }
-    @media (max-width: 768px){
-      .header-bar{
-        min-height:auto;
-        padding:16px 14px 14px;
-        flex-direction:column;
-        gap:12px;
-      }
-      .header-right{
-        position:static;
-        transform:none;
-        width:min(100%, 420px);
-        max-width:100%;
-      }
-      .login-chip-name{ max-width:unset; }
-    }
-    .wrap{ max-width:1140px; margin:30px auto; padding:0 18px; }
 
-    .menu-grid{
-      display:grid; gap:20px; justify-content:center;
-      grid-template-columns: repeat(3, 1fr);
+    .hero-grid{
+      display:grid;
+      grid-template-columns: minmax(300px, 1.02fr) minmax(360px, .98fr);
+      gap:22px;
+      margin-top:22px;
+      align-items:stretch;
     }
-    @media (max-width: 991px){ .menu-grid{ grid-template-columns: repeat(2, 1fr);} }
-    @media (max-width: 576px){ .menu-grid{ grid-template-columns: repeat(1, 1fr);} }
 
-    .menu-item{
-      text-decoration:none;
+    .glass-card,
+    .panel,
+    .action-card,
+    .quick-card,
+    .status-card{
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(255,255,255,.65);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .hero-panel{
+      border-radius:30px;
+      padding:28px 28px 24px;
+      position:relative;
+      overflow:hidden;
+      min-height:320px;
+    }
+    .hero-panel::before{
+      content:"";
+      position:absolute;
+      inset:auto -40px -55px auto;
+      width:200px;
+      height:200px;
+      border-radius:999px;
+      background:radial-gradient(circle, rgba(94,234,212,.45), transparent 65%);
+      pointer-events:none;
+    }
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      background:var(--mint);
+      border:1px solid rgba(20,184,166,.14);
+      color:#0f766e;
+      font-size:.83rem;
+      font-weight:800;
+      letter-spacing:.04em;
+    }
+    .hero-title{
+      font-size:clamp(1.8rem, 3vw, 3rem);
+      font-weight:900;
+      line-height:1.14;
+      margin:16px 0 12px;
+      color:#0f2e35;
+    }
+    .hero-text{
+      max-width:720px;
+      color:#4f6770;
+      font-size:1rem;
+      line-height:1.8;
+      margin-bottom:18px;
+    }
+    .hero-badges{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:22px;
+    }
+    .hero-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:16px;
       background:#fff;
-      color:#222;
-      border-radius:20px;
-      text-align:center;
-      padding: 26px 14px;
+      border:1px solid rgba(15,118,110,.08);
+      box-shadow:0 10px 22px rgba(15,118,110,.08);
+      color:#24505a;
       font-weight:700;
-      box-shadow: 0 2px 10px rgba(0,0,0,.10);
-      border:1px solid rgba(0,0,0,.06);
-      transition: transform .15s ease, box-shadow .15s ease;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      min-height: 155px;
+      font-size:.92rem;
     }
-    .menu-item:hover{ transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
-    .menu-item i{ font-size:2.4rem; margin-bottom: 12px; color:#166534; }
-    .menu-desc{ margin-top: 6px; font-size:.9rem; color:#666; font-weight:500; line-height:1.35; }
+    .hero-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+    .hero-actions .btn{
+      border-radius:999px;
+      padding:.78rem 1.15rem;
+      font-weight:800;
+    }
+    .btn-brand{
+      background:linear-gradient(135deg, var(--brand), var(--brand-2));
+      color:#fff;
+      border:none;
+      box-shadow:0 14px 28px rgba(15,118,110,.18);
+    }
+    .btn-brand:hover{ color:#fff; filter:brightness(.98); }
 
-    .card-login{ background:#fff; border-radius:18px; box-shadow: 0 2px 10px rgba(0,0,0,.10); border:1px solid rgba(0,0,0,.06); }
-    footer{ text-align:center; padding: 22px 0; font-size:.9rem; color:#888; }
+    .scene-card{
+      border-radius:30px;
+      padding:24px;
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      min-height:320px;
+      background:
+        linear-gradient(160deg, rgba(255,255,255,.96) 0%, rgba(240,253,250,.96) 100%);
+    }
+    .scene-top{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+    .scene-title{
+      font-size:1.1rem;
+      font-weight:900;
+      color:#11424b;
+      margin-bottom:6px;
+    }
+    .scene-sub{ color:#64808a; line-height:1.65; font-size:.94rem; }
+    .scene-dot{
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:#10b981;
+      box-shadow:0 0 0 7px rgba(16,185,129,.14);
+      flex:0 0 auto;
+      margin-top:4px;
+    }
+
+    .rehab-illustration{
+      margin:18px auto 10px;
+      width:min(100%, 370px);
+      aspect-ratio: 1.1 / 1;
+      border-radius:28px;
+      position:relative;
+      background:
+        radial-gradient(circle at 50% 22%, rgba(255,255,255,.88), transparent 30%),
+        linear-gradient(180deg, rgba(207,250,254,.85), rgba(240,253,250,.95));
+      border:1px solid rgba(15,118,110,.09);
+      overflow:hidden;
+    }
+    .rehab-illustration::before{
+      content:"";
+      position:absolute;
+      inset:auto 20px 18px 20px;
+      height:18px;
+      border-radius:999px;
+      background:rgba(15,118,110,.10);
+      filter:blur(2px);
+    }
+    .bubble,
+    .bubble-2,
+    .bubble-3{
+      position:absolute;
+      border-radius:50%;
+      background:rgba(20,184,166,.14);
+    }
+    .bubble{ width:84px; height:84px; top:28px; left:28px; }
+    .bubble-2{ width:56px; height:56px; top:52px; right:34px; }
+    .bubble-3{ width:28px; height:28px; bottom:88px; left:46px; }
+    .board{
+      position:absolute;
+      left:30px;
+      top:56px;
+      width:100px;
+      height:120px;
+      border-radius:18px;
+      background:#fff;
+      border:1px solid rgba(15,118,110,.10);
+      box-shadow:0 12px 24px rgba(15,118,110,.08);
+    }
+    .board::before,
+    .board::after{
+      content:"";
+      position:absolute;
+      left:16px;
+      right:16px;
+      height:10px;
+      border-radius:999px;
+      background:rgba(20,184,166,.18);
+    }
+    .board::before{ top:24px; }
+    .board::after{ top:46px; }
+    .patient,
+    .therapist{
+      position:absolute;
+      bottom:34px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+    .therapist{ right:56px; }
+    .patient{ left:132px; }
+    .head{
+      width:42px;
+      height:42px;
+      border-radius:50%;
+      background:#f8d3b2;
+      position:relative;
+      z-index:2;
+      box-shadow:inset 0 -4px 0 rgba(0,0,0,.04);
+    }
+    .therapist .head::before,
+    .patient .head::before{
+      content:"";
+      position:absolute;
+      left:2px;
+      right:2px;
+      top:-2px;
+      height:18px;
+      border-radius:999px 999px 6px 6px;
+      background:#24505a;
+    }
+    .body-shape{
+      width:66px;
+      height:78px;
+      margin-top:-4px;
+      border-radius:22px 22px 16px 16px;
+      position:relative;
+    }
+    .therapist .body-shape{ background:#ffffff; border:1px solid rgba(15,118,110,.12); }
+    .patient .body-shape{ background:#99f6e4; }
+    .arm,
+    .arm-2,
+    .leg,
+    .leg-2{
+      position:absolute;
+      background:#f8d3b2;
+      border-radius:999px;
+      transform-origin:top center;
+    }
+    .therapist .arm{ width:14px; height:58px; left:-8px; top:16px; transform:rotate(52deg); }
+    .therapist .arm-2{ width:14px; height:50px; right:-8px; top:18px; transform:rotate(-18deg); }
+    .patient .arm{ width:14px; height:52px; left:-4px; top:18px; transform:rotate(20deg); }
+    .patient .arm-2{ width:14px; height:52px; right:-2px; top:18px; transform:rotate(-34deg); }
+    .therapist .leg{ width:16px; height:72px; left:14px; bottom:-54px; transform:rotate(12deg); }
+    .therapist .leg-2{ width:16px; height:72px; right:14px; bottom:-54px; transform:rotate(-8deg); }
+    .patient .leg{ width:16px; height:76px; left:15px; bottom:-58px; transform:rotate(34deg); }
+    .patient .leg-2{ width:16px; height:72px; right:16px; bottom:-54px; transform:rotate(-30deg); }
+    .assist-band{
+      position:absolute;
+      left:165px;
+      top:168px;
+      width:104px;
+      height:16px;
+      border-radius:999px;
+      background:linear-gradient(90deg, #0f766e, #2dd4bf);
+      box-shadow:0 8px 18px rgba(15,118,110,.16);
+      transform:rotate(-10deg);
+    }
+
+    .scene-stats{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+    .status-card{
+      border-radius:20px;
+      padding:14px 14px 12px;
+      background:#fff;
+      border:1px solid rgba(15,118,110,.08);
+    }
+    .status-label{
+      color:#6a868f;
+      font-size:.8rem;
+      font-weight:700;
+      letter-spacing:.03em;
+    }
+    .status-value{
+      font-size:1.2rem;
+      font-weight:900;
+      margin-top:4px;
+      color:#123c44;
+    }
+
+    .panel{
+      border-radius:28px;
+      padding:24px;
+      margin-top:22px;
+    }
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:14px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+    .section-title{
+      margin:0;
+      font-size:1.3rem;
+      font-weight:900;
+      color:#103840;
+    }
+    .section-sub{
+      color:#6d858e;
+      font-size:.95rem;
+      line-height:1.7;
+      max-width:760px;
+      margin-top:4px;
+    }
+
+    .login-layout{
+      display:grid;
+      grid-template-columns:minmax(260px, .9fr) minmax(280px, 1.1fr);
+      gap:22px;
+      align-items:stretch;
+    }
+    .login-side{
+      border-radius:24px;
+      padding:22px;
+      background:linear-gradient(180deg, rgba(236,254,255,.95), rgba(255,255,255,.95));
+      border:1px solid rgba(15,118,110,.08);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:16px;
+    }
+    .mini-title{ font-size:1.05rem; font-weight:900; color:#104049; margin:0 0 6px; }
+    .mini-text{ color:#607c86; line-height:1.8; font-size:.94rem; }
+    .feature-list{ display:grid; gap:12px; }
+    .feature-chip{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      padding:12px 14px;
+      border-radius:18px;
+      background:#fff;
+      border:1px solid rgba(15,118,110,.07);
+      box-shadow:0 10px 20px rgba(15,118,110,.05);
+    }
+    .feature-chip i{
+      width:38px;
+      height:38px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      background:rgba(20,184,166,.12);
+      color:#0f766e;
+      flex:0 0 auto;
+    }
+    .feature-chip strong{ display:block; color:#123f47; margin-bottom:3px; }
+    .feature-chip span{ font-size:.9rem; color:#67808a; line-height:1.55; }
+
+    .login-form-card{
+      border-radius:24px;
+      padding:26px;
+      background:#fff;
+      border:1px solid rgba(15,118,110,.08);
+      box-shadow:0 16px 34px rgba(15,118,110,.08);
+    }
+    .input-label{ font-size:.88rem; font-weight:800; color:#29515a; margin-bottom:8px; }
+    .form-control{
+      border-radius:16px;
+      min-height:52px;
+      border-color:rgba(15,118,110,.14);
+      box-shadow:none !important;
+      padding:0 16px;
+    }
+    .form-control:focus{
+      border-color:rgba(20,184,166,.55);
+      box-shadow:0 0 0 .24rem rgba(20,184,166,.12) !important;
+    }
+    .btn-login{
+      min-height:52px;
+      border-radius:16px;
+      font-weight:900;
+      background:linear-gradient(135deg, var(--brand), var(--brand-2));
+      border:none;
+      box-shadow:0 16px 28px rgba(15,118,110,.18);
+    }
+    .btn-login:hover{ filter:brightness(.98); }
+    .privacy-box{
+      background:#f9fdfd;
+      border:1px solid rgba(15,118,110,.08);
+      border-radius:18px;
+      padding:12px 14px;
+    }
+    #errorMessage-rehab{
+      border-radius:16px;
+      background:#fff3f3;
+      border:1px solid #fecaca;
+      padding:10px 12px;
+      font-size:.95rem;
+    }
+
+    .action-grid{
+      display:grid;
+      gap:18px;
+      grid-template-columns:repeat(5, minmax(0,1fr));
+    }
+    .action-card{
+      text-decoration:none;
+      color:inherit;
+      border-radius:24px;
+      padding:22px 18px;
+      display:flex;
+      flex-direction:column;
+      min-height:230px;
+      position:relative;
+      overflow:hidden;
+      border:1px solid rgba(15,118,110,.08);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(246,255,252,.96));
+    }
+    .action-card:hover{
+      transform:translateY(-4px);
+      box-shadow:var(--shadow-hover);
+      border-color:rgba(20,184,166,.18);
+      color:inherit;
+    }
+    .action-card::after{
+      content:"";
+      position:absolute;
+      right:-20px;
+      bottom:-22px;
+      width:104px;
+      height:104px;
+      border-radius:50%;
+      background:rgba(20,184,166,.08);
+    }
+    .action-icon{
+      width:58px;
+      height:58px;
+      border-radius:18px;
+      display:grid;
+      place-items:center;
+      font-size:1.35rem;
+      color:#0f766e;
+      background:rgba(20,184,166,.12);
+      box-shadow:inset 0 0 0 1px rgba(20,184,166,.08);
+      margin-bottom:16px;
+      position:relative;
+      z-index:1;
+    }
+    .action-title{
+      font-size:1.08rem;
+      font-weight:900;
+      color:#123f47;
+      margin-bottom:8px;
+      position:relative;
+      z-index:1;
+    }
+    .action-desc{
+      color:#658089;
+      line-height:1.72;
+      font-size:.93rem;
+      position:relative;
+      z-index:1;
+    }
+    .action-meta{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:#0f766e;
+      font-weight:800;
+      margin-top:auto;
+      padding-top:16px;
+      position:relative;
+      z-index:1;
+    }
+
+    .quick-grid{
+      display:grid;
+      gap:16px;
+      grid-template-columns:1.1fr .9fr;
+    }
+    .quick-card{
+      border-radius:24px;
+      padding:20px;
+      border:1px solid rgba(15,118,110,.08);
+      background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(249,255,254,.96));
+    }
+    .quick-card h4{
+      margin:0 0 14px;
+      font-size:1.02rem;
+      font-weight:900;
+      color:#123f47;
+    }
+    .pill-list{ display:flex; flex-wrap:wrap; gap:10px; }
+    .soft-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius:999px;
+      background:#fff;
+      border:1px solid rgba(15,118,110,.08);
+      color:#385d66;
+      font-weight:700;
+      font-size:.9rem;
+    }
+    .soft-pill i{ color:#0f766e; }
+    .timeline{ display:grid; gap:12px; }
+    .timeline-item{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      padding:10px 0;
+      border-bottom:1px dashed rgba(15,118,110,.12);
+    }
+    .timeline-item:last-child{ border-bottom:none; padding-bottom:0; }
+    .timeline-dot{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:linear-gradient(135deg, var(--brand), var(--brand-2));
+      margin-top:7px;
+      flex:0 0 auto;
+    }
+    .timeline-item strong{ display:block; color:#123f47; margin-bottom:3px; }
+    .timeline-item span{ color:#6b848e; line-height:1.6; font-size:.9rem; }
+
+    footer{
+      text-align:center;
+      color:#7e969d;
+      font-size:.92rem;
+      padding:22px 0 10px;
+    }
+
+    @media (max-width: 1200px){
+      .action-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+      .hero-grid{ grid-template-columns:1fr; }
+    }
+    @media (max-width: 992px){
+      .topbar{ flex-direction:column; align-items:stretch; }
+      .header-right{ max-width:none; min-width:0; }
+      .login-layout,
+      .quick-grid{ grid-template-columns:1fr; }
+      .action-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px){
+      .page-shell{ width:min(100% - 16px, 100%); margin:10px auto 20px; }
+      .topbar,
+      .hero-panel,
+      .scene-card,
+      .panel,
+      .login-form-card,
+      .login-side{ border-radius:22px; }
+      .topbar{ padding:16px; }
+      .hero-panel,
+      .scene-card,
+      .panel{ padding:18px; }
+      .login-form-card,
+      .login-side{ padding:18px; }
+      .action-grid,
+      .scene-stats{ grid-template-columns:1fr; }
+      .hero-actions .btn{ width:100%; justify-content:center; }
+      .brand-wrap{ align-items:flex-start; }
+      .brand-logo{ width:54px; height:54px; border-radius:18px; }
+      .rehab-illustration{ max-width:100%; aspect-ratio:1 / 1.02; }
+      .board{ left:16px; top:50px; width:86px; height:106px; }
+      .patient{ left:98px; }
+      .therapist{ right:30px; }
+      .assist-band{ left:126px; width:90px; top:154px; }
+    }
   </style>
 </head>
 <body>
-  <div class="header-bar">
-    <h1>復健師系統</h1>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-logo"><i class="fas fa-person-walking"></i></div>
+        <div>
+          <h1 class="brand-title">復健師系統</h1>
+          <div class="brand-sub">整合復健紀錄、訓練安排、功能評估與跨單位照會，讓日常作業更直覺、更快找到需要的功能。</div>
+        </div>
+      </div>
 
-    <div id="loginInfoRehab" class="header-right d-none">
-      <div class="login-chip-label">目前登入者</div>
-      <div class="login-chip-user">
-        <div class="login-chip-main">
-          <div class="login-chip-icon"><i class="fas fa-person-walking"></i></div>
-          <div class="login-chip-text">
-            <div class="login-chip-id" id="loginStaffId-rehab"></div>
-            <div class="login-chip-name" id="loginStaffName-rehab"></div>
+      <div id="loginInfoRehab" class="header-right d-none">
+        <div class="login-chip-label">目前登入者</div>
+        <div class="login-chip-user">
+          <div class="login-chip-main">
+            <div class="login-chip-icon"><i class="fas fa-user-doctor"></i></div>
+            <div class="login-chip-text">
+              <div class="login-chip-id" id="loginStaffId-rehab"></div>
+              <div class="login-chip-name" id="loginStaffName-rehab"></div>
+            </div>
+          </div>
+          <button id="logoutBtnRehab" class="btn btn-sm btn-outline-light">登出</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero-grid">
+      <div class="hero-panel glass-card">
+        <div class="eyebrow"><i class="fas fa-sparkles"></i> 專屬復健作業首頁</div>
+        <div class="hero-title">把復健流程放在同一個清楚的入口。</div>
+        <div class="hero-text">
+          登入後就能直接進入復健紀錄、訓練排程、功能評估與照會回覆。版面改成卡片式儀表板，資訊比較集中，操作上也會更像你現在其他系統的新版風格。
+        </div>
+        <div class="hero-badges">
+          <div class="hero-badge"><i class="fas fa-clipboard-list"></i> 復健紀錄集中管理</div>
+          <div class="hero-badge"><i class="fas fa-dumbbell"></i> 訓練流程更直覺</div>
+          <div class="hero-badge"><i class="fas fa-arrows-rotate"></i> 評估與照會可串接</div>
+        </div>
+        <div class="hero-actions">
+          <a class="btn btn-brand" href="#login-section-rehab"><i class="fas fa-right-to-bracket me-2"></i>前往登入</a>
+          <a class="btn btn-outline-secondary" href="../affairs.html"><i class="fas fa-arrow-left me-2"></i>返回事務系統</a>
+        </div>
+      </div>
+
+      <div class="scene-card glass-card">
+        <div>
+          <div class="scene-top">
+            <div>
+              <div class="scene-title">今日作業概覽</div>
+              <div class="scene-sub">首頁先做成比較有醫療感、又不會太冷硬的風格。你之後如果要再接統計卡、待辦提醒，也很適合直接往這個版型延伸。</div>
+            </div>
+            <div class="scene-dot"></div>
+          </div>
+
+          <div class="rehab-illustration" aria-hidden="true">
+            <div class="bubble"></div>
+            <div class="bubble-2"></div>
+            <div class="bubble-3"></div>
+            <div class="board"></div>
+            <div class="assist-band"></div>
+
+            <div class="patient">
+              <div class="head"></div>
+              <div class="body-shape">
+                <div class="arm"></div>
+                <div class="arm-2"></div>
+                <div class="leg"></div>
+                <div class="leg-2"></div>
+              </div>
+            </div>
+
+            <div class="therapist">
+              <div class="head"></div>
+              <div class="body-shape">
+                <div class="arm"></div>
+                <div class="arm-2"></div>
+                <div class="leg"></div>
+                <div class="leg-2"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <button id="logoutBtnRehab" class="btn btn-sm btn-outline-light">登出</button>
-      </div>
-    </div>
-  </div>
 
-  <div class="wrap">
-    <div id="login-section-rehab" class="card-login p-4" style="max-width: 720px; margin: 0 auto;">
-      <h5 class="fw-bold mb-3">請輸入個人帳號密碼</h5>
-
-      <div class="row g-2 mb-2">
-        <div class="col-md-6">
-          <input type="text" id="usernameInput-rehab" class="form-control" placeholder="帳號（員工編號）" autocomplete="username">
+        <div class="scene-stats">
+          <div class="status-card">
+            <div class="status-label">首頁風格</div>
+            <div class="status-value">新版卡片式</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">主色調</div>
+            <div class="status-value">薄荷醫療綠</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">操作感受</div>
+            <div class="status-value">更清楚直覺</div>
+          </div>
         </div>
-        <div class="col-md-6">
-          <input type="password" id="passwordInput-rehab" class="form-control" placeholder="密碼" autocomplete="current-password">
+      </div>
+    </section>
+
+    <div id="login-section-rehab" class="panel">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">登入復健師系統</h2>
+          <div class="section-sub">保留你原本帳密登入的邏輯，但把登入區做成左右分欄。左邊放功能說明，右邊放實際登入表單，看起來會比較完整。</div>
         </div>
       </div>
 
-      <div class="d-flex gap-2 mb-3">
-        <button id="loginButton-rehab" class="btn btn-success">
-          <i class="fas fa-right-to-bracket me-1"></i>登入
-        </button>
-      </div>
+      <div class="login-layout">
+        <div class="login-side">
+          <div>
+            <div class="mini-title">這裡可以做什麼</div>
+            <div class="mini-text">登入後直接進入復健師專屬首頁，將常用功能集中在同一區塊，不用再從很多入口慢慢找。</div>
+          </div>
 
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" id="privacyCheck-rehab">
-        <label class="form-check-label" for="privacyCheck-rehab">
-          我同意 <a href="../privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
-        </label>
-      </div>
+          <div class="feature-list">
+            <div class="feature-chip">
+              <i class="fas fa-notes-medical"></i>
+              <div>
+                <strong>復健紀錄</strong>
+                <span>建立與查詢個案復健紀錄，後續也很適合接列印或 Word 匯出。</span>
+              </div>
+            </div>
+            <div class="feature-chip">
+              <i class="fas fa-dumbbell"></i>
+              <div>
+                <strong>訓練管理</strong>
+                <span>安排訓練內容、追蹤執行情形，未來也能再加進度或提醒。</span>
+              </div>
+            </div>
+            <div class="feature-chip">
+              <i class="fas fa-clipboard-check"></i>
+              <div>
+                <strong>功能評估</strong>
+                <span>整合 ADL、活動能力或其他功能性評估表單，方便做前後比較。</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <div id="errorMessage-rehab" class="text-danger d-none">登入失敗，請確認帳號/密碼與權限設定。</div>
+        <div class="login-form-card">
+          <h3 class="mini-title mb-2">請輸入個人帳號密碼</h3>
+          <div class="mini-text mb-4">使用帳號管理系統建立的帳號登入。若帳號沒有復健師權限，系統會顯示無法登入。</div>
 
-      <div class="text-muted small">
-        ※ 若尚未建立帳號請告知管理員。
-      </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="input-label">帳號</div>
+              <input type="text" id="usernameInput-rehab" class="form-control" placeholder="帳號（員工編號）" autocomplete="username">
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="input-label">密碼</div>
+              <input type="password" id="passwordInput-rehab" class="form-control" placeholder="密碼" autocomplete="current-password">
+            </div>
+          </div>
 
-      <div class="mt-3 d-flex gap-2 flex-wrap">
-        <a class="btn btn-sm btn-outline-secondary" href="../affairs.html">
-          <i class="fas fa-arrow-left me-2"></i>返回事務系統
-        </a>
-        <a class="btn btn-sm btn-outline-secondary" href="../index.html">
-          <i class="fas fa-home me-2"></i>返回首頁
-        </a>
+          <div class="mt-3 privacy-box">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="privacyCheck-rehab">
+              <label class="form-check-label" for="privacyCheck-rehab">
+                我同意 <a href="../privacy-policy.html" target="_blank">《安泰醫療社團法人附設安泰護理之家服務系統使用協議》</a>
+              </label>
+            </div>
+          </div>
+
+          <div id="errorMessage-rehab" class="text-danger d-none mt-3">登入失敗，請確認帳號/密碼與權限設定。</div>
+
+          <div class="d-grid d-md-flex gap-2 mt-4">
+            <button id="loginButton-rehab" class="btn btn-login text-white px-4">
+              <i class="fas fa-right-to-bracket me-2"></i>登入復健師系統
+            </button>
+            <a class="btn btn-outline-secondary px-4" href="../index.html">
+              <i class="fas fa-home me-2"></i>返回首頁
+            </a>
+          </div>
+
+          <div class="text-muted small mt-3">※ 若尚未建立帳號請告知管理員。</div>
+        </div>
       </div>
     </div>
 
     <div id="dashboard-section-rehab" class="d-none">
-      <div class="menu-grid">
-        <a href="./rehab-records.html" class="menu-item">
-          <i class="fas fa-notes-medical"></i>
-          <div>復健紀錄系統</div>
-          <div class="menu-desc">建立與查詢復健紀錄<br>可列印、可匯出、寫入 Firebase</div>
-        </a>
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">主要功能入口</h2>
+            <div class="section-sub">登入後會顯示這個新版首頁。每個卡片都有較清楚的功能說明，未來你要再加更多系統，也可以沿用同一種樣式。</div>
+          </div>
+        </div>
 
-        <a href="./rehab-training.html" class="menu-item">
-          <i class="fas fa-dumbbell"></i>
-          <div>復健訓練系統</div>
-          <div class="menu-desc">安排訓練項目與追蹤執行情形<br>支援日常訓練管理</div>
-        </a>
+        <div class="action-grid">
+          <a href="./rehab-records.html" class="action-card">
+            <div class="action-icon"><i class="fas fa-notes-medical"></i></div>
+            <div class="action-title">復健紀錄系統</div>
+            <div class="action-desc">建立、查詢與管理復健紀錄，後續若要接列印、匯出或個案歷程，也很適合從這張卡延伸。</div>
+            <div class="action-meta"><i class="fas fa-arrow-right"></i>進入系統</div>
+          </a>
 
-        <a href="./rehab-evaluation.html" class="menu-item">
-          <i class="fas fa-clipboard-check"></i>
-          <div>功能評估系統</div>
-          <div class="menu-desc">ADL／活動能力／功能性評估<br>方便後續追蹤比較</div>
-        </a>
+          <a href="./rehab-training.html" class="action-card">
+            <div class="action-icon"><i class="fas fa-dumbbell"></i></div>
+            <div class="action-title">復健訓練系統</div>
+            <div class="action-desc">安排訓練項目、追蹤執行狀態與紀錄內容，讓每天的訓練工作更容易掌握。</div>
+            <div class="action-meta"><i class="fas fa-arrow-right"></i>進入系統</div>
+          </a>
 
-        <a href="../consult.html" class="menu-item">
-          <i class="fas fa-file-signature"></i>
-          <div>照會系統</div>
-          <div class="menu-desc">可查看其他單位照會並回覆<br>支援即時通知與附件</div>
-        </a>
+          <a href="./rehab-evaluation.html" class="action-card">
+            <div class="action-icon"><i class="fas fa-clipboard-check"></i></div>
+            <div class="action-title">功能評估系統</div>
+            <div class="action-desc">管理 ADL、活動能力與其他功能性評估資料，方便前後期比較與追蹤。</div>
+            <div class="action-meta"><i class="fas fa-arrow-right"></i>進入系統</div>
+          </a>
 
-        <a href="../affairs.html" class="menu-item">
-          <i class="fas fa-arrow-left"></i>
-          <div>返回事務系統</div>
-          <div class="menu-desc">回到事務系統儀表板</div>
-        </a>
-      </div>
+          <a href="../consult.html" class="action-card">
+            <div class="action-icon"><i class="fas fa-file-signature"></i></div>
+            <div class="action-title">照會系統</div>
+            <div class="action-desc">查看其他單位的照會內容並回覆，後續也能接通知、附件與已讀狀態。</div>
+            <div class="action-meta"><i class="fas fa-arrow-right"></i>進入系統</div>
+          </a>
 
-      <div class="text-center mt-4">
-        <a class="btn btn-outline-secondary" href="../index.html">
-          <i class="fas fa-home me-2"></i>返回首頁
-        </a>
-      </div>
+          <a href="../affairs.html" class="action-card">
+            <div class="action-icon"><i class="fas fa-arrow-left"></i></div>
+            <div class="action-title">返回事務系統</div>
+            <div class="action-desc">回到原本的事務系統儀表板，保留和其他系統一致的返回方式。</div>
+            <div class="action-meta"><i class="fas fa-arrow-right"></i>返回上一層</div>
+          </a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">首頁延伸區塊</h2>
+            <div class="section-sub">這區我先幫你留成好看的資訊區塊。之後你想放待辦、提醒、統計、最近紀錄，都可以直接塞進來，不用再整個大改版。</div>
+          </div>
+        </div>
+
+        <div class="quick-grid">
+          <div class="quick-card">
+            <h4>之後可直接放的快速功能</h4>
+            <div class="pill-list">
+              <div class="soft-pill"><i class="fas fa-clock"></i> 今日待完成訓練</div>
+              <div class="soft-pill"><i class="fas fa-bell"></i> 新照會提醒</div>
+              <div class="soft-pill"><i class="fas fa-file-export"></i> 匯出紀錄</div>
+              <div class="soft-pill"><i class="fas fa-user-check"></i> 個案追蹤名單</div>
+              <div class="soft-pill"><i class="fas fa-chart-line"></i> 評估變化統計</div>
+              <div class="soft-pill"><i class="fas fa-print"></i> 列印功能</div>
+            </div>
+          </div>
+
+          <div class="quick-card">
+            <h4>推薦首頁配置方向</h4>
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <strong>第一區</strong>
+                  <span>放主要入口，像現在這樣一眼就看到紀錄、訓練、評估與照會。</span>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <strong>第二區</strong>
+                  <span>可接今天個案數、待處理照會、新增紀錄數等統計卡片。</span>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <strong>第三區</strong>
+                  <span>可放最近使用紀錄、常用個案或快捷按鈕，讓首頁更實用。</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-  </div>
 
-  <footer>© 2025 Copyright. All Rights Reserved.</footer>
+    <footer>© 2025 Copyright. All Rights Reserved.</footer>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
