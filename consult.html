@@ -81,6 +81,9 @@
     .table-header-wrap th{ background:#fff !important; }
     .table-body-wrap{ overflow:auto; min-height: 340px; }
 
+  
+    .nav-tabs .nav-link{ border-radius:12px 12px 0 0; font-weight:700; }
+    .nav-tabs .nav-link.active{ background:#fff; }
   </style>
 </head>
 <body>
@@ -115,11 +118,20 @@
       </div>
     </div>
 
-    <!-- 新增照會（護理師可用） -->
+    <ul class="nav nav-tabs mb-3" id="consultTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tabNutritionist" type="button" data-target-role="nutritionist">照會營養師</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tabNurse" type="button" data-target-role="nurse">照會護理師</button>
+      </li>
+    </ul>
+
+    <!-- 新增照會 -->
     <div class="card mb-3" id="createCard" style="display:none;">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-          <h5 class="mb-0"><i class="fa-solid fa-plus me-2"></i>新增照會單（護理師）</h5>
+          <h5 class="mb-0" id="createCardTitle"><i class="fa-solid fa-plus me-2"></i>新增照會單</h5>
           <span class="small-muted">住民資料來源：Firestore /residents</span>
         </div>
 
@@ -138,7 +150,7 @@
           </div>
 
           <div class="col-12">
-            <label class="form-label">送單護理師</label>
+            <label class="form-label" id="senderLabel">送單人員</label>
             <input class="form-control" id="senderNurseInput" placeholder="登入後自動帶入" readonly />
           </div>
 
@@ -171,7 +183,7 @@
         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
           <div>
             <h5 class="mb-0"><i class="fa-solid fa-list-check me-2"></i>照會列表</h5>
-            <div class="small-muted">同一頁面可查看所有照會；點「查看照會紀錄」可查看/回覆。</div>
+            <div class="small-muted" id="listHint">同一頁面可查看目前分頁的照會；點「查看照會紀錄」可查看 / 回覆。</div>
           </div>
 
           <div class="d-flex flex-wrap gap-2">
@@ -261,7 +273,7 @@
             </div>
 
             <div class="col-12">
-              <label class="form-label">送單護理師</label>
+              <label class="form-label" id="mSenderLabel">送單人員</label>
               <input class="form-control" id="mSenderNurse" readonly>
             </div>
 
@@ -278,13 +290,13 @@
             <hr class="my-2">
 
             <div class="col-12">
-              <label class="form-label">營養師回覆</label>
+              <label class="form-label" id="replyLabel">回覆內容</label>
               <textarea class="form-control" id="mReply" rows="4" placeholder="營養師填寫回覆內容"></textarea>
               <div class="form-text" id="replyHint"></div>
             </div>
 
             <div class="col-12">
-              <label class="form-label">營養師附件（可上傳檔案或照片）</label>
+              <label class="form-label" id="replyFilesLabel">回覆附件（可上傳檔案或照片）</label>
               <input class="form-control" type="file" id="mNutFiles" multiple />
               <div class="form-text">附件會上傳到 Firebase Storage，並在照會單中保存下載連結。</div>
               <div class="mt-2" id="mNutFilesList"></div>
