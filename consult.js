@@ -11,6 +11,14 @@
   const roleBadge = document.getElementById('roleBadge');
   const dbStatus = document.getElementById('dbStatus');
   const createCard = document.getElementById('createCard');
+  const createCardTitle = document.getElementById('createCardTitle');
+  const senderLabel = document.getElementById('senderLabel');
+  const mSenderLabel = document.getElementById('mSenderLabel');
+  const replyLabel = document.getElementById('replyLabel');
+  const replyFilesLabel = document.getElementById('replyFilesLabel');
+  const listHint = document.getElementById('listHint');
+  const tabNutritionist = document.getElementById('tabNutritionist');
+  const tabNurse = document.getElementById('tabNurse');
 
   const notifyToggle = document.getElementById('notifyToggle');
   const btnAskNotification = document.getElementById('btnAskNotification');
@@ -45,10 +53,10 @@
   const mNutFiles = document.getElementById('mNutFiles');
   const mNutFilesList = document.getElementById('mNutFilesList');
   const btnSaveReply = document.getElementById('btnSaveReply');
-  // 動態加入「刪除照會單」按鈕（僅護理師顯示）
+  // 動態加入「刪除照會單」按鈕（送單方可刪除）
   let btnDeleteConsult = null;
   (function ensureDeleteBtn(){
-    if (ROLE !== 'nurse') return;
+    // 按鈕先建立，開啟單張時再依權限決定是否可用
     const modalEl = document.getElementById('refModal');
     const footer = modalEl?.querySelector('.modal-footer');
     if (!footer) return;
@@ -113,6 +121,7 @@
   let residents = [];         // {id, bedNumber, name, residentNumber}
   let consults = [];          // full list from db
   let currentModalId = null;
+  let activeTargetRole = 'nutritionist';
 
   // notification tracking
   const LS_NOTIFY = 'consult_notify_enabled';
@@ -140,6 +149,79 @@
     const id = (user.staffId || '').toString().trim();
     const name = (user.displayName || user.name || user.username || '').toString().trim();
     return (id && name) ? `${id} ${name}` : (name || id || '');
+  }
+
+  function roleText(role) {
+    return role === 'nutritionist' ? '營養師' : '護理師';
+  }
+
+  function senderLabelTextFor(targetRole) {
+    return targetRole === 'nutritionist' ? '送單護理師' : '送單營養師';
+  }
+
+  function replyLabelTextFor(targetRole) {
+    return targetRole === 'nutritionist' ? '營養師回覆' : '護理師回覆';
+  }
+
+  function attachmentLabelTextFor(targetRole) {
+    return `${replyLabelTextFor(targetRole).replace('回覆','')}附件（可上傳檔案或照片）`;
+  }
+
+  function canCreateForTarget(targetRole) {
+    return ROLE !== targetRole;
+  }
+
+  function canReplyConsult(doc) {
+    return normalizeTargetRole(doc) === ROLE;
+  }
+
+  function normalizeTargetRole(doc) {
+    if (doc && doc.targetRole) return doc.targetRole;
+    return 'nutritionist';
+  }
+
+  function senderDisplayFor(doc) {
+    return (doc.senderDisplay || doc.senderNurseDisplay || ((String(doc.senderNurseStaffId||'') + ' ' + String(doc.senderNurseName||'')).trim()) || '—');
+  }
+
+  function replyTextFor(doc) {
+    if (!doc) return '';
+    if (typeof doc.replyText === 'string') return doc.replyText;
+    return doc.nutritionistReply || '';
+  }
+
+  function replyAttachmentsFor(doc) {
+    if (!doc) return [];
+    if (Array.isArray(doc.replyAttachments)) return doc.replyAttachments;
+    return doc.nutritionistAttachments || [];
+  }
+
+  function setActiveTab(targetRole) {
+    activeTargetRole = targetRole === 'nurse' ? 'nurse' : 'nutritionist';
+    if (tabNutritionist) tabNutritionist.classList.toggle('active', activeTargetRole === 'nutritionist');
+    if (tabNurse) tabNurse.classList.toggle('active', activeTargetRole === 'nurse');
+    if (createCardTitle) createCardTitle.innerHTML = `<i class="fa-solid fa-plus me-2"></i>新增照會單（${roleText(activeTargetRole)}）`;
+    if (senderLabel) senderLabel.textContent = senderLabelTextFor(activeTargetRole);
+    if (mSenderLabel) mSenderLabel.textContent = senderLabelTextFor(activeTargetRole);
+    if (replyLabel) replyLabel.textContent = replyLabelTextFor(activeTargetRole);
+    if (replyFilesLabel) replyFilesLabel.textContent = attachmentLabelTextFor(activeTargetRole);
+    if (listHint) listHint.textContent = `目前顯示「照會${roleText(activeTargetRole)}」分頁資料；點「查看照會紀錄」可查看 / 回覆。`;
+    createCard.style.display = canCreateForTarget(activeTargetRole) ? '' : 'none';
+    const u = getLoggedInUser();
+    if (senderNurseInput) senderNurseInput.value = formatSender(u) || '';
+    updateReplyUIForCurrentRole();
+    renderTable();
+  }
+
+  function updateReplyUIForCurrentRole(doc = null) {
+    const targetRole = doc ? normalizeTargetRole(doc) : activeTargetRole;
+    const canReply = (ROLE === targetRole);
+    mReply.readOnly = !canReply;
+    mNutFiles.disabled = !canReply;
+    btnSaveReply.style.display = canReply ? '' : 'none';
+    replyHint.textContent = canReply
+      ? `${roleText(targetRole)}：填寫回覆後按「儲存回覆」。`
+      : `${roleText(targetRole)}：此區由${roleText(targetRole)}回覆。`;
   }
 
   // -------- Init flow --------
@@ -236,26 +318,15 @@ await loadResidents();
   }
 
   function initUIBasics() {
-    const roleText = ROLE === 'nutritionist' ? '營養師' : '護理師';
-    roleBadge.textContent = `角色：${roleText}`;
-    createCard.style.display = (ROLE === 'nurse') ? '' : 'none';
+    const roleTextNow = ROLE === 'nutritionist' ? '營養師' : '護理師';
+    roleBadge.textContent = `角色：${roleTextNow}`;
 
-    // 送單護理師：依登入者自動帶入（護理師送單用）
-    if (ROLE === 'nurse' && senderNurseInput) {
-      const u = getLoggedInUser();
-      senderNurseInput.value = formatSender(u) || '';
-    }
+    if (tabNutritionist) tabNutritionist.addEventListener('click', () => setActiveTab('nutritionist'));
+    if (tabNurse) tabNurse.addEventListener('click', () => setActiveTab('nurse'));
 
-    // nutritionist can edit reply; nurse read-only in modal
-    const canReply = ROLE === 'nutritionist';
-    mReply.readOnly = !canReply;
-    mNutFiles.disabled = !canReply;
-    btnSaveReply.style.display = canReply ? '' : 'none';
-    replyHint.textContent = canReply
-      ? '營養師：填寫回覆後按「儲存回覆」。'
-      : '護理師：此區由營養師回覆。';
+    const u = getLoggedInUser();
+    if (senderNurseInput) senderNurseInput.value = formatSender(u) || '';
 
-    // notifications toggle
     notifyToggle.checked = (localStorage.getItem(LS_NOTIFY) === '1');
     updateNotifyHint();
     notifyToggle.addEventListener('change', () => {
@@ -276,6 +347,8 @@ await loadResidents();
       else toast('瀏覽器通知未允許（你仍可使用頁面內訊息）。', 'warning');
       updateNotifyHint();
     });
+
+    setActiveTab('nutritionist');
   }
 
   function updateNotifyHint() {
@@ -330,7 +403,7 @@ await loadResidents();
   }
 
   function wireCreateForm() {
-    if (ROLE !== 'nurse') return;
+    // 按鈕先建立，開啟單張時再依權限決定是否可用
 
     bedSelect.addEventListener('change', () => {
       const selected = bedSelect.options[bedSelect.selectedIndex];
@@ -354,6 +427,7 @@ await loadResidents();
 
     btnSubmit.addEventListener('click', async () => {
       try {
+        if (!canCreateForTarget(activeTargetRole)) return toast(`目前角色不可在「照會${roleText(activeTargetRole)}」分頁送單。`, 'warning');
         const residentId = bedSelect.value;
         if (!residentId) return toast('請先選擇床號。', 'warning');
         const selected = bedSelect.options[bedSelect.selectedIndex];
@@ -370,12 +444,17 @@ await loadResidents();
 
         const createdAt = firebase.firestore.FieldValue.serverTimestamp();
 
-        // 送單護理師（登入者）
+        const targetRole = activeTargetRole;
         const loginUser = getLoggedInUser();
         const senderDisplay = formatSender(loginUser);
         const senderStaffId = (loginUser && (loginUser.staffId || loginUser.username)) ? String(loginUser.staffId || loginUser.username) : '';
         const senderName = loginUser ? String(loginUser.displayName || loginUser.name || loginUser.username || '') : '';
         const baseDoc = {
+          senderRole: ROLE,
+          targetRole,
+          senderDisplay: senderDisplay || '',
+          senderStaffId: senderStaffId || '',
+          senderName: senderName || '',
           senderNurseDisplay: senderDisplay || '',
           senderNurseStaffId: senderStaffId || '',
           senderNurseName: senderName || '',
@@ -385,14 +464,16 @@ await loadResidents();
           subject,
           description: desc,
           nurseAttachments: [],
+          replyText: '',
+          replyAttachments: [],
           nutritionistReply: '',
           nutritionistAttachments: [],
           status: 'open',
           createdAt,
           updatedAt: createdAt,
-          lastActionBy: 'nurse',
-          nurseReadAt: createdAt,         // nurse created → considered read by nurse
-          nutritionistReadAt: null
+          lastActionBy: ROLE,
+          nurseReadAt: ROLE === 'nurse' ? createdAt : null,
+          nutritionistReadAt: ROLE === 'nutritionist' ? createdAt : null
         };
 
         // create doc first to get id for storage folder
@@ -400,7 +481,7 @@ await loadResidents();
 
         // upload attachments
         const files = nurseFiles.files ? Array.from(nurseFiles.files) : [];
-        const uploaded = await uploadFilesIfAny(ref.id, 'nurse', files);
+        const uploaded = await uploadFilesIfAny(ref.id, ROLE, files);
         if (uploaded.length) {
           await db.collection('consults').doc(ref.id).update({
             nurseAttachments: uploaded,
@@ -448,23 +529,26 @@ await loadResidents();
         btnSaveReply.disabled = true;
         btnSaveReply.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>儲存中…';
 
-        const uploaded = await uploadFilesIfAny(currentModalId, 'nutritionist', files);
+        const uploaded = await uploadFilesIfAny(currentModalId, ROLE, files);
 
 
         const c = consults.find(x => x.id === currentModalId) || {};
+        const targetRole = normalizeTargetRole(c);
+        if (!canReplyConsult(c)) return toast('目前角色不可回覆此照會。', 'warning');
         const update = {
+          replyText: reply,
           nutritionistReply: reply,
-          senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
+          senderNurse: senderDisplayFor(c),
           status: 'replied',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastActionBy: 'nutritionist',
-          nurseReadAt: null, // make nurse "unread" again
-          nutritionistReadAt: firebase.firestore.FieldValue.serverTimestamp()
+          lastActionBy: ROLE,
+          nurseReadAt: targetRole === 'nurse' ? firebase.firestore.FieldValue.serverTimestamp() : null,
+          nutritionistReadAt: targetRole === 'nutritionist' ? firebase.firestore.FieldValue.serverTimestamp() : null
         };
 
         if (uploaded.length) {
-          // merge with existing already in modal list (which reflects db)
-          const existing = consults.find(c => c.id === currentModalId)?.nutritionistAttachments || [];
+          const existing = replyAttachmentsFor(consults.find(c => c.id === currentModalId) || {});
+          update.replyAttachments = existing.concat(uploaded);
           update.nutritionistAttachments = existing.concat(uploaded);
         }
 
@@ -509,7 +593,7 @@ await loadResidents();
     const q = (searchInput.value || '').trim().toLowerCase();
     const st = statusFilter.value;
 
-    let rows = consults.slice();
+    let rows = consults.slice().filter(r => normalizeTargetRole(r) === activeTargetRole);
 
     if (st !== 'all') rows = rows.filter(r => (r.status || 'open') === st);
     if (q) {
@@ -530,9 +614,9 @@ await loadResidents();
       const tr = document.createElement('tr');
       const status = (r.status === 'replied') ? '已回覆' : '待回覆';
       const badgeClass = (r.status === 'replied') ? 'bg-success' : 'bg-warning text-dark';
-
       const created = formatTs(r.createdAt);
       const unread = isUnreadForRole(r);
+      const canDelete = canCreateForTarget(normalizeTargetRole(r));
 
       tr.innerHTML = `
         <td><span class="fw-bold">${escapeHtml(r.bedNumber || '')}</span>${unread ? ' <span class="badge bg-danger ms-1">NEW</span>' : ''}</td>
@@ -546,7 +630,7 @@ await loadResidents();
         <td>
           <div class="d-flex flex-column gap-2">
             <button class="btn btn-sm btn-outline-primary btn-view"><i class="fa-regular fa-eye me-1"></i>查看照會紀錄</button>
-            ${ROLE === 'nurse' ? `<button class="btn btn-sm btn-outline-danger btn-del"><i class="fa-solid fa-trash-can me-1"></i>刪除</button>` : ``}
+            ${canDelete ? `<button class="btn btn-sm btn-outline-danger btn-del"><i class="fa-solid fa-trash-can me-1"></i>刪除</button>` : ``}
           </div>
         </td>
       `;
@@ -557,7 +641,6 @@ await loadResidents();
       refTableBody.appendChild(tr);
     }
 
-    // ensure layout is stable even if global CSS overrides table semantics
     forceTableLayoutFix();
   }
 
@@ -566,29 +649,21 @@ await loadResidents();
     if (!r) return;
 
     currentModalId = id;
+    setActiveTab(normalizeTargetRole(r));
     mBed.value = r.bedNumber || '';
     mName.value = r.residentName || '';
     mSubject.value = r.subject || '';
     mDesc.value = r.description || '';
+    if (mSenderNurse) mSenderNurse.value = senderDisplayFor(r);
 
-    // 送單護理師
-    if (mSenderNurse) {
-      const disp = (r.senderNurseDisplay || '').trim();
-      const sid = (r.senderNurseStaffId || '').trim();
-      const sn = (r.senderNurseName || '').trim();
-      mSenderNurse.value = disp || ((sid && sn) ? `${sid} ${sn}` : (sn || sid || '')) || '—';
-    }
+    if (btnDeleteConsult) btnDeleteConsult.disabled = !canCreateForTarget(normalizeTargetRole(r));
 
-    if (btnDeleteConsult) btnDeleteConsult.disabled = (ROLE !== 'nurse');
-
-    // nurse attachments
     mNurseFiles.innerHTML = renderFileList(r.nurseAttachments);
+    mReply.value = replyTextFor(r);
+    mNutFilesList.innerHTML = renderFileList(replyAttachmentsFor(r));
 
-    // reply + nut attachments
-    mReply.value = r.nutritionistReply || '';
-    mNutFilesList.innerHTML = renderFileList(r.nutritionistAttachments);
+    updateReplyUIForCurrentRole(r);
 
-    // mark as read for role
     markRead(id).catch(console.error);
 
     const modal = bootstrap.Modal.getOrCreateInstance(refModalEl);
@@ -629,9 +704,9 @@ await loadResidents();
 
             // Only notify if after lastSeen AND unread for role
             if (updated > lastSeen && isUnreadForRole(doc)) {
-              const title = (ROLE === 'nutritionist')
-                ? '護理之家照會系統通知:有新的照會單'
-                : '護理之家照會系統通知:營養師已回覆照會';
+              const title = (ROLE === normalizeTargetRole(doc))
+                ? '護理之家照會系統通知：有新的照會單'
+                : `護理之家照會系統通知：${roleText(normalizeTargetRole(doc))}已回覆照會`;
               const body = `${doc.bedNumber || ''} ${doc.residentName || ''}｜${doc.subject || ''}`;
 
               toast(`${title}：${body}`, 'info');
@@ -656,21 +731,24 @@ await loadResidents();
   }
 
   function isUnreadForRole(doc) {
-    // If the other side acted and this side hasn't read since, show NEW
     const nurseRead = tsToDate(doc.nurseReadAt);
     const nutRead = tsToDate(doc.nutritionistReadAt);
     const updated = tsToDate(doc.updatedAt);
+    const targetRole = normalizeTargetRole(doc);
 
     if (!updated) return false;
 
     if (ROLE === 'nutritionist') {
-      // new consult is created by nurse → nutritionistReadAt null or older than updated
+      if (targetRole !== 'nutritionist') return false;
       if (!nutRead) return true;
       return nutRead < updated;
     } else {
-      // reply by nutritionist → nurseReadAt null or older than updated
-      if (!nurseRead) return (doc.lastActionBy === 'nutritionist'); // only mark NEW when nutritionist touched it
-      return nurseRead < updated && doc.lastActionBy === 'nutritionist';
+      if (targetRole !== 'nurse') {
+        if (!nurseRead) return (doc.lastActionBy === 'nutritionist');
+        return nurseRead < updated && doc.lastActionBy === 'nutritionist';
+      }
+      if (!nurseRead) return true;
+      return nurseRead < updated;
     }
   }
 
@@ -716,7 +794,8 @@ await loadResidents();
     const header = '安泰醫療社團法人附設安泰護理之家';
     const title = '照 會 記 錄 單';
     const created = formatTs(c.createdAt) || '';
-    const reply = (c.nutritionistReply || '').trim() || '—';
+    const targetRole = normalizeTargetRole(c);
+    const reply = (replyTextFor(c) || '').trim() || '—';
 
     const safe = (v) => escapeHtml(String(v ?? ''));
     return `<!DOCTYPE html>
@@ -750,18 +829,18 @@ await loadResidents();
   <table>
     <tr><th>住民床號</th><td>${safe(c.bedNumber || '')}</td></tr>
     <tr><th>姓名</th><td>${safe(c.residentName || '')}</td></tr>
-    <tr><th>送單護理師</th><td>${safe(c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—')}</td></tr>
+    <tr><th>${safe(senderLabelTextFor(targetRole))}</th><td>${safe(senderDisplayFor(c))}</td></tr>
     <tr><th>照會主旨</th><td>${safe(c.subject || '')}</td></tr>
     <tr><th>照會說明</th><td>${safe(c.description || '')}</td></tr>
-    <tr><th>營養師回覆</th><td>${safe(reply)}</td></tr>
+    <tr><th>${safe(replyLabelTextFor(targetRole))}</th><td>${safe(reply)}</td></tr>
   </table>
 
   <div class="section-title">附件</div>
-  <div class="muted">護理師附件：</div>
+  <div class="muted">送單附件：</div>
   <div class="files">${buildFilesForPrint(c.nurseAttachments)}</div>
   <div style="height:4mm"></div>
-  <div class="muted">營養師附件：</div>
-  <div class="files">${buildFilesForPrint(c.nutritionistAttachments)}</div>
+  <div class="muted">回覆附件：</div>
+  <div class="files">${buildFilesForPrint(replyAttachmentsFor(c))}</div>
 </body>
 </html>`;
   }
@@ -820,7 +899,8 @@ await loadResidents();
     const header = '安泰醫療社團法人附設安泰護理之家';
     const title = '照會紀錄單';
     const created = formatTs(c.createdAt) || '';
-    const reply = (c.nutritionistReply || '').trim() || '—';
+    const targetRole = normalizeTargetRole(c);
+    const reply = (replyTextFor(c) || '').trim() || '—';
 
     const nurseAttach = (c.nurseAttachments || []).map(f => escapeHtml(f.name || '附件')).join('、') || '—';
     const nutAttach = (c.nutritionistAttachments || []).map(f => escapeHtml(f.name || '附件')).join('、') || '—';
@@ -832,7 +912,9 @@ await loadResidents();
       subject: c.subject || '',
       description: c.description || '',
       nutritionistReply: reply,
-          senderNurse: (c.senderNurseDisplay || ((String(c.senderNurseStaffId||'') + ' ' + String(c.senderNurseName||'')).trim()) || '—'),
+          senderNurse: senderDisplayFor(c),
+          senderLabel: senderLabelTextFor(targetRole),
+          replyLabel: replyLabelTextFor(targetRole),
       createdAt: created,
       nurseAttachments: nurseAttach,
       nutritionistAttachments: nutAttach,
@@ -870,12 +952,12 @@ await loadResidents();
   <table>
     <tr><th>床號</th><td>${escapeHtml(data.bedNumber)}</td></tr>
     <tr><th>姓名</th><td>${escapeHtml(data.residentName)}</td></tr>
-    <tr><th>送單護理師</th><td>${escapeHtml(data.senderNurse || '—')}</td></tr>
+    <tr><th>${escapeHtml(data.senderLabel || '送單人員')}</th><td>${escapeHtml(data.senderNurse || '—')}</td></tr>
     <tr><th>照會主旨</th><td>${escapeHtml(data.subject)}</td></tr>
     <tr><th>照會說明</th><td>${nlToBr(data.description)}</td></tr>
-    <tr><th>護理師附件</th><td>${escapeHtml(data.nurseAttachments)}</td></tr>
-    <tr><th>營養師回覆</th><td>${nlToBr(data.nutritionistReply)}</td></tr>
-    <tr><th>營養師附件</th><td>${escapeHtml(data.nutritionistAttachments)}</td></tr>
+    <tr><th>送單附件</th><td>${escapeHtml(data.nurseAttachments)}</td></tr>
+    <tr><th>${escapeHtml(data.replyLabel || '回覆內容')}</th><td>${nlToBr(data.nutritionistReply)}</td></tr>
+    <tr><th>回覆附件</th><td>${escapeHtml(data.nutritionistAttachments)}</td></tr>
   </table>
 
   <div class="meta">照會日期：${escapeHtml(data.createdAt)}</div>
@@ -977,13 +1059,14 @@ await loadResidents();
     if (typeof ts.seconds === 'number') return new Date(ts.seconds * 1000);
     return null;
   }
-  // ===== 刪除照會單（僅護理師可用）=====
+  // ===== 刪除照會單（送單方可刪除）=====
   async function deleteConsultById(id) {
-    if (ROLE !== 'nurse') {
-      toast('只有護理師可以刪除照會單', 'warning');
+    const r = consults.find(x => x.id === id);
+    if (!r) return;
+    if (!canCreateForTarget(normalizeTargetRole(r))) {
+      toast('只有送單方可以刪除此照會單', 'warning');
       return;
     }
-    const r = consults.find(x => x.id === id);
     if (!r) return;
 
     const ok = confirm(`確定要刪除照會單嗎？\n\n床號：${r.bedNumber || ''}\n姓名：${r.residentName || ''}\n主旨：${r.subject || ''}\n\n⚠️ 刪除後無法復原。`);
@@ -992,7 +1075,7 @@ await loadResidents();
     try {
       // 1) 先嘗試刪除附件（若失敗不影響刪除主資料）
       await tryDeleteAttachments(r.nurseAttachments);
-      await tryDeleteAttachments(r.nutritionistAttachments);
+      await tryDeleteAttachments(replyAttachmentsFor(r));
 
       // 2) 刪除 Firestore 文件
       await db.collection('consults').doc(id).delete();
