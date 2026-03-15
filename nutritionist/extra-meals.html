@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>加餐系統</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
     :root{
       --bg:#f6f8fb;--card:#ffffff;--line:#dfe5ef;--text:#1f2937;--muted:#6b7280;
@@ -70,7 +71,13 @@
         <h1>加餐系統</h1>
         <div class="subtitle">營養師系統｜月份清單、加餐名單、新增與複製</div>
       </div>
-      <div class="user-badge" id="loginUserText">登入者：讀取中...</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+        <a href="nutritionist.html?view=dashboard" class="btn btn-sm btn-outline-light" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:12px;border:1px solid #cfd7e6;background:#fff;color:#374151;font-size:14px;box-shadow:var(--shadow);">
+          <i class="fa-solid fa-arrow-left me-1"></i>
+          返回營養師儀錶板
+        </a>
+        <div class="user-badge" id="loginUserText">登入者：讀取中...</div>
+      </div>
     </div>
 
     <div class="layout">
