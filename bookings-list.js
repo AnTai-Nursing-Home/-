@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', () => {
   const bookingListContainer = document.getElementById('booking-list');
   const refreshBtn = document.getElementById('refresh-btn');
@@ -6,14 +7,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterResident = document.getElementById('filter-resident');
   const countTotal = document.getElementById('count-total');
   const rangeHint = document.getElementById('range-hint');
+  const printStartInput = document.getElementById('print-start');
+  const printEndInput = document.getElementById('print-end');
+  const confirmPrintBtn = document.getElementById('confirm-print-btn');
 
+  const printRangeModal = document.getElementById('printRangeModal');
+  const printModal = (printRangeModal && window.bootstrap)
+    ? new bootstrap.Modal(printRangeModal)
+    : null;
+
+  let lastRawRows = [];
+  let isPrintingRange = false;
+  let restoreAfterPrint = null;
 
   function getLoginUser(){
-    // 沿用其他系統常見的登入儲存格式（住民管理/員工系統等）
     const candidates = [
       {store: sessionStorage, key: 'antai_session_user'},
       {store: localStorage,  key: 'antai_session_user'},
-      // 兼容：其他頁可能使用的鍵
       {store: sessionStorage, key: 'currentUser'},
       {store: localStorage,  key: 'currentUser'},
       {store: sessionStorage, key: 'loginUser'},
@@ -32,36 +42,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return { empNo: '', name: '' };
   }
 
-  function setPrintFooter(){
+  function setPrintFooter(rangeText=''){
     const footer = document.getElementById('print-footer');
     if(!footer) return;
     const u = getLoginUser();
     const label = [u.empNo, u.name].filter(Boolean).join(' ');
-    footer.textContent = label ? `列印人: ${label}` : '列印人:（未登入）';
+    const who = label ? `列印人: ${label}` : '列印人:（未登入）';
+    footer.textContent = rangeText ? `${who}　｜　列印區間: ${rangeText}` : who;
   }
 
-  function todayStr() { return new Date().toISOString().split('T')[0]; }
-  function addDays(dateStr, n) {
-    const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n);
+  function todayStr() {
+    const d = new Date();
     const pad = (x) => String(x).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
+
+  function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    const pad = (x) => String(x).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
   function getWeekRange(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const day = d.getDay();
-    const offsetToMonday = (day + 6) % 7; // Monday=0
+    const offsetToMonday = (day + 6) % 7;
     const start = addDays(dateStr, -offsetToMonday);
     const end = addDays(start, 6);
     return { start, end };
   }
 
-  async function loadRawRows() {
-    const start = todayStr();
-    const snapshot = await db.collection('bookings')
-      .where('date', '>=', start)
+  async function loadRawRows(startDate = todayStr(), endDate = '') {
+    let query = db.collection('bookings');
+
+    if (startDate) query = query.where('date', '>=', startDate);
+    if (endDate) query = query.where('date', '<=', endDate);
+
+    const snapshot = await query
       .orderBy('date', 'asc')
       .orderBy('time', 'asc')
       .get();
+
     const rows = [];
     snapshot.forEach(doc => rows.push({ id: doc.id, ...(doc.data() || {}) }));
     return rows;
@@ -72,11 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(r => { if (r.residentName) set.add(r.residentName); });
     const names = Array.from(set).sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant-u-kn-true'));
 
-    // 清空保留第一個「全部住民」
     while (filterResident.options.length > 1) filterResident.remove(1);
     names.forEach(n => {
       const opt = document.createElement('option');
-      opt.value = n; opt.textContent = n;
+      opt.value = n;
+      opt.textContent = n;
       filterResident.appendChild(opt);
     });
   }
@@ -90,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { start, end } = getWeekRange(today);
       return t >= start && t <= end;
     }
-    return true; // 'all'
+    return true;
   }
 
   function normalizeDash(s){ return String(s||'').replace(/[－—–ｰ‒﹣－]/g,'-'); }
@@ -109,19 +131,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   }
 
-  function render(rows) {
+  function render(rows, options = {}) {
+    const {
+      emptyTitle = '目前沒有未來或今日的預約紀錄',
+      emptyDesc = '你可以切換「日期篩選 / 住民篩選」再確認一次'
+    } = options;
+
     if (!rows || rows.length === 0) {
       bookingListContainer.innerHTML = `
         <div class="state-card">
           <i class="fa-regular fa-calendar-xmark"></i>
-          <div class="fw-bold mb-1">目前沒有未來或今日的預約紀錄</div>
-          <div class="small">你可以切換「日期篩選 / 住民篩選」再確認一次</div>
+          <div class="fw-bold mb-1">${emptyTitle}</div>
+          <div class="small">${emptyDesc}</div>
         </div>`;
       countTotal.textContent = 0;
       return;
     }
 
-    // group by date
     const byDate = {};
     rows.forEach(b => {
       const k = b.date || '';
@@ -138,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const list = byDate[date];
       total += list.length;
 
-      // group by time within this date
       const byTime = {};
       list.forEach(b => {
         const t = b.time || '';
@@ -226,6 +251,17 @@ document.addEventListener('DOMContentLoaded', () => {
     countTotal.textContent = total;
   }
 
+  function sortRows(rows){
+    return rows.slice().sort((a,b)=>{
+      if ((a.date||'') !== (b.date||'')) return (a.date||'').localeCompare(b.date||'');
+      if ((a.time||'') !== (b.time||'')) return (a.time||'').localeCompare(b.time||'');
+      const A = parseBed(a.bedNumber), B = parseBed(b.bedNumber);
+      if (A.floor !== B.floor) return A.floor - B.floor;
+      if (A.pos !== B.pos) return A.pos - B.pos;
+      return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
+    });
+  }
+
   async function displayBookings() {
     bookingListContainer.innerHTML = `
       <div class="state-card">
@@ -235,7 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
 
     try {
-      const raw = await loadRawRows();
+      const raw = await loadRawRows(todayStr(), '');
+      lastRawRows = raw.slice();
 
       populateResidentFilter(raw);
 
@@ -244,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
       let rows = raw.filter(r => inDateRange(r, mode));
       if (who !== 'all') rows = rows.filter(r => r.residentName === who);
 
-      // hint
       if (rangeHint) {
         if (mode === 'today') rangeHint.textContent = '僅顯示今天';
         else if (mode === 'tomorrow') rangeHint.textContent = '僅顯示明天';
@@ -252,44 +288,108 @@ document.addEventListener('DOMContentLoaded', () => {
         else rangeHint.textContent = '僅顯示今日（含）以後';
       }
 
-      // Sort by date -> time -> bed -> resident
-      rows.sort((a,b)=>{
-        if ((a.date||'') !== (b.date||'')) return (a.date||'').localeCompare(b.date||'');
-        if ((a.time||'') !== (b.time||'')) return (a.time||'').localeCompare(b.time||'');
-        const A = parseBed(a.bedNumber), B = parseBed(b.bedNumber);
-        if (A.floor !== B.floor) return A.floor - B.floor;
-        if (A.pos !== B.pos) return A.pos - B.pos;
-        return String(a.residentName||'').localeCompare(String(b.residentName||''), 'zh-Hant-u-kn-true');
+      render(sortRows(rows), {
+        emptyTitle: '目前沒有未來或今日的預約紀錄',
+        emptyDesc: '你可以切換「日期篩選 / 住民篩選」再確認一次'
       });
-
-      render(rows);
     } catch (error) {
       console.error("讀取預約列表失敗:", error);
       bookingListContainer.innerHTML = '<div class="alert alert-danger">讀取預約列表失敗，請重新整理頁面。</div>';
     }
   }
 
-  // 初始化：firebase-ready 後載入
-  document.addEventListener('firebase-ready', () => displayBookings());
+  async function printWithRange() {
+    const start = (printStartInput?.value || '').trim();
+    const end = (printEndInput?.value || '').trim();
+
+    if (start && end && start > end) {
+      alert('開始日期不能晚於結束日期。');
+      return;
+    }
+
+    bookingListContainer.innerHTML = `
+      <div class="state-card">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <div class="fw-bold">準備列印中...</div>
+        <div class="small">正在取得你選擇區間的預約資料</div>
+      </div>`;
+
+    try {
+      isPrintingRange = true;
+      restoreAfterPrint = {
+        filterDate: filterDate?.value || 'all',
+        filterResident: filterResident?.value || 'all'
+      };
+
+      const raw = await loadRawRows(start || '', end || '');
+      let rows = sortRows(raw);
+
+      const rangeText = `${start || '最早'} ～ ${end || '最晚'}`;
+      setPrintFooter(rangeText);
+
+      if (rangeHint) rangeHint.textContent = `列印區間：${rangeText}`;
+
+      render(rows, {
+        emptyTitle: '此列印區間沒有預約資料',
+        emptyDesc: '請重新選擇列印開始日與結束日。'
+      });
+
+      if (printModal) printModal.hide();
+
+      setTimeout(() => {
+        window.print();
+      }, 220);
+
+    } catch (error) {
+      console.error('列印區間讀取失敗:', error);
+      alert('讀取列印區間資料失敗，請稍後再試。');
+      isPrintingRange = false;
+      await displayBookings();
+    }
+  }
+
+  async function restoreNormalViewIfNeeded() {
+    if (!isPrintingRange) return;
+    isPrintingRange = false;
+    setPrintFooter('');
+
+    if (restoreAfterPrint) {
+      if (filterDate) filterDate.value = restoreAfterPrint.filterDate || 'all';
+      if (filterResident) filterResident.value = restoreAfterPrint.filterResident || 'all';
+    }
+    await displayBookings();
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    if (printStartInput) printStartInput.value = todayStr();
+    if (printEndInput) printEndInput.value = '';
+    displayBookings();
+  });
+
   if (refreshBtn) refreshBtn.addEventListener('click', displayBookings);
-  
+
   if (printBtn) {
     printBtn.addEventListener('click', () => {
-      setPrintFooter();
-      window.print();
+      const today = todayStr();
+      if (printStartInput && !printStartInput.value) printStartInput.value = today;
+      if (printModal) printModal.show();
+      else printWithRange();
     });
   }
+
+  if (confirmPrintBtn) confirmPrintBtn.addEventListener('click', printWithRange);
 
   if (filterDate) filterDate.addEventListener('change', displayBookings);
   if (filterResident) filterResident.addEventListener('change', displayBookings);
 
-  // 支援使用者直接 Ctrl+P / 系統列印：也要補上列印人
   window.addEventListener('beforeprint', () => {
-    try{ setPrintFooter(); }catch(e){}
+    try { if (!isPrintingRange) setPrintFooter(''); } catch(e){}
   });
 
+  window.addEventListener('afterprint', () => {
+    restoreNormalViewIfNeeded();
+  });
 
-  // 刪除
   bookingListContainer.addEventListener('click', async (e) => {
     const btn = e.target.closest('.btn-admin-delete');
     if (!btn) return;
