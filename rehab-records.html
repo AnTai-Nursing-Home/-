@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>復健紀錄系統</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root{
+      --bg:#f3f7fb;
+      --card:#ffffff;
+      --text:#183153;
+      --muted:#6b7a90;
+      --line:#dce6f2;
+      --primary:#4d8fd6;
+      --primary-2:#6ba8e6;
+      --soft:#eef6ff;
+      --success:#2d9f75;
+      --warning:#d28a20;
+      --shadow:0 12px 30px rgba(41,90,140,.10);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:"Microsoft JhengHei",system-ui,sans-serif;background:linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);color:var(--text)}
+    body{min-height:100vh}
+    .app{max-width:1520px;margin:0 auto;padding:22px}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+      background:rgba(255,255,255,.86);backdrop-filter:blur(8px);
+      border:1px solid rgba(220,230,242,.8); box-shadow:var(--shadow); border-radius:24px;
+      padding:18px 20px; margin-bottom:20px;
+    }
+    .brand{display:flex;align-items:center;gap:14px;min-width:0}
+    .brand-icon{
+      width:54px;height:54px;border-radius:18px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;font-size:24px;
+      box-shadow:0 10px 24px rgba(77,143,214,.28)
+    }
+    .brand-text{min-width:0}
+    .brand-text h1{margin:0;font-size:28px;line-height:1.1}
+    .brand-text p{margin:6px 0 0;color:var(--muted);font-size:14px}
+    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .user-pill,.year-switch,.ghost-btn,.primary-btn,.soft-btn,.mini-btn,.select,.input{
+      border:1px solid var(--line);background:#fff;color:var(--text);border-radius:14px;
+      min-height:44px;font-size:14px
+    }
+    .user-pill{padding:0 14px;display:flex;align-items:center;gap:8px;max-width:100%}
+    .year-switch{display:flex;align-items:center;overflow:hidden}
+    .year-switch button{border:none;background:transparent;padding:0 14px;height:44px;cursor:pointer;color:var(--text)}
+    .year-switch strong{min-width:98px;text-align:center;padding:0 8px}
+    .ghost-btn,.primary-btn,.soft-btn{padding:0 16px;cursor:pointer;font-weight:700}
+    .primary-btn{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border:none;box-shadow:0 8px 20px rgba(77,143,214,.22)}
+    .soft-btn{background:var(--soft)}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:20px}
+    .card{
+      background:var(--card);border:1px solid rgba(220,230,242,.9);border-radius:var(--radius);
+      box-shadow:var(--shadow)
+    }
+    .sidebar{padding:18px;display:flex;flex-direction:column;gap:16px;height:fit-content;position:sticky;top:18px}
+    .side-head h2{margin:0 0 6px;font-size:20px}
+    .side-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+    .month-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .month-btn{
+      border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px 10px;cursor:pointer;
+      text-align:left;transition:.18s ease;min-height:82px
+    }
+    .month-btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(24,49,83,.08)}
+    .month-btn.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent}
+    .month-btn .m{font-size:18px;font-weight:800}
+    .month-btn .s{font-size:12px;margin-top:6px;opacity:.9}
+    .month-actions{display:grid;gap:10px}
+    .main{display:grid;gap:20px}
+    .hero{padding:20px 22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap}
+    .hero h2{margin:0;font-size:24px}
+    .hero p{margin:8px 0 0;color:var(--muted);font-size:14px}
+    .hero-right{display:flex;gap:10px;flex-wrap:wrap}
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:0 22px 22px}
+    .stat{
+      background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);border:1px solid var(--line);
+      border-radius:18px;padding:16px
+    }
+    .stat .k{font-size:13px;color:var(--muted);margin-bottom:8px}
+    .stat .v{font-size:28px;font-weight:800}
+    .table-card{padding:18px}
+    .table-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .table-head h3{margin:0;font-size:20px}
+    .table-tools{display:flex;gap:10px;flex-wrap:wrap}
+    .select,.input{padding:0 12px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:18px}
+    table{width:100%;border-collapse:collapse;min-width:1100px;background:#fff}
+    th,td{padding:13px 12px;border-bottom:1px solid #edf2f8;text-align:left;vertical-align:top;font-size:14px}
+    th{background:#f7fbff;color:#4a5b73;font-size:13px;position:sticky;top:0;z-index:1}
+    tr:hover td{background:#fcfdff}
+    .name-cell{font-weight:700}
+    .muted{color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .badge.done{background:#e9f8f1;color:#1f7d5b}
+    .badge.empty{background:#fff5e8;color:#b46d00}
+    .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .mini-btn{padding:0 12px;cursor:pointer;background:#fff;font-weight:700}
+    .mini-btn.primary{background:var(--soft)}
+    .empty-box{padding:36px 18px;text-align:center;color:var(--muted)}
+    .loading{padding:28px;text-align:center;color:var(--muted)}
+    .drawer-backdrop{position:fixed;inset:0;background:rgba(12,26,45,.28);display:none;z-index:20}
+    .drawer-backdrop.show{display:block}
+    .drawer{
+      position:fixed;top:0;right:0;height:100vh;width:min(640px,100vw);background:#fff;z-index:21;
+      transform:translateX(100%);transition:.22s ease;box-shadow:-12px 0 32px rgba(0,0,0,.12);
+      display:flex;flex-direction:column
+    }
+    .drawer.show{transform:translateX(0)}
+    .drawer-head{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+    .drawer-head h3{margin:0;font-size:22px}
+    .drawer-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .drawer-body{padding:20px 22px;overflow:auto;display:grid;gap:14px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field label{display:block;margin-bottom:7px;font-weight:700;font-size:14px}
+    textarea.input{min-height:94px;padding-top:10px;padding-bottom:10px;resize:vertical}
+    .resident-box{background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:14px}
+    .resident-box .row{display:grid;grid-template-columns:90px 1fr;gap:10px;font-size:14px;padding:4px 0}
+    .drawer-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .status-text{min-height:22px;color:var(--muted);font-size:13px;display:flex;align-items:center}
+    @media (max-width:1180px){
+      .layout{grid-template-columns:1fr}
+      .sidebar{position:static}
+    }
+    @media (max-width:780px){
+      .app{padding:14px}
+      .topbar,.hero,.table-card,.sidebar{padding-left:14px;padding-right:14px}
+      .brand-text h1{font-size:24px}
+      .stat-row{grid-template-columns:1fr;padding-left:14px;padding-right:14px}
+      .grid-2{grid-template-columns:1fr}
+      .month-grid{grid-template-columns:repeat(3,1fr)}
+      .drawer-head,.drawer-body,.drawer-foot{padding-left:16px;padding-right:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar card">
+      <div class="brand">
+        <div class="brand-icon"><i class="fas fa-dumbbell"></i></div>
+        <div class="brand-text">
+          <h1>復健紀錄系統</h1>
+          <p>依年份與月份管理住民復健紀錄，可新增、編輯、複製上月資料。</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="year-switch">
+          <button type="button" id="prevYearBtn"><i class="fas fa-chevron-left"></i></button>
+          <strong id="yearText">--</strong>
+          <button type="button" id="nextYearBtn"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button class="ghost-btn" id="goTodayBtn" type="button">回今年</button>
+        <div class="user-pill" id="loginUserText"><i class="fas fa-user"></i> 登入者：--</div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar card">
+        <div class="side-head">
+          <h2>月份選單</h2>
+          <p>預設顯示當年。切換月份後，右側會列出該月住民復健紀錄清單。</p>
+        </div>
+        <div class="month-grid" id="monthGrid"></div>
+        <div class="month-actions">
+          <button class="primary-btn" id="copyAllBtn" type="button"><i class="fas fa-copy"></i> 複製上月全部住民資料</button>
+          <button class="soft-btn" id="refreshBtn" type="button"><i class="fas fa-rotate"></i> 重新整理</button>
+          <a href="./rehab.html" class="ghost-btn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;"><i class="fas fa-arrow-left"></i>&nbsp;返回復健師首頁</a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="card">
+          <div class="hero">
+            <div>
+              <h2 id="monthTitle">-- 年 -- 月復健紀錄</h2>
+              <p id="monthSubtitle">讀取中...</p>
+            </div>
+            <div class="hero-right">
+              <button class="soft-btn" type="button" id="showOnlyEmptyBtn">只看未建立</button>
+              <button class="primary-btn" type="button" id="addSelectedBtn"><i class="fas fa-plus"></i> 新增住民紀錄</button>
+            </div>
+          </div>
+          <div class="stat-row">
+            <div class="stat">
+              <div class="k">本月住民總數</div>
+              <div class="v" id="statResidents">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">已建立紀錄</div>
+              <div class="v" id="statDone">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">未建立紀錄</div>
+              <div class="v" id="statPending">0</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="table-card card">
+          <div class="table-head">
+            <h3>住民清單</h3>
+            <div class="table-tools">
+              <input id="searchInput" class="input" type="text" placeholder="搜尋床號、姓名、住民編號" />
+              <select id="statusFilter" class="select">
+                <option value="all">全部狀態</option>
+                <option value="done">只看已建立</option>
+                <option value="empty">只看未建立</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:110px;">床號</th>
+                  <th style="width:180px;">姓名</th>
+                  <th style="width:120px;">住民編號</th>
+                  <th>診斷</th>
+                  <th style="width:120px;">行動能力</th>
+                  <th style="width:120px;">本月狀態</th>
+                  <th style="width:160px;">最後更新</th>
+                  <th style="width:240px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="recordsTbody">
+                <tr><td colspan="8" class="loading">讀取中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="recordDrawer">
+    <div class="drawer-head">
+      <div>
+        <h3 id="drawerTitle">新增復健紀錄</h3>
+        <p id="drawerSub">--</p>
+      </div>
+      <button class="ghost-btn" type="button" id="closeDrawerBtn"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="resident-box">
+        <div class="row"><strong>床號</strong><span id="dBed">--</span></div>
+        <div class="row"><strong>姓名</strong><span id="dName">--</span></div>
+        <div class="row"><strong>住民編號</strong><span id="dNo">--</span></div>
+        <div class="row"><strong>性別</strong><span id="dGender">--</span></div>
+        <div class="row"><strong>診斷</strong><span id="dDiagnosis">--</span></div>
+        <div class="row"><strong>行動能力</strong><span id="dMobility">--</span></div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="fDate">紀錄日期</label>
+          <input class="input" id="fDate" type="date" />
+        </div>
+        <div class="field">
+          <label for="fType">復健類型</label>
+          <select class="select" id="fType">
+            <option value="">請選擇</option>
+            <option>物理治療</option>
+            <option>職能治療</option>
+            <option>關節活動</option>
+            <option>步態訓練</option>
+            <option>肌力訓練</option>
+            <option>平衡訓練</option>
+            <option>其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fGoal">復健目標</label>
+        <textarea class="input" id="fGoal"></textarea>
+      </div>
+      <div class="field">
+        <label for="fPlan">本月復健計畫</label>
+        <textarea class="input" id="fPlan"></textarea>
+      </div>
+      <div class="field">
+        <label for="fContent">本次復健內容</label>
+        <textarea class="input" id="fContent"></textarea>
+      </div>
+      <div class="field">
+        <label for="fResponse">住民反應</label>
+        <textarea class="input" id="fResponse"></textarea>
+      </div>
+      <div class="field">
+        <label for="fNote">備註</label>
+        <textarea class="input" id="fNote"></textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <div class="status-text" id="formStatus"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="ghost-btn" type="button" id="copyPrevSingleBtn"><i class="fas fa-copy"></i> 複製上月此住民</button>
+        <button class="primary-btn" type="button" id="saveBtn"><i class="fas fa-floppy-disk"></i> 儲存紀錄</button>
+      </div>
+    </div>
+  </aside>
+
+  <script type="module" src="rehab-records.js"></script>
+</body>
+</html>
