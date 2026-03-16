@@ -135,6 +135,45 @@
       .month-grid{grid-template-columns:repeat(3,1fr)}
       .drawer-head,.drawer-body,.drawer-foot{padding-left:16px;padding-right:16px}
     }
+  
+    .modal-backdrop-lite{
+      position:fixed;inset:0;background:rgba(12,26,45,.32);display:none;z-index:30
+    }
+    .modal-backdrop-lite.show{display:block}
+    .center-modal{
+      position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.98);
+      width:min(880px,calc(100vw - 24px));max-height:calc(100vh - 24px);
+      background:#fff;border:1px solid rgba(220,230,242,.95);border-radius:24px;
+      box-shadow:0 24px 60px rgba(15,23,42,.22);display:none;z-index:31;overflow:hidden
+    }
+    .center-modal.show{display:flex;flex-direction:column;transform:translate(-50%,-50%) scale(1)}
+    .center-modal-head,.center-modal-foot{
+      padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap
+    }
+    .center-modal-foot{border-bottom:none;border-top:1px solid var(--line)}
+    .center-modal-head h3{margin:0;font-size:22px}
+    .center-modal-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .center-modal-body{padding:18px 20px;overflow:auto;display:grid;gap:14px}
+    .roster-tools{display:flex;gap:10px;flex-wrap:wrap}
+    .roster-summary{
+      background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;
+      color:var(--muted);font-size:13px
+    }
+    .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .check-item{
+      border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff;
+      display:flex;align-items:flex-start;gap:12px
+    }
+    .check-item input{margin-top:3px}
+    .check-main{min-width:0}
+    .check-main strong{display:block;font-size:15px}
+    .check-main .sub{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.5}
+    .ym-copy-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:780px){
+      .check-grid,.ym-copy-grid{grid-template-columns:1fr}
+      .center-modal-head,.center-modal-body,.center-modal-foot{padding-left:16px;padding-right:16px}
+    }
+
   </style>
 </head>
 <body>
@@ -144,7 +183,7 @@
         <div class="brand-icon"><i class="fas fa-dumbbell"></i></div>
         <div class="brand-text">
           <h1>復健紀錄系統</h1>
-          <p>依年份與月份管理住民復健紀錄，可新增、編輯、複製上月資料。</p>
+          <p>依年份與月份管理復健住民名單與紀錄，可獨立設定每月復健名單、複製某月名單。</p>
         </div>
       </div>
       <div class="toolbar">
@@ -180,13 +219,15 @@
               <p id="monthSubtitle">讀取中...</p>
             </div>
             <div class="hero-right">
+              <button class="soft-btn" type="button" id="manageRosterBtn"><i class="fas fa-users"></i> 設定本月復健名單</button>
+              <button class="soft-btn" type="button" id="copyRosterBtn"><i class="fas fa-copy"></i> 複製某月名單</button>
               <button class="soft-btn" type="button" id="showOnlyEmptyBtn">只看未建立</button>
               <button class="primary-btn" type="button" id="addSelectedBtn"><i class="fas fa-plus"></i> 新增住民紀錄</button>
             </div>
           </div>
           <div class="stat-row">
             <div class="stat">
-              <div class="k">本月住民總數</div>
+              <div class="k">本月復健名單人數</div>
               <div class="v" id="statResidents">0</div>
             </div>
             <div class="stat">
@@ -202,7 +243,7 @@
 
         <section class="table-card card">
           <div class="table-head">
-            <h3>住民清單</h3>
+            <h3>本月復健名單</h3>
             <div class="table-tools">
               <input id="searchInput" class="input" type="text" placeholder="搜尋床號、姓名、住民編號" />
               <select id="statusFilter" class="select">
@@ -303,11 +344,80 @@
     </div>
   </aside>
 
+  
+  <div class="modal-backdrop-lite" id="rosterModalBackdrop"></div>
+
+  <section class="center-modal" id="rosterModal">
+    <div class="center-modal-head">
+      <div>
+        <h3 id="rosterModalTitle">設定本月復健名單</h3>
+        <p id="rosterModalSub">可多選本月需要復健的住民。未列入名單者，不會出現在本月清單。</p>
+      </div>
+      <button class="ghost-btn" type="button" id="closeRosterModalBtn"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="center-modal-body">
+      <div class="roster-tools">
+        <input id="rosterSearchInput" class="input" type="text" placeholder="搜尋床號、姓名、住民編號" />
+        <button class="soft-btn" type="button" id="selectAllRosterBtn">全選目前篩選</button>
+        <button class="soft-btn" type="button" id="clearAllRosterBtn">清空目前篩選</button>
+      </div>
+      <div class="roster-summary" id="rosterSummaryText">已選 0 人</div>
+      <div class="check-grid" id="rosterCheckGrid"></div>
+    </div>
+    <div class="center-modal-foot">
+      <div class="status-text" id="rosterStatus"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="ghost-btn" type="button" id="cancelRosterBtn">取消</button>
+        <button class="primary-btn" type="button" id="saveRosterBtn"><i class="fas fa-floppy-disk"></i> 儲存本月名單</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="center-modal" id="copyRosterModal">
+    <div class="center-modal-head">
+      <div>
+        <h3>複製某月復健名單</h3>
+        <p>將指定月份的復健名單複製到目前月份。可選擇是否同步複製該月紀錄內容。</p>
+      </div>
+      <button class="ghost-btn" type="button" id="closeCopyRosterModalBtn"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="center-modal-body">
+      <div class="ym-copy-grid">
+        <div class="field">
+          <label for="copyRosterYear">來源年份</label>
+          <input class="input" id="copyRosterYear" type="number" min="2000" max="2100" />
+        </div>
+        <div class="field">
+          <label for="copyRosterMonth">來源月份</label>
+          <select class="select" id="copyRosterMonth">
+            <option value="1">01 月</option><option value="2">02 月</option><option value="3">03 月</option><option value="4">04 月</option>
+            <option value="5">05 月</option><option value="6">06 月</option><option value="7">07 月</option><option value="8">08 月</option>
+            <option value="9">09 月</option><option value="10">10 月</option><option value="11">11 月</option><option value="12">12 月</option>
+          </select>
+        </div>
+      </div>
+      <label class="check-item" style="cursor:pointer;">
+        <input type="checkbox" id="copyRosterWithRecords" />
+        <div class="check-main">
+          <strong>同步複製該月紀錄內容</strong>
+          <div class="sub">勾選後，會將來源月份已有的復健紀錄內容一起帶到目前月份；未勾選則只複製名單。</div>
+        </div>
+      </label>
+      <div class="roster-summary">提示：若目前月份已有名單，會以來源月份名單覆蓋目前月份名單。</div>
+    </div>
+    <div class="center-modal-foot">
+      <div class="status-text" id="copyRosterStatus"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="ghost-btn" type="button" id="cancelCopyRosterBtn">取消</button>
+        <button class="primary-btn" type="button" id="confirmCopyRosterBtn"><i class="fas fa-copy"></i> 開始複製</button>
+      </div>
+    </div>
+  </section>
+
+
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="idle-timeout.js"></script>
   <script src="rehab-records.js"></script>
 </body>
 </html>
