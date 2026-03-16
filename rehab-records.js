@@ -1,15 +1,4 @@
-import { db } from "../common/firebase-init.js";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  query,
-  where,
-  serverTimestamp,
-  limit
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const db = firebase.firestore();
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
@@ -43,9 +32,9 @@ const copyPrevSingleBtn = el("copyPrevSingleBtn");
 
 function getLoginUser() {
   for (const key of ["rehabAuth", "nutritionistAuth", "antai_session_user"]) {
-    const raw = sessionStorage.getItem(key);
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (!raw) continue;
-    try { return JSON.parse(raw); } catch {}
+    try { return JSON.parse(raw); } catch (_) {}
   }
   return null;
 }
@@ -116,7 +105,7 @@ function renderMonths() {
 }
 
 async function loadResidents() {
-  const snap = await getDocs(collection(db, "residents"));
+  const snap = await db.collection("residents").get();
   residents = [];
   snap.forEach(ds => residents.push({ id: ds.id, ...ds.data() }));
   residents.sort(compareResident);
@@ -124,8 +113,10 @@ async function loadResidents() {
 
 async function loadRecordsByYM(year, month) {
   const ym = ymValue(year, month);
-  const q1 = query(collection(db, "rehabRecords"), where("ym", "==", ym), limit(3000));
-  const snap = await getDocs(q1);
+  const snap = await db.collection("rehabRecords")
+    .where("ym", "==", ym)
+    .limit(3000)
+    .get();
   const arr = [];
   snap.forEach(ds => arr.push({ id: ds.id, ...ds.data() }));
   return arr;
@@ -309,15 +300,15 @@ async function saveRecord() {
     createdByName: editingRecord?.createdByName || user?.displayName || user?.username || "",
     updatedById: user?.staffId || "",
     updatedByName: user?.displayName || user?.username || "",
-    updatedAt: serverTimestamp()
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
   try {
     if (editingRecord?.id) {
-      await updateDoc(doc(db, "rehabRecords", editingRecord.id), payload);
+      await db.collection("rehabRecords").doc(editingRecord.id).update(payload);
     } else {
-      payload.createdAt = serverTimestamp();
-      await addDoc(collection(db, "rehabRecords"), payload);
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection("rehabRecords").add(payload);
     }
     formStatus.textContent = "儲存成功";
     await loadMonthData();
@@ -332,15 +323,14 @@ async function saveRecord() {
 
 async function findPrevRecordByResident(residentId) {
   const prev = prevYM(selectedYear, selectedMonth);
-  const q1 = query(
-    collection(db, "rehabRecords"),
-    where("ym", "==", ymValue(prev.year, prev.month)),
-    where("residentId", "==", residentId),
-    limit(1)
-  );
-  const snap = await getDocs(q1);
+  const snap = await db.collection("rehabRecords")
+    .where("ym", "==", ymValue(prev.year, prev.month))
+    .where("residentId", "==", residentId)
+    .limit(1)
+    .get();
+
   let found = null;
-  snap.forEach(ds => found = { id: ds.id, ...ds.data() });
+  snap.forEach(ds => { found = { id: ds.id, ...ds.data() }; });
   return found;
 }
 
@@ -389,14 +379,14 @@ async function copyPreviousSingle(resident = editingResident) {
       createdByName: exists?.createdByName || user?.displayName || user?.username || "",
       updatedById: user?.staffId || "",
       updatedByName: user?.displayName || user?.username || "",
-      updatedAt: serverTimestamp()
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     if (exists?.id) {
-      await updateDoc(doc(db, "rehabRecords", exists.id), payload);
+      await db.collection("rehabRecords").doc(exists.id).update(payload);
     } else {
-      payload.createdAt = serverTimestamp();
-      await addDoc(collection(db, "rehabRecords"), payload);
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection("rehabRecords").add(payload);
     }
 
     await loadMonthData();
@@ -408,15 +398,17 @@ async function copyPreviousSingle(resident = editingResident) {
 }
 
 async function copyPreviousAll() {
-  if (!confirm(`要將 ${ymText(...Object.values(prevYM(selectedYear, selectedMonth)))} 的全部住民資料複製到 ${ymText(selectedYear, selectedMonth)} 嗎？\n已有資料者會覆蓋。`)) return;
+  const prev = prevYM(selectedYear, selectedMonth);
+  if (!confirm(`要將 ${ymText(prev.year, prev.month)} 的全部住民資料複製到 ${ymText(selectedYear, selectedMonth)} 嗎？\n已有資料者會覆蓋。`)) return;
+
   monthSubtitle.textContent = "批次複製中，請稍候...";
   try {
-    const prev = prevYM(selectedYear, selectedMonth);
     const prevRecords = await loadRecordsByYM(prev.year, prev.month);
     if (!prevRecords.length) {
       monthSubtitle.textContent = "上個月沒有可複製的資料";
       return;
     }
+
     const user = getLoginUser();
     const existingMap = new Map(records.map(r => [r.residentId, r]));
     const residentMap = new Map(residents.map(r => [r.id, r]));
@@ -424,6 +416,7 @@ async function copyPreviousAll() {
     for (const prevRec of prevRecords) {
       const resident = residentMap.get(prevRec.residentId);
       if (!resident) continue;
+
       const exists = existingMap.get(prevRec.residentId);
       const payload = {
         residentId: resident.id,
@@ -447,14 +440,14 @@ async function copyPreviousAll() {
         createdByName: exists?.createdByName || user?.displayName || user?.username || "",
         updatedById: user?.staffId || "",
         updatedByName: user?.displayName || user?.username || "",
-        updatedAt: serverTimestamp()
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
       if (exists?.id) {
-        await updateDoc(doc(db, "rehabRecords", exists.id), payload);
+        await db.collection("rehabRecords").doc(exists.id).update(payload);
       } else {
-        payload.createdAt = serverTimestamp();
-        await addDoc(collection(db, "rehabRecords"), payload);
+        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection("rehabRecords").add(payload);
       }
     }
 
@@ -472,28 +465,34 @@ function bindEvents() {
     renderMonths();
     await loadMonthData();
   });
+
   el("nextYearBtn").addEventListener("click", async () => {
     selectedYear += 1;
     renderMonths();
     await loadMonthData();
   });
+
   el("goTodayBtn").addEventListener("click", async () => {
     selectedYear = currentYear;
     selectedMonth = currentMonth;
     renderMonths();
     await loadMonthData();
   });
+
   el("refreshBtn").addEventListener("click", loadMonthData);
   el("copyAllBtn").addEventListener("click", copyPreviousAll);
+
   el("showOnlyEmptyBtn").addEventListener("click", () => {
     statusFilter.value = statusFilter.value === "empty" ? "all" : "empty";
     renderTable();
   });
+
   el("addSelectedBtn").addEventListener("click", () => {
     const firstEmpty = rows.find(r => r.status === "empty");
     if (firstEmpty) openDrawer(firstEmpty.resident, null);
     else alert("目前本月全部住民都已有紀錄，可直接編輯既有資料。");
   });
+
   searchInput.addEventListener("input", renderTable);
   statusFilter.addEventListener("change", renderTable);
   drawerBackdrop.addEventListener("click", closeDrawer);
@@ -510,7 +509,13 @@ async function init() {
   await loadMonthData();
 }
 
-init().catch(err => {
-  console.error(err);
-  recordsTbody.innerHTML = `<tr><td colspan="8"><div class="empty-box">系統初始化失敗：${escapeHtml(err.message || err)}</div></td></tr>`;
+document.addEventListener("firebase-ready", () => {
+  init().catch(err => {
+    console.error(err);
+    recordsTbody.innerHTML = `<tr><td colspan="8"><div class="empty-box">系統初始化失敗：${escapeHtml(err.message || err)}</div></td></tr>`;
+  });
 });
+
+if (window.firebase && window.firebase.apps && window.firebase.apps.length) {
+  document.dispatchEvent(new Event("firebase-ready"));
+}
