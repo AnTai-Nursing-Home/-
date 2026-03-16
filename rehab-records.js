@@ -1,5 +1,3 @@
-const db = firebase.firestore();
-
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 let selectedYear = currentYear;
