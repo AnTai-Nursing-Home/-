@@ -3,7 +3,7 @@ const currentMonth = new Date().getMonth() + 1;
 let selectedYear = currentYear;
 let selectedMonth = currentMonth;
 let residents = [];
-let records = [];
+let recordSessions = [];
 let rosterIds = [];
 let rows = [];
 let editingRecord = null;
@@ -52,6 +52,14 @@ const copyRosterMonth = el("copyRosterMonth");
 const copyRosterWithRecords = el("copyRosterWithRecords");
 const copyRosterStatus = el("copyRosterStatus");
 const confirmCopyRosterBtn = el("confirmCopyRosterBtn");
+
+const sessionListModal = el("sessionListModal");
+const closeSessionListModalBtn = el("closeSessionListModalBtn");
+const cancelSessionListModalBtn = el("cancelSessionListModalBtn");
+const sessionListTitle = el("sessionListTitle");
+const sessionListSub = el("sessionListSub");
+const sessionListWrap = el("sessionListWrap");
+const sessionListStatus = el("sessionListStatus");
 
 function getLoginUser() {
   for (const key of ["rehabAuth", "nutritionistAuth", "antai_session_user"]) {
@@ -105,6 +113,17 @@ function compareResident(a, b) {
   return String(a.residentName || "").localeCompare(String(b.residentName || ""), "zh-Hant-u-kn-true");
 }
 
+function sortSessions(list) {
+  return list.slice().sort((a, b) => {
+    const da = String(a.recordDate || "");
+    const db = String(b.recordDate || "");
+    if (da !== db) return db.localeCompare(da);
+    const ta = a.updatedAt?.toDate?.()?.getTime?.() || a.createdAt?.toDate?.()?.getTime?.() || 0;
+    const tb = b.updatedAt?.toDate?.()?.getTime?.() || b.createdAt?.toDate?.()?.getTime?.() || 0;
+    return tb - ta;
+  });
+}
+
 function renderMonths() {
   yearText.textContent = selectedYear;
   monthGrid.innerHTML = Array.from({ length: 12 }, (_, i) => {
@@ -138,7 +157,7 @@ async function loadRecordsByYM(year, month) {
   const ym = ymValue(year, month);
   const snap = await db.collection("rehabRecords")
     .where("ym", "==", ym)
-    .limit(3000)
+    .limit(5000)
     .get();
   const arr = [];
   snap.forEach(ds => arr.push({ id: ds.id, ...ds.data() }));
@@ -154,18 +173,24 @@ async function loadRosterByYM(year, month) {
 }
 
 function buildRows() {
-  const recordMap = new Map(records.map(r => [r.residentId, r]));
   const useRoster = Array.isArray(rosterIds) && rosterIds.length > 0;
-  const sourceResidents = useRoster
-    ? residents.filter(r => rosterIds.includes(r.id))
-    : [];
+  const sourceResidents = useRoster ? residents.filter(r => rosterIds.includes(r.id)) : [];
+  const sessionMap = new Map();
+
+  for (const rec of recordSessions) {
+    const arr = sessionMap.get(rec.residentId) || [];
+    arr.push(rec);
+    sessionMap.set(rec.residentId, arr);
+  }
 
   rows = sourceResidents.map(r => {
-    const rec = recordMap.get(r.id) || null;
+    const sessions = sortSessions(sessionMap.get(r.id) || []);
     return {
       resident: r,
-      record: rec,
-      status: rec ? "done" : "empty"
+      sessions,
+      record: sessions[0] || null,
+      count: sessions.length,
+      status: sessions.length ? "done" : "empty"
     };
   });
 }
@@ -176,8 +201,9 @@ function updateStats(filteredRows = rows) {
   statDone.textContent = done;
   statPending.textContent = rows.length - done;
   monthTitle.textContent = `${ymText(selectedYear, selectedMonth)}復健紀錄`;
+  const totalSessions = rows.reduce((sum, r) => sum + (r.count || 0), 0);
   monthSubtitle.textContent = rows.length
-    ? `目前顯示 ${filteredRows.length} 位復健住民，本月名單共 ${rows.length} 人。`
+    ? `目前顯示 ${filteredRows.length} 位復健住民，本月名單共 ${rows.length} 人，累計復健 ${totalSessions} 次。`
     : `本月尚未設定復健名單，請先點「設定本月復健名單」。`;
 }
 
@@ -209,12 +235,12 @@ function renderTable() {
   updateStats(data);
 
   if (!rows.length) {
-    recordsTbody.innerHTML = `<tr><td colspan="8"><div class="empty-box">本月尚未設定復健名單。請先按上方「設定本月復健名單」，選擇本月需要復健的住民。</div></td></tr>`;
+    recordsTbody.innerHTML = `<tr><td colspan="9"><div class="empty-box">本月尚未設定復健名單。請先按上方「設定本月復健名單」，選擇本月需要復健的住民。</div></td></tr>`;
     return;
   }
 
   if (!data.length) {
-    recordsTbody.innerHTML = `<tr><td colspan="8"><div class="empty-box">目前沒有符合條件的復健住民資料</div></td></tr>`;
+    recordsTbody.innerHTML = `<tr><td colspan="9"><div class="empty-box">目前沒有符合條件的復健住民資料</div></td></tr>`;
     return;
   }
 
@@ -229,6 +255,7 @@ function renderTable() {
         <td>${escapeHtml(r.residentNumber || "--")}</td>
         <td>${escapeHtml(r.diagnosis || "--")}</td>
         <td>${escapeHtml(r.mobility || "--")}</td>
+        <td>${item.count || 0} 次</td>
         <td>
           ${rec
             ? `<span class="badge done"><i class="fas fa-circle-check"></i> 已建立</span>`
@@ -237,7 +264,8 @@ function renderTable() {
         <td>${escapeHtml(formatUpdatedAt(rec))}</td>
         <td>
           <div class="row-actions">
-            <button class="mini-btn primary" data-action="edit" data-id="${escapeHtml(r.id)}">${rec ? "編輯" : "新增"}</button>
+            <button class="mini-btn primary" data-action="add" data-id="${escapeHtml(r.id)}"><i class="fas fa-plus"></i> 新增一次</button>
+            <button class="mini-btn" data-action="view" data-id="${escapeHtml(r.id)}">查看紀錄</button>
             <button class="mini-btn" data-action="copy" data-id="${escapeHtml(r.id)}">複製上月</button>
           </div>
         </td>
@@ -250,8 +278,10 @@ function renderTable() {
       const residentId = btn.dataset.id;
       const item = rows.find(x => x.resident.id === residentId);
       if (!item) return;
-      if (btn.dataset.action === "edit") {
-        openDrawer(item.resident, item.record);
+      if (btn.dataset.action === "add") {
+        openDrawer(item.resident, null);
+      } else if (btn.dataset.action === "view") {
+        openSessionListModal(item.resident, item.sessions || []);
       } else {
         await copyPreviousSingle(item.resident);
       }
@@ -260,11 +290,10 @@ function renderTable() {
 }
 
 async function loadMonthData() {
-  recordsTbody.innerHTML = `<tr><td colspan="8" class="loading">讀取中...</td></tr>`;
+  recordsTbody.innerHTML = `<tr><td colspan="9" class="loading">讀取中...</td></tr>`;
   monthTitle.textContent = `${ymText(selectedYear, selectedMonth)}復健紀錄`;
   monthSubtitle.textContent = "資料讀取中...";
-  const ym = ymValue(selectedYear, selectedMonth);
-  records = await loadRecordsByYM(selectedYear, selectedMonth);
+  recordSessions = await loadRecordsByYM(selectedYear, selectedMonth);
   rosterIds = await loadRosterByYM(selectedYear, selectedMonth);
   buildRows();
   renderTable();
@@ -277,7 +306,7 @@ async function loadMonthData() {
 function openDrawer(resident, record = null) {
   editingResident = resident;
   editingRecord = record;
-  drawerTitle.textContent = record ? "編輯復健紀錄" : "新增復健紀錄";
+  drawerTitle.textContent = record ? "編輯本次復健紀錄" : "新增本次復健紀錄";
   drawerSub.textContent = `${ymText(selectedYear, selectedMonth)}｜${resident.residentName || ""}`;
   el("dBed").textContent = resident.bedNumber || resident.bed || resident.roomBed || "--";
   el("dName").textContent = resident.residentName || "--";
@@ -345,20 +374,16 @@ async function saveRecord() {
     month: selectedMonth,
     ym: ymValue(selectedYear, selectedMonth),
     ...data,
-    createdById: editingRecord?.createdById || user?.staffId || "",
-    createdByName: editingRecord?.createdByName || user?.displayName || user?.username || "",
+    createdById: user?.staffId || "",
+    createdByName: user?.displayName || user?.username || "",
     updatedById: user?.staffId || "",
     updatedByName: user?.displayName || user?.username || "",
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
   try {
-    if (editingRecord?.id) {
-      await db.collection("rehabRecords").doc(editingRecord.id).update(payload);
-    } else {
-      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection("rehabRecords").add(payload);
-    }
+    await db.collection("rehabRecords").add(payload);
     formStatus.textContent = "儲存成功";
     await loadMonthData();
     closeDrawer();
@@ -404,7 +429,6 @@ async function copyPreviousSingle(resident = editingResident) {
       return;
     }
 
-    const exists = rows.find(x => x.resident.id === resident.id)?.record;
     const user = getLoginUser();
     const payload = {
       residentId: resident.id,
@@ -424,20 +448,15 @@ async function copyPreviousSingle(resident = editingResident) {
       rehabContent: prev.rehabContent || prev.content || "",
       rehabResponse: prev.rehabResponse || prev.response || "",
       note: prev.note || "",
-      createdById: exists?.createdById || user?.staffId || "",
-      createdByName: exists?.createdByName || user?.displayName || user?.username || "",
+      createdById: user?.staffId || "",
+      createdByName: user?.displayName || user?.username || "",
       updatedById: user?.staffId || "",
       updatedByName: user?.displayName || user?.username || "",
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    if (exists?.id) {
-      await db.collection("rehabRecords").doc(exists.id).update(payload);
-    } else {
-      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection("rehabRecords").add(payload);
-    }
-
+    await db.collection("rehabRecords").add(payload);
     await loadMonthData();
     formStatus.textContent = "已複製上月此住民資料";
   } catch (e) {
@@ -453,18 +472,16 @@ async function copyPreviousAll() {
   }
 
   const prev = prevYM(selectedYear, selectedMonth);
-  if (!confirm(`要將 ${ymText(prev.year, prev.month)} 的全部紀錄資料複製到 ${ymText(selectedYear, selectedMonth)} 目前名單中的住民嗎？\n已有資料者會覆蓋。`)) return;
+  if (!confirm(`要將 ${ymText(prev.year, prev.month)} 的全部紀錄資料複製到 ${ymText(selectedYear, selectedMonth)} 目前名單中的住民嗎？\n會逐筆新增到本月。`)) return;
 
   monthSubtitle.textContent = "批次複製中，請稍候...";
   try {
     const user = getLoginUser();
-    const existingMap = new Map(records.map(r => [r.residentId, r]));
 
     for (const resident of rows.map(x => x.resident)) {
       const prevRec = await findPrevRecordByResident(resident.id);
       if (!prevRec) continue;
 
-      const exists = existingMap.get(resident.id);
       const payload = {
         residentId: resident.id,
         residentName: resident.residentName || prevRec.residentName || "",
@@ -483,19 +500,15 @@ async function copyPreviousAll() {
         rehabContent: prevRec.rehabContent || prevRec.content || "",
         rehabResponse: prevRec.rehabResponse || prevRec.response || "",
         note: prevRec.note || "",
-        createdById: exists?.createdById || user?.staffId || "",
-        createdByName: exists?.createdByName || user?.displayName || user?.username || "",
+        createdById: user?.staffId || "",
+        createdByName: user?.displayName || user?.username || "",
         updatedById: user?.staffId || "",
         updatedByName: user?.displayName || user?.username || "",
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      if (exists?.id) {
-        await db.collection("rehabRecords").doc(exists.id).update(payload);
-      } else {
-        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        await db.collection("rehabRecords").add(payload);
-      }
+      await db.collection("rehabRecords").add(payload);
     }
 
     await loadMonthData();
@@ -602,7 +615,51 @@ function openCopyRosterModal() {
 
 function closeCopyRosterModal() {
   copyRosterModal.classList.remove("show");
-  if (!rosterModal.classList.contains("show")) {
+  if (!rosterModal.classList.contains("show") && !sessionListModal.classList.contains("show")) {
+    rosterModalBackdrop.classList.remove("show");
+  }
+}
+
+function formatRecordDate(v) {
+  if (!v) return "--";
+  return String(v).replaceAll("-", "/");
+}
+
+function openSessionListModal(resident, sessions) {
+  sessionListTitle.textContent = `${resident.residentName || "--"}｜本月復健紀錄`;
+  const bed = resident.bedNumber || resident.bed || resident.roomBed || "--";
+  sessionListSub.textContent = `床號：${bed}｜本月共 ${sessions.length} 次`;
+  sessionListStatus.textContent = sessions.length ? "" : "目前尚無復健紀錄";
+  if (!sessions.length) {
+    sessionListWrap.innerHTML = `<div class="empty-box">這位住民本月尚未建立任何復健紀錄。</div>`;
+  } else {
+    sessionListWrap.innerHTML = `<div class="session-list">` + sessions.map((s, idx) => `
+      <div class="session-card">
+        <div class="session-card-head">
+          <div>
+            <div class="session-card-title">第 ${sessions.length - idx} 次復健</div>
+            <div class="session-card-meta">日期：${escapeHtml(formatRecordDate(s.recordDate))}</div>
+          </div>
+          <div class="session-card-meta">最後更新：${escapeHtml(formatUpdatedAt(s))}</div>
+        </div>
+        <div class="session-grid">
+          <strong>復健類型</strong><span>${escapeHtml(s.rehabType || "--")}</span>
+          <strong>復健目標</strong><span>${escapeHtml(s.rehabGoal || s.goal || "--")}</span>
+          <strong>本月復健計畫</strong><span>${escapeHtml(s.rehabPlan || "--")}</span>
+          <strong>本次復健內容</strong><span>${escapeHtml(s.rehabContent || s.content || "--")}</span>
+          <strong>住民反應</strong><span>${escapeHtml(s.rehabResponse || s.response || "--")}</span>
+          <strong>備註</strong><span>${escapeHtml(s.note || "--")}</span>
+        </div>
+      </div>
+    `).join("") + `</div>`;
+  }
+  rosterModalBackdrop.classList.add("show");
+  sessionListModal.classList.add("show");
+}
+
+function closeSessionListModal() {
+  sessionListModal.classList.remove("show");
+  if (!rosterModal.classList.contains("show") && !copyRosterModal.classList.contains("show")) {
     rosterModalBackdrop.classList.remove("show");
   }
 }
@@ -643,46 +700,45 @@ async function copyRosterFromMonth() {
 
     if (copyRosterWithRecords.checked) {
       const sourceRecords = await loadRecordsByYM(srcYear, srcMonth);
-      const sourceRecordMap = new Map(sourceRecords.map(r => [r.residentId, r]));
-      const targetRecords = await loadRecordsByYM(selectedYear, selectedMonth);
-      const targetRecordMap = new Map(targetRecords.map(r => [r.residentId, r]));
+      const sourceRecordMap = new Map();
+      sourceRecords.forEach(r => {
+        const arr = sourceRecordMap.get(r.residentId) || [];
+        arr.push(r);
+        sourceRecordMap.set(r.residentId, arr);
+      });
       const residentMap = new Map(residents.map(r => [r.id, r]));
 
       for (const residentId of sourceRosterIds) {
         const resident = residentMap.get(residentId);
-        const sourceRecord = sourceRecordMap.get(residentId);
-        if (!resident || !sourceRecord) continue;
+        const sourceSessionList = sourceRecordMap.get(residentId) || [];
+        if (!resident || !sourceSessionList.length) continue;
 
-        const exists = targetRecordMap.get(residentId);
-        const payload = {
-          residentId: resident.id,
-          residentName: resident.residentName || sourceRecord.residentName || "",
-          residentNumber: resident.residentNumber || sourceRecord.residentNumber || "",
-          bedNumber: resident.bedNumber || resident.bed || resident.roomBed || sourceRecord.bedNumber || "",
-          gender: resident.gender || sourceRecord.gender || "",
-          diagnosis: resident.diagnosis || sourceRecord.diagnosis || "",
-          mobility: resident.mobility || sourceRecord.mobility || "",
-          year: selectedYear,
-          month: selectedMonth,
-          ym: targetYm,
-          recordDate: `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
-          rehabType: sourceRecord.rehabType || "",
-          rehabGoal: sourceRecord.rehabGoal || sourceRecord.goal || "",
-          rehabPlan: sourceRecord.rehabPlan || "",
-          rehabContent: sourceRecord.rehabContent || sourceRecord.content || "",
-          rehabResponse: sourceRecord.rehabResponse || sourceRecord.response || "",
-          note: sourceRecord.note || "",
-          createdById: exists?.createdById || user?.staffId || "",
-          createdByName: exists?.createdByName || user?.displayName || user?.username || "",
-          updatedById: user?.staffId || "",
-          updatedByName: user?.displayName || user?.username || "",
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        if (exists?.id) {
-          await db.collection("rehabRecords").doc(exists.id).update(payload);
-        } else {
-          payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        for (const sourceRecord of sourceSessionList) {
+          const payload = {
+            residentId: resident.id,
+            residentName: resident.residentName || sourceRecord.residentName || "",
+            residentNumber: resident.residentNumber || sourceRecord.residentNumber || "",
+            bedNumber: resident.bedNumber || resident.bed || resident.roomBed || sourceRecord.bedNumber || "",
+            gender: resident.gender || sourceRecord.gender || "",
+            diagnosis: resident.diagnosis || sourceRecord.diagnosis || "",
+            mobility: resident.mobility || sourceRecord.mobility || "",
+            year: selectedYear,
+            month: selectedMonth,
+            ym: targetYm,
+            recordDate: sourceRecord.recordDate || `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
+            rehabType: sourceRecord.rehabType || "",
+            rehabGoal: sourceRecord.rehabGoal || sourceRecord.goal || "",
+            rehabPlan: sourceRecord.rehabPlan || "",
+            rehabContent: sourceRecord.rehabContent || sourceRecord.content || "",
+            rehabResponse: sourceRecord.rehabResponse || sourceRecord.response || "",
+            note: sourceRecord.note || "",
+            createdById: user?.staffId || "",
+            createdByName: user?.displayName || user?.username || "",
+            updatedById: user?.staffId || "",
+            updatedByName: user?.displayName || user?.username || "",
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
           await db.collection("rehabRecords").add(payload);
         }
       }
@@ -731,9 +787,7 @@ function bindEvents() {
       alert("本月尚未設定復健名單，請先設定本月復健名單。");
       return;
     }
-    const firstEmpty = rows.find(r => r.status === "empty");
-    if (firstEmpty) openDrawer(firstEmpty.resident, null);
-    else if (rows[0]) openDrawer(rows[0].resident, rows[0].record || null);
+    if (rows[0]) openDrawer(rows[0].resident, null);
     else alert("本月沒有可新增的復健住民。");
   });
 
@@ -752,6 +806,7 @@ function bindEvents() {
   rosterModalBackdrop.addEventListener("click", () => {
     closeRosterModal();
     closeCopyRosterModal();
+    closeSessionListModal();
   });
   rosterSearchInput.addEventListener("input", renderRosterChecklist);
 
@@ -772,6 +827,9 @@ function bindEvents() {
   closeCopyRosterModalBtn.addEventListener("click", closeCopyRosterModal);
   cancelCopyRosterBtn.addEventListener("click", closeCopyRosterModal);
   confirmCopyRosterBtn.addEventListener("click", copyRosterFromMonth);
+
+  closeSessionListModalBtn.addEventListener("click", closeSessionListModal);
+  cancelSessionListModalBtn.addEventListener("click", closeSessionListModal);
 }
 
 async function init() {
@@ -785,7 +843,7 @@ async function init() {
 document.addEventListener("firebase-ready", () => {
   init().catch(err => {
     console.error(err);
-    recordsTbody.innerHTML = `<tr><td colspan="8"><div class="empty-box">系統初始化失敗：${escapeHtml(err.message || err)}</div></td></tr>`;
+    recordsTbody.innerHTML = `<tr><td colspan="9"><div class="empty-box">系統初始化失敗：${escapeHtml(err.message || err)}</div></td></tr>`;
   });
 });
 
