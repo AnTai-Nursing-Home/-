@@ -126,6 +126,20 @@
       .layout{grid-template-columns:1fr}
       .sidebar{position:static}
     }
+    
+    .session-list{display:grid;gap:12px}
+    .session-card{
+      border:1px solid var(--line);border-radius:18px;background:#fff;padding:16px 18px
+    }
+    .session-card-head{
+      display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px
+    }
+    .session-card-title{font-size:17px;font-weight:800}
+    .session-card-meta{font-size:14px;color:var(--muted)}
+    .session-grid{display:grid;grid-template-columns:140px 1fr;gap:8px 12px}
+    .session-grid strong{font-size:15px}
+    .session-grid span{font-size:15px;line-height:1.7}
+
     @media (max-width:780px){
       .app{padding:14px}
       .topbar,.hero,.table-card,.sidebar{padding-left:14px;padding-right:14px}
@@ -183,7 +197,7 @@
         <div class="brand-icon"><i class="fas fa-dumbbell"></i></div>
         <div class="brand-text">
           <h1>復健紀錄系統</h1>
-          <p>依年份與月份管理復健住民名單與紀錄，可獨立設定每月復健名單、複製某月名單。</p>
+          <p>依年份與月份管理復健住民名單與紀錄，可獨立設定每月復健名單、記錄每次復健、統計每月次數。</p>
         </div>
       </div>
       <div class="toolbar">
@@ -417,9 +431,7 @@
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="idle-timeout.js"></script>
   <script src="rehab-records.js"></script>
 </body>
 </html>
