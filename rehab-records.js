@@ -29,6 +29,7 @@ const drawerSub = el("drawerSub");
 const formStatus = el("formStatus");
 const saveBtn = el("saveBtn");
 const copyPrevSingleBtn = el("copyPrevSingleBtn");
+const copyLastSessionBtn = el("copyLastSessionBtn");
 
 const manageRosterBtn = el("manageRosterBtn");
 const copyRosterBtn = el("copyRosterBtn");
@@ -60,6 +61,7 @@ const sessionListTitle = el("sessionListTitle");
 const sessionListSub = el("sessionListSub");
 const sessionListWrap = el("sessionListWrap");
 const sessionListStatus = el("sessionListStatus");
+let sessionListResident = null;
 
 function getLoginUser() {
   for (const key of ["rehabAuth", "nutritionistAuth", "antai_session_user"]) {
@@ -406,6 +408,68 @@ async function findPrevRecordByResident(residentId) {
   let found = null;
   snap.forEach(ds => { found = { id: ds.id, ...ds.data() }; });
   return found;
+}
+
+async function findLastSessionByResident(residentId) {
+  const list = recordSessions
+    .filter(r => r.residentId === residentId)
+    .slice()
+    .sort((a, b) => {
+      const da = String(a.recordDate || "");
+      const db = String(b.recordDate || "");
+      if (da !== db) return db.localeCompare(da);
+      const ta = a.updatedAt?.toDate?.()?.getTime?.() || a.createdAt?.toDate?.()?.getTime?.() || 0;
+      const tb = b.updatedAt?.toDate?.()?.getTime?.() || b.createdAt?.toDate?.()?.getTime?.() || 0;
+      return tb - ta;
+    });
+  return list[0] || null;
+}
+
+async function copyLastSessionToForm(resident = editingResident) {
+  if (!resident) return;
+  formStatus.textContent = "讀取前次紀錄中...";
+  try {
+    const prev = await findLastSessionByResident(resident.id);
+    if (!prev) {
+      formStatus.textContent = "本月尚無前次紀錄可複製";
+      return;
+    }
+    el("fType").value = prev.rehabType || "";
+    el("fGoal").value = prev.rehabGoal || prev.goal || "";
+    el("fPlan").value = prev.rehabPlan || "";
+    el("fContent").value = prev.rehabContent || prev.content || "";
+    el("fResponse").value = prev.rehabResponse || prev.response || "";
+    el("fNote").value = prev.note || "";
+    formStatus.textContent = "已帶入前次紀錄，請確認後儲存";
+  } catch (e) {
+    console.error(e);
+    formStatus.textContent = `複製前次失敗：${e.message || e}`;
+  }
+}
+
+async function deleteSessionRecord(recordId) {
+  if (!recordId) return;
+  if (!confirm("確定要刪除這筆當日復健紀錄嗎？\n此操作無法復原。")) return;
+  sessionListStatus.textContent = "刪除中...";
+  try {
+    await db.collection("rehabRecords").doc(recordId).delete();
+    await loadMonthData();
+    if (!sessionListResident) {
+      closeSessionListModal();
+      return;
+    }
+    const row = rows.find(x => x.resident.id === sessionListResident.id);
+    const sessions = row?.sessions || [];
+    if (!sessions.length) {
+      closeSessionListModal();
+      return;
+    }
+    openSessionListModal(sessionListResident, sessions);
+    sessionListStatus.textContent = "已刪除該筆紀錄";
+  } catch (e) {
+    console.error(e);
+    sessionListStatus.textContent = `刪除失敗：${e.message || e}`;
+  }
 }
 
 async function copyPreviousSingle(resident = editingResident) {
@@ -797,6 +861,7 @@ function bindEvents() {
   el("closeDrawerBtn").addEventListener("click", closeDrawer);
   saveBtn.addEventListener("click", saveRecord);
   copyPrevSingleBtn.addEventListener("click", () => copyPreviousSingle(editingResident));
+  if (copyLastSessionBtn) copyLastSessionBtn.addEventListener("click", () => copyLastSessionToForm(editingResident));
 
   manageRosterBtn.addEventListener("click", openRosterModal);
   copyRosterBtn.addEventListener("click", openCopyRosterModal);
