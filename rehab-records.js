@@ -704,7 +704,7 @@ function openSessionListModal(resident, sessions) {
             <div class="session-card-title">第 ${sessions.length - idx} 次復健</div>
             <div class="session-card-meta">日期：${escapeHtml(formatRecordDate(s.recordDate))}</div>
           </div>
-          <div class="session-card-meta">最後更新：${escapeHtml(formatUpdatedAt(s))}</div>
+          <div class="session-card-meta">最後更新：${escapeHtml(formatUpdatedAt(s))}</div>\n            <button type="button" class="mini-btn" data-delete-session-id="${escapeHtml(s.id)}" style="border:1px solid #dc2626;background:#fff1f2;color:#b91c1c;font-weight:800;"><i class="fas fa-trash"></i> 刪除這次</button>
         </div>
         <div class="session-grid">
           <strong>復健類型</strong><span>${escapeHtml(s.rehabType || "--")}</span>
@@ -713,6 +713,14 @@ function openSessionListModal(resident, sessions) {
           <strong>本次復健內容</strong><span>${escapeHtml(s.rehabContent || s.content || "--")}</span>
           <strong>住民反應</strong><span>${escapeHtml(s.rehabResponse || s.response || "--")}</span>
           <strong>備註</strong><span>${escapeHtml(s.note || "--")}</span>
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end;">
+          <button type="button"
+                  class="mini-btn"
+                  data-delete-session-id="${escapeHtml(s.id)}"
+                  style="border:1px solid #dc2626;background:#fff1f2;color:#b91c1c;font-weight:800;min-height:42px;">
+            <i class="fas fa-trash"></i> 刪除這次紀錄
+          </button>
         </div>
       </div>
     `).join("") + `</div>`;
