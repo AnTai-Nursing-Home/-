@@ -276,13 +276,14 @@
                   <th style="width:120px;">住民編號</th>
                   <th>診斷</th>
                   <th style="width:120px;">行動能力</th>
+                  <th style="width:120px;">本月次數</th>
                   <th style="width:120px;">本月狀態</th>
                   <th style="width:160px;">最後更新</th>
-                  <th style="width:240px;">操作</th>
+                  <th style="width:320px;">操作</th>
                 </tr>
               </thead>
               <tbody id="recordsTbody">
-                <tr><td colspan="8" class="loading">讀取中...</td></tr>
+                <tr><td colspan="9" class="loading">讀取中...</td></tr>
               </tbody>
             </table>
           </div>
@@ -429,11 +430,29 @@
   </section>
 
 
+  <section class="center-modal" id="sessionListModal">
+    <div class="center-modal-head">
+      <div>
+        <h3 id="sessionListTitle">本月復健紀錄</h3>
+        <p id="sessionListSub">查看該住民本月每一次復健紀錄</p>
+      </div>
+      <button class="ghost-btn" type="button" id="closeSessionListModalBtn"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="center-modal-body">
+      <div id="sessionListWrap"></div>
+    </div>
+    <div class="center-modal-foot">
+      <div class="status-text" id="sessionListStatus"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="ghost-btn" type="button" id="cancelSessionListModalBtn">關閉</button>
+      </div>
+    </div>
+  </section>
+
+
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
-  <script src="idle-timeout.js"></script>
   <script src="rehab-records.js"></script>
 </body>
 </html>
