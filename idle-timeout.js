@@ -38,9 +38,14 @@
             ['nurse-request.html', '請假／調班系統']
           ]
         },
-        ['admin-supplies-system.html', '器材／衛材系統'],
-        ['supplies.html', '衛材盤點'],
-        ['nurse-maintenance.html', '器材報修'],
+        {
+          label: '器材／衛材系統',
+          href: 'admin-supplies-system.html',
+          children: [
+            ['supplies.html', '衛材盤點']
+            ['nurse-maintenance.html', '器材報修']
+          ]
+        },
         ['admin-resident-system.html', '住民系統'],
         ['residents-admin.html', '住民資料管理'],
         ['wound-care.html', '傷口照護'],
