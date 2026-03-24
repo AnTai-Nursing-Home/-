@@ -210,7 +210,20 @@
   function detectSystem() {
     const page = pageName();
     for (const [key, group] of Object.entries(PAGE_GROUPS)) {
-      if (group.items.some(([href]) => href.toLowerCase() === page)) return { key, group };
+      const matched = (group.items || []).some((item) => {
+        if (Array.isArray(item)) {
+          const href = String(item[0] || '').toLowerCase();
+          return href === page;
+        }
+        if (item && typeof item === 'object') {
+          const parentHref = String(item.href || '').toLowerCase();
+          if (parentHref === page) return true;
+          const children = Array.isArray(item.children) ? item.children : [];
+          return children.some((child) => String((Array.isArray(child) ? child[0] : '') || '').toLowerCase() === page);
+        }
+        return false;
+      });
+      if (matched) return { key, group };
     }
     return null;
   }
