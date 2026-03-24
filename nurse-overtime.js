@@ -14,6 +14,69 @@ document.addEventListener('firebase-ready', () => {
 
   const modalEntry  = new bootstrap.Modal(document.getElementById('entry-modal'));
 
+  function getLoginUser(){
+    try{
+      return JSON.parse(sessionStorage.getItem('antai_session_user') || 'null');
+    }catch(_){
+      return null;
+    }
+  }
+
+  function setLoginUserDisplay(){
+    const el = document.getElementById('login-user-display');
+    if(!el) return;
+    const user = getLoginUser();
+    if(user && (user.displayName || user.staffId || user.username)){
+      const staffId = user.staffId || user.id || '';
+      const name = user.displayName || user.name || user.username || '未命名';
+      el.textContent = staffId ? `${staffId} ${name}` : name;
+    }else{
+      el.textContent = '未登入';
+    }
+  }
+
+  function syncEmployeeIdFromSelect(){
+    const sel = document.getElementById('employee-select');
+    const idInput = document.getElementById('employee-id-input');
+    if(!sel || !idInput) return;
+    const opt = sel.options[sel.selectedIndex];
+    idInput.value = opt ? (opt.dataset.id || '') : '';
+  }
+
+  function autoFillLoginUser(){
+    const user = getLoginUser();
+    const sel = document.getElementById('employee-select');
+    const idInput = document.getElementById('employee-id-input');
+    if(!sel || !idInput){
+      return;
+    }
+    if(!user){
+      syncEmployeeIdFromSelect();
+      return;
+    }
+
+    const staffId = String(user.staffId || user.id || '').trim();
+    const displayName = String(user.displayName || user.name || user.username || '').trim();
+
+    let matched = null;
+    for(const opt of Array.from(sel.options)){
+      const optId = String(opt.dataset.id || '').trim();
+      const optName = String(opt.value || '').trim();
+      if((staffId && optId === staffId) || (displayName && optName === displayName)){
+        matched = opt;
+        break;
+      }
+    }
+
+    if(matched){
+      sel.value = matched.value;
+      idInput.value = matched.dataset.id || staffId || '';
+    }else{
+      idInput.value = staffId || '';
+    }
+  }
+
+
   // ==== 讀取護理師名單 ====
   async function loadNurses(){
     const sel = document.getElementById('employee-select');
@@ -23,9 +86,12 @@ document.addEventListener('firebase-ready', () => {
       let html = '<option value="">請選擇護理師</option>';
       nSnap.forEach(d=>{ const e=d.data(); html += `<option value="${e.name}" data-id="${e.id||''}">${e.name}</option>`; });
       sel.innerHTML = html;
+      autoFillLoginUser();
+      syncEmployeeIdFromSelect();
     }catch(err){
       console.error(err);
       sel.innerHTML = '<option value="">讀取失敗</option>';
+      syncEmployeeIdFromSelect();
     }
   }
 
@@ -35,7 +101,7 @@ document.addEventListener('firebase-ready', () => {
     const editId = document.getElementById('edit-id').value;   // 護理師端不可編輯，僅保留欄位
     const name   = document.getElementById('employee-select').value;
     const opt    = document.querySelector(`#employee-select option[value="${name}"]`);
-    const id     = opt ? opt.dataset.id : '';
+    const id     = document.getElementById('employee-id-input').value || (opt ? opt.dataset.id : '');
     const applyDate = document.getElementById('apply-date-input').value || new Date().toISOString().slice(0,10);
     const date   = document.getElementById('date-input').value;
     const hours  = parseFloat(document.getElementById('hours-input').value);
@@ -190,6 +256,8 @@ document.addEventListener('firebase-ready', () => {
 
   // ==== 綁定 ====
   document.getElementById('btn-save-entry').addEventListener('click', saveEntry);
+  document.getElementById('employee-select').addEventListener('change', syncEmployeeIdFromSelect);
+  setLoginUserDisplay();
 
   // 加班
   document.getElementById("btn-new-ot").addEventListener('click', async ()=>{
@@ -197,6 +265,7 @@ document.addEventListener('firebase-ready', () => {
     document.getElementById('form-type').value='ot';
     document.getElementById('entry-form').reset();
     document.getElementById('edit-id').value='';
+    document.getElementById('employee-id-input').value='';
     document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
     document.getElementById('entry-modal-title').textContent='新增加班單';
     document.getElementById('date-label').textContent='加班日';
@@ -219,6 +288,7 @@ document.addEventListener('firebase-ready', () => {
     document.getElementById('form-type').value='deduct';
     document.getElementById('entry-form').reset();
     document.getElementById('edit-id').value='';
+    document.getElementById('employee-id-input').value='';
     document.getElementById('apply-date-input').value = new Date().toISOString().slice(0,10);
     document.getElementById('entry-modal-title').textContent='新增扣班單';
     document.getElementById('date-label').textContent='扣班日';
