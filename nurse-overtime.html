@@ -29,6 +29,15 @@
       </div>
 
       <div class="card-body">
+
+        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3" id="login-user-box">
+          <div>
+            <i class="fa-solid fa-id-badge me-2 text-primary"></i>
+            <strong>登入者：</strong>
+            <span id="login-user-display">讀取中...</span>
+          </div>
+        </div>
+
         <!-- 分頁 -->
         <ul class="nav nav-tabs no-print" id="tabs" role="tablist">
           <li class="nav-item" role="presentation">
@@ -137,6 +146,10 @@
               <select id="employee-select" class="form-select" required></select>
             </div>
             <div class="col-md-4">
+              <label class="form-label">員編</label>
+              <input type="text" id="employee-id-input" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
               <label class="form-label">申請日</label>
               <input type="date" id="apply-date-input" class="form-control" required>
             </div>
@@ -169,6 +182,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
+  <script src="idle-timeout.js"></script>
   <script src="nurse-overtime.js"></script>
 </body>
 </html>
