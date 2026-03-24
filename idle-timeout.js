@@ -30,7 +30,14 @@
       label: '護理師系統',
       items: [
         ['admin.html', '護理師首頁'],
-        ['admin-visit.html', '探視系統'],
+        {
+          label: '探視系統',
+          href: 'admin-visit.html',
+          children: [
+            ['bookings-list.html', '預約名單查詢'],
+            ['nurse.booking.html', '預約探視']
+          ]
+        },
         {
           label: '班務系統',
           href: 'admin-duty.html',
