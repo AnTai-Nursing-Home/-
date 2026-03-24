@@ -1906,10 +1906,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           const bed = r.bedNumber || '';
           const name = r.residentName || r.id || '';
           return `- ${bed} ${name}`.trim();
-        }).join('
-');
-        showTopNotice(`檢查到以下住民仍有進行中的導尿管單張（目前為住院狀態），請記得結案：
-${lines}`, 'warning');
+        }).join('\n');
+        showTopNotice(`檢查到以下住民仍有進行中的導尿管單張（目前為住院狀態），請記得結案：\n${lines}`, 'warning');
       }
 
       maybeShowFoleyAlertModal(hits);
