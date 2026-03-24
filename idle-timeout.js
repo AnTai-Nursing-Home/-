@@ -35,6 +35,7 @@
           label: '班務系統',
           href: 'admin-duty.html',
           children: [
+            ['leave.html', '預假／預班系統'],
             ['nurse-request.html', '請假／調班系統']
           ]
         },
