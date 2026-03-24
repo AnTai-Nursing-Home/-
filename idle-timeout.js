@@ -46,8 +46,13 @@
             ['nurse-maintenance.html', '器材報修']
           ]
         },
-        ['admin-resident-system.html', '住民系統'],
-        ['residents-admin.html', '住民資料管理'],
+        {
+          label: '住民系統',
+          href: 'admin-resident-system.html',
+          children: [
+            ['residents-admin.html', '住民資料管理']
+          ]
+        },
         ['wound-care.html', '傷口照護'],
         ['doctor-rounds.html', '醫師巡診系統'],
         ['nurse-primary-cases.html', '主責個案分配'],
