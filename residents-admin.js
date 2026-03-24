@@ -1800,8 +1800,15 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
     });
   }
 
-
   // ===== 住院狀態：提醒未結案的導尿管單張 =====
+  const foleyAlertModalEl = document.getElementById('foley-alert-modal');
+  const foleyAlertSummaryEl = document.getElementById('foley-alert-summary');
+  const foleyAlertListEl = document.getElementById('foley-alert-list');
+  let foleyAlertModal = null;
+  if (window.bootstrap && foleyAlertModalEl) {
+    foleyAlertModal = new bootstrap.Modal(foleyAlertModalEl);
+  }
+
   function showTopNotice(message, level='info'){
     try{
       if (typeof importStatus !== 'undefined' && importStatus) {
@@ -1814,6 +1821,57 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       }
     }catch(_e){
       alert(message);
+    }
+  }
+
+  function renderFoleyAlertModal(hits){
+    if (!foleyAlertSummaryEl || !foleyAlertListEl || !Array.isArray(hits) || !hits.length) return;
+
+    if (hits.length === 1) {
+      const one = hits[0];
+      const bed = one.bedNumber || '';
+      const name = one.residentName || one.id || '';
+      foleyAlertSummaryEl.textContent = `目前共有 1 位住院住民仍有未結案導尿管單張。`;
+      foleyAlertListEl.innerHTML = `
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">${bed} ${name}</div>
+            <div class="text-muted small">請前往導尿管系統確認是否需要結案。</div>
+          </div>
+          <span class="badge text-bg-warning">未結案</span>
+        </div>`;
+      return;
+    }
+
+    foleyAlertSummaryEl.textContent = `目前共有 ${hits.length} 位住院住民仍有未結案導尿管單張。`;
+    foleyAlertListEl.innerHTML = hits.map(r=>{
+      const bed = r.bedNumber || '';
+      const name = r.residentName || r.id || '';
+      return `
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">${bed} ${name}</div>
+            <div class="text-muted small">請前往導尿管系統確認是否需要結案。</div>
+          </div>
+          <span class="badge text-bg-warning">未結案</span>
+        </div>`;
+    }).join('');
+  }
+
+  function maybeShowFoleyAlertModal(hits){
+    if (!foleyAlertModal || !Array.isArray(hits) || !hits.length) return;
+    try {
+      const signature = hits.map(r => `${r.bedNumber || ''}|${r.residentName || r.id || ''}`).join('||');
+      const key = 'resident_foley_alert_signature';
+      const lastShown = sessionStorage.getItem(key);
+      renderFoleyAlertModal(hits);
+      if (lastShown !== signature) {
+        sessionStorage.setItem(key, signature);
+        setTimeout(() => { foleyAlertModal.show(); }, 250);
+      }
+    } catch (_e) {
+      renderFoleyAlertModal(hits);
+      setTimeout(() => { foleyAlertModal.show(); }, 250);
     }
   }
 
@@ -1848,9 +1906,13 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           const bed = r.bedNumber || '';
           const name = r.residentName || r.id || '';
           return `- ${bed} ${name}`.trim();
-        }).join('\n');
-        showTopNotice(`檢查到以下住民仍有進行中的導尿管單張（目前為住院狀態），請記得結案：\n${lines}`, 'warning');
+        }).join('
+');
+        showTopNotice(`檢查到以下住民仍有進行中的導尿管單張（目前為住院狀態），請記得結案：
+${lines}`, 'warning');
       }
+
+      maybeShowFoleyAlertModal(hits);
     }catch(e){
       console.warn('住院導尿管結案提醒檢查失敗：', e);
     }
