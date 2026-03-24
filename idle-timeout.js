@@ -34,8 +34,7 @@
           label: '探視系統',
           href: 'admin-visit.html',
           children: [
-            ['bookings-list.html', '預約名單查詢'],
-            ['nurse.booking.html', '預約探視']
+            ['bookings-list.html', '預約名單查詢']
           ]
         },
         {
