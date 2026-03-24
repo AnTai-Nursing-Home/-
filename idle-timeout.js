@@ -36,7 +36,8 @@
           href: 'admin-duty.html',
           children: [
             ['leave.html', '預假／預班系統'],
-            ['nurse-request.html', '請假／調班系統']
+            ['nurse-request.html', '請假／調班系統'],
+            ['nurse-overtime.html', '加／扣班系統']
           ]
         },
         {
