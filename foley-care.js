@@ -35,6 +35,7 @@ document.addEventListener('firebase-ready', () => {
     const exportExcelBtn = document.getElementById('export-excel-btn');
     const printReportBtn = document.getElementById('print-report-btn');
     const createdByInput = document.getElementById('foley-created-by');
+    const closedByInput = document.getElementById('foley-closed-by');
     const loginRoleStatus = document.getElementById('login-role-status');
 
     const auditBtn = document.getElementById('audit-btn');
@@ -71,6 +72,7 @@ function computeFormSnapshot() {
     const closingReason = closingReasonSelect?.value || '';
     const chartNumber = chartNumberInput?.value || '';
     const createdBy = createdByInput?.value || '';
+    const closedBy = closedByInput?.value || '';
 
     const dailyData = {};
     if (careTableBody) {
@@ -91,7 +93,7 @@ function computeFormSnapshot() {
     const snapshotObj = {
         currentCareFormId: currentCareFormId || '',
         residentName, placementDate, recordStartDate, closingDate,
-        closingReason, chartNumber, createdBy,
+        closingReason, chartNumber, createdBy, closedBy,
         dailyData
     };
     try { return JSON.stringify(snapshotObj); } catch (e) { return String(Date.now()); }
@@ -349,6 +351,62 @@ function updateFormPermissions() {
     setTimeout(() => { syncClosingFieldsUI(); }, 0);
 
     // --- 結案日期 / 結案原因 綁定 END ---
+
+    // --- 置放日期 / 開始記錄日期 必填綁定 ---
+    function syncStartFieldsUI() {
+        if (!placementDateInput || !recordStartDateInput) return;
+
+        const placementVal = (placementDateInput.value || '').trim();
+        const recordStartVal = (recordStartDateInput.value || '').trim();
+
+        placementDateInput.required = true;
+        recordStartDateInput.required = true;
+
+        placementDateInput.classList.remove('is-invalid');
+        recordStartDateInput.classList.remove('is-invalid');
+        placementDateInput.setCustomValidity('');
+        recordStartDateInput.setCustomValidity('');
+
+        if (!placementVal) {
+            placementDateInput.classList.add('is-invalid');
+            placementDateInput.setCustomValidity('請選擇置放日期');
+        }
+        if (!recordStartVal) {
+            recordStartDateInput.classList.add('is-invalid');
+            recordStartDateInput.setCustomValidity('請選擇開始記錄日期');
+        }
+    }
+
+    function validateStartFieldsOrAlert() {
+        if (!placementDateInput || !recordStartDateInput) return true;
+        syncStartFieldsUI();
+        const ok = placementDateInput.checkValidity() && recordStartDateInput.checkValidity();
+        if (!ok) {
+            if (!placementDateInput.value && !recordStartDateInput.value) {
+                alert('置放日期與開始記錄日期都必須填寫。');
+                placementDateInput.focus();
+            } else if (!placementDateInput.value) {
+                alert('請先填寫置放日期。');
+                placementDateInput.focus();
+            } else if (!recordStartDateInput.value) {
+                alert('請先填寫開始記錄日期。');
+                recordStartDateInput.focus();
+            }
+        }
+        return ok;
+    }
+
+    if (placementDateInput) {
+        placementDateInput.addEventListener('change', () => { syncStartFieldsUI(); });
+        placementDateInput.addEventListener('input', () => { syncStartFieldsUI(); });
+    }
+    if (recordStartDateInput) {
+        recordStartDateInput.addEventListener('change', () => { syncStartFieldsUI(); });
+        recordStartDateInput.addEventListener('input', () => { syncStartFieldsUI(); });
+    }
+
+    setTimeout(() => { syncStartFieldsUI(); }, 0);
+
 
     // --- 函式定義 ---
 
@@ -910,6 +968,9 @@ function generateReportHTML() {
             if (createdByInput) {
                 createdByInput.value = isNurse ? currentUserDisplay : '';
             }
+            if (closedByInput) {
+                closedByInput.value = '';
+            }
 
             // 初始化快照（進入表單後視為乾淨狀態）
             markClean();
@@ -918,6 +979,8 @@ function generateReportHTML() {
             deleteCareFormBtn.classList.add('d-none');
         
             syncClosingFieldsUI();
+            syncStartFieldsUI();
+            syncStartFieldsUI();
 } else {
             isCurrentFormClosed = !!docData.closingDate;
             const residentData = residentsData[docData.residentName];
@@ -935,6 +998,9 @@ function generateReportHTML() {
             if (createdByInput) {
                 createdByInput.value = docData.createdByNurse || '';
             }
+            if (closedByInput) {
+                closedByInput.value = docData.closedByNurse || '';
+            }
             renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData || {});
             deleteCareFormBtn.classList.remove('d-none');
         
@@ -945,8 +1011,12 @@ function generateReportHTML() {
     async function handleSave() {
         const residentName = residentNameSelectForm.value;
         const placementDate = placementDateInput.value;
-        if (!residentName || !placementDate) {
+        if (!residentName) {
             alert(getText('fill_form_first'));
+            return;
+        }
+
+        if (!validateStartFieldsOrAlert()) {
             return;
         }
         
@@ -967,15 +1037,30 @@ const dailyData = {};
             if (caregiverSignInput && caregiverSignInput.value) { record.caregiverSign = caregiverSignInput.value; hasData = true; }
             if (hasData) { dailyData[date] = record; }
         });
+        const closingDateValue = closingDateInput.value || null;
+        const closingReasonValue = closingReasonSelect.value || '';
+        let closedByValue = closedByInput ? (closedByInput.value || '') : '';
+
+        if (closingDateValue) {
+            if (isNurse && currentUserDisplay) {
+                closedByValue = currentUserDisplay;
+                if (closedByInput) closedByInput.value = currentUserDisplay;
+            }
+        } else {
+            closedByValue = '';
+            if (closedByInput) closedByInput.value = '';
+        }
+
         const dataToSave = {
             residentName,
             month: placementDate.substring(0, 7),
             placementDate,
             recordStartDate: recordStartDateInput.value || '',
-            closingDate: closingDateInput.value || null,
-            closingReason: closingReasonSelect.value || '',
+            closingDate: closingDateValue,
+            closingReason: closingReasonValue,
             chartNumber: chartNumberInput.value || '',
             createdByNurse: createdByInput ? (createdByInput.value || '') : '',
+            closedByNurse: closedByValue,
             dailyData
         };
         saveCareFormBtn.disabled = true;
