@@ -50,13 +50,18 @@
                         <h2>護理師 預假/預班系統</h2>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3 d-print-none flex-wrap gap-2">
                             <a href="admin.html?view=dashboard" class="btn btn-back-menu">
                                 <i class="fas fa-arrow-left me-2"></i>返回儀表板
                             </a>
-                            <button id="admin-settings-btn" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-cog me-1"></i> 管理員設定
-                            </button>
+                            <div class="d-flex align-items-center gap-2 ms-auto">
+                                <div id="login-user-badge" class="badge rounded-pill text-bg-dark px-3 py-2" style="font-size: 0.95rem; display:none;">
+                                    登入者：<span id="login-user-text"></span>
+                                </div>
+                                <button id="admin-settings-btn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-cog me-1"></i> 管理員設定
+                                </button>
+                            </div>
                         </div>
                         
                         <div id="admin-settings-panel" class="d-none mt-4 p-3 border rounded bg-light">
