@@ -63,6 +63,7 @@
             ['consult.html', '照會營養師']
           ]
         },
+        ['qc-incident-nurse.html', '意外事件系統'],
         ['wound-care.html', '傷口照護'],
         ['doctor-rounds.html', '醫師巡診系統'],
         ['nurse-primary-cases.html', '主責個案分配'],
