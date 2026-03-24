@@ -42,7 +42,7 @@
           label: '器材／衛材系統',
           href: 'admin-supplies-system.html',
           children: [
-            ['supplies.html', '衛材盤點']
+            ['supplies.html', '衛材盤點'],
             ['nurse-maintenance.html', '器材報修']
           ]
         },
