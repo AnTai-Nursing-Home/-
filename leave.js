@@ -38,6 +38,65 @@ document.addEventListener('firebase-ready', () => {
     const exportAdminExcelBtn = document.getElementById('export-admin-excel');
     const printAdminReportBtn = document.getElementById('print-admin-report');
     let currentlyEditingDate = null;
+    let currentLoginUser = null;
+
+    function getLoginUser() {
+        try {
+            const raw = sessionStorage.getItem('antai_session_user');
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            console.warn('讀取登入者失敗:', error);
+            return null;
+        }
+    }
+
+    function normalizeText(value) {
+        return String(value || '').trim();
+    }
+
+    function updateLoginBadge(user) {
+        const badge = document.getElementById('login-user-badge');
+        const textEl = document.getElementById('login-user-text');
+        if (!badge || !textEl) return;
+        if (!user) {
+            badge.style.display = 'none';
+            textEl.textContent = '';
+            return;
+        }
+        const staffId = normalizeText(user.staffId);
+        const displayName = normalizeText(user.displayName || user.name || user.username);
+        textEl.textContent = [staffId, displayName].filter(Boolean).join(' ');
+        badge.style.display = 'inline-flex';
+    }
+
+    function autoFillCurrentUser() {
+        const user = currentLoginUser || getLoginUser();
+        if (!user || !employeeNameSelect) return false;
+
+        const staffId = normalizeText(user.staffId);
+        const displayName = normalizeText(user.displayName || user.name || user.username);
+
+        const options = Array.from(employeeNameSelect.options || []);
+        let matchedOption = null;
+
+        if (displayName) {
+            matchedOption = options.find(opt => normalizeText(opt.value) === displayName);
+        }
+
+        if (!matchedOption && staffId) {
+            matchedOption = options.find(opt => {
+                const emp = employeesData[opt.value];
+                return normalizeText(emp?.id || emp?.staffId) === staffId;
+            });
+        }
+
+        if (!matchedOption) return false;
+
+        employeeNameSelect.value = matchedOption.value;
+        const emp = employeesData[matchedOption.value] || {};
+        employeeIdDisplay.value = emp.id || emp.staffId || staffId || '';
+        return true;
+    }
     
     // --- 變數 ---
     const employeesCollection = 'nurses';
@@ -161,6 +220,7 @@ document.addEventListener('firebase-ready', () => {
                 optionsHTML += `<option value="${emp.name}">${emp.name}</option>`;
             });
             employeeNameSelect.innerHTML = optionsHTML;
+            autoFillCurrentUser();
         } catch (error) {
             console.error("讀取員工列表失敗:", error);
             employeeNameSelect.innerHTML = `<option value="">讀取失敗</option>`;
@@ -429,7 +489,11 @@ document.addEventListener('firebase-ready', () => {
         }
     }
 
-    employeeNameSelect.addEventListener('change', renderCalendar);
+    employeeNameSelect.addEventListener('change', () => {
+        const currentEmployee = employeeNameSelect.value;
+        employeeIdDisplay.value = employeesData[currentEmployee]?.id || employeesData[currentEmployee]?.staffId || '';
+        renderCalendar();
+    });
 
     adminSettingsBtn.addEventListener('click', () => {
         loadAdminSettingsToUI();
@@ -556,6 +620,11 @@ if(exportAdminWordBtn) {
         });
     }
     
-    loadEmployeesDropdown();
-    renderCalendar();
+    currentLoginUser = getLoginUser();
+    updateLoginBadge(currentLoginUser);
+
+    loadEmployeesDropdown().then(() => {
+        autoFillCurrentUser();
+        renderCalendar();
+    });
 });
