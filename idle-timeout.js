@@ -58,7 +58,9 @@
           label: '住民系統',
           href: 'admin-resident-system.html',
           children: [
-            ['residents-admin.html', '住民資料管理']
+            ['residents-admin.html', '住民資料管理'],
+            ['nurse-pipeline.html', '住民管路管理'],
+            ['consult.html', '照會營養師']
           ]
         },
         ['wound-care.html', '傷口照護'],
