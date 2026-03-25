@@ -1,5 +1,6 @@
 function buildTableHTML(tabId) {
     const tbodyId = `${tabId}-tbody`;
+    const isForeignTab = tabId === 'foreignCaregivers';
     const extraHead = (tabId === 'inactiveEmployees') ? `<th class="sortable-header" data-sort="sourceLabel">職類</th><th class="sortable-header" data-sort="inactiveDate">離職日期</th>` : '';
     return `
       <div class="tab-pane fade${tabId==='nurses'?' show active':''}" id="${tabId}-panel" role="tabpanel">
@@ -10,12 +11,11 @@ function buildTableHTML(tabId) {
                 <th class="sortable-header" data-sort="sortOrder">排序</th>
                 <th class="sortable-header" data-sort="id">員編</th>
                 <th class="sortable-header" data-sort="name">姓名</th>
-                <th>英文姓名</th>
+                ${isForeignTab ? '<th>英文姓名</th>' : ''}
                 ${extraHead}
                 <th>性別</th>
                 <th>生日</th>
-                <th>身分證字號(ARC)</th>
-                <th>ARC有效期限</th>
+                ${isForeignTab ? '<th>身分證字號(ARC)</th><th>ARC有效期限</th>' : '<th>身分證字號</th>'}
                 <th>到職日</th>
                 <th>組別</th>
                 <th>職稱</th>
@@ -274,7 +274,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    return (tabId === 'inactiveEmployees') ? 28 : 26;
+    if (tabId === 'inactiveEmployees') return 28;
+    if (tabId === 'foreignCaregivers') return 26;
+    return 24;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -368,25 +370,62 @@ document.addEventListener('firebase-ready', () => {
     return fallback;
   }
 
+  function isForeignRow(e) {
+    return pick(e, ['collection']) === 'caregivers' || pick(e, ['sourceLabel']) === '外籍照服員';
+  }
+
+  function getArcStatusClass(v) {
+    const s = String(v || '').trim();
+    if (!s) return '';
+    const m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (!m) return '';
+    const target = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (Number.isNaN(target.getTime())) return '';
+    target.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const diffDays = Math.ceil((target - today) / 86400000);
+    if (diffDays < 0) return 'text-danger fw-bold';
+    if (diffDays <= 30) return 'text-warning fw-bold';
+    return '';
+  }
+
+  function syncForeignFieldVisibility(collectionName) {
+    const isForeign = collectionName === 'caregivers';
+    const englishNameWrap = document.getElementById('employee-englishName-wrap');
+    const arcExpiryWrap = document.getElementById('employee-arcExpiry-wrap');
+    const idCardLabel = document.getElementById('employee-idCard-label');
+    if (englishNameWrap) englishNameWrap.classList.toggle('d-none', !isForeign);
+    if (arcExpiryWrap) arcExpiryWrap.classList.toggle('d-none', !isForeign);
+    if (idCardLabel) idCardLabel.textContent = isForeign ? '身分證字號(ARC)' : '身分證字號';
+    if (!isForeign) {
+      englishNameInput.value = '';
+      arcExpiryInput.value = '';
+    }
+  }
+
 
   function buildRowHTML(e, opts) {
     const includeSource = !!opts.includeSource;
     const actionLabel = opts.actionLabel || '操作';
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
     const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
+    const isForeign = isForeignRow(e);
+    const arcExpiryValue = pick(e, ['arcExpiry','arcExpireDate','arcValidUntil']);
+    const arcExpiryClass = getArcStatusClass(arcExpiryValue);
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
         <td>${pick(e, ['sortOrder'])}</td>
         <td>${pick(e, ['id','docId'])}</td>
         <td>${pick(e, ['name'])}</td>
-        <td>${pick(e, ['englishName'])}</td>
+        ${isForeign ? `<td>${pick(e, ['englishName'])}</td>` : ''}
         ${includeSource ? sourceTd : ""}
         ${includeSource ? inactiveDateTd : ""}
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
-        <td>${pick(e, ['arcExpiry','arcExpireDate','arcValidUntil'])}</td>
+        ${isForeign ? `<td class="${arcExpiryClass}">${arcExpiryValue}</td>` : ''}
         <td>${pick(e, ['hireDate'])}</td>
         <td>${pick(e, ['groupNo','group','teamGroup'])}</td>
         <td>${pick(e, ['title'])}</td>
@@ -436,6 +475,7 @@ function loadAll() {
     typeInput.value = tab.collection;
     currentEditing = { collection: tab.collection, docId: null };
     document.getElementById('employee-modal-title').textContent = `新增 - ${tab.label}`;
+    syncForeignFieldVisibility(tab.collection);
     idInput.disabled = false;
     if (inactiveWrap) inactiveWrap.classList.add('d-none');
     if (inactiveDateInput) inactiveDateInput.value = '';
@@ -497,6 +537,7 @@ function fillFormFromRow(row) {
     schoolInput.value = cell(24 + off);
     inactiveDateInput.value = toISODateForInput(isInactive ? cell(5) : '');
     if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
+    syncForeignFieldVisibility(currentEditing?.collection || '');
   }
 
   async function handleSave() {
@@ -505,11 +546,11 @@ function fillFormFromRow(row) {
       sortOrder: parseInt(sortOrderInput.value) || 999,
       id,
       name: nameInput.value.trim(),
-      englishName: englishNameInput.value.trim(),
+      englishName: (currentEditing?.collection === 'caregivers') ? englishNameInput.value.trim() : '',
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
-      arcExpiry: formatDateInput(arcExpiryInput.value.trim()),
+      arcExpiry: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcExpiryInput.value.trim()) : '',
       hireDate: formatDateInput(hireDateInput.value.trim()),
       groupNo: groupNoInput.value.trim(),
       title: titleInput.value.trim(),
@@ -567,6 +608,7 @@ function fillFormFromRow(row) {
         currentEditing = { collection, docId: id };
         typeInput.value = collection;
         fillFormFromRow(row);
+        syncForeignFieldVisibility(collection);
         document.getElementById('employee-modal-title').textContent = `編輯 - ${label}`;
         idInput.disabled = false;
         employeeModal.show();
@@ -778,11 +820,11 @@ async function generateReportHTML() {
           <td>${e.sortOrder ?? ''}</td>
           <td>${e.id ?? ''}</td>
           <td>${e.name ?? ''}</td>
-          <td>${e.englishName ?? ''}</td>
+          ${tab.id === 'foreignCaregivers' ? `<td>${e.englishName ?? ''}</td>` : ''}
           <td>${e.gender ?? ''}</td>
           <td>${e.birthday ?? ''}</td>
           <td>${e.idCard ?? ''}</td>
-          <td>${e.arcExpiry ?? ''}</td>
+          ${tab.id === 'foreignCaregivers' ? `<td class="${getArcStatusClass(e.arcExpiry ?? '')}">${e.arcExpiry ?? ''}</td>` : ''}
           <td>${e.hireDate ?? ''}</td>
           <td>${e.groupNo ?? ''}</td>
           <td>${e.title ?? ''}</td>
@@ -896,21 +938,22 @@ async function generateReportHTML() {
         return rows;
       }
 
-      const headersBase = [
-        '排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限','到職日','組別','職稱','手機','日間電話','地址',
-        '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'
-      ];
+      const headersBase = (tab.id === 'foreignCaregivers')
+        ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限','到職日','組別','職稱','手機','日間電話','地址',
+           '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校']
+        : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
+           '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
           getVal(e, ['sortOrder']),
           getVal(e, ['id','docId']),
           getVal(e, ['name']),
-          getVal(e, ['englishName']),
+          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['englishName'])] : []),
           getVal(e, ['gender']),
           getVal(e, ['birthday']),
           getVal(e, ['idCard','nationalId','idNumber']),
-          getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']),
+          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil'])] : []),
           getVal(e, ['hireDate']),
           getVal(e, ['groupNo','group','teamGroup']),
           getVal(e, ['title']),
@@ -1215,11 +1258,11 @@ async function generateReportHTML() {
             sortOrder: getVal(e, ['sortOrder']),
             id: getVal(e, ['id','docId']),
             name: getVal(e, ['name']),
-            englishName: getVal(e, ['englishName']),
+            englishName: tab.id === 'foreignCaregivers' ? getVal(e, ['englishName']) : '',
             gender: getVal(e, ['gender']),
             birthday: getVal(e, ['birthday']),
             idCard: getVal(e, ['idCard','nationalId','idNumber']),
-            arcExpiry: getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']),
+            arcExpiry: tab.id === 'foreignCaregivers' ? getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']) : '',
             hireDate: getVal(e, ['hireDate']),
             groupNo: getVal(e, ['groupNo','group','teamGroup']),
             title: getVal(e, ['title']),
