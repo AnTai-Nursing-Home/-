@@ -283,6 +283,10 @@ body{
                 <input type="text" class="form-control" id="employee-name" required>
               </div>
               <div class="col-6 col-md-2">
+                <label class="form-label">英文姓名</label>
+                <input type="text" class="form-control" id="employee-englishName">
+              </div>
+              <div class="col-6 col-md-2">
                 <label class="form-label">性別</label>
                 <select id="employee-gender" class="form-select">
                   <option value="">—</option>
@@ -295,8 +299,12 @@ body{
                 <input type="date" class="form-control" id="employee-birthday">
               </div>
               <div class="col-6 col-md-2">
-                <label class="form-label">身分證字號</label>
-                <input type="text" class="form-control" id="employee-idCard" maxlength="10">
+                <label class="form-label">身分證字號(ARC)</label>
+                <input type="text" class="form-control" id="employee-idCard" maxlength="20">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">ARC有效期限</label>
+                <input type="date" class="form-control" id="employee-arcExpiry">
               </div>
 
               <div class="col-6 col-md-2">
