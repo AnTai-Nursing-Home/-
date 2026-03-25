@@ -410,7 +410,7 @@ document.addEventListener('firebase-ready', () => {
     const actionLabel = opts.actionLabel || '操作';
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
     const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
-    const isForeign = isForeignRow(e);
+    const isForeign = !includeSource && isForeignRow(e);
     const arcExpiryValue = pick(e, ['arcExpiry','arcExpireDate','arcValidUntil']);
     const arcExpiryClass = getArcStatusClass(arcExpiryValue);
 
@@ -502,42 +502,53 @@ function loadAll() {
   }
 
 function fillFormFromRow(row) {
-    const cell = idx => (row.cells[idx]?.textContent || '').trim();
+    const values = Array.from(row.cells).map(cell => (cell?.textContent || '').trim());
     const isInactive = !!row.closest('#inactiveEmployees-panel');
-    const off = isInactive ? 2 : 0; // 離職分頁多二欄：職類、離職日期
+    const collection = currentEditing?.collection || row.dataset.collection || '';
+    const isForeign = collection === 'caregivers';
 
-    // 依表頭順序
-    sortOrderInput.value = cell(0);
-    idInput.value = cell(1);
-    nameInput.value = cell(2);
-    englishNameInput.value = cell(3);
+    let i = 0;
+    sortOrderInput.value = values[i++] || '';
+    idInput.value = values[i++] || '';
+    nameInput.value = values[i++] || '';
 
-    genderInput.value = cell(4 + off);
-    birthdayInput.value = toISODateForInput(cell(5 + off));
-    idCardInput.value = cell(6 + off);
-    arcExpiryInput.value = toISODateForInput(cell(7 + off));
-    hireDateInput.value = toISODateForInput(cell(8 + off));
-    groupNoInput.value = cell(9 + off);
-    titleInput.value = cell(10 + off);
-    phoneInput.value = cell(11 + off);
-    daytimePhoneInput.value = cell(12 + off);
-    addressInput.value = cell(13 + off);
-    emgNameInput.value = cell(14 + off);
-    emgRelationInput.value = cell(15 + off);
-    emgPhoneInput.value = cell(16 + off);
-    nationalityInput.value = cell(17 + off);
-    licenseTypeInput.value = cell(18 + off);
-    licenseNumberInput.value = cell(19 + off);
-    licenseRenewDateInput.value = toISODateForInput(cell(20 + off));
-    longtermCertNumberInput.value = cell(21 + off);
-        // 長照證效期常是「起-迄」區間字串，不能用 <input type=date> 的 ISO 轉換
-    longtermExpireDateInput.value = cell(22 + off);
+    if (isInactive) {
+      values[i++]; // 職類
+      inactiveDateInput.value = toISODateForInput(values[i++] || '');
+    } else {
+      inactiveDateInput.value = '';
+    }
 
-    educationInput.value = cell(23 + off);
-    schoolInput.value = cell(24 + off);
-    inactiveDateInput.value = toISODateForInput(isInactive ? cell(5) : '');
+    if (isForeign) {
+      englishNameInput.value = values[i++] || '';
+    } else {
+      englishNameInput.value = '';
+    }
+
+    genderInput.value = values[i++] || '';
+    birthdayInput.value = toISODateForInput(values[i++] || '');
+    idCardInput.value = values[i++] || '';
+    arcExpiryInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
+    hireDateInput.value = toISODateForInput(values[i++] || '');
+    groupNoInput.value = values[i++] || '';
+    titleInput.value = values[i++] || '';
+    phoneInput.value = values[i++] || '';
+    daytimePhoneInput.value = values[i++] || '';
+    addressInput.value = values[i++] || '';
+    emgNameInput.value = values[i++] || '';
+    emgRelationInput.value = values[i++] || '';
+    emgPhoneInput.value = values[i++] || '';
+    nationalityInput.value = values[i++] || '';
+    licenseTypeInput.value = values[i++] || '';
+    licenseNumberInput.value = values[i++] || '';
+    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
+    longtermCertNumberInput.value = values[i++] || '';
+    longtermExpireDateInput.value = values[i++] || '';
+    educationInput.value = values[i++] || '';
+    schoolInput.value = values[i++] || '';
+
     if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
-    syncForeignFieldVisibility(currentEditing?.collection || '');
+    syncForeignFieldVisibility(collection);
   }
 
   async function handleSave() {
@@ -1124,12 +1135,36 @@ async function generateReportHTML() {
 
       // ---- 欄位定義：與表頭一致 ----
       // 注意：歷史資料可能有不同欄位名稱，這裡做多 key fallback
-      const COLS_BASE = [
+      const COLS_NORMAL = [
+        { header: '排序', key: 'sortOrder', width: 6 },
+        { header: '員編', key: 'id', width: 10 },
+        { header: '姓名', key: 'name', width: 14 },
+        { header: '性別', key: 'gender', width: 6 },
+        { header: '生日', key: 'birthday', width: 12 },
+        { header: '身分證字號', key: 'idCard', width: 16 },
+        { header: '到職日', key: 'hireDate', width: 12 },
+        { header: '組別', key: 'groupNo', width: 8 },
+        { header: '職稱', key: 'title', width: 12 },
+        { header: '手機', key: 'phone', width: 16 },
+        { header: '日間電話', key: 'daytimePhone', width: 16 },
+        { header: '地址', key: 'address', width: 32 },
+        { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
+        { header: '關係', key: 'emergencyRelation', width: 10 },
+        { header: '緊急電話', key: 'emergencyPhone', width: 16 },
+        { header: '國籍', key: 'nationality', width: 10 },
+        { header: '證照種類', key: 'licenseType', width: 16 },
+        { header: '發證字號', key: 'licenseNumber', width: 20 },
+        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
+        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
+        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
+        { header: '學歷', key: 'education', width: 12 },
+        { header: '畢業學校', key: 'school', width: 26 },
+      ];
+      const COLS_FOREIGN = [
         { header: '排序', key: 'sortOrder', width: 6 },
         { header: '員編', key: 'id', width: 10 },
         { header: '姓名', key: 'name', width: 14 },
         { header: '英文姓名', key: 'englishName', width: 18 },
-        // 離職分頁才有「職類」
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號(ARC)', key: 'idCard', width: 16 },
@@ -1226,7 +1261,7 @@ async function generateReportHTML() {
         };
       }
 
-      function addSheet(sheetName, title, cols, dataRows, { includeSource=false } = {}) {
+      function addSheet(sheetName, title, cols, dataRows, { includeSource=false, isForeignSheet=false } = {}) {
         const ws = wb.addWorksheet(sheetName, { views:[{ state:'frozen', ySplit:2 }] });
 
         const finalCols = includeSource
@@ -1258,11 +1293,11 @@ async function generateReportHTML() {
             sortOrder: getVal(e, ['sortOrder']),
             id: getVal(e, ['id','docId']),
             name: getVal(e, ['name']),
-            englishName: tab.id === 'foreignCaregivers' ? getVal(e, ['englishName']) : '',
+            englishName: isForeignSheet ? getVal(e, ['englishName']) : '',
             gender: getVal(e, ['gender']),
             birthday: getVal(e, ['birthday']),
             idCard: getVal(e, ['idCard','nationalId','idNumber']),
-            arcExpiry: tab.id === 'foreignCaregivers' ? getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']) : '',
+            arcExpiry: isForeignSheet ? getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']) : '',
             hireDate: getVal(e, ['hireDate']),
             groupNo: getVal(e, ['groupNo','group','teamGroup']),
             title: getVal(e, ['title']),
@@ -1307,23 +1342,23 @@ async function generateReportHTML() {
       // ---- 建立各名冊 Sheet ----
       // 1) 護理師
       const nurses = await fetchActiveFromCollection('nurses');
-      addSheet('護理師', '護理師名冊', COLS_BASE, nurses);
+      addSheet('護理師', '護理師名冊', COLS_NORMAL, nurses);
 
       // 2) 外籍照服員 caregivers
       const foreign = await fetchActiveFromCollection('caregivers');
-      addSheet('外籍照服員', '外籍照服員名冊', COLS_BASE, foreign);
+      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign, { isForeignSheet:true });
 
       // 3) 台籍照服員 localCaregivers
       const local = await fetchActiveFromCollection('localCaregivers');
-      addSheet('台籍照服員', '台籍照服員名冊', COLS_BASE, local);
+      addSheet('台籍照服員', '台籍照服員名冊', COLS_NORMAL, local);
 
       // 4) 行政/其他 adminStaff
       const admin = await fetchActiveFromCollection('adminStaff');
-      addSheet('行政其他', '行政/其他名冊', COLS_BASE, admin);
+      addSheet('行政其他', '行政/其他名冊', COLS_NORMAL, admin);
 
       // 5) 離職員工（合併）
       const inactive = await fetchInactiveMerged();
-      addSheet('離職員工', '離職員工名冊（合併）', COLS_BASE, inactive, { includeSource:true });
+      addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true });
 
       // ---- 下載 ----
       const y = new Date().getFullYear();
