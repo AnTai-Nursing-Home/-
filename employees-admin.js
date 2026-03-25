@@ -1,22 +1,19 @@
 function buildTableHTML(tabId) {
     const tbodyId = `${tabId}-tbody`;
     const extraHead = (tabId === 'inactiveEmployees') ? `<th class="sortable-header" data-sort="sourceLabel">職類</th><th class="sortable-header" data-sort="inactiveDate">離職日期</th>` : '';
-    const caregiverExtraHead = (tabId === 'foreignCaregivers') ? `<th>英文姓名</th>` : '';
-    const caregiverArcHead = (tabId === 'foreignCaregivers') ? `<th>身分證字號(ARC)</th><th>ARC有效期限</th>` : `<th>身分證字號</th>`;
     return `
       <div class="tab-pane fade${tabId==='nurses'?' show active':''}" id="${tabId}-panel" role="tabpanel">
-        <div class="table-responsive mt-3">
+        <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
                 <th class="sortable-header" data-sort="sortOrder">排序</th>
                 <th class="sortable-header" data-sort="id">員編</th>
                 <th class="sortable-header" data-sort="name">姓名</th>
-                ${caregiverExtraHead}
                 ${extraHead}
                 <th>性別</th>
                 <th>生日</th>
-                ${caregiverArcHead}
+                <th>身分證字號</th>
                 <th>到職日</th>
                 <th>組別</th>
                 <th>職稱</th>
@@ -51,9 +48,10 @@ window.addEventListener("load", async () => {
 // ====== 分頁表格排版修正 ======
 const styleFix = document.createElement('style');
 styleFix.textContent = `
-  .tab-pane { min-height: 600px; overflow-y: auto; padding-bottom: 20px; }
-  table { width: 100%; border-collapse: collapse; }
-  table td, table th { padding: 6px 8px; vertical-align: top; }
+  .tab-pane { min-height: 100%; overflow: auto; padding-bottom: 20px; }
+  .table-responsive { overflow: auto; }
+  .table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+  .table td, .table th { vertical-align: middle; }
 `;
 document.head.appendChild(styleFix);
 
@@ -197,11 +195,9 @@ document.addEventListener('firebase-ready', () => {
   const sortOrderInput = document.getElementById('employee-sortOrder');
   const idInput = document.getElementById('employee-id');
   const nameInput = document.getElementById('employee-name');
-  const englishNameInput = document.getElementById('employee-EnglishName');
   const genderInput = document.getElementById('employee-gender');
   const birthdayInput = document.getElementById('employee-birthday');
   const idCardInput = document.getElementById('employee-idCard');
-  const arcExpireDateInput = document.getElementById('employee-arcExpireDate');
   const hireDateInput = document.getElementById('employee-hireDate');
   const titleInput = document.getElementById('employee-title');
   const groupNoInput = document.getElementById('employee-groupNo');
@@ -274,9 +270,7 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 26;
-    if (tabId === 'foreignCaregivers') return 26;
-    return 24;
+    return (tabId === 'inactiveEmployees') ? 26 : 24;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -303,7 +297,7 @@ document.addEventListener('firebase-ready', () => {
 
       let html = "";
       rows.forEach(e => {
-        html += buildRowHTML(e, { includeSource: false, actionLabel: '設為離職', tabId });
+        html += buildRowHTML(e, { includeSource: false, actionLabel: '設為離職' });
       });
       tbody.innerHTML = html;
     } catch (err) {
@@ -373,27 +367,20 @@ document.addEventListener('firebase-ready', () => {
 
   function buildRowHTML(e, opts) {
     const includeSource = !!opts.includeSource;
-    const tabId = opts.tabId || '';
-    const isForeignCaregiver = tabId === 'foreignCaregivers';
     const actionLabel = opts.actionLabel || '操作';
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
     const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
-    const englishNameTd = isForeignCaregiver ? `<td>${pick(e, ['englishName', 'english_name', 'enName'])}</td>` : '';
-    const arcTd = isForeignCaregiver
-      ? `<td>${pick(e, ['idCard','nationalId','idNumber'])}</td><td>${pick(e, ['arcExpireDate','arcExpiry','arcValidUntil'])}</td>`
-      : `<td>${pick(e, ['idCard','nationalId','idNumber'])}</td>`;
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
         <td>${pick(e, ['sortOrder'])}</td>
         <td>${pick(e, ['id','docId'])}</td>
         <td>${pick(e, ['name'])}</td>
-        ${isForeignCaregiver ? englishNameTd : ""}
         ${includeSource ? sourceTd : ""}
         ${includeSource ? inactiveDateTd : ""}
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
-        ${arcTd}
+        <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
         <td>${pick(e, ['hireDate'])}</td>
         <td>${pick(e, ['groupNo','group','teamGroup'])}</td>
         <td>${pick(e, ['title'])}</td>
@@ -471,40 +458,35 @@ function loadAll() {
 function fillFormFromRow(row) {
     const cell = idx => (row.cells[idx]?.textContent || '').trim();
     const isInactive = !!row.closest('#inactiveEmployees-panel');
-    const isForeignCaregiver = !!row.closest('#foreignCaregivers-panel');
     const off = isInactive ? 2 : 0; // 離職分頁多二欄：職類、離職日期
-    const caregiverExtra = isForeignCaregiver ? 1 : 0;
 
     // 依表頭順序
     sortOrderInput.value = cell(0);
     idInput.value = cell(1);
     nameInput.value = cell(2);
-    englishNameInput.value = isForeignCaregiver ? cell(3) : '';
 
-    genderInput.value = cell(3 + off + caregiverExtra);
-    birthdayInput.value = toISODateForInput(cell(4 + off + caregiverExtra));
-    idCardInput.value = cell(5 + off + caregiverExtra);
-    arcExpireDateInput.value = isForeignCaregiver ? cell(6 + off + caregiverExtra) : '';
-    const afterArcOffset = isForeignCaregiver ? 1 : 0;
-    hireDateInput.value = toISODateForInput(cell(6 + off + caregiverExtra + afterArcOffset));
-    groupNoInput.value = cell(7 + off + caregiverExtra + afterArcOffset);
-    titleInput.value = cell(8 + off + caregiverExtra + afterArcOffset);
-    phoneInput.value = cell(9 + off + caregiverExtra + afterArcOffset);
-    daytimePhoneInput.value = cell(10 + off + caregiverExtra + afterArcOffset);
-    addressInput.value = cell(11 + off + caregiverExtra + afterArcOffset);
-    emgNameInput.value = cell(12 + off + caregiverExtra + afterArcOffset);
-    emgRelationInput.value = cell(13 + off + caregiverExtra + afterArcOffset);
-    emgPhoneInput.value = cell(14 + off + caregiverExtra + afterArcOffset);
-    nationalityInput.value = cell(15 + off + caregiverExtra + afterArcOffset);
-    licenseTypeInput.value = cell(16 + off + caregiverExtra + afterArcOffset);
-    licenseNumberInput.value = cell(17 + off + caregiverExtra + afterArcOffset);
-    licenseRenewDateInput.value = toISODateForInput(cell(18 + off + caregiverExtra + afterArcOffset));
-    longtermCertNumberInput.value = cell(19 + off + caregiverExtra + afterArcOffset);
+    genderInput.value = cell(3 + off);
+    birthdayInput.value = toISODateForInput(cell(4 + off));
+    idCardInput.value = cell(5 + off);
+    hireDateInput.value = toISODateForInput(cell(6 + off));
+    groupNoInput.value = cell(7 + off);
+    titleInput.value = cell(8 + off);
+    phoneInput.value = cell(9 + off);
+    daytimePhoneInput.value = cell(10 + off);
+    addressInput.value = cell(11 + off);
+    emgNameInput.value = cell(12 + off);
+    emgRelationInput.value = cell(13 + off);
+    emgPhoneInput.value = cell(14 + off);
+    nationalityInput.value = cell(15 + off);
+    licenseTypeInput.value = cell(16 + off);
+    licenseNumberInput.value = cell(17 + off);
+    licenseRenewDateInput.value = toISODateForInput(cell(18 + off));
+    longtermCertNumberInput.value = cell(19 + off);
         // 長照證效期常是「起-迄」區間字串，不能用 <input type=date> 的 ISO 轉換
-    longtermExpireDateInput.value = cell(20 + off + caregiverExtra + afterArcOffset);
+    longtermExpireDateInput.value = cell(20 + off);
 
-    educationInput.value = cell(21 + off + caregiverExtra + afterArcOffset);
-    schoolInput.value = cell(22 + off + caregiverExtra + afterArcOffset);
+    educationInput.value = cell(21 + off);
+    schoolInput.value = cell(22 + off);
     inactiveDateInput.value = toISODateForInput(isInactive ? cell(4) : '');
     if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
   }
@@ -515,11 +497,9 @@ function fillFormFromRow(row) {
       sortOrder: parseInt(sortOrderInput.value) || 999,
       id,
       name: nameInput.value.trim(),
-      englishName: englishNameInput.value.trim(),
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
-      arcExpireDate: arcExpireDateInput.value.trim(),
       hireDate: formatDateInput(hireDateInput.value.trim()),
       groupNo: groupNoInput.value.trim(),
       title: titleInput.value.trim(),
@@ -661,22 +641,13 @@ function fillFormFromRow(row) {
           "排序": "sortOrder",
           "員編": "id",
           "姓名": "name",
-          "英文姓名": "englishName",
-          "英文名": "englishName",
-          "English Name": "englishName",
           "性別": "gender",
           "生日": "birthday",
           "出生年月日": "birthday",
           "身分證": "idCard",
           "身分證字號": "idCard",
-          "身分證字號(ARC)": "idCard",
-          "ARC": "idCard",
-          "ARC號碼": "idCard",
           "身份證字號": "idCard",
           "身份証字號": "idCard",
-          "ARC有效期限": "arcExpireDate",
-          "ARC到期日": "arcExpireDate",
-          "ARC expiry": "arcExpireDate",
           "到職日": "hireDate",
           "到職日期": "hireDate",
           "組別": "groupNo",
@@ -789,17 +760,14 @@ async function generateReportHTML() {
     let rows = "";
     snap.forEach(doc => {
       const e = doc.data();
-      const isForeignCaregiver = tab.id === 'foreignCaregivers';
       rows += `
         <tr>
           <td>${e.sortOrder ?? ''}</td>
           <td>${e.id ?? ''}</td>
           <td>${e.name ?? ''}</td>
-          ${isForeignCaregiver ? `<td>${e.englishName ?? ''}</td>` : ''}
           <td>${e.gender ?? ''}</td>
           <td>${e.birthday ?? ''}</td>
           <td>${e.idCard ?? ''}</td>
-          ${isForeignCaregiver ? `<td>${e.arcExpireDate ?? ''}</td>` : ''}
           <td>${e.hireDate ?? ''}</td>
           <td>${e.groupNo ?? ''}</td>
           <td>${e.title ?? ''}</td>
@@ -835,7 +803,7 @@ async function generateReportHTML() {
       <h1>安泰醫療社團法人附設安泰護理之家</h1>
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
-        <th>排序</th><th>員編</th><th>姓名</th>${tab.id === 'foreignCaregivers' ? '<th>英文姓名</th>' : ''}<th>性別</th><th>生日</th><th>${tab.id === 'foreignCaregivers' ? '身分證字號(ARC)' : '身分證字號'}</th>${tab.id === 'foreignCaregivers' ? '<th>ARC有效期限</th>' : ''}
+        <th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th>
         <th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
         <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
@@ -872,65 +840,11 @@ async function generateReportHTML() {
       const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, PageBreak, BorderStyle } = docx;
 
       const TAB_DOCX_DEFS = [
-        { label: '護理師', collection: 'nurses', includeSource: false, includeForeignFields: false },
-        { label: '外籍照服員', collection: 'caregivers', includeSource: false, includeForeignFields: true },
-        { label: '台籍照服員', collection: 'localCaregivers', includeSource: false, includeForeignFields: false },
-        { label: '行政/其他', collection: 'adminStaff', includeSource: false, includeForeignFields: false },
-        { label: '離職員工（合併）', collection: null, includeSource: true, includeForeignFields: false },
-      ];
-      const DOCX_COLS_FOREIGN = [
-        { header: '排序', key: 'sortOrder', width: 6 },
-        { header: '員編', key: 'id', width: 10 },
-        { header: '姓名', key: 'name', width: 14 },
-        { header: '英文姓名', key: 'englishName', width: 18 },
-        { header: '性別', key: 'gender', width: 6 },
-        { header: '生日', key: 'birthday', width: 12 },
-        { header: '身分證字號(ARC)', key: 'idCard', width: 18 },
-        { header: 'ARC有效期限', key: 'arcExpireDate', width: 14 },
-        { header: '到職日', key: 'hireDate', width: 12 },
-        { header: '組別', key: 'groupNo', width: 8 },
-        { header: '職稱', key: 'title', width: 12 },
-        { header: '手機', key: 'phone', width: 16 },
-        { header: '日間電話', key: 'daytimePhone', width: 16 },
-        { header: '地址', key: 'address', width: 32 },
-        { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
-        { header: '關係', key: 'emergencyRelation', width: 10 },
-        { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 16 },
-        { header: '發證字號', key: 'licenseNumber', width: 20 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
-        { header: '學歷', key: 'education', width: 12 },
-        { header: '畢業學校', key: 'school', width: 26 },
-      ];
-      const COLS_FOREIGN = [
-        { header: '排序', key: 'sortOrder', width: 6 },
-        { header: '員編', key: 'id', width: 10 },
-        { header: '姓名', key: 'name', width: 14 },
-        { header: '英文姓名', key: 'englishName', width: 18 },
-        { header: '性別', key: 'gender', width: 6 },
-        { header: '生日', key: 'birthday', width: 12 },
-        { header: '身分證字號(ARC)', key: 'idCard', width: 18 },
-        { header: 'ARC有效期限', key: 'arcExpireDate', width: 14 },
-        { header: '到職日', key: 'hireDate', width: 12 },
-        { header: '組別', key: 'groupNo', width: 8 },
-        { header: '職稱', key: 'title', width: 12 },
-        { header: '手機', key: 'phone', width: 16 },
-        { header: '日間電話', key: 'daytimePhone', width: 16 },
-        { header: '地址', key: 'address', width: 32 },
-        { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
-        { header: '關係', key: 'emergencyRelation', width: 10 },
-        { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 16 },
-        { header: '發證字號', key: 'licenseNumber', width: 20 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
-        { header: '學歷', key: 'education', width: 12 },
-        { header: '畢業學校', key: 'school', width: 26 },
+        { label: '護理師', collection: 'nurses', includeSource: false },
+        { label: '外籍照服員', collection: 'caregivers', includeSource: false },
+        { label: '台籍照服員', collection: 'localCaregivers', includeSource: false },
+        { label: '行政/其他', collection: 'adminStaff', includeSource: false },
+        { label: '離職員工（合併）', collection: null, includeSource: true },
       ];
 
       const getVal = (obj, keys) => {
@@ -971,39 +885,9 @@ async function generateReportHTML() {
         '排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
         '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'
       ];
-      const headersForeign = [
-        '排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限','到職日','組別','職稱','手機','日間電話','地址',
-        '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'
-      ];
 
-      function buildRowValues(e, includeSource, includeForeignFields) {
-        const base = includeForeignFields ? [
-          getVal(e, ['sortOrder']),
-          getVal(e, ['id','docId']),
-          getVal(e, ['name']),
-          getVal(e, ['englishName', 'english_name', 'enName']),
-          getVal(e, ['gender']),
-          getVal(e, ['birthday']),
-          getVal(e, ['idCard','nationalId','idNumber']),
-          getVal(e, ['arcExpireDate','arcExpiry','arcValidUntil']),
-          getVal(e, ['hireDate']),
-          getVal(e, ['groupNo','group','teamGroup']),
-          getVal(e, ['title']),
-          getVal(e, ['phone']),
-          getVal(e, ['daytimePhone','email']),
-          getVal(e, ['address']),
-          getVal(e, ['emergencyName','emgName','emergencyContact']),
-          getVal(e, ['emergencyRelation','emgRelation']),
-          getVal(e, ['emergencyPhone','emgPhone']),
-          getVal(e, ['nationality']),
-          getVal(e, ['licenseType']),
-          getVal(e, ['licenseNumber','licenseNo']),
-          getVal(e, ['licenseRenewDate']),
-          getVal(e, ['longtermCertNumber','ltcNo']),
-          getVal(e, ['longtermExpireDate','ltcExpiry']),
-          getVal(e, ['education']),
-          getVal(e, ['school']),
-        ] : [
+      function buildRowValues(e, includeSource) {
+        const base = [
           getVal(e, ['sortOrder']),
           getVal(e, ['id','docId']),
           getVal(e, ['name']),
@@ -1031,9 +915,8 @@ async function generateReportHTML() {
         return includeSource ? [getVal(e, ['sourceLabel']), ...base] : base;
       }
 
-      function makeTable(rows, includeSource, includeForeignFields) {
-        const headersBaseForSheet = includeForeignFields ? headersForeign : headersBase;
-        const headers = includeSource ? ['職類', ...headersBaseForSheet] : headersBaseForSheet;
+      function makeTable(rows, includeSource) {
+        const headers = includeSource ? ['職類', ...headersBase] : headersBase;
 
         const border = {
           top:    { style: BorderStyle.SINGLE, size: 1, color: "000000" },
@@ -1061,7 +944,7 @@ async function generateReportHTML() {
         });
 
         const dataRows = rows.map(e => {
-          const vals = buildRowValues(e, includeSource, includeForeignFields);
+          const vals = buildRowValues(e, includeSource);
           return new TableRow({
             children: vals.map(v => new TableCell({
               borders: border,
@@ -1122,7 +1005,7 @@ async function generateReportHTML() {
         if (!rows.length) {
           children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun('（尚無資料）')]}));
         } else {
-          children.push(makeTable(rows, d.includeSource, d.includeForeignFields));
+          children.push(makeTable(rows, d.includeSource));
         }
 
         if (i !== TAB_DOCX_DEFS.length - 1) {
@@ -1166,7 +1049,6 @@ async function generateReportHTML() {
     }
   }
 
-
 // ========= Excel 匯出（整合所有名冊到同一個 .xlsx，分頁區分） =========
   async function exportAllToExcelXlsx() {
     const exportTime = formatExportTime(new Date());
@@ -1190,33 +1072,6 @@ async function generateReportHTML() {
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號', key: 'idCard', width: 16 },
-        { header: '到職日', key: 'hireDate', width: 12 },
-        { header: '組別', key: 'groupNo', width: 8 },
-        { header: '職稱', key: 'title', width: 12 },
-        { header: '手機', key: 'phone', width: 16 },
-        { header: '日間電話', key: 'daytimePhone', width: 16 },
-        { header: '地址', key: 'address', width: 32 },
-        { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
-        { header: '關係', key: 'emergencyRelation', width: 10 },
-        { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 16 },
-        { header: '發證字號', key: 'licenseNumber', width: 20 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
-        { header: '學歷', key: 'education', width: 12 },
-        { header: '畢業學校', key: 'school', width: 26 },
-      ];
-      const COLS_FOREIGN = [
-        { header: '排序', key: 'sortOrder', width: 6 },
-        { header: '員編', key: 'id', width: 10 },
-        { header: '姓名', key: 'name', width: 14 },
-        { header: '英文姓名', key: 'englishName', width: 18 },
-        { header: '性別', key: 'gender', width: 6 },
-        { header: '生日', key: 'birthday', width: 12 },
-        { header: '身分證字號(ARC)', key: 'idCard', width: 18 },
-        { header: 'ARC有效期限', key: 'arcExpireDate', width: 14 },
         { header: '到職日', key: 'hireDate', width: 12 },
         { header: '組別', key: 'groupNo', width: 8 },
         { header: '職稱', key: 'title', width: 12 },
@@ -1341,11 +1196,9 @@ async function generateReportHTML() {
             sortOrder: getVal(e, ['sortOrder']),
             id: getVal(e, ['id','docId']),
             name: getVal(e, ['name']),
-            englishName: getVal(e, ['englishName','english_name','enName']),
             gender: getVal(e, ['gender']),
             birthday: getVal(e, ['birthday']),
             idCard: getVal(e, ['idCard','nationalId','idNumber']),
-            arcExpireDate: getVal(e, ['arcExpireDate','arcExpiry','arcValidUntil']),
             hireDate: getVal(e, ['hireDate']),
             groupNo: getVal(e, ['groupNo','group','teamGroup']),
             title: getVal(e, ['title']),
@@ -1394,7 +1247,7 @@ async function generateReportHTML() {
 
       // 2) 外籍照服員 caregivers
       const foreign = await fetchActiveFromCollection('caregivers');
-      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign);
+      addSheet('外籍照服員', '外籍照服員名冊', COLS_BASE, foreign);
 
       // 3) 台籍照服員 localCaregivers
       const local = await fetchActiveFromCollection('localCaregivers');
