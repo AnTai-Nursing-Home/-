@@ -156,6 +156,14 @@ body{
 .table tbody tr:nth-child(even) td{background:#fbfdff}
 .table-hover tbody tr:hover td{background:#eff6ff}
 .table > :not(caption) > * > *{box-shadow:none}
+.table .sticky-col-1,.table .sticky-col-2,.table .sticky-col-3{position:sticky;z-index:3;background:inherit;}
+.table thead .sticky-col-1,.table thead .sticky-col-2,.table thead .sticky-col-3{z-index:8;background:linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);}
+.table tbody .sticky-col-1,.table tbody .sticky-col-2,.table tbody .sticky-col-3{background:#fff;}
+.table tbody tr:nth-child(even) .sticky-col-1,.table tbody tr:nth-child(even) .sticky-col-2,.table tbody tr:nth-child(even) .sticky-col-3{background:#fbfdff;}
+.table-hover tbody tr:hover .sticky-col-1,.table-hover tbody tr:hover .sticky-col-2,.table-hover tbody tr:hover .sticky-col-3{background:#eff6ff;}
+.table .sticky-col-1{left:0;min-width:64px;box-shadow:1px 0 0 rgba(226,232,240,.95);}
+.table .sticky-col-2{left:64px;min-width:104px;box-shadow:1px 0 0 rgba(226,232,240,.95);}
+.table .sticky-col-3{left:168px;min-width:132px;box-shadow:3px 0 8px rgba(15,23,42,.06);}
 .sortable-header{cursor:pointer;user-select:none}
 .sortable-header.sort-asc::after{content:"  ▲";font-size:.72em;color:#2563eb}
 .sortable-header.sort-desc::after{content:"  ▼";font-size:.72em;color:#2563eb}
@@ -302,8 +310,12 @@ body{
                 <label class="form-label" id="employee-idCard-label">身分證字號</label>
                 <input type="text" class="form-control" id="employee-idCard" maxlength="20">
               </div>
+              <div class="col-6 col-md-2 d-none" id="employee-arcStart-wrap">
+                <label class="form-label">ARC有效期限起日</label>
+                <input type="date" class="form-control" id="employee-arcStart">
+              </div>
               <div class="col-6 col-md-2 d-none" id="employee-arcExpiry-wrap">
-                <label class="form-label">ARC有效期限</label>
+                <label class="form-label">ARC有效期限迄日</label>
                 <input type="date" class="form-control" id="employee-arcExpiry">
               </div>
 
@@ -351,7 +363,10 @@ body{
 
               <div class="col-6 col-md-3">
                 <label class="form-label">國籍</label>
-                <input type="text" class="form-control" id="employee-nationality" placeholder="例：台灣、越南…">
+                <select id="employee-nationality" class="form-select">
+                  <option value="">—</option>
+                  <option value="菲律賓">菲律賓</option>
+                </select>
               </div>
 
               <div class="col-6 col-md-3">
