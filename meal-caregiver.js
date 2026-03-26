@@ -3,13 +3,14 @@
 // 規則：用餐日期 = 送單日期 + 1 天
 // - 只需要選送單日期，系統自動帶出用餐日期（不可手動調整）
 // - 送單日期一改就會自動載入該「用餐日期」的點餐數量（不需要再按載入）
-// - 儲存時必須簽名，記錄「誰負責定餐」(早班A)
+// - 儲存時會自動優先帶入登入者資料作為簽名
 // - Firestore: collection = mealOrders, docId = YYYY-MM-DD（用餐日期）
 
 (function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+  let currentLoginUser = null;
 
   function todayISO() {
     const d = new Date();
@@ -34,6 +35,14 @@
     return null;
   }
 
+  function getText(key, fallback = "") {
+    try {
+      if (typeof window.getText === "function") return window.getText(key);
+      if (typeof getText === "function") return getText(key);
+    } catch (_) {}
+    return fallback || key;
+  }
+
   function escapeHtml(str) {
     return String(str)
       .replaceAll("&", "&amp;")
@@ -45,6 +54,7 @@
 
   function showStatus(text, type = "secondary") {
     const badge = $("statusBadge");
+    if (!badge) return;
     badge.style.display = "inline-block";
     badge.className = `badge text-bg-${type}`;
     badge.textContent = text;
@@ -52,12 +62,14 @@
 
   function clearStatus() {
     const badge = $("statusBadge");
+    if (!badge) return;
     badge.style.display = "none";
     badge.textContent = "";
   }
 
   function setLastSignedInfo(info) {
-    $("lastSignedInfo").innerHTML = info || "";
+    const el = $("lastSignedInfo");
+    if (el) el.innerHTML = info || "";
   }
 
   function setHeaderInfo(mealISO) {
@@ -73,7 +85,6 @@
     const weekday = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
     $("weekdayText").textContent = weekday;
 
-    // 農曆/節氣：目前先留空（如要精準可再接計算）
     if (!$("lunarText").textContent) $("lunarText").textContent = "";
     if (!$("solarTermText").textContent) $("solarTermText").textContent = "";
   }
@@ -104,25 +115,88 @@
     setNum("grandTotal", meat + veg);
   }
 
+  function readJsonStorage(key) {
+    try {
+      const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function getLoginUser() {
+    const candidates = [
+      "antai_session_user",
+      "caregiverAuth",
+      "officeAuth",
+      "nurseAuth",
+      "nutritionistAuth",
+      "rehabAuth"
+    ];
+
+    for (const key of candidates) {
+      const user = readJsonStorage(key);
+      if (user && (user.displayName || user.staffId || user.username)) {
+        return {
+          staffId: String(user.staffId || user.username || "").trim(),
+          displayName: String(user.displayName || user.name || user.username || "").trim(),
+          username: String(user.username || "").trim(),
+          role: String(user.role || user.source || "").trim(),
+          sourceKey: key
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function signerTextFromUser(user) {
+    if (!user) return "";
+    const parts = [];
+    if (user.staffId) parts.push(user.staffId);
+    if (user.displayName) parts.push(user.displayName);
+    return parts.join(" ").trim();
+  }
+
+  function renderLoginUser() {
+    currentLoginUser = getLoginUser();
+    const loginUserDisplay = $("loginUserDisplay");
+    if (!loginUserDisplay) return;
+
+    if (!currentLoginUser) {
+      loginUserDisplay.textContent = "未登入";
+      return;
+    }
+
+    const roleText = currentLoginUser.role ? ` / ${currentLoginUser.role}` : "";
+    loginUserDisplay.textContent = `${signerTextFromUser(currentLoginUser) || currentLoginUser.displayName}${roleText}`;
+  }
+
   function clearSignatureUI() {
     $("signatureDisplay").textContent = "—";
+    if ($("signatureStaffIdDisplay")) $("signatureStaffIdDisplay").textContent = "";
     $("signatureTimeDisplay").textContent = "";
     $("signatureNoteDisplay").textContent = "";
     setLastSignedInfo("");
   }
 
-  function setSignatureUI(signedBy, signedAt, signedNote) {
+  function setSignatureUI(signedBy, signedAt, signedNote, signedStaffId) {
     $("signatureDisplay").textContent = signedBy ? signedBy : "—";
+    if ($("signatureStaffIdDisplay")) {
+      $("signatureStaffIdDisplay").textContent = signedStaffId ? `員編 / Staff ID：${signedStaffId}` : "";
+    }
     const timeText = signedAt ? signedAt.toLocaleString() : "";
     $("signatureTimeDisplay").textContent = timeText ? timeText : "";
     $("signatureNoteDisplay").textContent = signedNote ? signedNote : "";
 
     if (signedBy) {
       const note = signedNote ? `（${escapeHtml(String(signedNote))}）` : "";
+      const staffIdText = signedStaffId ? ` <span class="text-muted">[${escapeHtml(String(signedStaffId))}]</span>` : "";
       setLastSignedInfo(
-        `<i class="fas fa-pen-fancy me-2"></i>${escapeHtml(getText("meal_last_signature"))}：<b>${escapeHtml(
+        `<i class="fas fa-pen-fancy me-2"></i>${escapeHtml(getText("meal_last_signature", "最後簽名"))}：<b>${escapeHtml(
           String(signedBy)
-        )}</b>${note} <span class="text-muted">(${escapeHtml(timeText)})</span>`
+        )}</b>${staffIdText}${note} <span class="text-muted">(${escapeHtml(timeText)})</span>`
       );
     }
   }
@@ -143,45 +217,40 @@
 
   function getPayload() {
     return {
-      // 用餐日期 docId（不可手動）
       mealDate: $("mealDate").value,
-      // 送單日期（由使用者選）
       deliveryDate: $("deliveryDate").value,
-
       meat: {
         blenderized: numVal("meat_blenderized"),
         congeeVeg: numVal("meat_congeeVeg"),
         cookedRiceMinced: numVal("meat_cookedRiceMinced"),
         general: numVal("meat_general"),
-        subtotal: numVal("meat_subtotal"),
+        subtotal: numVal("meat_subtotal")
       },
       vegetarian: {
         blenderized: numVal("veg_blenderized"),
         congeeVeg: numVal("veg_congeeVeg"),
         cookedRiceMinced: numVal("veg_cookedRiceMinced"),
         general: numVal("veg_general"),
-        subtotal: numVal("veg_subtotal"),
+        subtotal: numVal("veg_subtotal")
       },
       grandTotal: numVal("grandTotal"),
-
       lunarText: $("lunarText").textContent || "",
       solarTermText: $("solarTermText").textContent || "",
-      weekdayText: $("weekdayText").textContent || "",
+      weekdayText: $("weekdayText").textContent || ""
     };
   }
 
   function validateBeforeSave(payload) {
-    if (!payload.deliveryDate) return getText("meal_msg_select_delivery_date");
-    // mealDate 由 deliveryDate 自動算出
-    if (!payload.mealDate) return getText("meal_msg_select_date");
-    if ((payload.grandTotal ?? 0) <= 0) return getText("meal_msg_need_any_people");
+    if (!payload.deliveryDate) return getText("meal_msg_select_delivery_date", "請先選擇送單日期");
+    if (!payload.mealDate) return getText("meal_msg_select_date", "請先選擇日期");
+    if ((payload.grandTotal ?? 0) <= 0) return getText("meal_msg_need_any_people", "請至少輸入一項餐點人數");
     return null;
   }
 
   async function loadForMealDate(mealISO, deliveryISO) {
     const _db = safeDb();
     if (!_db) {
-      alert(getText("meal_msg_firebase_not_ready"));
+      alert(getText("meal_msg_firebase_not_ready", "Firebase 尚未就緒"));
       return;
     }
 
@@ -189,49 +258,46 @@
     clearSignatureUI();
 
     try {
-      showStatus(getText("meal_msg_loading"), "secondary");
+      showStatus(getText("meal_msg_loading", "載入中..."), "secondary");
       const docRef = _db.collection("mealOrders").doc(mealISO);
       const snap = await docRef.get();
 
-      // 先把日期與表頭更新（不管有沒有資料）
       $("mealDate").value = mealISO;
       $("deliveryDate").value = deliveryISO;
       setHeaderInfo(mealISO);
 
       if (!snap.exists) {
-        // 沒資料就清空數字
         setFormNumbers({});
-        showStatus(getText("meal_msg_no_data"), "secondary");
+        showStatus(getText("meal_msg_no_data", "尚無資料"), "secondary");
         return;
       }
 
       const data = snap.data() || {};
-      // 以資料庫為準填數字
       setFormNumbers(data);
 
       if (data.signedBy) {
         const signedAt = data.signedAt?.toDate ? data.signedAt.toDate() : (data.signedAt ? new Date(data.signedAt) : null);
-        setSignatureUI(data.signedBy, signedAt, data.signedNote || "");
-        showStatus(getText("meal_msg_loaded_with_sign"), "success");
+        setSignatureUI(data.signedBy, signedAt, data.signedNote || "", data.signedStaffId || "");
+        showStatus(getText("meal_msg_loaded_with_sign", "已載入資料（含簽名）"), "success");
       } else {
-        showStatus(getText("meal_msg_loaded"), "success");
+        showStatus(getText("meal_msg_loaded", "已載入資料"), "success");
       }
     } catch (err) {
       console.error(err);
-      alert(getText("meal_msg_load_failed"));
-      showStatus(getText("meal_msg_load_failed"), "danger");
+      alert(getText("meal_msg_load_failed", "載入失敗"));
+      showStatus(getText("meal_msg_load_failed", "載入失敗"), "danger");
     }
   }
 
-  async function saveWithSignature(payload, signerName, signerNote) {
+  async function saveWithSignature(payload, signerName, signerNote, signerStaffId) {
     const _db = safeDb();
     if (!_db) {
-      alert(getText("meal_msg_firebase_not_ready"));
+      alert(getText("meal_msg_firebase_not_ready", "Firebase 尚未就緒"));
       return;
     }
 
     try {
-      showStatus(getText("meal_msg_saving"), "secondary");
+      showStatus(getText("meal_msg_saving", "儲存中..."), "secondary");
 
       const now = new Date();
       const docId = payload.mealDate;
@@ -240,24 +306,31 @@
       const dataToSave = {
         ...payload,
         signedBy: signerName,
+        signedStaffId: signerStaffId || "",
         signedNote: signerNote || "",
+        signerSource: currentLoginUser?.sourceKey || "",
+        signerRole: currentLoginUser?.role || "",
+        updatedBy: signerName,
+        updatedByStaffId: signerStaffId || "",
         signedAt: firebase.firestore.Timestamp.fromDate(now),
-        updatedAt: firebase.firestore.Timestamp.fromDate(now),
+        updatedAt: firebase.firestore.Timestamp.fromDate(now)
       };
 
       const snap = await docRef.get();
       if (!snap.exists) {
         dataToSave.createdAt = firebase.firestore.Timestamp.fromDate(now);
+        dataToSave.createdBy = signerName;
+        dataToSave.createdByStaffId = signerStaffId || "";
       }
 
       await docRef.set(dataToSave, { merge: true });
 
-      showStatus(getText("meal_msg_saved"), "success");
-      setSignatureUI(signerName, now, signerNote || "");
+      showStatus(getText("meal_msg_saved", "儲存成功"), "success");
+      setSignatureUI(signerName, now, signerNote || "", signerStaffId || "");
     } catch (err) {
       console.error(err);
-      alert(getText("meal_msg_save_failed"));
-      showStatus(getText("meal_msg_save_failed"), "danger");
+      alert(getText("meal_msg_save_failed", "儲存失敗"));
+      showStatus(getText("meal_msg_save_failed", "儲存失敗"), "danger");
     }
   }
 
@@ -265,23 +338,31 @@
     const modalEl = $("signModal");
     const modal = new bootstrap.Modal(modalEl, { backdrop: "static" });
 
-    $("signerName").value = "";
+    const defaultName = currentLoginUser?.displayName || "";
+    const defaultStaffId = currentLoginUser?.staffId || "";
+
+    $("signerName").value = defaultName;
+    $("signerStaffId").value = defaultStaffId;
     $("signerNote").value = "";
+
+    $("signerName").readOnly = !!defaultName;
+    $("signerStaffId").readOnly = !!defaultStaffId;
 
     const confirmBtn = $("confirmSignBtn");
 
     const handler = async () => {
       const name = $("signerName").value.trim();
+      const staffId = $("signerStaffId").value.trim();
       const note = $("signerNote").value.trim();
 
       if (!name) {
-        alert(getText("meal_msg_enter_signer"));
+        alert(getText("meal_msg_enter_signer", "請輸入簽名姓名"));
         return;
       }
 
       confirmBtn.disabled = true;
       try {
-        await onConfirm(name, note);
+        await onConfirm(name, note, staffId);
         modal.hide();
       } finally {
         confirmBtn.disabled = false;
@@ -301,41 +382,47 @@
       return;
     }
     const mealISO = addDaysISO(deliveryISO, 1);
-    // mealDate 不可手動：在這裡統一計算並自動載入
     await loadForMealDate(mealISO, deliveryISO);
   }
 
+  function preserveBilingualText() {
+    document.documentElement.lang = "zh-Hant";
+    const switcher = $("lang-switcher");
+    if (switcher) {
+      switcher.textContent = "中 / EN";
+    }
+  }
+
   function wireUI() {
-    // 預設：送單=今天，用餐=明天（自動算）
+    renderLoginUser();
+    preserveBilingualText();
+
     $("deliveryDate").value = todayISO();
     $("mealDate").value = addDaysISO($("deliveryDate").value, 1);
     setHeaderInfo($("mealDate").value);
 
-    // 任何數字改變都重算
     document.querySelectorAll(".meal-num").forEach((el) => {
       el.addEventListener("input", recalc);
       el.addEventListener("change", recalc);
     });
 
-    // 送單日期改變 => 用餐日期自動 +1 且自動載入
     $("deliveryDate").addEventListener("change", () => {
       syncByDeliveryDate();
-      showStatus(getText("meal_msg_auto_loaded"), "secondary");
+      showStatus(getText("meal_msg_auto_loaded", "已依送單日期自動載入"), "secondary");
     });
 
-    // 儲存
     $("saveBtn").addEventListener("click", async () => {
+      renderLoginUser();
       recalc();
       const payload = getPayload();
       const msg = validateBeforeSave(payload);
       if (msg) return alert(msg);
 
-      openSignModal(async (name, note) => {
-        await saveWithSignature(payload, name, note);
+      openSignModal(async (name, note, staffId) => {
+        await saveWithSignature(payload, name, note, staffId);
       });
     });
 
-    // 初次進入就自動載入（不用按載入）
     syncByDeliveryDate();
     recalc();
   }
