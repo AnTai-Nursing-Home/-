@@ -8,14 +8,14 @@ function buildTableHTML(tabId) {
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
-                <th class="sortable-header" data-sort="sortOrder">排序</th>
-                <th class="sortable-header" data-sort="id">員編</th>
-                <th class="sortable-header" data-sort="name">姓名</th>
+                <th class="sortable-header sticky-col-1" data-sort="sortOrder">排序</th>
+                <th class="sortable-header sticky-col-2" data-sort="id">員編</th>
+                <th class="sortable-header sticky-col-3" data-sort="name">姓名</th>
                 ${isForeignTab ? '<th>英文姓名</th>' : ''}
                 ${extraHead}
                 <th>性別</th>
                 <th>生日</th>
-                ${isForeignTab ? '<th>身分證字號(ARC)</th><th>ARC有效期限</th>' : '<th>身分證字號</th>'}
+                ${isForeignTab ? '<th>身分證字號(ARC)</th><th>ARC有效期限起日</th><th>ARC有效期限迄日</th>' : '<th>身分證字號</th>'}
                 <th>到職日</th>
                 <th>組別</th>
                 <th>職稱</th>
@@ -54,6 +54,11 @@ styleFix.textContent = `
   .table-responsive { overflow: auto; }
   .table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
   .table td, .table th { vertical-align: middle; }
+  .table .sticky-col-1,.table .sticky-col-2,.table .sticky-col-3{position:sticky;z-index:3;background:inherit;}
+  .table thead .sticky-col-1,.table thead .sticky-col-2,.table thead .sticky-col-3{z-index:8;}
+  .table .sticky-col-1{left:0;min-width:64px;}
+  .table .sticky-col-2{left:64px;min-width:104px;}
+  .table .sticky-col-3{left:168px;min-width:132px;}
 `;
 document.head.appendChild(styleFix);
 
@@ -201,6 +206,7 @@ document.addEventListener('firebase-ready', () => {
   const genderInput = document.getElementById('employee-gender');
   const birthdayInput = document.getElementById('employee-birthday');
   const idCardInput = document.getElementById('employee-idCard');
+  const arcStartInput = document.getElementById('employee-arcStart');
   const arcExpiryInput = document.getElementById('employee-arcExpiry');
   const hireDateInput = document.getElementById('employee-hireDate');
   const titleInput = document.getElementById('employee-title');
@@ -275,7 +281,7 @@ document.addEventListener('firebase-ready', () => {
   
   function getColspan(tabId) {
     if (tabId === 'inactiveEmployees') return 28;
-    if (tabId === 'foreignCaregivers') return 26;
+    if (tabId === 'foreignCaregivers') return 27;
     return 24;
   }
 
@@ -393,14 +399,18 @@ document.addEventListener('firebase-ready', () => {
   function syncForeignFieldVisibility(collectionName) {
     const isForeign = collectionName === 'caregivers';
     const englishNameWrap = document.getElementById('employee-englishName-wrap');
+    const arcStartWrap = document.getElementById('employee-arcStart-wrap');
     const arcExpiryWrap = document.getElementById('employee-arcExpiry-wrap');
     const idCardLabel = document.getElementById('employee-idCard-label');
     if (englishNameWrap) englishNameWrap.classList.toggle('d-none', !isForeign);
+    if (arcStartWrap) arcStartWrap.classList.toggle('d-none', !isForeign);
     if (arcExpiryWrap) arcExpiryWrap.classList.toggle('d-none', !isForeign);
     if (idCardLabel) idCardLabel.textContent = isForeign ? '身分證字號(ARC)' : '身分證字號';
     if (!isForeign) {
       englishNameInput.value = '';
+      arcStartInput.value = '';
       arcExpiryInput.value = '';
+      nationalityInput.value = '';
     }
   }
 
@@ -411,21 +421,22 @@ document.addEventListener('firebase-ready', () => {
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
     const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
     const isForeign = !includeSource && isForeignRow(e);
+    const arcStartValue = pick(e, ['arcStart','arcStartDate','arcValidFrom']);
     const arcExpiryValue = pick(e, ['arcExpiry','arcExpireDate','arcValidUntil']);
     const arcExpiryClass = getArcStatusClass(arcExpiryValue);
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
-        <td>${pick(e, ['sortOrder'])}</td>
-        <td>${pick(e, ['id','docId'])}</td>
-        <td>${pick(e, ['name'])}</td>
+        <td class="sticky-col-1">${pick(e, ['sortOrder'])}</td>
+        <td class="sticky-col-2">${pick(e, ['id','docId'])}</td>
+        <td class="sticky-col-3">${pick(e, ['name'])}</td>
         ${isForeign ? `<td>${pick(e, ['englishName'])}</td>` : ''}
         ${includeSource ? sourceTd : ""}
         ${includeSource ? inactiveDateTd : ""}
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
-        ${isForeign ? `<td class="${arcExpiryClass}">${arcExpiryValue}</td>` : ''}
+        ${isForeign ? `<td>${arcStartValue}</td><td class="${arcExpiryClass}">${arcExpiryValue}</td>` : ''}
         <td>${pick(e, ['hireDate'])}</td>
         <td>${pick(e, ['groupNo','group','teamGroup'])}</td>
         <td>${pick(e, ['title'])}</td>
@@ -528,6 +539,7 @@ function fillFormFromRow(row) {
     genderInput.value = values[i++] || '';
     birthdayInput.value = toISODateForInput(values[i++] || '');
     idCardInput.value = values[i++] || '';
+    arcStartInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
     arcExpiryInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
     hireDateInput.value = toISODateForInput(values[i++] || '');
     groupNoInput.value = values[i++] || '';
@@ -561,6 +573,7 @@ function fillFormFromRow(row) {
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
+      arcStart: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcStartInput.value.trim()) : '',
       arcExpiry: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcExpiryInput.value.trim()) : '',
       hireDate: formatDateInput(hireDateInput.value.trim()),
       groupNo: groupNoInput.value.trim(),
@@ -711,6 +724,8 @@ function fillFormFromRow(row) {
           "身分證字號": "idCard",
           "身分證字號(ARC)": "idCard",
           "英文姓名": "englishName",
+          "ARC有效期限起日": "arcStart",
+          "ARC有效期限迄日": "arcExpiry",
           "ARC有效期限": "arcExpiry",
           "身份證字號": "idCard",
           "身份証字號": "idCard",
@@ -780,7 +795,7 @@ function fillFormFromRow(row) {
             let v = row[cn];
 
             // 日期欄：支援 Excel serial / Date / 字串（yyyy/mm/dd、民國、yyyy-mm-dd）
-            if (["birthday", "hireDate", "licenseRenewDate"].includes(key)) {
+            if (["birthday", "hireDate", "licenseRenewDate", "arcStart", "arcExpiry"].includes(key)) {
               v = normalizeDateMaybe(v);
             }
 
@@ -835,7 +850,7 @@ async function generateReportHTML() {
           <td>${e.gender ?? ''}</td>
           <td>${e.birthday ?? ''}</td>
           <td>${e.idCard ?? ''}</td>
-          ${tab.id === 'foreignCaregivers' ? `<td class="${getArcStatusClass(e.arcExpiry ?? '')}">${e.arcExpiry ?? ''}</td>` : ''}
+          ${tab.id === 'foreignCaregivers' ? `<td>${e.arcStart ?? ''}</td><td class="${getArcStatusClass(e.arcExpiry ?? '')}">${e.arcExpiry ?? ''}</td>` : ''}
           <td>${e.hireDate ?? ''}</td>
           <td>${e.groupNo ?? ''}</td>
           <td>${e.title ?? ''}</td>
@@ -871,7 +886,7 @@ async function generateReportHTML() {
       <h1>安泰醫療社團法人附設安泰護理之家</h1>
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
-        <th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>ARC有效期限</th>
+        <th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>ARC有效期限起日</th><th>ARC有效期限迄日</th>
         <th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
         <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
         <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
@@ -950,7 +965,7 @@ async function generateReportHTML() {
       }
 
       const headersBase = (tab.id === 'foreignCaregivers')
-        ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限','到職日','組別','職稱','手機','日間電話','地址',
+        ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限起日','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
            '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
            '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'];
@@ -964,7 +979,7 @@ async function generateReportHTML() {
           getVal(e, ['gender']),
           getVal(e, ['birthday']),
           getVal(e, ['idCard','nationalId','idNumber']),
-          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil'])] : []),
+          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['arcStart','arcStartDate','arcValidFrom']), getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil'])] : []),
           getVal(e, ['hireDate']),
           getVal(e, ['groupNo','group','teamGroup']),
           getVal(e, ['title']),
