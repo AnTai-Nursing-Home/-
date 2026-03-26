@@ -6,94 +6,119 @@
     <title>自動化打卡系統</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
     <style>
-        .clockin-tabs .nav-link{
-            font-weight:700;
-            border-radius:12px 12px 0 0;
+        body { background:#f5f7fb; }
+        .main-card { border:0; border-radius:20px; overflow:hidden; }
+        .main-card .card-header { background:linear-gradient(135deg,#1f2937,#111827); padding:1.1rem 1.5rem; }
+        .tabs-wrap {
+            display:flex; gap:10px; flex-wrap:wrap;
+            margin-bottom:18px;
         }
-        .clockin-pane{
-            display:none;
+        .role-tab {
+            border:0; border-radius:14px; padding:10px 18px; font-weight:700;
+            background:#e5e7eb; color:#1f2937; transition:.2s ease;
         }
-        .clockin-pane.active{
-            display:block;
+        .role-tab.active { background:#0d6efd; color:#fff; box-shadow:0 6px 18px rgba(13,110,253,.22); }
+        .toolbar-card {
+            background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:14px;
         }
-        .report-empty{
-            padding:48px 16px;
-            color:#6c757d;
-            text-align:center;
+        .report-title {
+            font-size:1.15rem; font-weight:700; margin-bottom:12px; color:#1f2937;
         }
-        .report-table th,
-        .report-table td{
-            white-space:nowrap;
-            vertical-align:middle;
+        .report-table { background:#fff; }
+        .report-table th, .report-table td {
+            white-space:nowrap; vertical-align:middle; font-size:13px;
         }
-        .report-table .name-cell{
-            min-width:84px;
-            writing-mode:vertical-rl;
-            text-orientation:mixed;
-            letter-spacing:1px;
+        .report-table thead th {
+            position:sticky; top:0; z-index:2; background:#111827; color:#fff;
         }
-        .tab-summary-badge{
-            font-size:12px;
+        .report-table .sticky-col {
+            position:sticky; left:0; z-index:1; background:#fff;
+        }
+        .report-table .sticky-col-2 {
+            position:sticky; left:88px; z-index:1; background:#fff;
+        }
+        .report-table thead .sticky-col,
+        .report-table thead .sticky-col-2 {
+            z-index:3; background:#111827; color:#fff;
+        }
+        .emp-id-col { min-width:88px; }
+        .emp-name-col { min-width:90px; writing-mode:vertical-rl; letter-spacing:2px; }
+        .section-panel { display:none; }
+        .section-panel.active { display:block; }
+        .status-badge {
+            display:inline-flex; align-items:center; gap:6px; font-size:.92rem; font-weight:700;
+            padding:7px 12px; border-radius:999px; background:#eef2ff; color:#3730a3;
+        }
+        .empty-panel {
+            background:#fff; border:1px dashed #cbd5e1; border-radius:16px; padding:42px 20px; text-align:center; color:#64748b;
+        }
+        .site-footer { text-align:center; color:#64748b; margin:20px 0 10px; font-size:13px; }
+        @media print {
+            .d-print-none, .site-footer { display:none !important; }
+            body { background:#fff !important; }
+            .container, .card, .card-body { padding:0 !important; margin:0 !important; box-shadow:none !important; border:0 !important; }
+            .section-panel { display:none !important; }
+            .section-panel.print-active { display:block !important; }
+            .report-table thead th { position:static !important; background:#fff !important; color:#000 !important; }
+            .report-table .sticky-col, .report-table .sticky-col-2 { position:static !important; background:#fff !important; }
+            a[href]:after { content:none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="container my-5">
+    <div class="container my-4 my-lg-5">
         <div class="row justify-content-center">
-            <div class="col-lg-12">
-                <div class="card shadow">
-                    <div class="card-header text-center bg-dark text-white">
-                        <h2>自動化打卡紀錄系統</h2>
+            <div class="col-12">
+                <div class="card shadow main-card">
+                    <div class="card-header text-center text-white">
+                        <h2 class="mb-0">自動化打卡紀錄系統</h2>
                     </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 d-print-none">
-                            <a href="office.html?view=dashboard" class="btn btn-back-menu">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 d-print-none">
+                            <a href="office.html?view=dashboard" class="btn btn-outline-secondary rounded-pill px-3">
                                 <i class="fas fa-arrow-left me-2"></i>返回辦公室系統
                             </a>
-                            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                                <label for="month-select" class="form-label mb-0 me-2">選擇月份:</label>
-                                <input type="month" id="month-select" class="form-control" style="width: auto;">
-                                <input type="file" id="schedule-file-input" class="d-none" accept=".xlsx, .xls">
-                                <button id="upload-schedule-btn" class="btn btn-info">
-                                    <i class="fas fa-file-excel me-2"></i>上傳班表並生成紀錄
-                                </button>
+                            <div class="tabs-wrap mb-0">
+                                <button id="tab-nurse" class="role-tab active" type="button">護理師</button>
+                                <button id="tab-care" class="role-tab" type="button">照服員</button>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-card mb-3 d-print-none">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <label for="month-select" class="form-label mb-0">選擇月份</label>
+                                    <input type="month" id="month-select" class="form-control" style="width:auto; min-width:150px;">
+                                    <input type="file" id="schedule-file-input" class="d-none" accept=".xlsx, .xls">
+                                    <button id="upload-schedule-btn" class="btn btn-info text-white">
+                                        <i class="fas fa-file-excel me-2"></i>上傳班表並生成紀錄
+                                    </button>
+                                </div>
+                                <div id="current-role-badge" class="status-badge">
+                                    <i class="fas fa-user-nurse"></i>
+                                    目前分頁：護理師
+                                </div>
                             </div>
                         </div>
 
                         <div id="report-controls" class="d-none justify-content-end gap-2 mb-3 d-print-none">
-                            <button id="export-word-btn" class="btn btn-sm btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
-                            <button id="export-excel-btn" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
-                            <button id="print-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
+                            <button id="export-word-btn" class="btn btn-primary"><i class="fas fa-file-word me-1"></i> 匯出 Word</button>
+                            <button id="export-excel-btn" class="btn btn-success"><i class="fas fa-file-excel me-1"></i> 匯出 Excel</button>
+                            <button id="print-btn" class="btn btn-info text-white"><i class="fas fa-print me-1"></i> 列印</button>
                         </div>
 
-                        <div id="clockin-report-container">
-                            <div id="clockin-empty" class="report-empty">請先選擇月份並上傳當月份的 Excel 班表檔案。</div>
+                        <div id="nurse-section" class="section-panel active">
+                            <div class="report-title">護理師打卡紀錄</div>
+                            <div id="nurse-report-container" class="table-responsive">
+                                <div class="empty-panel">請先選擇月份，並在「護理師」分頁上傳當月份的 Excel 班表檔案。</div>
+                            </div>
+                        </div>
 
-                            <div id="clockin-tabs-wrapper" class="d-none">
-                                <ul class="nav nav-tabs clockin-tabs mb-3" id="clockin-tabs">
-                                    <li class="nav-item">
-                                        <button class="nav-link active" type="button" data-role-tab="nurse">
-                                            護理師
-                                            <span id="nurse-count-badge" class="badge bg-primary ms-1 tab-summary-badge">0</span>
-                                        </button>
-                                    </li>
-                                    <li class="nav-item">
-                                        <button class="nav-link" type="button" data-role-tab="caregiver">
-                                            照服員
-                                            <span id="caregiver-count-badge" class="badge bg-success ms-1 tab-summary-badge">0</span>
-                                        </button>
-                                    </li>
-                                </ul>
-
-                                <div id="clockin-pane-nurse" class="clockin-pane active">
-                                    <div class="table-responsive" id="nurse-report-container"></div>
-                                </div>
-
-                                <div id="clockin-pane-caregiver" class="clockin-pane">
-                                    <div class="table-responsive" id="caregiver-report-container"></div>
-                                </div>
+                        <div id="care-section" class="section-panel">
+                            <div class="report-title">照服員打卡紀錄</div>
+                            <div id="care-report-container" class="table-responsive">
+                                <div class="empty-panel">請先選擇月份，並在「照服員」分頁上傳當月份的 Excel 班表檔案。</div>
                             </div>
                         </div>
                     </div>
