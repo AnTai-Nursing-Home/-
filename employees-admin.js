@@ -27,7 +27,6 @@ function buildTableHTML(tabId) {
                 <th>緊急電話</th>
                 ${isForeignTab ? '<th>國籍</th>' : ''}
                 <th>證書摘要</th>
-                <th>發證字號</th>
                 <th>換證日期</th>
                 <th>長照證號</th>
                 <th>長照證效期</th>
@@ -733,8 +732,7 @@ function fillFormFromRow(row) {
     emgPhoneInput.value = values[i++] || '';
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
-    i++; // 發證字號（實際以 DB 為準）
-    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
+        licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
     longtermCertNumberInput.value = values[i++] || '';
     longtermExpireDateInput.value = values[i++] || '';
     educationInput.value = values[i++] || '';
@@ -1111,7 +1109,6 @@ async function generateReportHTML() {
           <td>${e.emergencyPhone ?? ''}</td>
           ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
           <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
-          <td>${e.licenseNumber ?? ''}</td>
           <td>${e.licenseRenewDate ?? ''}</td>
           <td>${e.longtermCertNumber ?? ''}</td>
           <td>${e.longtermExpireDate ?? ''}</td>
@@ -1136,8 +1133,8 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         ${tab.id === 'foreignCaregivers'
-        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'
-        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'}
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -1213,9 +1210,9 @@ async function generateReportHTML() {
 
       const headersBase = (tab.id === 'foreignCaregivers')
         ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','承接日期','續聘日期','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校']
+           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','換證日期','長照證號','長照證效期','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','證書摘要','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'];
+           '緊急聯絡人','關係','緊急電話','證書摘要','換證日期','長照證號','長照證效期','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
@@ -1238,7 +1235,6 @@ async function generateReportHTML() {
           getVal(e, ['emergencyPhone','emgPhone']),
           ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
           getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-          getVal(e, ['licenseNumber','licenseNo']),
           getVal(e, ['licenseRenewDate']),
           getVal(e, ['longtermCertNumber','ltcNo']),
           getVal(e, ['longtermExpireDate','ltcExpiry']),
@@ -1413,8 +1409,7 @@ async function generateReportHTML() {
         { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '證書摘要', key: 'licenseType', width: 24 },
-        { header: '發證字號', key: 'licenseNumber', width: 20 },
+        { header: '證書摘要', key: 'licenseType', width: 30 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '長照證號', key: 'longtermCertNumber', width: 20 },
         { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
@@ -1441,8 +1436,7 @@ async function generateReportHTML() {
         { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '證書摘要', key: 'licenseType', width: 24 },
-        { header: '發證字號', key: 'licenseNumber', width: 20 },
+        { header: '證書摘要', key: 'licenseType', width: 30 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '長照證號', key: 'longtermCertNumber', width: 20 },
         { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
@@ -1501,6 +1495,114 @@ async function generateReportHTML() {
         bottom:{style:'thin',color:{argb:'FF000000'}},
         right:{style:'thin',color:{argb:'FF000000'}}
       };
+
+
+      function buildEmployeeExportRow(e, isForeign) {
+        return {
+          sortOrder: getVal(e, ['sortOrder']),
+          id: getVal(e, ['id','docId']),
+          name: getVal(e, ['name']),
+          englishName: isForeign ? getVal(e, ['englishName']) : '',
+          gender: getVal(e, ['gender']),
+          birthday: getVal(e, ['birthday']),
+          idCard: getVal(e, ['idCard','nationalId','idNumber']),
+          handoverDate: isForeign ? getVal(e, ['handoverDate','arcStart','arcStartDate','arcValidFrom']) : '',
+          renewalDate: isForeign ? getVal(e, ['renewalDate']) : '',
+          arcExpiry: isForeign ? getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']) : '',
+          hireDate: getVal(e, ['hireDate']),
+          groupNo: getVal(e, ['groupNo','group','teamGroup']),
+          title: getVal(e, ['title']),
+          phone: getVal(e, ['phone']),
+          daytimePhone: getVal(e, ['daytimePhone','email']),
+          address: getVal(e, ['address']),
+          emergencyName: getVal(e, ['emergencyName','emgName','emergencyContact']),
+          emergencyRelation: getVal(e, ['emergencyRelation','emgRelation']),
+          emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
+          nationality: isForeign ? getVal(e, ['nationality']) : '',
+          licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
+          licenseRenewDate: getVal(e, ['licenseRenewDate']),
+          longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
+          longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
+          education: getVal(e, ['education']),
+          school: getVal(e, ['school']),
+        };
+      }
+
+      async function fetchImageBuffer(url) {
+        if (!url) return null;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          const mime = (blob.type || '').toLowerCase();
+          const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'png' : 'jpeg');
+          const arrayBuffer = await blob.arrayBuffer();
+          return { buffer: arrayBuffer, extension: ext };
+        } catch (err) {
+          console.warn('證書圖片下載失敗：', url, err);
+          return null;
+        }
+      }
+
+      async function addCertificatePhotoSheet(sheetName, employees) {
+        const ws = wb.addWorksheet(sheetName);
+        ws.columns = [
+          { header: '員工類別', key: 'category', width: 12 },
+          { header: '員編', key: 'id', width: 12 },
+          { header: '姓名', key: 'name', width: 14 },
+          { header: '證書種類', key: 'certType', width: 24 },
+          { header: '發證字號', key: 'certNo', width: 24 },
+          { header: '正面', key: 'front', width: 18 },
+          { header: '反面', key: 'back', width: 18 },
+          { header: '正面連結', key: 'frontUrl', width: 42 },
+          { header: '反面連結', key: 'backUrl', width: 42 },
+        ];
+        applyRowStyle(ws.getRow(1), { header:true });
+        ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+        let rowIndex = 2;
+        for (const emp of employees) {
+          const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl));
+          if (!certs.length) continue;
+          for (const cert of certs) {
+            const row = ws.getRow(rowIndex);
+            row.values = {
+              category: emp.__categoryLabel || '',
+              id: emp.id || '',
+              name: emp.name || '',
+              certType: cert.type || '',
+              certNo: cert.number || '',
+              front: cert.frontUrl ? '見圖' : '',
+              back: cert.backUrl ? '見圖' : '',
+              frontUrl: cert.frontUrl || '',
+              backUrl: cert.backUrl || '',
+            };
+            applyRowStyle(row);
+            row.height = 90;
+            if (cert.frontUrl) ws.getCell(`H${rowIndex}`).value = { text: cert.frontUrl, hyperlink: cert.frontUrl };
+            if (cert.backUrl) ws.getCell(`I${rowIndex}`).value = { text: cert.backUrl, hyperlink: cert.backUrl };
+
+            const frontImg = await fetchImageBuffer(cert.frontUrl);
+            if (frontImg) {
+              const imgId = wb.addImage({ buffer: frontImg.buffer, extension: frontImg.extension });
+              ws.addImage(imgId, { tl: { col: 5, row: rowIndex - 1 + 0.1 }, ext: { width: 110, height: 110 } });
+            }
+            const backImg = await fetchImageBuffer(cert.backUrl);
+            if (backImg) {
+              const imgId = wb.addImage({ buffer: backImg.buffer, extension: backImg.extension });
+              ws.addImage(imgId, { tl: { col: 6, row: rowIndex - 1 + 0.1 }, ext: { width: 110, height: 110 } });
+            }
+            rowIndex += 1;
+          }
+        }
+        if (rowIndex === 2) {
+          ws.mergeCells('A2:I2');
+          ws.getCell('A2').value = '此分類目前沒有已上傳的證書照片';
+          ws.getCell('A2').alignment = { vertical:'middle', horizontal:'center' };
+          ws.getCell('A2').font = fontCell;
+          ws.getCell('A2').border = borderThin;
+        }
+      }
 
       function applyRowStyle(row, { header=false } = {}) {
         row.height = header ? 22 : 26;
@@ -1571,9 +1673,8 @@ async function generateReportHTML() {
             emergencyName: getVal(e, ['emergencyName','emgName','emergencyContact']),
             emergencyRelation: getVal(e, ['emergencyRelation','emgRelation']),
             emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
-            nationality: getVal(e, ['nationality']),
+            nationality: isForeignSheet ? getVal(e, ['nationality']) : '',
             licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-            licenseNumber: getVal(e, ['licenseNumber','licenseNo']),
             licenseRenewDate: getVal(e, ['licenseRenewDate']),
             longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
             longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
@@ -1623,6 +1724,14 @@ async function generateReportHTML() {
       // 5) 離職員工（合併）
       const inactive = await fetchInactiveMerged();
       addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true });
+
+      // 6) 證書照片分頁
+      await addCertificatePhotoSheet('證書照片-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' })));
+      await addCertificatePhotoSheet('證書照片-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' })));
+      await addCertificatePhotoSheet('證書照片-其他', [
+        ...local.map(e => ({ ...e, __categoryLabel: '台籍照服員' })),
+        ...admin.map(e => ({ ...e, __categoryLabel: '行政/其他' }))
+      ]);
 
       // ---- 下載 ----
       const y = new Date().getFullYear();
