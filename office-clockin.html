@@ -7,6 +7,37 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .clockin-tabs .nav-link{
+            font-weight:700;
+            border-radius:12px 12px 0 0;
+        }
+        .clockin-pane{
+            display:none;
+        }
+        .clockin-pane.active{
+            display:block;
+        }
+        .report-empty{
+            padding:48px 16px;
+            color:#6c757d;
+            text-align:center;
+        }
+        .report-table th,
+        .report-table td{
+            white-space:nowrap;
+            vertical-align:middle;
+        }
+        .report-table .name-cell{
+            min-width:84px;
+            writing-mode:vertical-rl;
+            text-orientation:mixed;
+            letter-spacing:1px;
+        }
+        .tab-summary-badge{
+            font-size:12px;
+        }
+    </style>
 </head>
 <body>
     <div class="container my-5">
@@ -21,7 +52,7 @@
                             <a href="office.html?view=dashboard" class="btn btn-back-menu">
                                 <i class="fas fa-arrow-left me-2"></i>返回辦公室系統
                             </a>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                                 <label for="month-select" class="form-label mb-0 me-2">選擇月份:</label>
                                 <input type="month" id="month-select" class="form-control" style="width: auto;">
                                 <input type="file" id="schedule-file-input" class="d-none" accept=".xlsx, .xls">
@@ -37,8 +68,33 @@
                             <button id="print-btn" class="btn btn-sm btn-info"><i class="fas fa-print me-1"></i> 列印</button>
                         </div>
 
-                        <div id="clockin-report-container" class="table-responsive">
-                            <p class="text-center text-muted">請先選擇月份並上傳當月份的 Excel 班表檔案。</p>
+                        <div id="clockin-report-container">
+                            <div id="clockin-empty" class="report-empty">請先選擇月份並上傳當月份的 Excel 班表檔案。</div>
+
+                            <div id="clockin-tabs-wrapper" class="d-none">
+                                <ul class="nav nav-tabs clockin-tabs mb-3" id="clockin-tabs">
+                                    <li class="nav-item">
+                                        <button class="nav-link active" type="button" data-role-tab="nurse">
+                                            護理師
+                                            <span id="nurse-count-badge" class="badge bg-primary ms-1 tab-summary-badge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" type="button" data-role-tab="caregiver">
+                                            照服員
+                                            <span id="caregiver-count-badge" class="badge bg-success ms-1 tab-summary-badge">0</span>
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div id="clockin-pane-nurse" class="clockin-pane active">
+                                    <div class="table-responsive" id="nurse-report-container"></div>
+                                </div>
+
+                                <div id="clockin-pane-caregiver" class="clockin-pane">
+                                    <div class="table-responsive" id="caregiver-report-container"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -46,7 +102,7 @@
         </div>
     </div>
     <footer class="site-footer d-print-none">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</footer>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="office-clockin.js"></script>
 </body>
