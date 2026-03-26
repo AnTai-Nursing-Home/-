@@ -168,6 +168,41 @@ body{
 .sortable-header.sort-asc::after{content:"  ▲";font-size:.72em;color:#2563eb}
 .sortable-header.sort-desc::after{content:"  ▼";font-size:.72em;color:#2563eb}
 .form-section-title{font-weight:700;color:#475569;margin-top:8px}
+.form-grid-card{
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:20px;
+  padding:16px 16px 14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.92) 100%);
+  box-shadow:0 8px 24px rgba(15,23,42,.05);
+}
+.form-grid-card .section-heading{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+  font-size:1rem;
+  font-weight:800;
+  color:#0f172a;
+}
+.form-grid-card .section-heading i{color:#2563eb}
+.cert-row{
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:16px;
+  padding:12px;
+  background:#fff;
+  box-shadow:0 6px 18px rgba(15,23,42,.04);
+}
+.cert-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cert-meta{font-size:.84rem;color:#64748b}
+.cert-empty{
+  border:1px dashed rgba(100,116,139,.45);
+  border-radius:16px;
+  padding:18px;
+  text-align:center;
+  color:#64748b;
+  background:rgba(248,250,252,.7);
+}
+.upload-preview-link{font-size:.88rem}
 .modal-content{border:none;border-radius:24px;box-shadow:0 24px 70px rgba(15,23,42,.18)}
 .modal-header,.modal-footer{border-color:rgba(15,23,42,.08)}
 .modal-header{background:linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)}
@@ -275,141 +310,197 @@ body{
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <form id="employee-form">
-            <input type="hidden" id="employee-type">
-            <div class="row g-3">
-              <div class="col-6 col-md-2">
-                <label class="form-label">排序</label>
-                <input type="number" class="form-control" id="employee-sortOrder" value="999">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">員編</label>
-                <input type="text" class="form-control" id="employee-id" required>
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">姓名</label>
-                <input type="text" class="form-control" id="employee-name" required>
-              </div>
-              <div class="col-6 col-md-2 d-none" id="employee-englishName-wrap">
-                <label class="form-label">英文姓名</label>
-                <input type="text" class="form-control" id="employee-englishName">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">性別</label>
-                <select id="employee-gender" class="form-select">
-                  <option value="">—</option>
-                  <option value="男">男</option>
-                  <option value="女">女</option>
-                </select>
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">生日</label>
-                <input type="date" class="form-control" id="employee-birthday">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label" id="employee-idCard-label">身分證字號</label>
-                <input type="text" class="form-control" id="employee-idCard" maxlength="20">
-              </div>
-              <div class="col-6 col-md-2 d-none" id="employee-arcStart-wrap">
-                <label class="form-label">ARC有效期限起日</label>
-                <input type="date" class="form-control" id="employee-arcStart">
-              </div>
-              <div class="col-6 col-md-2 d-none" id="employee-arcExpiry-wrap">
-                <label class="form-label">ARC有效期限迄日</label>
-                <input type="date" class="form-control" id="employee-arcExpiry">
-              </div>
+          
+<form id="employee-form">
+  <input type="hidden" id="employee-type">
 
-              <div class="col-6 col-md-2">
-                <label class="form-label">到職日</label>
-                <input type="date" class="form-control" id="employee-hireDate">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">職稱</label>
-                <input type="text" class="form-control" id="employee-title" placeholder="例：護理師/照服員/行政">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">組別</label>
-                <select id="employee-groupNo" class="form-select">
-                  <option value="">—</option>
-                  <option value="1">1 組</option>
-                  <option value="2">2 組</option>
-                </select>
-              </div>
-              <div class="col-6 col-md-4">
-                <label class="form-label">地址</label>
-                <input type="text" class="form-control" id="employee-address">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">手機</label>
-                <input type="text" class="form-control" id="employee-phone">
-              </div>
-              <div class="col-6 col-md-2">
-                <label class="form-label">日間電話</label>
-                <input type="text" class="form-control" id="employee-daytimePhone">
-              </div>
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="form-grid-card">
+        <div class="section-heading"><i class="fa-solid fa-id-card"></i><span>基本資料</span></div>
+        <div class="row g-3">
+          <div class="col-6 col-md-2">
+            <label class="form-label">排序</label>
+            <input type="number" class="form-control" id="employee-sortOrder" value="999">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">員編</label>
+            <input type="text" class="form-control" id="employee-id" required>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">姓名</label>
+            <input type="text" class="form-control" id="employee-name" required>
+          </div>
+          <div class="col-6 col-md-2 d-none" id="employee-englishName-wrap">
+            <label class="form-label">英文姓名</label>
+            <input type="text" class="form-control" id="employee-englishName">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">性別</label>
+            <select id="employee-gender" class="form-select">
+              <option value="">—</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">生日</label>
+            <input type="date" class="form-control" id="employee-birthday">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label" id="employee-idCard-label">身分證字號</label>
+            <input type="text" class="form-control" id="employee-idCard" maxlength="20">
+          </div>
+          <div class="col-6 col-md-2 d-none" id="employee-arcStart-wrap">
+            <label class="form-label">承接日期</label>
+            <input type="date" class="form-control" id="employee-arcStart">
+          </div>
+          <div class="col-6 col-md-2 d-none" id="employee-renewalDate-wrap">
+            <label class="form-label">續聘日期</label>
+            <input type="date" class="form-control" id="employee-renewalDate">
+          </div>
+          <div class="col-6 col-md-2 d-none" id="employee-arcExpiry-wrap">
+            <label class="form-label">ARC有效期限迄日</label>
+            <input type="date" class="form-control" id="employee-arcExpiry">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">到職日</label>
+            <input type="date" class="form-control" id="employee-hireDate">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">職稱</label>
+            <input type="text" class="form-control" id="employee-title" placeholder="例：護理師/照服員/行政">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">組別</label>
+            <select id="employee-groupNo" class="form-select">
+              <option value="">—</option>
+              <option value="1">1 組</option>
+              <option value="2">2 組</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3 d-none" id="employee-nationality-wrap">
+            <label class="form-label">國籍</label>
+            <select id="employee-nationality" class="form-select">
+              <option value="">—</option>
+              <option value="菲律賓">菲律賓</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3 d-none" id="employee-inactiveDate-wrap">
+            <label class="form-label">離職日期</label>
+            <input type="date" class="form-control" id="employee-inactiveDate">
+          </div>
+        </div>
+      </div>
+    </div>
 
-              <div class="col-6 col-md-3">
-                <label class="form-label">緊急聯絡人姓名</label>
-                <input type="text" class="form-control" id="employee-emgName">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">緊急聯絡人關係</label>
-                <input type="text" class="form-control" id="employee-emgRelation">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">緊急聯絡人電話</label>
-                <input type="text" class="form-control" id="employee-emgPhone">
-              </div>
+    <div class="col-12">
+      <div class="form-grid-card">
+        <div class="section-heading"><i class="fa-solid fa-phone"></i><span>聯絡資料</span></div>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label">地址</label>
+            <input type="text" class="form-control" id="employee-address">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">手機</label>
+            <input type="text" class="form-control" id="employee-phone">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">日間電話</label>
+            <input type="text" class="form-control" id="employee-daytimePhone">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">緊急聯絡人姓名</label>
+            <input type="text" class="form-control" id="employee-emgName">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">緊急聯絡人關係</label>
+            <input type="text" class="form-control" id="employee-emgRelation">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">緊急聯絡人電話</label>
+            <input type="text" class="form-control" id="employee-emgPhone">
+          </div>
+        </div>
+      </div>
+    </div>
 
-              <div class="col-6 col-md-3">
-                <label class="form-label">國籍</label>
-                <select id="employee-nationality" class="form-select">
-                  <option value="">—</option>
-                  <option value="菲律賓">菲律賓</option>
-                </select>
-              </div>
+    <div class="col-12">
+      <div class="form-grid-card">
+        <div class="section-heading"><i class="fa-solid fa-certificate"></i><span>證書資料</span></div>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="cert-meta">可新增多筆證書，每筆可上傳正面與反面。</div>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="add-certificate-btn">
+            <i class="fa-solid fa-plus me-1"></i>新增證書
+          </button>
+        </div>
+        <div id="certificates-list" class="d-grid gap-3"></div>
+      </div>
+    </div>
 
-              <div class="col-6 col-md-3">
-                <label class="form-label">證照種類</label>
-                <input type="text" class="form-control" id="employee-licenseType">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">發證字號</label>
-                <input type="text" class="form-control" id="employee-licenseNumber">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">換證日期</label>
-                <input type="date" class="form-control" id="employee-licenseRenewDate">
-              </div>
+    <div class="col-12">
+      <div class="form-grid-card">
+        <div class="section-heading"><i class="fa-solid fa-user-graduate"></i><span>其他資料</span></div>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <label class="form-label">換證日期</label>
+            <input type="date" class="form-control" id="employee-licenseRenewDate">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label">長照證號</label>
+            <input type="text" class="form-control" id="employee-longtermCertNumber">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label">長照證有效期限</label>
+            <input type="text" class="form-control" id="employee-longtermExpireDate" placeholder="例：109/10/23-115/10/22">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label">學歷</label>
+            <input type="text" class="form-control" id="employee-education">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">畢業學校</label>
+            <input type="text" class="form-control" id="employee-school">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
 
-              <div class="col-6 col-md-3">
-                <label class="form-label">長照證號</label>
-                <input type="text" class="form-control" id="employee-longtermCertNumber">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">長照證有效期限</label>
-                <input type="text" class="form-control" id="employee-longtermExpireDate" placeholder="例：109/10/23-115/10/22">
-              </div>
-
-              <div class="col-6 col-md-3">
-                <label class="form-label">學歷</label>
-                <input type="text" class="form-control" id="employee-education">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">畢業學校</label>
-                <input type="text" class="form-control" id="employee-school">
-              </div>
-
-              <div class="col-6 col-md-3 d-none" id="employee-inactiveDate-wrap">
-                <label class="form-label">離職日期</label>
-                <input type="date" class="form-control" id="employee-inactiveDate">
-              </div>
-            </div>
-          </form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
           <button type="button" id="save-employee-btn" class="btn btn-primary">儲存</button>
+        </div>
+      </div>
+    
+  <div class="modal fade" id="certificate-file-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">證書附件管理</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="certificate-file-modal-meta" class="alert alert-light border mb-3">—</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">正面檔案</label>
+              <input type="file" class="form-control" id="certificate-front-file" accept="image/*,.pdf">
+              <div class="mt-2" id="certificate-front-link-wrap"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">反面檔案</label>
+              <input type="file" class="form-control" id="certificate-back-file" accept="image/*,.pdf">
+              <div class="mt-2" id="certificate-back-link-wrap"></div>
+            </div>
+          </div>
+          <div class="form-text mt-3">上傳後會直接綁定到目前這一筆證書資料。</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
       </div>
     </div>
@@ -425,8 +516,9 @@ body{
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
-<script src="firebase-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="idle-timeout.js"></script>
   <script src="employees-admin.js"></script>
 </body>
 </html>
