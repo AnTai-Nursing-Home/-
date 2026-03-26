@@ -15,7 +15,7 @@ function buildTableHTML(tabId) {
                 ${extraHead}
                 <th>性別</th>
                 <th>生日</th>
-                ${isForeignTab ? '<th>身分證字號(ARC)</th><th>ARC有效期限起日</th><th>ARC有效期限迄日</th>' : '<th>身分證字號</th>'}
+                ${isForeignTab ? '<th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th>' : '<th>身分證字號</th>'}
                 <th>到職日</th>
                 <th>組別</th>
                 <th>職稱</th>
@@ -25,8 +25,8 @@ function buildTableHTML(tabId) {
                 <th>緊急聯絡人</th>
                 <th>關係</th>
                 <th>緊急電話</th>
-                <th>國籍</th>
-                <th>證照種類</th>
+                ${isForeignTab ? '<th>國籍</th>' : ''}
+                <th>證書摘要</th>
                 <th>發證字號</th>
                 <th>換證日期</th>
                 <th>長照證號</th>
@@ -208,6 +208,7 @@ document.addEventListener('firebase-ready', () => {
   const idCardInput = document.getElementById('employee-idCard');
   const arcStartInput = document.getElementById('employee-arcStart');
   const arcExpiryInput = document.getElementById('employee-arcExpiry');
+  const renewalDateInput = document.getElementById('employee-renewalDate');
   const hireDateInput = document.getElementById('employee-hireDate');
   const titleInput = document.getElementById('employee-title');
   const groupNoInput = document.getElementById('employee-groupNo');
@@ -218,8 +219,17 @@ document.addEventListener('firebase-ready', () => {
   const emgRelationInput = document.getElementById('employee-emgRelation');
   const emgPhoneInput = document.getElementById('employee-emgPhone');
   const nationalityInput = document.getElementById('employee-nationality');
-  const licenseTypeInput = document.getElementById('employee-licenseType');
-  const licenseNumberInput = document.getElementById('employee-licenseNumber');
+  const certificatesListEl = document.getElementById('certificates-list');
+  const addCertificateBtn = document.getElementById('add-certificate-btn');
+  const certificateFileModalEl = document.getElementById('certificate-file-modal');
+  const certificateFileModal = certificateFileModalEl ? new bootstrap.Modal(certificateFileModalEl) : null;
+  const certificateFileModalMeta = document.getElementById('certificate-file-modal-meta');
+  const certificateFrontFileInput = document.getElementById('certificate-front-file');
+  const certificateBackFileInput = document.getElementById('certificate-back-file');
+  const certificateFrontLinkWrap = document.getElementById('certificate-front-link-wrap');
+  const certificateBackLinkWrap = document.getElementById('certificate-back-link-wrap');
+  const licenseTypeInput = null;
+  const licenseNumberInput = null;
   const licenseRenewDateInput = document.getElementById('employee-licenseRenewDate');
   const longtermCertNumberInput = document.getElementById('employee-longtermCertNumber');
   const longtermExpireDateInput = document.getElementById('employee-longtermExpireDate');
@@ -376,6 +386,166 @@ document.addEventListener('firebase-ready', () => {
     return fallback;
   }
 
+
+  const CERTIFICATE_TYPE_OPTIONS = [
+    { value: '01:護理師執照', label: '01:護理師執照' },
+    { value: '02:護理師證書', label: '02:護理師證書' },
+    { value: '03:BLS', label: '03:BLS' },
+    { value: '04:勞動部聘雇許可函', label: '04:勞動部聘雇許可函' },
+  ];
+
+  let certificateItems = [];
+  let activeCertificateIndex = null;
+
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[s]));
+  }
+
+  function normalizeCertificatesFromEmployee(e = {}) {
+    const fromArray = Array.isArray(e.certificates) ? e.certificates.filter(Boolean).map(item => ({
+      type: String(item.type || '').trim(),
+      number: String(item.number || '').trim(),
+      frontUrl: String(item.frontUrl || '').trim(),
+      frontName: String(item.frontName || '').trim(),
+      backUrl: String(item.backUrl || '').trim(),
+      backName: String(item.backName || '').trim(),
+    })) : [];
+
+    if (fromArray.length) return fromArray;
+
+    const legacyType = String(e.licenseType || '').trim();
+    const legacyNo = String(e.licenseNumber || e.licenseNo || '').trim();
+    if (legacyType || legacyNo) {
+      return [{
+        type: legacyType,
+        number: legacyNo,
+        frontUrl: '',
+        frontName: '',
+        backUrl: '',
+        backName: '',
+      }];
+    }
+    return [];
+  }
+
+  function getCertificatesSummary(list = certificateItems) {
+    return (list || [])
+      .filter(item => (item.type || '').trim() || (item.number || '').trim())
+      .map(item => [item.type, item.number].filter(Boolean).join(' / '))
+      .join('；');
+  }
+
+  function renderCertificateRows() {
+    if (!certificatesListEl) return;
+    if (!certificateItems.length) {
+      certificatesListEl.innerHTML = '<div class="cert-empty">尚未新增證書，請按右上角「新增證書」。</div>';
+      return;
+    }
+    certificatesListEl.innerHTML = certificateItems.map((item, idx) => {
+      const options = ['<option value="">請選擇</option>']
+        .concat(CERTIFICATE_TYPE_OPTIONS.map(opt => `<option value="${escapeHtml(opt.value)}" ${item.type === opt.value ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`))
+        .join('');
+      const frontLabel = item.frontUrl ? `已上傳：${escapeHtml(item.frontName || '正面檔案')}` : '尚未上傳正面';
+      const backLabel = item.backUrl ? `已上傳：${escapeHtml(item.backName || '反面檔案')}` : '尚未上傳反面';
+      return `
+        <div class="cert-row" data-cert-index="${idx}">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+              <label class="form-label">證書種類</label>
+              <select class="form-select cert-type">${options}</select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">發證字號</label>
+              <input type="text" class="form-control cert-number" value="${escapeHtml(item.number)}">
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="cert-actions">
+                <button type="button" class="btn btn-outline-primary btn-sm btn-cert-files">查看/新增</button>
+                <button type="button" class="btn btn-outline-danger btn-sm btn-cert-remove">刪除</button>
+              </div>
+              <div class="cert-meta mt-2">${frontLabel}<br>${backLabel}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function resetCertificateState() {
+    certificateItems = [];
+    activeCertificateIndex = null;
+    if (certificateFrontFileInput) certificateFrontFileInput.value = '';
+    if (certificateBackFileInput) certificateBackFileInput.value = '';
+    renderCertificateRows();
+  }
+
+  function syncCertificateInputsFromDOM() {
+    if (!certificatesListEl) return;
+    certificatesListEl.querySelectorAll('.cert-row').forEach(row => {
+      const idx = Number(row.dataset.certIndex);
+      if (!certificateItems[idx]) return;
+      const typeEl = row.querySelector('.cert-type');
+      const numberEl = row.querySelector('.cert-number');
+      certificateItems[idx].type = typeEl?.value?.trim() || '';
+      certificateItems[idx].number = numberEl?.value?.trim() || '';
+    });
+  }
+
+  function refreshCertificateModalLinks() {
+    const cert = certificateItems[activeCertificateIndex] || {};
+    if (certificateFileModalMeta) {
+      certificateFileModalMeta.innerHTML = `證書種類：<strong>${escapeHtml(cert.type || '未選擇')}</strong><br>發證字號：<strong>${escapeHtml(cert.number || '未填寫')}</strong>`;
+    }
+    if (certificateFrontLinkWrap) {
+      certificateFrontLinkWrap.innerHTML = cert.frontUrl
+        ? `<a class="upload-preview-link" href="${escapeHtml(cert.frontUrl)}" target="_blank" rel="noopener">查看正面：${escapeHtml(cert.frontName || '檔案')}</a>`
+        : '<span class="text-muted">尚未上傳正面檔案</span>';
+    }
+    if (certificateBackLinkWrap) {
+      certificateBackLinkWrap.innerHTML = cert.backUrl
+        ? `<a class="upload-preview-link" href="${escapeHtml(cert.backUrl)}" target="_blank" rel="noopener">查看反面：${escapeHtml(cert.backName || '檔案')}</a>`
+        : '<span class="text-muted">尚未上傳反面檔案</span>';
+    }
+  }
+
+  async function uploadCertificateFile(which, file) {
+    if (!file) return;
+    syncCertificateInputsFromDOM();
+    const employeeId = idInput.value.trim();
+    const collection = currentEditing?.collection || typeInput.value;
+    if (!employeeId) {
+      alert('請先填寫員編，再上傳證書檔案。');
+      if (which === 'front' && certificateFrontFileInput) certificateFrontFileInput.value = '';
+      if (which === 'back' && certificateBackFileInput) certificateBackFileInput.value = '';
+      return;
+    }
+    if (!collection) {
+      alert('目前無法判定員工類別，請先選擇分頁後再操作。');
+      return;
+    }
+    const cert = certificateItems[activeCertificateIndex];
+    if (!cert) return;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `employees-certificates/${collection}/${employeeId}/${Date.now()}-${which}-${safeName}`;
+    try {
+      const ref = firebase.storage().ref(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      cert[which === 'front' ? 'frontUrl' : 'backUrl'] = url;
+      cert[which === 'front' ? 'frontName' : 'backName'] = file.name;
+      refreshCertificateModalLinks();
+      renderCertificateRows();
+    } catch (err) {
+      console.error(err);
+      alert('證書檔案上傳失敗');
+    } finally {
+      if (which === 'front' && certificateFrontFileInput) certificateFrontFileInput.value = '';
+      if (which === 'back' && certificateBackFileInput) certificateBackFileInput.value = '';
+    }
+  }
   function isForeignRow(e) {
     return pick(e, ['collection']) === 'caregivers' || pick(e, ['sourceLabel']) === '外籍照服員';
   }
@@ -400,16 +570,22 @@ document.addEventListener('firebase-ready', () => {
     const isForeign = collectionName === 'caregivers';
     const englishNameWrap = document.getElementById('employee-englishName-wrap');
     const arcStartWrap = document.getElementById('employee-arcStart-wrap');
+    const renewalDateWrap = document.getElementById('employee-renewalDate-wrap');
     const arcExpiryWrap = document.getElementById('employee-arcExpiry-wrap');
+    const nationalityWrap = document.getElementById('employee-nationality-wrap');
     const idCardLabel = document.getElementById('employee-idCard-label');
     if (englishNameWrap) englishNameWrap.classList.toggle('d-none', !isForeign);
     if (arcStartWrap) arcStartWrap.classList.toggle('d-none', !isForeign);
+    if (renewalDateWrap) renewalDateWrap.classList.toggle('d-none', !isForeign);
     if (arcExpiryWrap) arcExpiryWrap.classList.toggle('d-none', !isForeign);
+    if (nationalityWrap) nationalityWrap.classList.toggle('d-none', !isForeign);
     if (idCardLabel) idCardLabel.textContent = isForeign ? '身分證字號(ARC)' : '身分證字號';
     if (!isForeign) {
       englishNameInput.value = '';
       arcStartInput.value = '';
+      renewalDateInput.value = '';
       arcExpiryInput.value = '';
+      renewalDateInput.value = '';
       nationalityInput.value = '';
     }
   }
@@ -421,9 +597,12 @@ document.addEventListener('firebase-ready', () => {
     const sourceTd = includeSource ? `<td>${pick(e, ['sourceLabel'])}</td>` : '';
     const inactiveDateTd = includeSource ? `<td>${pick(e, ['inactiveDate'])}</td>` : '';
     const isForeign = !includeSource && isForeignRow(e);
-    const arcStartValue = pick(e, ['arcStart','arcStartDate','arcValidFrom']);
+    const handoverDateValue = pick(e, ['handoverDate','arcStart','arcStartDate','arcValidFrom']);
+    const renewalDateValue = pick(e, ['renewalDate']);
     const arcExpiryValue = pick(e, ['arcExpiry','arcExpireDate','arcValidUntil']);
     const arcExpiryClass = getArcStatusClass(arcExpiryValue);
+    const certSummary = getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || pick(e, ['licenseType']);
+    const certNumbers = (normalizeCertificatesFromEmployee(e).map(item => item.number).filter(Boolean).join('；')) || pick(e, ['licenseNumber','licenseNo']);
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
@@ -436,7 +615,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['gender'])}</td>
         <td>${pick(e, ['birthday'])}</td>
         <td>${pick(e, ['idCard','nationalId','idNumber'])}</td>
-        ${isForeign ? `<td>${arcStartValue}</td><td class="${arcExpiryClass}">${arcExpiryValue}</td>` : ''}
+        ${isForeign ? `<td>${handoverDateValue}</td><td>${renewalDateValue}</td><td class="${arcExpiryClass}">${arcExpiryValue}</td>` : ''}
         <td>${pick(e, ['hireDate'])}</td>
         <td>${pick(e, ['groupNo','group','teamGroup'])}</td>
         <td>${pick(e, ['title'])}</td>
@@ -446,9 +625,9 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyName','emgName'])}</td>
         <td>${pick(e, ['emergencyRelation','emgRelation'])}</td>
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
-        <td>${pick(e, ['nationality'])}</td>
-        <td>${pick(e, ['licenseType'])}</td>
-        <td>${pick(e, ['licenseNumber','licenseNo'])}</td>
+        ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
+        <td>${certSummary}</td>
+        <td>${certNumbers}</td>
         <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['longtermCertNumber','ltcNo'])}</td>
         <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
@@ -487,6 +666,7 @@ function loadAll() {
     currentEditing = { collection: tab.collection, docId: null };
     document.getElementById('employee-modal-title').textContent = `新增 - ${tab.label}`;
     syncForeignFieldVisibility(tab.collection);
+    resetCertificateState();
     idInput.disabled = false;
     if (inactiveWrap) inactiveWrap.classList.add('d-none');
     if (inactiveDateInput) inactiveDateInput.value = '';
@@ -523,6 +703,12 @@ function fillFormFromRow(row) {
     idInput.value = values[i++] || '';
     nameInput.value = values[i++] || '';
 
+    if (isForeign) {
+      englishNameInput.value = values[i++] || '';
+    } else {
+      englishNameInput.value = '';
+    }
+
     if (isInactive) {
       values[i++]; // 職類
       inactiveDateInput.value = toISODateForInput(values[i++] || '');
@@ -530,16 +716,11 @@ function fillFormFromRow(row) {
       inactiveDateInput.value = '';
     }
 
-    if (isForeign) {
-      englishNameInput.value = values[i++] || '';
-    } else {
-      englishNameInput.value = '';
-    }
-
     genderInput.value = values[i++] || '';
     birthdayInput.value = toISODateForInput(values[i++] || '');
     idCardInput.value = values[i++] || '';
     arcStartInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
+    renewalDateInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
     arcExpiryInput.value = isForeign ? toISODateForInput(values[i++] || '') : '';
     hireDateInput.value = toISODateForInput(values[i++] || '');
     groupNoInput.value = values[i++] || '';
@@ -550,9 +731,9 @@ function fillFormFromRow(row) {
     emgNameInput.value = values[i++] || '';
     emgRelationInput.value = values[i++] || '';
     emgPhoneInput.value = values[i++] || '';
-    nationalityInput.value = values[i++] || '';
-    licenseTypeInput.value = values[i++] || '';
-    licenseNumberInput.value = values[i++] || '';
+    nationalityInput.value = isForeign ? (values[i++] || '') : '';
+    i++; // 證書摘要（實際以 DB 為準）
+    i++; // 發證字號（實際以 DB 為準）
     licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
     longtermCertNumberInput.value = values[i++] || '';
     longtermExpireDateInput.value = values[i++] || '';
@@ -565,6 +746,18 @@ function fillFormFromRow(row) {
 
   async function handleSave() {
     const id = idInput.value.trim();
+    syncCertificateInputsFromDOM();
+    const cleanedCertificates = certificateItems
+      .map(item => ({
+        type: String(item.type || '').trim(),
+        number: String(item.number || '').trim(),
+        frontUrl: String(item.frontUrl || '').trim(),
+        frontName: String(item.frontName || '').trim(),
+        backUrl: String(item.backUrl || '').trim(),
+        backName: String(item.backName || '').trim(),
+      }))
+      .filter(item => item.type || item.number || item.frontUrl || item.backUrl);
+
     const payload = {
       sortOrder: parseInt(sortOrderInput.value) || 999,
       id,
@@ -573,6 +766,8 @@ function fillFormFromRow(row) {
       gender: genderInput.value,
       birthday: formatDateInput(birthdayInput.value.trim()),
       idCard: idCardInput.value.trim().toUpperCase(),
+      handoverDate: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcStartInput.value.trim()) : '',
+      renewalDate: (currentEditing?.collection === 'caregivers') ? formatDateInput(renewalDateInput.value.trim()) : '',
       arcStart: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcStartInput.value.trim()) : '',
       arcExpiry: (currentEditing?.collection === 'caregivers') ? formatDateInput(arcExpiryInput.value.trim()) : '',
       hireDate: formatDateInput(hireDateInput.value.trim()),
@@ -584,12 +779,12 @@ function fillFormFromRow(row) {
       emergencyName: emgNameInput.value.trim(),
       emergencyRelation: emgRelationInput.value.trim(),
       emergencyPhone: emgPhoneInput.value.trim(),
-      nationality: nationalityInput.value.trim(),
-      licenseType: licenseTypeInput.value.trim(),
-      licenseNumber: licenseNumberInput.value.trim(),
+      nationality: (currentEditing?.collection === 'caregivers') ? nationalityInput.value.trim() : '',
+      certificates: cleanedCertificates,
+      licenseType: cleanedCertificates.map(item => item.type).filter(Boolean).join('；'),
+      licenseNumber: cleanedCertificates.map(item => item.number).filter(Boolean).join('；'),
       licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
       longtermCertNumber: longtermCertNumberInput.value.trim(),
-      // 長照證效期保留原樣（可能是區間字串，例如 109/10/23-115/10/22）
       longtermExpireDate: longtermExpireDateInput.value.trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
@@ -633,6 +828,18 @@ function fillFormFromRow(row) {
         typeInput.value = collection;
         fillFormFromRow(row);
         syncForeignFieldVisibility(collection);
+        db.collection(collection).doc(id).get().then(docSnap => {
+          const data = docSnap.exists ? (docSnap.data() || {}) : {};
+          arcStartInput.value = collection === 'caregivers' ? toISODateForInput(data.handoverDate || data.arcStart || '') : '';
+          renewalDateInput.value = collection === 'caregivers' ? toISODateForInput(data.renewalDate || '') : '';
+          arcExpiryInput.value = collection === 'caregivers' ? toISODateForInput(data.arcExpiry || '') : '';
+          nationalityInput.value = collection === 'caregivers' ? (data.nationality || '') : '';
+          certificateItems = normalizeCertificatesFromEmployee(data);
+          renderCertificateRows();
+        }).catch(err => {
+          console.error(err);
+          resetCertificateState();
+        });
         document.getElementById('employee-modal-title').textContent = `編輯 - ${label}`;
         idInput.disabled = false;
         employeeModal.show();
@@ -651,6 +858,45 @@ function fillFormFromRow(row) {
 });
   });
 
+
+  if (addCertificateBtn) {
+    addCertificateBtn.addEventListener('click', () => {
+      syncCertificateInputsFromDOM();
+      certificateItems.push({ type: '', number: '', frontUrl: '', frontName: '', backUrl: '', backName: '' });
+      renderCertificateRows();
+    });
+  }
+
+  if (certificatesListEl) {
+    certificatesListEl.addEventListener('input', (e) => {
+      const row = e.target.closest('.cert-row');
+      if (!row) return;
+      const idx = Number(row.dataset.certIndex);
+      if (!certificateItems[idx]) return;
+      if (e.target.classList.contains('cert-type')) certificateItems[idx].type = e.target.value.trim();
+      if (e.target.classList.contains('cert-number')) certificateItems[idx].number = e.target.value.trim();
+    });
+
+    certificatesListEl.addEventListener('click', (e) => {
+      const row = e.target.closest('.cert-row');
+      if (!row) return;
+      const idx = Number(row.dataset.certIndex);
+      if (e.target.classList.contains('btn-cert-remove')) {
+        certificateItems.splice(idx, 1);
+        renderCertificateRows();
+        return;
+      }
+      if (e.target.classList.contains('btn-cert-files')) {
+        syncCertificateInputsFromDOM();
+        activeCertificateIndex = idx;
+        refreshCertificateModalLinks();
+        certificateFileModal?.show();
+      }
+    });
+  }
+
+  certificateFrontFileInput?.addEventListener('change', (e) => uploadCertificateFile('front', e.target.files?.[0]));
+  certificateBackFileInput?.addEventListener('change', (e) => uploadCertificateFile('back', e.target.files?.[0]));
   // 排序 header
   document.querySelectorAll('.sortable-header').forEach(h => {
     h.addEventListener('click', () => {
@@ -724,7 +970,9 @@ function fillFormFromRow(row) {
           "身分證字號": "idCard",
           "身分證字號(ARC)": "idCard",
           "英文姓名": "englishName",
-          "ARC有效期限起日": "arcStart",
+          "ARC有效期限起日": "handoverDate",
+          "承接日期": "handoverDate",
+          "續聘日期": "renewalDate",
           "ARC有效期限迄日": "arcExpiry",
           "ARC有效期限": "arcExpiry",
           "身份證字號": "idCard",
@@ -795,7 +1043,7 @@ function fillFormFromRow(row) {
             let v = row[cn];
 
             // 日期欄：支援 Excel serial / Date / 字串（yyyy/mm/dd、民國、yyyy-mm-dd）
-            if (["birthday", "hireDate", "licenseRenewDate", "arcStart", "arcExpiry"].includes(key)) {
+            if (["birthday", "hireDate", "licenseRenewDate", "handoverDate", "renewalDate", "arcStart", "arcExpiry"].includes(key)) {
               v = normalizeDateMaybe(v);
             }
 
@@ -808,6 +1056,7 @@ function fillFormFromRow(row) {
           // 補齊必填
           payload.id = id;
           if (!payload.sortOrder) payload.sortOrder = 999;
+          if (payload.handoverDate && !payload.arcStart) payload.arcStart = payload.handoverDate;
 
           batch.set(ref, payload, { merge: true });
         });
@@ -850,7 +1099,7 @@ async function generateReportHTML() {
           <td>${e.gender ?? ''}</td>
           <td>${e.birthday ?? ''}</td>
           <td>${e.idCard ?? ''}</td>
-          ${tab.id === 'foreignCaregivers' ? `<td>${e.arcStart ?? ''}</td><td class="${getArcStatusClass(e.arcExpiry ?? '')}">${e.arcExpiry ?? ''}</td>` : ''}
+          ${tab.id === 'foreignCaregivers' ? `<td>${e.handoverDate ?? e.arcStart ?? ''}</td><td>${e.renewalDate ?? ''}</td><td class="${getArcStatusClass(e.arcExpiry ?? '')}">${e.arcExpiry ?? ''}</td>` : ''}
           <td>${e.hireDate ?? ''}</td>
           <td>${e.groupNo ?? ''}</td>
           <td>${e.title ?? ''}</td>
@@ -860,8 +1109,8 @@ async function generateReportHTML() {
           <td>${e.emergencyName ?? ''}</td>
           <td>${e.emergencyRelation ?? ''}</td>
           <td>${e.emergencyPhone ?? ''}</td>
-          <td>${e.nationality ?? ''}</td>
-          <td>${e.licenseType ?? ''}</td>
+          ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
+          <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
           <td>${e.licenseNumber ?? ''}</td>
           <td>${e.licenseRenewDate ?? ''}</td>
           <td>${e.longtermCertNumber ?? ''}</td>
@@ -886,11 +1135,9 @@ async function generateReportHTML() {
       <h1>安泰醫療社團法人附設安泰護理之家</h1>
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
-        <th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>ARC有效期限起日</th><th>ARC有效期限迄日</th>
-        <th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th>
-        <th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th>
-        <th>證照種類</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th>
-        <th>學歷</th><th>畢業學校</th>
+        ${tab.id === 'foreignCaregivers'
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>發證字號</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -965,10 +1212,10 @@ async function generateReportHTML() {
       }
 
       const headersBase = (tab.id === 'foreignCaregivers')
-        ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','ARC有效期限起日','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校']
+        ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','承接日期','續聘日期','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
+           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證照種類','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'];
+           '緊急聯絡人','關係','緊急電話','證書摘要','發證字號','換證日期','長照證號','長照證效期','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
@@ -979,7 +1226,7 @@ async function generateReportHTML() {
           getVal(e, ['gender']),
           getVal(e, ['birthday']),
           getVal(e, ['idCard','nationalId','idNumber']),
-          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['arcStart','arcStartDate','arcValidFrom']), getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil'])] : []),
+          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['handoverDate','arcStart','arcStartDate','arcValidFrom']), getVal(e, ['renewalDate']), getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil'])] : []),
           getVal(e, ['hireDate']),
           getVal(e, ['groupNo','group','teamGroup']),
           getVal(e, ['title']),
@@ -989,8 +1236,8 @@ async function generateReportHTML() {
           getVal(e, ['emergencyName','emgName','emergencyContact']),
           getVal(e, ['emergencyRelation','emgRelation']),
           getVal(e, ['emergencyPhone','emgPhone']),
-          getVal(e, ['nationality']),
-          getVal(e, ['licenseType']),
+          ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
+          getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
           getVal(e, ['licenseNumber','licenseNo']),
           getVal(e, ['licenseRenewDate']),
           getVal(e, ['longtermCertNumber','ltcNo']),
@@ -1166,8 +1413,7 @@ async function generateReportHTML() {
         { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 16 },
+        { header: '證書摘要', key: 'licenseType', width: 24 },
         { header: '發證字號', key: 'licenseNumber', width: 20 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '長照證號', key: 'longtermCertNumber', width: 20 },
@@ -1183,7 +1429,9 @@ async function generateReportHTML() {
         { header: '性別', key: 'gender', width: 6 },
         { header: '生日', key: 'birthday', width: 12 },
         { header: '身分證字號(ARC)', key: 'idCard', width: 16 },
-        { header: 'ARC有效期限', key: 'arcExpiry', width: 14 },
+        { header: '承接日期', key: 'handoverDate', width: 12 },
+        { header: '續聘日期', key: 'renewalDate', width: 12 },
+        { header: 'ARC有效期限迄日', key: 'arcExpiry', width: 14 },
         { header: '到職日', key: 'hireDate', width: 12 },
         { header: '組別', key: 'groupNo', width: 8 },
         { header: '職稱', key: 'title', width: 12 },
@@ -1193,8 +1441,7 @@ async function generateReportHTML() {
         { header: '緊急聯絡人', key: 'emergencyName', width: 14 },
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
-        { header: '國籍', key: 'nationality', width: 10 },
-        { header: '證照種類', key: 'licenseType', width: 16 },
+        { header: '證書摘要', key: 'licenseType', width: 24 },
         { header: '發證字號', key: 'licenseNumber', width: 20 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '長照證號', key: 'longtermCertNumber', width: 20 },
@@ -1312,6 +1559,8 @@ async function generateReportHTML() {
             gender: getVal(e, ['gender']),
             birthday: getVal(e, ['birthday']),
             idCard: getVal(e, ['idCard','nationalId','idNumber']),
+            handoverDate: isForeignSheet ? getVal(e, ['handoverDate','arcStart','arcStartDate','arcValidFrom']) : '',
+            renewalDate: isForeignSheet ? getVal(e, ['renewalDate']) : '',
             arcExpiry: isForeignSheet ? getVal(e, ['arcExpiry','arcExpireDate','arcValidUntil']) : '',
             hireDate: getVal(e, ['hireDate']),
             groupNo: getVal(e, ['groupNo','group','teamGroup']),
@@ -1323,7 +1572,7 @@ async function generateReportHTML() {
             emergencyRelation: getVal(e, ['emergencyRelation','emgRelation']),
             emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
             nationality: getVal(e, ['nationality']),
-            licenseType: getVal(e, ['licenseType']),
+            licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
             licenseNumber: getVal(e, ['licenseNumber','licenseNo']),
             licenseRenewDate: getVal(e, ['licenseRenewDate']),
             longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
@@ -1474,3 +1723,7 @@ async function generateReportHTML() {
   });
 });
 });
+
+  certificateFileModalEl?.addEventListener('hidden.bs.modal', () => {
+    activeCertificateIndex = null;
+  });
