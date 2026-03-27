@@ -50,7 +50,10 @@
     copyList: $('copyList'),
     copyAllBtn: $('copyAllBtn'),
     copySourceHint: $('copySourceHint'),
-    toast: $('toast'),
+    noticeModal: $('noticeModal'),
+    noticeTitle: $('noticeTitle'),
+    noticeMessage: $('noticeMessage'),
+    noticeOkBtn: $('noticeOkBtn'),
     tabSelfPay: $('tabSelfPay'),
     tabSelfBring: $('tabSelfBring'),
     lastUpdatedText: $('lastUpdatedText'),
@@ -59,12 +62,18 @@
     countSelfBringText: $('countSelfBringText'),
   };
 
-  function showToast(message, ms = 2600) {
-    if (!els.toast) return;
-    els.toast.textContent = message;
-    els.toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => els.toast.classList.remove('show'), ms);
+  function showToast(message, title = '通知') {
+    if (!els.noticeModal || !els.noticeMessage || !els.noticeTitle) {
+      window.alert(message);
+      return;
+    }
+    els.noticeTitle.textContent = title;
+    els.noticeMessage.textContent = message;
+    els.noticeModal.classList.add('show');
+  }
+
+  function closeNoticeModal() {
+    els.noticeModal?.classList.remove('show');
   }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -534,6 +543,11 @@
         if (e.target === modal) closeModal(id);
       });
     });
+
+    els.noticeOkBtn?.addEventListener('click', closeNoticeModal);
+    els.noticeModal?.addEventListener('click', (e) => {
+      if (e.target === els.noticeModal) closeNoticeModal();
+    });
   }
 
   function syncSelectedResident() {
@@ -782,7 +796,7 @@
     } catch (err) {
       console.error(err);
       if (els.loginUserText) els.loginUserText.textContent = '登入者：讀取失敗';
-      showToast(err.message || '初始化失敗');
+      showToast(err.message || '初始化失敗', '系統訊息');
     }
   }
 
