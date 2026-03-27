@@ -394,8 +394,10 @@ document.addEventListener('firebase-ready', () => {
   const CERTIFICATE_TYPE_OPTIONS = [
     { value: '01:護理師執照', label: '01:護理師執照' },
     { value: '02:護理師證書', label: '02:護理師證書' },
-    { value: '03:BLS', label: '03:BLS' },
-    { value: '04:勞動部聘雇許可函', label: '04:勞動部聘雇許可函' },
+    { value: '03:社工師證書', label: '03:社工師證書' },
+    { value: '04:社工師執照', label: '04:社工師執照' },
+    { value: '05:BLS', label: '05:BLS' },
+    { value: '06:勞動部聘雇許可函', label: '06:勞動部聘雇許可函' },
   ];
 
   const BLS_ORGANIZER_OPTIONS = [
@@ -416,9 +418,13 @@ document.addEventListener('firebase-ready', () => {
     return String(type || '').trim() === '01:護理師執照';
   }
 
+  function isSocialWorkerLicenseType(type = '') {
+    return String(type || '').trim() === '04:社工師執照';
+  }
+
   function isBLSType(type = '') {
     const value = String(type || '').trim().toUpperCase();
-    return value === '03:BLS' || value === '04:BLS' || value === '04BLS' || value === 'BLS';
+    return value === '03:BLS' || value === '04:BLS' || value === '04BLS' || value === '05:BLS' || value === '05BLS' || value === 'BLS';
   }
 
   function getCertificateNumberLabel(type = '') {
@@ -427,7 +433,7 @@ document.addEventListener('firebase-ready', () => {
 
   function buildCertificateExtraFields(item = {}) {
     const type = String(item.type || '').trim();
-    if (isNurseLicenseType(type)) {
+    if (isNurseLicenseType(type) || isSocialWorkerLicenseType(type)) {
       return `
         <div class="col-12 col-md-4">
           <label class="form-label">執照應更新日期</label>
@@ -881,7 +887,7 @@ function fillFormFromRow(row) {
         backName: String(item.backName || '').trim(),
       }))
       .map(item => {
-        if (isNurseLicenseType(item.type)) {
+        if (isNurseLicenseType(item.type) || isSocialWorkerLicenseType(item.type)) {
           item.organizer = '';
           item.validDate = '';
         } else if (isBLSType(item.type)) {
@@ -1035,7 +1041,7 @@ function fillFormFromRow(row) {
         const prevType = certificateItems[idx].type || '';
         const nextType = e.target.value.trim();
         certificateItems[idx].type = nextType;
-        if (isNurseLicenseType(nextType)) {
+        if (isNurseLicenseType(nextType) || isSocialWorkerLicenseType(nextType)) {
           certificateItems[idx].organizer = '';
           certificateItems[idx].validDate = '';
         } else if (isBLSType(nextType)) {
