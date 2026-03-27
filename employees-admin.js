@@ -289,9 +289,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 28;
-    if (tabId === 'foreignCaregivers') return 27;
-    return 24;
+    if (tabId === 'inactiveEmployees') return 27;
+    if (tabId === 'foreignCaregivers') return 26;
+    return 23;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -601,7 +601,6 @@ document.addEventListener('firebase-ready', () => {
     const arcExpiryValue = pick(e, ['arcExpiry','arcExpireDate','arcValidUntil']);
     const arcExpiryClass = getArcStatusClass(arcExpiryValue);
     const certSummary = getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || pick(e, ['licenseType']);
-    const certNumbers = (normalizeCertificatesFromEmployee(e).map(item => item.number).filter(Boolean).join('；')) || pick(e, ['licenseNumber','licenseNo']);
 
     return `
       <tr data-id="${pick(e, ['docId','id'])}" data-collection="${pick(e, ['collection'])}">
@@ -626,7 +625,6 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
         <td>${certSummary}</td>
-        <td>${certNumbers}</td>
         <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['longtermCertNumber','ltcNo'])}</td>
         <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
