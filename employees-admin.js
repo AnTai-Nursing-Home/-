@@ -58,6 +58,7 @@ styleFix.textContent = `
   .table .sticky-col-1{left:0;min-width:64px;}
   .table .sticky-col-2{left:64px;min-width:104px;}
   .table .sticky-col-3{left:168px;min-width:132px;}
+  .btn-cert-summary{min-width:72px;}
 `;
 document.head.appendChild(styleFix);
 
@@ -227,6 +228,10 @@ document.addEventListener('firebase-ready', () => {
   const certificateBackFileInput = document.getElementById('certificate-back-file');
   const certificateFrontLinkWrap = document.getElementById('certificate-front-link-wrap');
   const certificateBackLinkWrap = document.getElementById('certificate-back-link-wrap');
+  const certificateSummaryModalEl = document.getElementById('certificate-summary-modal');
+  const certificateSummaryModal = certificateSummaryModalEl ? new bootstrap.Modal(certificateSummaryModalEl) : null;
+  const certificateSummaryModalMeta = document.getElementById('certificate-summary-modal-meta');
+  const certificateSummaryModalList = document.getElementById('certificate-summary-modal-list');
   const licenseTypeInput = null;
   const licenseNumberInput = null;
   const licenseRenewDateInput = document.getElementById('employee-licenseRenewDate');
@@ -436,6 +441,45 @@ document.addEventListener('firebase-ready', () => {
       .join('；');
   }
 
+  function renderCertificateSummaryModal(employee = {}) {
+    const certs = normalizeCertificatesFromEmployee(employee).filter(item =>
+      (item.type || '').trim() || (item.number || '').trim() || (item.frontUrl || '').trim() || (item.backUrl || '').trim()
+    );
+
+    if (certificateSummaryModalMeta) {
+      certificateSummaryModalMeta.innerHTML =
+        `員編：<strong>${escapeHtml(employee.id || employee.docId || '—')}</strong><br>` +
+        `姓名：<strong>${escapeHtml(employee.name || '—')}</strong>`;
+    }
+
+    if (certificateSummaryModalList) {
+      if (!certs.length) {
+        certificateSummaryModalList.innerHTML = '<div class="text-muted">此員工目前沒有證書資料。</div>';
+      } else {
+        certificateSummaryModalList.innerHTML = certs.map((item, idx) => {
+          const title = [item.type, item.number].filter(Boolean).join(' / ') || `第 ${idx + 1} 筆`;
+          const front = item.frontUrl
+            ? `<a class="upload-preview-link" href="${escapeHtml(item.frontUrl)}" target="_blank" rel="noopener">查看正面${item.frontName ? `：${escapeHtml(item.frontName)}` : ''}</a>`
+            : '<span class="text-muted">未上傳正面</span>';
+          const back = item.backUrl
+            ? `<a class="upload-preview-link" href="${escapeHtml(item.backUrl)}" target="_blank" rel="noopener">查看反面${item.backName ? `：${escapeHtml(item.backName)}` : ''}</a>`
+            : '<span class="text-muted">未上傳反面</span>';
+          return `
+            <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+              <div class="fw-semibold mb-2">${idx + 1}. ${title ? escapeHtml(title) : '—'}</div>
+              <div class="small d-flex flex-column gap-2">
+                ${front}
+                ${back}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    if (certificateSummaryModal) certificateSummaryModal.show();
+  }
+
   function renderCertificateRows() {
     if (!certificatesListEl) return;
     if (!certificateItems.length) {
@@ -624,7 +668,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyRelation','emgRelation'])}</td>
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
-        <td>${certSummary}</td>
+        <td>${certSummary ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
         <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['longtermCertNumber','ltcNo'])}</td>
         <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
@@ -839,6 +883,15 @@ function fillFormFromRow(row) {
         document.getElementById('employee-modal-title').textContent = `編輯 - ${label}`;
         idInput.disabled = false;
         employeeModal.show();
+      } else if (e.target.classList.contains('btn-cert-summary')) {
+        const collection = def.collection || row.dataset.collection;
+        db.collection(collection).doc(id).get().then(docSnap => {
+          const data = docSnap.exists ? (docSnap.data() || {}) : {};
+          renderCertificateSummaryModal({ docId: id, id: data.id || id, name: data.name || '', ...data });
+        }).catch(err => {
+          console.error(err);
+          alert('讀取證書摘要失敗');
+        });
       } else if (e.target.classList.contains('btn-del')) {
         const collection = def.collection || row.dataset.collection;
         if (def.id === 'inactiveEmployees') {
