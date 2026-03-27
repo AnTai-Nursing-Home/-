@@ -466,7 +466,7 @@ document.addEventListener('firebase-ready', () => {
             : '<span class="text-muted">未上傳反面</span>';
           return `
             <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
-              <div class="fw-semibold mb-2">${idx + 1}. ${title ? escapeHtml(title) : '—'}</div>
+              <div class="fw-semibold mb-2">${escapeHtml(String(idx + 1))}. ${escapeHtml(title)}</div>
               <div class="small d-flex flex-column gap-2">
                 ${front}
                 ${back}
@@ -1881,8 +1881,9 @@ async function generateReportHTML() {
   loadCurrentUserForEmployees().then(() => {
     loadAll();
   });
+});
+});
 
   certificateFileModalEl?.addEventListener('hidden.bs.modal', () => {
     activeCertificateIndex = null;
   });
-});
