@@ -1877,13 +1877,13 @@ async function generateReportHTML() {
     });
   }
 
+  certificateFileModalEl?.addEventListener('hidden.bs.modal', () => {
+    activeCertificateIndex = null;
+  });
+
   // 初始載入
   loadCurrentUserForEmployees().then(() => {
     loadAll();
   });
 });
 });
-
-  certificateFileModalEl?.addEventListener('hidden.bs.modal', () => {
-    activeCertificateIndex = null;
-  });
