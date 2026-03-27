@@ -10,6 +10,7 @@
       --bg:#f6f8fb;--card:#ffffff;--line:#dfe5ef;--text:#1f2937;--muted:#6b7280;
       --primary:#3b82f6;--primary-2:#2563eb;--danger:#dc2626;--ok:#16a34a;
       --shadow:0 8px 24px rgba(15,23,42,.08);--radius:18px;
+      --warm:#f59e0b;--warm-bg:#fff7e6;--warm-line:#f3d08a;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:"Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,9 +35,10 @@
     .months{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .month-btn{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid var(--line);cursor:pointer}
     .month-btn:hover{border-color:#93c5fd;background:#eff6ff}
+    .month-btn.active{border-color:#3b82f6;background:#eff6ff;box-shadow:inset 0 0 0 1px rgba(59,130,246,.15)}
     .month-btn .count{font-size:12px;color:var(--muted)}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap}
-    .toolbar > *{flex:1 1 180px}
+    .toolbar > *{flex:1 1 160px}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
     table{width:100%;border-collapse:collapse;background:#fff}
     th,td{padding:12px 14px;border-bottom:1px solid #edf2f7;text-align:left;white-space:nowrap}
@@ -56,11 +58,20 @@
     .toast{position:fixed;right:18px;bottom:18px;background:#111827;color:#fff;padding:12px 14px;border-radius:14px;box-shadow:var(--shadow);display:none;z-index:1200;max-width:min(420px,calc(100vw - 36px))}
     .toast.show{display:block}
     .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}
+    .pill.pay{background:#eff6ff;color:#1d4ed8}
+    .pill.bring{background:#fff7ed;color:#c2410c}
     .split{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
     .copy-list{max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:14px}
     .copy-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #edf2f7;gap:10px}
     .copy-item:last-child{border-bottom:none}
     .muted{color:var(--muted)}
+    .tabbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .tab-btn{border:1px solid var(--line);background:#f8fafc;color:#475569;padding:10px 16px;border-radius:999px;font-weight:700}
+    .tab-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+    .update-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--warm-bg);border:1px solid var(--warm-line);color:#92400e;border-radius:16px;padding:12px 14px;margin-bottom:14px}
+    .update-banner i{font-size:16px}
+    .count-summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .count-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#f8fafc;border:1px solid var(--line);font-size:13px;font-weight:700;color:#334155}
     @media (max-width: 980px){.layout,.split,.grid{grid-template-columns:1fr}.months{grid-template-columns:1fr}.app{padding:14px}.title-wrap h1{font-size:26px}}
   </style>
 </head>
@@ -107,12 +118,29 @@
           </div>
         </div>
         <div class="panel-body">
+          <div class="update-banner" id="lastUpdatedBanner">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span id="lastUpdatedText">資料最後更新時間：尚未選擇月份</span>
+          </div>
+
+          <div class="tabbar">
+            <button type="button" class="tab-btn active" id="tabSelfPay">自費</button>
+            <button type="button" class="tab-btn" id="tabSelfBring">自帶</button>
+          </div>
+
+          <div class="count-summary">
+            <div class="count-chip" id="countAllText">本月總筆數：0</div>
+            <div class="count-chip" id="countSelfPayText">自費：0</div>
+            <div class="count-chip" id="countSelfBringText">自帶：0</div>
+          </div>
+
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th style="width:120px">床號</th>
                   <th style="width:180px">住民姓名</th>
+                  <th style="width:120px">分類</th>
                   <th style="width:160px">加餐飲食</th>
                   <th>建立者</th>
                   <th style="width:180px">建立時間</th>
@@ -120,7 +148,7 @@
                 </tr>
               </thead>
               <tbody id="entriesTbody">
-                <tr><td colspan="6" class="empty">請先從左邊選一個月份</td></tr>
+                <tr><td colspan="7" class="empty">請先從左邊選一個月份</td></tr>
               </tbody>
             </table>
           </div>
@@ -150,7 +178,15 @@
             <label for="residentNameInput">住民姓名</label>
             <input id="residentNameInput" readonly />
           </div>
-          <div class="field full">
+          <div class="field">
+            <label for="mealSourceSelect">分類</label>
+            <select id="mealSourceSelect">
+              <option value="">請選擇</option>
+              <option value="selfPay">自費</option>
+              <option value="selfBring">自帶</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="mealTypeSelect">加餐飲食</label>
             <select id="mealTypeSelect">
               <option value="">請選擇</option>
@@ -199,9 +235,9 @@
         <div class="card" style="box-shadow:none">
           <div class="panel-head"><h3>快速操作</h3></div>
           <div class="panel-body">
-            <p class="muted">你可以選單筆複製，或把整個月份全部複製到目前月份。</p>
+            <p class="muted">你可以選單筆複製，或把整個月份全部複製到目前月份。若住民＋分類已存在，系統會自動跳過。</p>
             <button type="button" class="primary" id="copyAllBtn" style="width:100%">整個月份全複製</button>
-            <div class="hint" style="margin-top:10px">若目標月份已經有相同住民，會自動跳過避免重複。</div>
+            <div class="hint" style="margin-top:10px">複製後會一併更新本月份的最後更新時間與更新者。</div>
           </div>
         </div>
       </div>
