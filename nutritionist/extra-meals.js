@@ -1,10 +1,13 @@
-
 (function () {
   'use strict';
 
   const COLLECTION_RESIDENTS = 'residents';
   const COLLECTION_EXTRA_MEALS = 'extraMeals';
   const MEAL_TYPES = ['牛奶', '普通餐', '剁碎飯', '剁碎粥', '攪打餐'];
+  const MEAL_SOURCE_LABELS = {
+    selfPay: '自費',
+    selfBring: '自帶',
+  };
 
   const state = {
     currentYear: new Date().getFullYear(),
@@ -14,6 +17,12 @@
     residents: [],
     sourceEntries: [],
     user: null,
+    currentTab: 'selfPay',
+    currentMeta: {
+      updatedAt: null,
+      updatedById: '',
+      updatedByName: '',
+    },
   };
 
   const $ = (id) => document.getElementById(id);
@@ -32,6 +41,7 @@
     residentSelect: $('residentSelect'),
     bedNumberInput: $('bedNumberInput'),
     residentNameInput: $('residentNameInput'),
+    mealSourceSelect: $('mealSourceSelect'),
     mealTypeSelect: $('mealTypeSelect'),
     saveEntryBtn: $('saveEntryBtn'),
     copyModal: $('copyModal'),
@@ -41,6 +51,12 @@
     copyAllBtn: $('copyAllBtn'),
     copySourceHint: $('copySourceHint'),
     toast: $('toast'),
+    tabSelfPay: $('tabSelfPay'),
+    tabSelfBring: $('tabSelfBring'),
+    lastUpdatedText: $('lastUpdatedText'),
+    countAllText: $('countAllText'),
+    countSelfPayText: $('countSelfPayText'),
+    countSelfBringText: $('countSelfBringText'),
   };
 
   function showToast(message, ms = 2600) {
@@ -73,6 +89,14 @@
     } catch {
       return '';
     }
+  }
+
+  function getMealSourceLabel(value) {
+    return MEAL_SOURCE_LABELS[value] || '未分類';
+  }
+
+  function getMealSourceClass(value) {
+    return value === 'selfBring' ? 'bring' : 'pay';
   }
 
   function sleep(ms) {
@@ -212,6 +236,67 @@
     return 0;
   }
 
+  function getEntryKey(entry) {
+    return `${entry.residentId || ''}__${entry.mealSource || 'selfPay'}`;
+  }
+
+  function getCurrentSourceForNewEntry() {
+    return state.currentTab === 'selfBring' ? 'selfBring' : 'selfPay';
+  }
+
+  function normalizeEntry(entry) {
+    const normalized = {
+      ...entry,
+      mealSource: entry?.mealSource || 'selfPay',
+    };
+    return normalized;
+  }
+
+  function getCounts(entries) {
+    const all = Array.isArray(entries) ? entries.length : 0;
+    const selfPay = (entries || []).filter(item => (item.mealSource || 'selfPay') === 'selfPay').length;
+    const selfBring = (entries || []).filter(item => (item.mealSource || 'selfPay') === 'selfBring').length;
+    return { all, selfPay, selfBring };
+  }
+
+  function updateCountSummary() {
+    const counts = getCounts(state.currentEntries);
+    if (els.countAllText) els.countAllText.textContent = `本月總筆數：${counts.all}`;
+    if (els.countSelfPayText) els.countSelfPayText.textContent = `自費：${counts.selfPay}`;
+    if (els.countSelfBringText) els.countSelfBringText.textContent = `自帶：${counts.selfBring}`;
+  }
+
+  function updateLastUpdatedBanner() {
+    if (!els.lastUpdatedText) return;
+
+    if (!state.currentDocId) {
+      els.lastUpdatedText.textContent = '資料最後更新時間：尚未選擇月份';
+      return;
+    }
+
+    const updatedAt = state.currentMeta.updatedAt;
+    const updatedByName = state.currentMeta.updatedByName || '';
+    if (!updatedAt) {
+      els.lastUpdatedText.textContent = '資料最後更新時間：目前尚無更新紀錄';
+      return;
+    }
+
+    const byText = updatedByName ? `（由${updatedByName}更新）` : '';
+    els.lastUpdatedText.textContent = `資料最後更新時間：${formatDateTime(updatedAt)}${byText}`;
+  }
+
+  function updateTabButtons() {
+    if (els.tabSelfPay) els.tabSelfPay.classList.toggle('active', state.currentTab === 'selfPay');
+    if (els.tabSelfBring) els.tabSelfBring.classList.toggle('active', state.currentTab === 'selfBring');
+  }
+
+  function updateActiveMonthButton() {
+    document.querySelectorAll('.month-btn').forEach(btn => btn.classList.remove('active'));
+    if (!state.currentMonth) return;
+    const active = document.querySelector(`.month-btn[data-month="${state.currentMonth}"]`);
+    if (active) active.classList.add('active');
+  }
+
   function setupYearControls() {
     if (!els.yearSelect) return;
     els.yearSelect.innerHTML = '';
@@ -233,6 +318,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'month-btn';
+      btn.setAttribute('data-month', String(month));
       btn.innerHTML = `<span>${month} 月</span><span class="count" id="month-count-${month}">載入中...</span>`;
       btn.addEventListener('click', () => openMonth(state.currentYear, month));
       frag.appendChild(btn);
@@ -242,6 +328,7 @@
     els.monthsGrid.appendChild(frag);
 
     refreshMonthCounts();
+    updateActiveMonthButton();
   }
 
   async function refreshMonthCounts() {
@@ -254,8 +341,9 @@
 
         try {
           const snap = await db.collection(COLLECTION_EXTRA_MEALS).doc(monthDocId(state.currentYear, month)).get();
-          const entries = snap.exists ? (snap.data().entries || []) : [];
-          countEl.textContent = `${entries.length} 人`;
+          const entries = snap.exists ? ((snap.data().entries || []).map(normalizeEntry)) : [];
+          const counts = getCounts(entries);
+          countEl.textContent = `共 ${counts.all}｜自費 ${counts.selfPay}｜自帶 ${counts.selfBring}`;
         } catch (err) {
           console.error(err);
           countEl.textContent = '讀取失敗';
@@ -312,14 +400,15 @@
       els.currentMonthTitle.textContent = `${formatMonthLabel(year, month)} 加餐名單`;
     }
     if (els.currentMonthSubtitle) {
-      els.currentMonthSubtitle.textContent = '會顯示該月份所有有加餐的住民';
+      els.currentMonthSubtitle.textContent = `目前顯示「${getMealSourceLabel(state.currentTab)}」分頁資料`;
     }
     if (els.addEntryBtn) els.addEntryBtn.disabled = false;
     if (els.copyBtn) els.copyBtn.disabled = false;
     if (els.entriesTbody) {
-      els.entriesTbody.innerHTML = `<tr><td colspan="6" class="empty">讀取中...</td></tr>`;
+      els.entriesTbody.innerHTML = `<tr><td colspan="7" class="empty">讀取中...</td></tr>`;
     }
 
+    updateActiveMonthButton();
     await loadMonthEntries();
   }
 
@@ -327,43 +416,69 @@
     const db = await getDb();
     const docRef = db.collection(COLLECTION_EXTRA_MEALS).doc(state.currentDocId);
     const snap = await docRef.get();
-    const data = snap.exists ? snap.data() : {};
+    const data = snap.exists ? (snap.data() || {}) : {};
 
-    state.currentEntries = Array.isArray(data.entries) ? data.entries.slice() : [];
+    state.currentEntries = Array.isArray(data.entries) ? data.entries.map(normalizeEntry) : [];
     state.currentEntries.sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
+    state.currentMeta = {
+      updatedAt: data.updatedAt || null,
+      updatedById: data.updatedById || '',
+      updatedByName: data.updatedByName || '',
+    };
 
     renderEntriesTable();
+    updateLastUpdatedBanner();
+    updateCountSummary();
     refreshMonthCounts();
   }
 
   function renderEntriesTable() {
     if (!els.entriesTbody) return;
 
-    if (!state.currentEntries.length) {
-      els.entriesTbody.innerHTML = `<tr><td colspan="6" class="empty">這個月份目前沒有加餐名單</td></tr>`;
+    const filteredEntries = state.currentEntries
+      .filter(item => (item.mealSource || 'selfPay') === state.currentTab)
+      .sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
+
+    if (els.currentMonthSubtitle) {
+      els.currentMonthSubtitle.textContent = state.currentDocId
+        ? `目前顯示「${getMealSourceLabel(state.currentTab)}」分頁資料`
+        : '會顯示該月份所有有加餐的住民';
+    }
+
+    updateCountSummary();
+    updateTabButtons();
+
+    if (!state.currentDocId) {
+      els.entriesTbody.innerHTML = `<tr><td colspan="7" class="empty">請先從左邊選一個月份</td></tr>`;
       return;
     }
 
-    els.entriesTbody.innerHTML = state.currentEntries.map((item, idx) => `
+    if (!filteredEntries.length) {
+      els.entriesTbody.innerHTML = `<tr><td colspan="7" class="empty">這個月份的「${getMealSourceLabel(state.currentTab)}」目前沒有加餐名單</td></tr>`;
+      return;
+    }
+
+    els.entriesTbody.innerHTML = filteredEntries.map((item) => `
       <tr>
         <td>${escapeHtml(item.bedNumber || '')}</td>
         <td>${escapeHtml(item.residentName || '')}</td>
+        <td><span class="pill ${escapeHtml(getMealSourceClass(item.mealSource))}">${escapeHtml(getMealSourceLabel(item.mealSource))}</span></td>
         <td><span class="pill">${escapeHtml(item.mealType || '')}</span></td>
         <td>${escapeHtml(item.createdByName || '')}</td>
         <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
-        <td><button type="button" class="danger" data-delete-index="${idx}">刪除</button></td>
+        <td><button type="button" class="danger" data-entry-key="${escapeHtml(getEntryKey(item))}">刪除</button></td>
       </tr>
     `).join('');
 
-    els.entriesTbody.querySelectorAll('[data-delete-index]').forEach(btn => {
+    els.entriesTbody.querySelectorAll('[data-entry-key]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const index = Number(btn.getAttribute('data-delete-index'));
-        const row = state.currentEntries[index];
+        const entryKey = btn.getAttribute('data-entry-key');
+        const row = state.currentEntries.find(item => getEntryKey(item) === entryKey);
         if (!row) return;
 
-        if (!confirm(`確定刪除 ${row.bedNumber}｜${row.residentName} 的加餐資料？`)) return;
+        if (!confirm(`確定刪除 ${row.bedNumber}｜${row.residentName}（${getMealSourceLabel(row.mealSource)}）的加餐資料？`)) return;
 
-        state.currentEntries.splice(index, 1);
+        state.currentEntries = state.currentEntries.filter(item => getEntryKey(item) !== entryKey);
         await saveCurrentEntries();
         showToast('已刪除加餐資料');
       });
@@ -373,18 +488,27 @@
   async function saveCurrentEntries() {
     const db = await getDb();
     const docRef = db.collection(COLLECTION_EXTRA_MEALS).doc(state.currentDocId);
+    const now = new Date();
 
     await docRef.set({
       year: state.currentYear,
       month: state.currentMonth,
-      entries: state.currentEntries,
-      updatedAt: new Date(),
+      entries: state.currentEntries.map(normalizeEntry),
+      updatedAt: now,
       updatedById: state.user.id,
       updatedByName: state.user.name,
     }, { merge: true });
 
-    state.currentEntries.sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
+    state.currentEntries = state.currentEntries.map(normalizeEntry)
+      .sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
+    state.currentMeta = {
+      updatedAt: now,
+      updatedById: state.user.id,
+      updatedByName: state.user.name,
+    };
+
     renderEntriesTable();
+    updateLastUpdatedBanner();
     refreshMonthCounts();
   }
 
@@ -425,6 +549,7 @@
     if (els.bedNumberInput) els.bedNumberInput.value = '';
     if (els.residentNameInput) els.residentNameInput.value = '';
     if (els.mealTypeSelect) els.mealTypeSelect.value = '';
+    if (els.mealSourceSelect) els.mealSourceSelect.value = getCurrentSourceForNewEntry();
   }
 
   async function handleSaveEntry() {
@@ -436,21 +561,28 @@
     const residentId = els.residentSelect?.value;
     const resident = state.residents.find(r => r.id === residentId);
     const mealType = els.mealTypeSelect?.value;
+    const mealSource = els.mealSourceSelect?.value;
 
     if (!resident) return showToast('請先選擇住民');
+    if (!['selfPay', 'selfBring'].includes(mealSource)) return showToast('請先選擇分類');
     if (!MEAL_TYPES.includes(mealType)) return showToast('請先選擇加餐飲食');
 
-    const existingIndex = state.currentEntries.findIndex(x => x.residentId === resident.id);
+    const existingIndex = state.currentEntries.findIndex(x =>
+      (x.residentId === resident.id) && ((x.mealSource || 'selfPay') === mealSource)
+    );
+
+    const existingRow = existingIndex >= 0 ? state.currentEntries[existingIndex] : null;
 
     const entry = {
       residentId: resident.id,
       bedNumber: resident.bedNumber,
       residentName: resident.residentName,
+      mealSource,
       mealType,
-      note: '',
-      createdById: existingIndex >= 0 ? state.currentEntries[existingIndex].createdById : state.user.id,
-      createdByName: existingIndex >= 0 ? state.currentEntries[existingIndex].createdByName : state.user.name,
-      createdAt: existingIndex >= 0 ? state.currentEntries[existingIndex].createdAt : new Date(),
+      note: existingRow?.note || '',
+      createdById: existingRow?.createdById || state.user.id,
+      createdByName: existingRow?.createdByName || state.user.name,
+      createdAt: existingRow?.createdAt || new Date(),
       updatedAt: new Date(),
       updatedById: state.user.id,
       updatedByName: state.user.name,
@@ -463,14 +595,14 @@
       };
       await saveCurrentEntries();
       closeModal('entryModal');
-      showToast('已更新該住民的加餐資料');
+      showToast(`已更新該住民的${getMealSourceLabel(mealSource)}加餐資料`);
       return;
     }
 
     state.currentEntries.push(entry);
     await saveCurrentEntries();
     closeModal('entryModal');
-    showToast('已新增加餐資料');
+    showToast(`已新增${getMealSourceLabel(mealSource)}加餐資料`);
   }
 
   function setupCopySelectors() {
@@ -493,12 +625,13 @@
 
     const db = await getDb();
     const snap = await db.collection(COLLECTION_EXTRA_MEALS).doc(monthDocId(year, month)).get();
-    const entries = snap.exists ? (snap.data().entries || []) : [];
+    const entries = snap.exists ? ((snap.data().entries || []).map(normalizeEntry)) : [];
 
     state.sourceEntries = entries.slice().sort((a, b) => naturalBedCompare(a.bedNumber, b.bedNumber));
 
     if (els.copySourceHint) {
-      els.copySourceHint.textContent = `${formatMonthLabel(year, month)} 共有 ${state.sourceEntries.length} 筆名單`;
+      const counts = getCounts(state.sourceEntries);
+      els.copySourceHint.textContent = `${formatMonthLabel(year, month)} 共有 ${counts.all} 筆名單（自費 ${counts.selfPay}／自帶 ${counts.selfBring}）`;
     }
 
     renderCopyList();
@@ -516,7 +649,7 @@
       <div class="copy-item">
         <div>
           <div><strong>${escapeHtml(item.bedNumber || '')}</strong>｜${escapeHtml(item.residentName || '')}</div>
-          <div class="muted">${escapeHtml(item.mealType || '')}</div>
+          <div class="muted">${escapeHtml(getMealSourceLabel(item.mealSource))}｜${escapeHtml(item.mealType || '')}</div>
         </div>
         <button type="button" class="primary" data-copy-one="${index}">複製這筆</button>
       </div>
@@ -530,7 +663,7 @@
 
         const added = copyEntriesToCurrent([src]);
         await saveCurrentEntries();
-        showToast(added ? '已複製 1 筆名單' : '這筆住民已存在，已自動跳過');
+        showToast(added ? '已複製 1 筆名單' : '這筆住民同分類已存在，已自動跳過');
       });
     });
   }
@@ -538,19 +671,24 @@
   function copyEntriesToCurrent(entries) {
     let added = 0;
 
-    for (const src of entries) {
-      const exists = state.currentEntries.some(x => x.residentId === src.residentId);
+    for (const sourceItem of entries) {
+      const src = normalizeEntry(sourceItem);
+      const exists = state.currentEntries.some(x => getEntryKey(x) === getEntryKey(src));
       if (exists) continue;
 
       state.currentEntries.push({
         residentId: src.residentId || '',
         bedNumber: src.bedNumber || '',
         residentName: src.residentName || '',
+        mealSource: src.mealSource || 'selfPay',
         mealType: src.mealType || '',
         note: src.note || '',
         createdById: state.user.id,
         createdByName: state.user.name,
         createdAt: new Date(),
+        updatedAt: new Date(),
+        updatedById: state.user.id,
+        updatedByName: state.user.name,
         copiedFrom: {
           year: Number(els.copyYearSelect?.value),
           month: Number(els.copyMonthSelect?.value),
@@ -569,6 +707,12 @@
     const added = copyEntriesToCurrent(state.sourceEntries);
     await saveCurrentEntries();
     showToast(added ? `已複製 ${added} 筆名單` : '沒有可新增的資料，重複名單已全部跳過');
+  }
+
+  function setCurrentTab(tab) {
+    state.currentTab = tab === 'selfBring' ? 'selfBring' : 'selfPay';
+    updateTabButtons();
+    renderEntriesTable();
   }
 
   function bindEvents() {
@@ -607,6 +751,9 @@
     els.copyYearSelect?.addEventListener('change', loadSourceEntries);
     els.copyMonthSelect?.addEventListener('change', loadSourceEntries);
     els.copyAllBtn?.addEventListener('click', handleCopyAll);
+
+    els.tabSelfPay?.addEventListener('click', () => setCurrentTab('selfPay'));
+    els.tabSelfBring?.addEventListener('click', () => setCurrentTab('selfBring'));
   }
 
   async function init() {
@@ -628,6 +775,9 @@
       setupYearControls();
       renderMonthsGrid();
       setupCopySelectors();
+      updateLastUpdatedBanner();
+      updateTabButtons();
+      updateCountSummary();
       await loadResidents();
     } catch (err) {
       console.error(err);
