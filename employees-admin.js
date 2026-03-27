@@ -394,7 +394,7 @@ document.addEventListener('firebase-ready', () => {
   const CERTIFICATE_TYPE_OPTIONS = [
     { value: '01:護理師執照', label: '01:護理師執照' },
     { value: '02:護理師證書', label: '02:護理師證書' },
-    { value: '04:BLS', label: '04:BLS' },
+    { value: '03:BLS', label: '03:BLS' },
     { value: '04:勞動部聘雇許可函', label: '04:勞動部聘雇許可函' },
   ];
 
