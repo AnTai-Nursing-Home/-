@@ -394,8 +394,13 @@ document.addEventListener('firebase-ready', () => {
   const CERTIFICATE_TYPE_OPTIONS = [
     { value: '01:護理師執照', label: '01:護理師執照' },
     { value: '02:護理師證書', label: '02:護理師證書' },
-    { value: '03:BLS', label: '03:BLS' },
+    { value: '04:BLS', label: '04:BLS' },
     { value: '04:勞動部聘雇許可函', label: '04:勞動部聘雇許可函' },
+  ];
+
+  const BLS_ORGANIZER_OPTIONS = [
+    '安泰醫療社團法人安泰醫院',
+    '臺灣急救教育推廣與諮詢中心',
   ];
 
   let certificateItems = [];
@@ -407,10 +412,54 @@ document.addEventListener('firebase-ready', () => {
     }[s]));
   }
 
+  function isNurseLicenseType(type = '') {
+    return String(type || '').trim() === '01:護理師執照';
+  }
+
+  function isBLSType(type = '') {
+    const value = String(type || '').trim().toUpperCase();
+    return value === '03:BLS' || value === '04:BLS' || value === '04BLS' || value === 'BLS';
+  }
+
+  function getCertificateNumberLabel(type = '') {
+    return isBLSType(type) ? '證書字號' : '發證字號';
+  }
+
+  function buildCertificateExtraFields(item = {}) {
+    const type = String(item.type || '').trim();
+    if (isNurseLicenseType(type)) {
+      return `
+        <div class="col-12 col-md-4">
+          <label class="form-label">執照應更新日期</label>
+          <input type="text" class="form-control cert-renew-date" placeholder="例：115/06/30 或 2026/06/30" value="${escapeHtml(item.renewDate || '')}">
+        </div>
+      `;
+    }
+    if (isBLSType(type)) {
+      const organizerOptions = ['<option value="">請選擇</option>']
+        .concat(BLS_ORGANIZER_OPTIONS.map(opt => `<option value="${escapeHtml(opt)}" ${String(item.organizer || '').trim() === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`))
+        .join('');
+      return `
+        <div class="col-12 col-md-4">
+          <label class="form-label">主辦單位</label>
+          <select class="form-select cert-organizer">${organizerOptions}</select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">有效日期</label>
+          <input type="text" class="form-control cert-valid-date" placeholder="例：115/06/30 或 2026/06/30" value="${escapeHtml(item.validDate || '')}">
+        </div>
+      `;
+    }
+    return '';
+  }
+
   function normalizeCertificatesFromEmployee(e = {}) {
     const fromArray = Array.isArray(e.certificates) ? e.certificates.filter(Boolean).map(item => ({
       type: String(item.type || '').trim(),
       number: String(item.number || '').trim(),
+      renewDate: String(item.renewDate || item.licenseRenewDate || '').trim(),
+      organizer: String(item.organizer || item.hostOrg || '').trim(),
+      validDate: String(item.validDate || item.expireDate || '').trim(),
       frontUrl: String(item.frontUrl || '').trim(),
       frontName: String(item.frontName || '').trim(),
       backUrl: String(item.backUrl || '').trim(),
@@ -425,6 +474,9 @@ document.addEventListener('firebase-ready', () => {
       return [{
         type: legacyType,
         number: legacyNo,
+        renewDate: String(e.licenseRenewDate || '').trim(),
+        organizer: String(e.blsOrganizer || e.hostOrg || '').trim(),
+        validDate: String(e.blsValidDate || '').trim(),
         frontUrl: '',
         frontName: '',
         backUrl: '',
@@ -436,8 +488,14 @@ document.addEventListener('firebase-ready', () => {
 
   function getCertificatesSummary(list = certificateItems) {
     return (list || [])
-      .filter(item => (item.type || '').trim() || (item.number || '').trim())
-      .map(item => [item.type, item.number].filter(Boolean).join(' / '))
+      .filter(item => (item.type || '').trim() || (item.number || '').trim() || (item.renewDate || '').trim() || (item.organizer || '').trim() || (item.validDate || '').trim())
+      .map(item => {
+        const parts = [item.type];
+        if ((item.number || '').trim()) parts.push(`${getCertificateNumberLabel(item.type)}:${item.number}`);
+        if ((item.renewDate || '').trim()) parts.push(`更新:${item.renewDate}`);
+        if ((item.validDate || '').trim()) parts.push(`有效:${item.validDate}`);
+        return parts.filter(Boolean).join(' / ');
+      })
       .join('；');
   }
 
@@ -464,10 +522,17 @@ document.addEventListener('firebase-ready', () => {
           const back = item.backUrl
             ? `<a class="upload-preview-link" href="${escapeHtml(item.backUrl)}" target="_blank" rel="noopener">查看反面${item.backName ? `：${escapeHtml(item.backName)}` : ''}</a>`
             : '<span class="text-muted">未上傳反面</span>';
+          const detailRows = [
+            item.number ? `<div>證書字號：<strong>${escapeHtml(item.number)}</strong></div>` : '',
+            item.renewDate ? `<div>執照應更新日期：<strong>${escapeHtml(item.renewDate)}</strong></div>` : '',
+            item.organizer ? `<div>主辦單位：<strong>${escapeHtml(item.organizer)}</strong></div>` : '',
+            item.validDate ? `<div>有效日期：<strong>${escapeHtml(item.validDate)}</strong></div>` : '',
+          ].filter(Boolean).join('');
           return `
             <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
               <div class="fw-semibold mb-2">${escapeHtml(String(idx + 1))}. ${escapeHtml(title)}</div>
               <div class="small d-flex flex-column gap-2">
+                ${detailRows ? `<div class="d-flex flex-column gap-1">${detailRows}</div>` : ''}
                 ${front}
                 ${back}
               </div>
@@ -490,6 +555,8 @@ document.addEventListener('firebase-ready', () => {
       const options = ['<option value="">請選擇</option>']
         .concat(CERTIFICATE_TYPE_OPTIONS.map(opt => `<option value="${escapeHtml(opt.value)}" ${item.type === opt.value ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`))
         .join('');
+      const numberLabel = getCertificateNumberLabel(item.type);
+      const extraFields = buildCertificateExtraFields(item);
       const frontLabel = item.frontUrl ? `已上傳：${escapeHtml(item.frontName || '正面檔案')}` : '尚未上傳正面';
       const backLabel = item.backUrl ? `已上傳：${escapeHtml(item.backName || '反面檔案')}` : '尚未上傳反面';
       return `
@@ -500,9 +567,10 @@ document.addEventListener('firebase-ready', () => {
               <select class="form-select cert-type">${options}</select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">發證字號</label>
+              <label class="form-label">${escapeHtml(numberLabel)}</label>
               <input type="text" class="form-control cert-number" value="${escapeHtml(item.number)}">
             </div>
+            ${extraFields}
             <div class="col-12 col-md-4">
               <div class="cert-actions">
                 <button type="button" class="btn btn-outline-primary btn-sm btn-cert-files">查看/新增</button>
@@ -531,15 +599,28 @@ document.addEventListener('firebase-ready', () => {
       if (!certificateItems[idx]) return;
       const typeEl = row.querySelector('.cert-type');
       const numberEl = row.querySelector('.cert-number');
+      const renewDateEl = row.querySelector('.cert-renew-date');
+      const organizerEl = row.querySelector('.cert-organizer');
+      const validDateEl = row.querySelector('.cert-valid-date');
       certificateItems[idx].type = typeEl?.value?.trim() || '';
       certificateItems[idx].number = numberEl?.value?.trim() || '';
+      certificateItems[idx].renewDate = renewDateEl?.value?.trim() || '';
+      certificateItems[idx].organizer = organizerEl?.value?.trim() || '';
+      certificateItems[idx].validDate = validDateEl?.value?.trim() || '';
     });
   }
 
   function refreshCertificateModalLinks() {
     const cert = certificateItems[activeCertificateIndex] || {};
     if (certificateFileModalMeta) {
-      certificateFileModalMeta.innerHTML = `證書種類：<strong>${escapeHtml(cert.type || '未選擇')}</strong><br>發證字號：<strong>${escapeHtml(cert.number || '未填寫')}</strong>`;
+      const metaLines = [
+        `證書種類：<strong>${escapeHtml(cert.type || '未選擇')}</strong>`,
+        `${escapeHtml(getCertificateNumberLabel(cert.type))}：<strong>${escapeHtml(cert.number || '未填寫')}</strong>`,
+      ];
+      if (cert.renewDate) metaLines.push(`執照應更新日期：<strong>${escapeHtml(cert.renewDate)}</strong>`);
+      if (cert.organizer) metaLines.push(`主辦單位：<strong>${escapeHtml(cert.organizer)}</strong>`);
+      if (cert.validDate) metaLines.push(`有效日期：<strong>${escapeHtml(cert.validDate)}</strong>`);
+      certificateFileModalMeta.innerHTML = metaLines.join('<br>');
     }
     if (certificateFrontLinkWrap) {
       certificateFrontLinkWrap.innerHTML = cert.frontUrl
@@ -791,12 +872,28 @@ function fillFormFromRow(row) {
       .map(item => ({
         type: String(item.type || '').trim(),
         number: String(item.number || '').trim(),
+        renewDate: formatDateInput(String(item.renewDate || '').trim()),
+        organizer: String(item.organizer || '').trim(),
+        validDate: formatDateInput(String(item.validDate || '').trim()),
         frontUrl: String(item.frontUrl || '').trim(),
         frontName: String(item.frontName || '').trim(),
         backUrl: String(item.backUrl || '').trim(),
         backName: String(item.backName || '').trim(),
       }))
-      .filter(item => item.type || item.number || item.frontUrl || item.backUrl);
+      .map(item => {
+        if (isNurseLicenseType(item.type)) {
+          item.organizer = '';
+          item.validDate = '';
+        } else if (isBLSType(item.type)) {
+          item.renewDate = '';
+        } else {
+          item.renewDate = '';
+          item.organizer = '';
+          item.validDate = '';
+        }
+        return item;
+      })
+      .filter(item => item.type || item.number || item.renewDate || item.organizer || item.validDate || item.frontUrl || item.backUrl);
 
     const payload = {
       sortOrder: parseInt(sortOrderInput.value) || 999,
@@ -911,7 +1008,7 @@ function fillFormFromRow(row) {
   if (addCertificateBtn) {
     addCertificateBtn.addEventListener('click', () => {
       syncCertificateInputsFromDOM();
-      certificateItems.push({ type: '', number: '', frontUrl: '', frontName: '', backUrl: '', backName: '' });
+      certificateItems.push({ type: '', number: '', renewDate: '', organizer: '', validDate: '', frontUrl: '', frontName: '', backUrl: '', backName: '' });
       renderCertificateRows();
     });
   }
@@ -924,6 +1021,32 @@ function fillFormFromRow(row) {
       if (!certificateItems[idx]) return;
       if (e.target.classList.contains('cert-type')) certificateItems[idx].type = e.target.value.trim();
       if (e.target.classList.contains('cert-number')) certificateItems[idx].number = e.target.value.trim();
+      if (e.target.classList.contains('cert-renew-date')) certificateItems[idx].renewDate = e.target.value.trim();
+      if (e.target.classList.contains('cert-organizer')) certificateItems[idx].organizer = e.target.value.trim();
+      if (e.target.classList.contains('cert-valid-date')) certificateItems[idx].validDate = e.target.value.trim();
+    });
+
+    certificatesListEl.addEventListener('change', (e) => {
+      const row = e.target.closest('.cert-row');
+      if (!row) return;
+      const idx = Number(row.dataset.certIndex);
+      if (!certificateItems[idx]) return;
+      if (e.target.classList.contains('cert-type')) {
+        const prevType = certificateItems[idx].type || '';
+        const nextType = e.target.value.trim();
+        certificateItems[idx].type = nextType;
+        if (isNurseLicenseType(nextType)) {
+          certificateItems[idx].organizer = '';
+          certificateItems[idx].validDate = '';
+        } else if (isBLSType(nextType)) {
+          certificateItems[idx].renewDate = '';
+        } else if (prevType !== nextType) {
+          certificateItems[idx].renewDate = '';
+          certificateItems[idx].organizer = '';
+          certificateItems[idx].validDate = '';
+        }
+        renderCertificateRows();
+      }
     });
 
     certificatesListEl.addEventListener('click', (e) => {
