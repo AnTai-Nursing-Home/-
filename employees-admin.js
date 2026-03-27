@@ -1881,9 +1881,8 @@ async function generateReportHTML() {
   loadCurrentUserForEmployees().then(() => {
     loadAll();
   });
-});
-});
 
   certificateFileModalEl?.addEventListener('hidden.bs.modal', () => {
     activeCertificateIndex = null;
   });
+});
