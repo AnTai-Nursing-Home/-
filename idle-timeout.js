@@ -112,6 +112,7 @@
   const now = () => Date.now();
   const safeParseJSON = (s) => { try { return JSON.parse(s); } catch (_) { return null; } };
   const pageName = () => ((location.pathname || '').split('/').pop() || '').toLowerCase();
+  const SIDEBAR_COLLAPSED_KEY = 'antai_sidebar_collapsed';
 
   function defaultIsLoggedIn() {
     if (!cfg) return false;
@@ -252,7 +253,7 @@
   function removeShell() {
     clearInterval(shellRefreshTimer);
     shellRefreshTimer = null;
-    document.body.classList.remove('antai-shell-body');
+    document.body.classList.remove('antai-shell-body', 'antai-shell-collapsed');
     const root = document.getElementById('antai-shell-root');
     if (root) root.remove();
     const style = document.getElementById('antai-shell-style');
@@ -264,9 +265,14 @@
     const style = document.createElement('style');
     style.id = 'antai-shell-style';
     style.textContent = `
-      body.antai-shell-body{padding-left:284px;box-sizing:border-box}
-      #antai-shell-root{position:fixed;left:16px;top:18px;bottom:18px;width:252px;z-index:2147482000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif}
+      body.antai-shell-body{padding-left:284px;box-sizing:border-box;transition:padding-left .2s ease}
+      body.antai-shell-body.antai-shell-collapsed{padding-left:96px}
+      #antai-shell-root{position:fixed;left:16px;top:18px;bottom:18px;width:252px;z-index:2147482000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif;transition:width .2s ease}
+      #antai-shell-root.collapsed{width:64px}
       .antai-shell-wrap{height:100%;display:flex;flex-direction:column;gap:12px}
+      .antai-shell-topbar{display:flex;justify-content:flex-end;margin-bottom:-2px}
+      .antai-shell-collapse-btn{width:36px;height:36px;border:none;border-radius:12px;background:rgba(255,255,255,.92);color:#38506b;box-shadow:0 6px 18px rgba(34,48,76,.10);cursor:pointer;font-size:18px;font-weight:800;line-height:1;transition:.18s ease}
+      .antai-shell-collapse-btn:hover{background:#f3f7fd;transform:translateY(-1px)}
       .antai-weather-card{position:relative;padding:16px;border-radius:22px;color:#fff;background-color:#5f738d;background-size:cover;background-position:center;background-repeat:no-repeat;box-shadow:0 16px 34px rgba(36,48,72,.22);overflow:hidden;isolation:isolate}
       .antai-weather-card:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,18,33,.10) 0%,rgba(8,20,36,.20) 45%,rgba(6,14,26,.38) 100%);z-index:0}
       .antai-weather-card:after{content:"";position:absolute;inset:auto -18% -45% -18%;height:70%;background:radial-gradient(ellipse at center,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 28%,rgba(255,255,255,0) 68%);filter:blur(14px);z-index:0}
@@ -310,7 +316,18 @@
       .antai-submenu-item.active .antai-submenu-dot{background:#2f74ff}
       .antai-dot{width:10px;height:10px;border-radius:50%;background:#9db0c9;flex:0 0 auto}.antai-menu-item.active .antai-dot{background:#2f74ff}
       .antai-text{min-width:0}.antai-title{font-size:16px;font-weight:800;line-height:1.35}
-      @media (max-width: 1200px){body.antai-shell-body{padding-left:0}#antai-shell-root{display:none}}
+      #antai-shell-root.collapsed .antai-weather-card,
+      #antai-shell-root.collapsed .antai-menu-head,
+      #antai-shell-root.collapsed .antai-text,
+      #antai-shell-root.collapsed .antai-toggle-btn,
+      #antai-shell-root.collapsed .antai-submenu{display:none !important}
+      #antai-shell-root.collapsed .antai-menu{padding:10px 8px}
+      #antai-shell-root.collapsed .antai-menu-item,
+      #antai-shell-root.collapsed .antai-parent-link{justify-content:center;padding:14px 10px;gap:0}
+      #antai-shell-root.collapsed .antai-menu-parent{padding:0}
+      #antai-shell-root.collapsed .antai-menu-group{gap:8px}
+      #antai-shell-root.collapsed .antai-dot{margin:0}
+      @media (max-width: 1200px){body.antai-shell-body,body.antai-shell-body.antai-shell-collapsed{padding-left:0}#antai-shell-root{display:none}}
     `;
     document.head.appendChild(style);
   }
@@ -525,6 +542,27 @@
     }
   }
 
+  function setShellCollapsedState(root, collapsed) {
+    if (!root) return;
+    root.classList.toggle('collapsed', !!collapsed);
+    document.body.classList.toggle('antai-shell-collapsed', !!collapsed);
+    const btn = root.querySelector('#antai-shell-collapse-btn');
+    if (btn) {
+      btn.setAttribute('aria-label', collapsed ? '展開側邊欄' : '收合側邊欄');
+      btn.textContent = collapsed ? '☰' : '×';
+      btn.title = collapsed ? '展開側邊欄' : '收合側邊欄';
+    }
+  }
+
+  function getSavedShellCollapsed() {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function saveShellCollapsed(collapsed) {
+    try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (_) {}
+  }
+
+
   function mountShell() {
     if (!cfg || !cfg.isLoggedInFn || !cfg.isLoggedInFn()) return;
     if (document.getElementById('antai-shell-root')) return;
@@ -582,6 +620,9 @@
     }).join('');
     root.innerHTML = `
       <div class="antai-shell-wrap">
+        <div class="antai-shell-topbar">
+          <button type="button" class="antai-shell-collapse-btn" id="antai-shell-collapse-btn" aria-label="收合側邊欄" title="收合側邊欄">×</button>
+        </div>
         <section class="antai-weather-card weather-cloudy">
           <div class="antai-weather-anim"></div>
           <div class="antai-weather-overlay"></div>
@@ -597,6 +638,18 @@
     `;
     document.body.appendChild(root);
     document.body.classList.add('antai-shell-body');
+    setShellCollapsedState(root, getSavedShellCollapsed());
+
+    const collapseBtn = root.querySelector('#antai-shell-collapse-btn');
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const collapsed = !root.classList.contains('collapsed');
+        setShellCollapsedState(root, collapsed);
+        saveShellCollapsed(collapsed);
+      });
+    }
 
     root.querySelectorAll('.antai-toggle-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
