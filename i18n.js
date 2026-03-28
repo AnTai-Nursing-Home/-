@@ -59,6 +59,35 @@ const translations = {
         'nurse_login': '護理師登入',
         'caregiver_login': '照服員登入',
         'office_login': '辦公室登入',
+        'home_system_name': 'House System',
+        'home_hero_subtitle': '服務整合入口，提供探視預約、公告查詢、各系統登入與聯繫資訊，讓住民家屬與工作人員都能更快速找到需要的功能。',
+        'home_panel_title': '主要功能入口',
+        'home_panel_desc': '首頁不再沿用全站共用版面，改為獨立設計，整體更乾淨、現代，也更適合當作系統主入口。',
+        'home_panel_chip': '8 個常用入口',
+        
+        'home_desc_booking': '提供家屬線上預約探視，流程更直覺。',
+        'home_desc_query': '快速查詢既有預約資料，也可直接取消。',
+        'home_desc_affairs': '整合行政相關流程與常用事務功能。',
+        'home_desc_contact': '提供聯繫資訊與相關服務窗口。',
+        'home_desc_announcements': '最新通知與重要公告可在此即時查看。',
+        'home_desc_caregiver': '照服員專用登入入口，快速進入工作頁面。',
+        'home_desc_nurse': '護理師系統登入入口，管理臨床與照護相關功能。',
+        'home_desc_office': '辦公室後台入口，處理行政與管理作業。',
+        
+        'go_now': '立即前往',
+        
+        // --- 天氣 ---
+        'weather_title': '天氣資訊',
+        'weather_updated': '更新時間',
+        'weather_loading': '讀取天氣中...',
+        'weather_location': '位置',
+        'weather_feels_like': '體感溫度',
+        'weather_humidity': '濕度',
+        'weather_rain_prob': '降雨機率',
+        'weather_locating': '定位中...',
+        'weather_location_unavailable': '無法取得位置',
+        'weather_fetch_failed': '天氣讀取失敗',
+        'weather_permission_denied': '定位權限被拒絕',
 
         // --- 營養師系統 ---
         'nutritionist_system': '營養師系統',    
@@ -397,6 +426,35 @@ const translations = {
         'booking_visit': 'Visit Booking', 'query_cancel_booking': 'Query/Cancel Booking', 'hospital_booking': 'Hospital Appointment',
         'hospital_query': 'Appointment Query', 'visit_rules': 'Visitation Rules', 'contact_us': 'Contact Us',
         'nurse_login': 'Nurse Login', 'caregiver_login': 'Caregiver Login', 'office_login': 'Office Login',
+        'home_system_name': 'House System',
+        'home_hero_subtitle': 'A central service portal for visit booking, announcements, staff login and contact access.',
+        'home_panel_title': 'Main Services',
+        'home_panel_desc': 'This homepage uses a standalone design for a cleaner and more modern system entrance.',
+        'home_panel_chip': '8 quick access',
+        
+        'home_desc_booking': 'Book visits online easily.',
+        'home_desc_query': 'Check or cancel your booking quickly.',
+        'home_desc_affairs': 'Access administrative functions.',
+        'home_desc_contact': 'View contact information.',
+        'home_desc_announcements': 'View latest announcements.',
+        'home_desc_caregiver': 'Caregiver login portal.',
+        'home_desc_nurse': 'Nurse system login.',
+        'home_desc_office': 'Office backend system.',
+        
+        'go_now': 'Open',
+        
+        // --- Weather ---
+        'weather_title': 'Weather',
+        'weather_updated': 'Updated',
+        'weather_loading': 'Loading weather...',
+        'weather_location': 'Location',
+        'weather_feels_like': 'Feels like',
+        'weather_humidity': 'Humidity',
+        'weather_rain_prob': 'Rain chance',
+        'weather_locating': 'Locating...',
+        'weather_location_unavailable': 'Location unavailable',
+        'weather_fetch_failed': 'Weather fetch failed',
+        'weather_permission_denied': 'Location permission denied',
 
         // ---nutritionist_system ---
         'nutritionist_system': 'dietitian system',
