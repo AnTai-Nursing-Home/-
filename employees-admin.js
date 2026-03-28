@@ -468,8 +468,14 @@ document.addEventListener('firebase-ready', () => {
       validDate: String(item.validDate || item.expireDate || '').trim(),
       frontUrl: String(item.frontUrl || '').trim(),
       frontName: String(item.frontName || '').trim(),
+      frontPath: String(item.frontPath || '').trim(),
+      frontContentType: String(item.frontContentType || '').trim(),
+      frontSize: Number(item.frontSize || 0) || 0,
       backUrl: String(item.backUrl || '').trim(),
       backName: String(item.backName || '').trim(),
+      backPath: String(item.backPath || '').trim(),
+      backContentType: String(item.backContentType || '').trim(),
+      backSize: Number(item.backSize || 0) || 0,
     })) : [];
 
     if (fromArray.length) return fromArray;
@@ -640,6 +646,22 @@ document.addEventListener('firebase-ready', () => {
     }
   }
 
+  async function uploadEmployeeCertificateFilesViaApi(docId, who, files) {
+    if (!files || !files.length) return [];
+    const form = new FormData();
+    form.append('docId', docId);
+    form.append('who', who);
+    for (const f of files) form.append('files', f, f.name || 'file');
+
+    const resp = await fetch('/api/upload', { method: 'POST', body: form });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const msg = data && (data.error || data.message) ? (data.error || data.message) : ('HTTP ' + resp.status);
+      throw new Error(msg);
+    }
+    return Array.isArray(data.uploaded) ? data.uploaded : [];
+  }
+
   async function uploadCertificateFile(which, file) {
     if (!file) return;
     syncCertificateInputsFromDOM();
@@ -658,19 +680,33 @@ document.addEventListener('firebase-ready', () => {
     const cert = certificateItems[activeCertificateIndex];
     if (!cert) return;
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `employees-certificates/${collection}/${employeeId}/${Date.now()}-${which}-${safeName}`;
     try {
-      const ref = firebase.storage().ref(path);
-      await ref.put(file);
-      const url = await ref.getDownloadURL();
-      cert[which === 'front' ? 'frontUrl' : 'backUrl'] = url;
-      cert[which === 'front' ? 'frontName' : 'backName'] = file.name;
+      const uploads = await uploadEmployeeCertificateFilesViaApi(
+        `${collection}-${employeeId}`,
+        `employees-certificates-${collection}-${which}`,
+        [file]
+      );
+      const uploaded = uploads[0];
+      if (!uploaded || !uploaded.url) throw new Error('上傳完成，但未取得檔案連結');
+
+      cert[which === 'front' ? 'frontUrl' : 'backUrl'] = String(uploaded.url || '').trim();
+      cert[which === 'front' ? 'frontName' : 'backName'] = String(uploaded.name || file.name || '檔案').trim();
+
+      if (which === 'front') {
+        cert.frontPath = String(uploaded.path || '').trim();
+        cert.frontContentType = String(uploaded.contentType || file.type || '').trim();
+        cert.frontSize = Number(uploaded.size || file.size || 0) || 0;
+      } else {
+        cert.backPath = String(uploaded.path || '').trim();
+        cert.backContentType = String(uploaded.contentType || file.type || '').trim();
+        cert.backSize = Number(uploaded.size || file.size || 0) || 0;
+      }
+
       refreshCertificateModalLinks();
       renderCertificateRows();
     } catch (err) {
       console.error(err);
-      alert('證書檔案上傳失敗');
+      alert('證書檔案上傳失敗：' + (err.message || err));
     } finally {
       if (which === 'front' && certificateFrontFileInput) certificateFrontFileInput.value = '';
       if (which === 'back' && certificateBackFileInput) certificateBackFileInput.value = '';
