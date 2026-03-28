@@ -541,13 +541,6 @@ body{
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="firebase-init.js"></script>
   <script src="idle-timeout.js"></script>
-  <script src="access-control.js"></script>
-  <script>
-    (async () => {
-      await AccessControl.init();
-      AccessControl.guardInsideOnly(); // 不是 211.20.249.25 就擋掉
-    })();
-  </script>
   <script src="employees-admin.js"></script>
 </body>
 </html>
