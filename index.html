@@ -14,9 +14,6 @@
 
   <style>
     :root {
-      --bg: #f4f6fb;
-      --bg-soft: #edf2f8;
-      --card: rgba(255, 255, 255, 0.86);
       --text: #1f2937;
       --muted: #667085;
       --primary: #f4c400;
@@ -29,11 +26,9 @@
       --shadow-sm: 0 8px 18px rgba(31, 42, 68, 0.08);
       --radius-xl: 30px;
       --radius-lg: 22px;
-      --radius-md: 16px;
     }
 
     * { box-sizing: border-box; }
-
     html, body { margin: 0; padding: 0; }
 
     body {
@@ -87,6 +82,32 @@
       backdrop-filter: blur(12px);
     }
 
+    .page-tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 14px;
+    }
+
+    .lang-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      background: linear-gradient(135deg, #f4c400, #ffdd4c);
+      color: #3a2e00;
+      font-weight: 800;
+      padding: 12px 18px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 10px 18px rgba(244, 196, 0, 0.24);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .lang-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 24px rgba(244, 196, 0, 0.3);
+    }
+
     #announcement-marquee {
       margin-bottom: 20px;
       background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,248,214,0.95));
@@ -129,7 +150,7 @@
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
       gap: 22px;
       align-items: stretch;
       margin-bottom: 26px;
@@ -145,10 +166,9 @@
 
     .hero-main {
       padding: 40px 42px;
-      background:
-        linear-gradient(135deg, rgba(31,42,68,0.96), rgba(49,65,95,0.92));
+      background: linear-gradient(135deg, rgba(31,42,68,0.96), rgba(49,65,95,0.92));
       color: #fff;
-      min-height: 260px;
+      min-height: 275px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -183,7 +203,7 @@
 
     .hero-title {
       margin: 0;
-      font-size: clamp(1.75rem, 3vw, 2.6rem);
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
       line-height: 1.2;
       letter-spacing: 0.02em;
       font-weight: 800;
@@ -193,40 +213,103 @@
       margin: 14px 0 0;
       font-size: 1.05rem;
       line-height: 1.8;
-      color: rgba(255,255,255,0.82);
+      color: rgba(255,255,255,0.84);
       max-width: 680px;
     }
 
     .hero-side {
-      background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,249,253,0.92));
-      border: 1px solid rgba(255,255,255,0.64);
       padding: 24px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       gap: 18px;
-      min-height: 260px;
+      min-height: 275px;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.6), rgba(255,255,255,0) 32%),
+        linear-gradient(180deg, #ffffff 0%, #f4f8fd 100%);
+      border: 1px solid rgba(255,255,255,0.64);
     }
 
-    .lang-button {
-      align-self: flex-start;
+    .weather-card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .weather-icon-wrap {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      border: none;
-      background: linear-gradient(135deg, #f4c400, #ffdd4c);
-      color: #3a2e00;
-      font-weight: 800;
-      padding: 12px 18px;
-      border-radius: 14px;
-      cursor: pointer;
-      box-shadow: 0 10px 18px rgba(244, 196, 0, 0.24);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(244, 196, 0, 0.18), rgba(93, 135, 255, 0.14));
+      color: #d29a00;
+      font-size: 1.6rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
     }
 
-    .lang-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 14px 24px rgba(244, 196, 0, 0.3);
+    .weather-title {
+      margin: 0 0 4px;
+      font-size: 1.18rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .weather-updated {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .weather-main {
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .weather-temp {
+      font-size: 2.8rem;
+      line-height: 1;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+    }
+
+    .weather-status {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #5f6f89;
+      padding-bottom: 5px;
+    }
+
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .weather-info-box {
+      border-radius: 18px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(31,42,68,0.06);
+      padding: 14px 16px;
+      box-shadow: 0 6px 14px rgba(31, 42, 68, 0.05);
+    }
+
+    .weather-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .weather-value {
+      font-size: 1rem;
+      color: var(--text);
+      font-weight: 800;
+      line-height: 1.45;
     }
 
     .menu-panel {
@@ -379,108 +462,6 @@
       color: #c59a00;
     }
 
-    
-    .hero-main {
-      position: relative;
-    }
-
-    .hero-lang-button {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 2;
-    }
-
-    .weather-card {
-      background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.55), rgba(255,255,255,0) 32%),
-        linear-gradient(180deg, #ffffff 0%, #f4f8fd 100%);
-    }
-
-    .weather-card-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .weather-icon-wrap {
-      width: 58px;
-      height: 58px;
-      border-radius: 18px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, rgba(244, 196, 0, 0.18), rgba(93, 135, 255, 0.14));
-      color: #d29a00;
-      font-size: 1.6rem;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
-    }
-
-    .weather-title {
-      margin: 0 0 4px;
-      font-size: 1.18rem;
-      font-weight: 800;
-      color: var(--accent);
-    }
-
-    .weather-subtitle {
-      font-size: 0.88rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .weather-main {
-      display: flex;
-      align-items: end;
-      gap: 12px;
-      margin-top: 4px;
-    }
-
-    .weather-temp {
-      font-size: 2.6rem;
-      line-height: 1;
-      font-weight: 800;
-      color: var(--accent);
-      letter-spacing: -0.03em;
-    }
-
-    .weather-status {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #5f6f89;
-      padding-bottom: 4px;
-    }
-
-    .weather-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .weather-info-box {
-      border-radius: 18px;
-      background: rgba(255,255,255,0.92);
-      border: 1px solid rgba(31,42,68,0.06);
-      padding: 14px 16px;
-      box-shadow: 0 6px 14px rgba(31, 42, 68, 0.05);
-    }
-
-    .weather-label {
-      display: block;
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-      font-weight: 700;
-    }
-
-    .weather-value {
-      font-size: 1rem;
-      color: var(--text);
-      font-weight: 800;
-      line-height: 1.45;
-    }
-
-
     @media (max-width: 1100px) {
       .hero {
         grid-template-columns: 1fr;
@@ -510,16 +491,6 @@
         min-height: auto;
       }
 
-      .hero-lang-button {
-        position: static;
-        width: fit-content;
-        margin: 0 0 18px auto;
-      }
-
-      .weather-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
       .hero-side,
       .menu-panel {
         padding: 18px;
@@ -538,7 +509,8 @@
     }
 
     @media (max-width: 520px) {
-      .menu-grid {
+      .menu-grid,
+      .weather-grid {
         grid-template-columns: 1fr;
       }
 
@@ -548,25 +520,26 @@
         align-items: stretch;
       }
 
+      .page-tools {
+        margin-bottom: 10px;
+      }
+
       .lang-button {
         width: 100%;
         justify-content: center;
-      }
-
-      .hero-lang-button {
-        width: 100%;
-        justify-content: center;
-        margin: 0 0 16px 0;
-      }
-
-      .weather-grid {
-        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
   <div class="page-shell">
+    <div class="page-tools">
+      <button id="lang-switcher" class="lang-button" type="button">
+        <i class="fas fa-language"></i>
+        <span data-i18n="lang_switch">English</span>
+      </button>
+    </div>
+
     <div id="announcement-marquee">
       <div class="marquee-inner">
         <div class="marquee-badge"><i class="fas fa-bullhorn"></i></div>
@@ -574,20 +547,14 @@
       </div>
     </div>
 
-    
-<section class="hero">
+    <section class="hero">
       <div class="hero-main">
-        <button id="lang-switcher" class="lang-button hero-lang-button" type="button">
-          <i class="fas fa-language"></i>
-          <span>English</span>
-        </button>
-
         <div class="hero-topline">
           <i class="fas fa-house-medical"></i>
-          <span>House System</span>
+          <span data-i18n="home_system_name">House System</span>
         </div>
         <h1 class="hero-title" data-i18n="main_title_full">安泰醫療社團法人附設安泰護理之家</h1>
-        <p class="hero-subtitle">
+        <p class="hero-subtitle" data-i18n="home_hero_subtitle">
           服務整合入口，提供探視預約、公告查詢、各系統登入與聯繫資訊，讓住民家屬與工作人員都能更快速找到需要的功能。
         </p>
       </div>
@@ -595,48 +562,50 @@
       <aside class="hero-side weather-card">
         <div class="weather-card-header">
           <div class="weather-icon-wrap">
-            <i class="fas fa-cloud-sun"></i>
+            <i id="weather-icon" class="fas fa-cloud-sun"></i>
           </div>
           <div>
-            <h2 class="weather-title">天氣資訊</h2>
-            <div class="weather-subtitle">可搭配你原本的天氣 API 再接資料</div>
+            <h2 class="weather-title" data-i18n="weather_title">天氣資訊</h2>
+            <div class="weather-updated">
+              <span data-i18n="weather_updated">更新時間</span>：
+              <span id="weather-updated-at" data-i18n="loading">讀取中...</span>
+            </div>
           </div>
         </div>
 
         <div class="weather-main">
-          <div class="weather-temp">26°C</div>
-          <div class="weather-status">多雲時晴</div>
+          <div class="weather-temp" id="weather-temp">--°C</div>
+          <div class="weather-status" id="weather-status" data-i18n="weather_loading">讀取天氣中...</div>
         </div>
 
         <div class="weather-grid">
           <div class="weather-info-box">
-            <span class="weather-label">位置</span>
-            <div class="weather-value">目前位置</div>
+            <span class="weather-label" data-i18n="weather_location">位置</span>
+            <div class="weather-value" id="weather-location" data-i18n="weather_locating">定位中...</div>
           </div>
           <div class="weather-info-box">
-            <span class="weather-label">體感溫度</span>
-            <div class="weather-value">28°C</div>
+            <span class="weather-label" data-i18n="weather_feels_like">體感溫度</span>
+            <div class="weather-value" id="weather-feels-like">--°C</div>
           </div>
           <div class="weather-info-box">
-            <span class="weather-label">濕度</span>
-            <div class="weather-value">68%</div>
+            <span class="weather-label" data-i18n="weather_humidity">濕度</span>
+            <div class="weather-value" id="weather-humidity">--%</div>
           </div>
           <div class="weather-info-box">
-            <span class="weather-label">降雨機率</span>
-            <div class="weather-value">20%</div>
+            <span class="weather-label" data-i18n="weather_rain_prob">降雨機率</span>
+            <div class="weather-value" id="weather-rain">--%</div>
           </div>
         </div>
       </aside>
     </section>
 
-
     <section class="menu-panel">
       <div class="panel-header">
         <div class="panel-title-wrap">
-          <h2>主要功能入口</h2>
-          <p>首頁不再沿用全站共用版面，改為獨立設計，整體更乾淨、現代，也更適合當作系統主入口。</p>
+          <h2 data-i18n="home_panel_title">主要功能入口</h2>
+          <p data-i18n="home_panel_desc">首頁不再沿用全站共用版面，改為獨立設計，整體更乾淨、現代，也更適合當作系統主入口。</p>
         </div>
-        <div class="panel-chip"><i class="fas fa-grid-2"></i><span>8 個常用入口</span></div>
+        <div class="panel-chip"><i class="fas fa-grid-2"></i><span data-i18n="home_panel_chip">8 個常用入口</span></div>
       </div>
 
       <div class="menu-grid">
@@ -644,72 +613,72 @@
           <div class="menu-icon"><i class="fas fa-calendar-check"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="booking_visit">預約探視</div>
-            <div class="menu-desc">提供家屬線上預約探視，流程更直覺。</div>
+            <div class="menu-desc" data-i18n="home_desc_booking">提供家屬線上預約探視，流程更直覺。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="query.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-magnifying-glass"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="query_cancel_booking">查詢／取消預約</div>
-            <div class="menu-desc">快速查詢既有預約資料，也可直接取消。</div>
+            <div class="menu-desc" data-i18n="home_desc_query">快速查詢既有預約資料，也可直接取消。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="affairs.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-clipboard-list"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="affairs_system">事務系統</div>
-            <div class="menu-desc">整合行政相關流程與常用事務功能。</div>
+            <div class="menu-desc" data-i18n="home_desc_affairs">整合行政相關流程與常用事務功能。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="contact.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-phone"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="contact_us">聯絡我們</div>
-            <div class="menu-desc">提供聯繫資訊與相關服務窗口。</div>
+            <div class="menu-desc" data-i18n="home_desc_contact">提供聯繫資訊與相關服務窗口。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="announcements.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-bullhorn"></i></div>
           <div class="menu-content">
-            <div class="menu-title">公告系統</div>
-            <div class="menu-desc">最新通知與重要公告可在此即時查看。</div>
+            <div class="menu-title" data-i18n="announcements_system">公告系統</div>
+            <div class="menu-desc" data-i18n="home_desc_announcements">最新通知與重要公告可在此即時查看。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="caregiver.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-user-friends"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="caregiver_login">照服員登入</div>
-            <div class="menu-desc">照服員專用登入入口，快速進入工作頁面。</div>
+            <div class="menu-desc" data-i18n="home_desc_caregiver">照服員專用登入入口，快速進入工作頁面。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="admin.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-user-shield"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="nurse_login">護理師登入</div>
-            <div class="menu-desc">護理師系統登入入口，管理臨床與照護相關功能。</div>
+            <div class="menu-desc" data-i18n="home_desc_nurse">護理師系統登入入口，管理臨床與照護相關功能。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
 
         <a href="office.html" class="menu-item">
           <div class="menu-icon"><i class="fas fa-briefcase"></i></div>
           <div class="menu-content">
             <div class="menu-title" data-i18n="office_login">辦公室登入</div>
-            <div class="menu-desc">辦公室後台入口，處理行政與管理作業。</div>
+            <div class="menu-desc" data-i18n="home_desc_office">辦公室後台入口，處理行政與管理作業。</div>
           </div>
-          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+          <div class="menu-arrow"><span data-i18n="go_now">立即前往</span> <i class="fas fa-arrow-right"></i></div>
         </a>
       </div>
     </section>
@@ -717,9 +686,9 @@
     <footer class="footer">
       <div class="footer-brand">
         <i class="fas fa-shield-heart"></i>
-        <span>安泰護理之家 House System</span>
+        <span data-i18n="home_footer_brand">安泰護理之家 House System</span>
       </div>
-      <div>© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</div>
+      <div data-i18n="home_footer_copyright">© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</div>
     </footer>
   </div>
 
@@ -730,5 +699,328 @@
   <script src="i18n.js"></script>
   <script src="main.js"></script>
   <script src="index-marquee.js"></script>
+
+  <script>
+    (function patchHomepageTranslations() {
+      if (typeof translations === "undefined") return;
+
+      const zh = {
+        affairs_system: "事務系統",
+        announcements_system: "公告系統",
+        home_system_name: "House System",
+        home_hero_subtitle: "服務整合入口，提供探視預約、公告查詢、各系統登入與聯繫資訊，讓住民家屬與工作人員都能更快速找到需要的功能。",
+        home_panel_title: "主要功能入口",
+        home_panel_desc: "首頁不再沿用全站共用版面，改為獨立設計，整體更乾淨、現代，也更適合當作系統主入口。",
+        home_panel_chip: "8 個常用入口",
+        home_desc_booking: "提供家屬線上預約探視，流程更直覺。",
+        home_desc_query: "快速查詢既有預約資料，也可直接取消。",
+        home_desc_affairs: "整合行政相關流程與常用事務功能。",
+        home_desc_contact: "提供聯繫資訊與相關服務窗口。",
+        home_desc_announcements: "最新通知與重要公告可在此即時查看。",
+        home_desc_caregiver: "照服員專用登入入口，快速進入工作頁面。",
+        home_desc_nurse: "護理師系統登入入口，管理臨床與照護相關功能。",
+        home_desc_office: "辦公室後台入口，處理行政與管理作業。",
+        go_now: "立即前往",
+        home_footer_brand: "安泰護理之家 House System",
+        home_footer_copyright: "© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究",
+        weather_title: "天氣資訊",
+        weather_updated: "更新時間",
+        weather_loading: "讀取天氣中...",
+        weather_location: "位置",
+        weather_feels_like: "體感溫度",
+        weather_humidity: "濕度",
+        weather_rain_prob: "降雨機率",
+        weather_locating: "定位中...",
+        weather_location_unavailable: "無法取得位置",
+        weather_fetch_failed: "天氣讀取失敗",
+        weather_permission_denied: "定位權限被拒絕",
+        weather_status_clear_day: "晴朗",
+        weather_status_clear_night: "晴朗夜晚",
+        weather_status_mainly_clear_day: "大致晴朗",
+        weather_status_mainly_clear_night: "大致晴朗夜晚",
+        weather_status_partly_cloudy_day: "多雲時晴",
+        weather_status_partly_cloudy_night: "夜間多雲",
+        weather_status_overcast: "陰天",
+        weather_status_fog: "有霧",
+        weather_status_depositing_rime_fog: "霧淞",
+        weather_status_drizzle_light: "毛毛雨",
+        weather_status_drizzle_moderate: "間歇細雨",
+        weather_status_drizzle_dense: "濃霧細雨",
+        weather_status_freezing_drizzle_light: "輕微凍雨",
+        weather_status_freezing_drizzle_dense: "明顯凍雨",
+        weather_status_rain_slight: "小雨",
+        weather_status_rain_moderate: "雨勢中等",
+        weather_status_rain_heavy: "大雨",
+        weather_status_freezing_rain_light: "輕微凍雨",
+        weather_status_freezing_rain_heavy: "強凍雨",
+        weather_status_snow_slight: "小雪",
+        weather_status_snow_moderate: "中雪",
+        weather_status_snow_heavy: "大雪",
+        weather_status_snow_grains: "霰",
+        weather_status_rain_showers_slight: "短暫陣雨",
+        weather_status_rain_showers_moderate: "陣雨",
+        weather_status_rain_showers_violent: "強烈陣雨",
+        weather_status_snow_showers_slight: "短暫陣雪",
+        weather_status_snow_showers_heavy: "強陣雪",
+        weather_status_thunderstorm: "雷雨",
+        weather_status_thunderstorm_slight_hail: "雷雨伴隨小冰雹",
+        weather_status_thunderstorm_heavy_hail: "雷雨伴隨冰雹"
+      };
+
+      const en = {
+        affairs_system: "Affairs System",
+        announcements_system: "Announcements",
+        home_system_name: "House System",
+        home_hero_subtitle: "A central service portal for visit booking, announcement lookup, staff login, and contact information, helping families and staff reach the right function faster.",
+        home_panel_title: "Main Service Shortcuts",
+        home_panel_desc: "This homepage now uses a standalone design instead of the shared site layout, giving it a cleaner and more modern entrance experience.",
+        home_panel_chip: "8 quick entries",
+        home_desc_booking: "Book a family visit online with a more direct and intuitive flow.",
+        home_desc_query: "Quickly check an existing booking or cancel it directly.",
+        home_desc_affairs: "Access administrative workflows and commonly used service functions.",
+        home_desc_contact: "Find contact information and service windows here.",
+        home_desc_announcements: "Read the latest notices and important announcements.",
+        home_desc_caregiver: "Caregiver-only login entry for quick access to work pages.",
+        home_desc_nurse: "Login entry for the nurse system and clinical care functions.",
+        home_desc_office: "Office backend entry for administration and management tasks.",
+        go_now: "Open now",
+        home_footer_brand: "Antai Nursing Home House System",
+        home_footer_copyright: "© 2025 Copyright. All Rights Reserved.",
+        weather_title: "Weather",
+        weather_updated: "Updated",
+        weather_loading: "Loading weather...",
+        weather_location: "Location",
+        weather_feels_like: "Feels like",
+        weather_humidity: "Humidity",
+        weather_rain_prob: "Rain chance",
+        weather_locating: "Locating...",
+        weather_location_unavailable: "Location unavailable",
+        weather_fetch_failed: "Unable to load weather",
+        weather_permission_denied: "Location permission denied",
+        weather_status_clear_day: "Clear",
+        weather_status_clear_night: "Clear night",
+        weather_status_mainly_clear_day: "Mostly clear",
+        weather_status_mainly_clear_night: "Mostly clear night",
+        weather_status_partly_cloudy_day: "Partly cloudy",
+        weather_status_partly_cloudy_night: "Partly cloudy night",
+        weather_status_overcast: "Overcast",
+        weather_status_fog: "Fog",
+        weather_status_depositing_rime_fog: "Rime fog",
+        weather_status_drizzle_light: "Light drizzle",
+        weather_status_drizzle_moderate: "Drizzle",
+        weather_status_drizzle_dense: "Dense drizzle",
+        weather_status_freezing_drizzle_light: "Light freezing drizzle",
+        weather_status_freezing_drizzle_dense: "Dense freezing drizzle",
+        weather_status_rain_slight: "Light rain",
+        weather_status_rain_moderate: "Rain",
+        weather_status_rain_heavy: "Heavy rain",
+        weather_status_freezing_rain_light: "Light freezing rain",
+        weather_status_freezing_rain_heavy: "Heavy freezing rain",
+        weather_status_snow_slight: "Light snow",
+        weather_status_snow_moderate: "Snow",
+        weather_status_snow_heavy: "Heavy snow",
+        weather_status_snow_grains: "Snow grains",
+        weather_status_rain_showers_slight: "Light showers",
+        weather_status_rain_showers_moderate: "Showers",
+        weather_status_rain_showers_violent: "Violent showers",
+        weather_status_snow_showers_slight: "Light snow showers",
+        weather_status_snow_showers_heavy: "Heavy snow showers",
+        weather_status_thunderstorm: "Thunderstorm",
+        weather_status_thunderstorm_slight_hail: "Thunderstorm with slight hail",
+        weather_status_thunderstorm_heavy_hail: "Thunderstorm with heavy hail"
+      };
+
+      translations["zh-TW"] = Object.assign(translations["zh-TW"] || {}, zh);
+      translations["en"] = Object.assign(translations["en"] || {}, en);
+
+      if (typeof applyTranslations === "function") {
+        applyTranslations(document.documentElement.lang && document.documentElement.lang.startsWith("en") ? "en" : "zh-TW");
+      }
+    })();
+
+    (function weatherModule() {
+      const el = {
+        temp: document.getElementById("weather-temp"),
+        status: document.getElementById("weather-status"),
+        location: document.getElementById("weather-location"),
+        feelsLike: document.getElementById("weather-feels-like"),
+        humidity: document.getElementById("weather-humidity"),
+        rain: document.getElementById("weather-rain"),
+        updatedAt: document.getElementById("weather-updated-at"),
+        icon: document.getElementById("weather-icon")
+      };
+
+      const REFRESH_MS = 5 * 60 * 1000;
+
+      function currentLang() {
+        const lang = document.documentElement.lang || "zh-TW";
+        return lang.toLowerCase().startsWith("en") ? "en" : "zh-TW";
+      }
+
+      function t(key) {
+        try {
+          if (typeof translations !== "undefined" && translations[currentLang()] && translations[currentLang()][key]) {
+            return translations[currentLang()][key];
+          }
+        } catch (e) {}
+        return key;
+      }
+
+      function formatUpdateTime(date) {
+        const lang = currentLang() === "en" ? "en-US" : "zh-TW";
+        return new Intl.DateTimeFormat(lang, {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).format(date);
+      }
+
+      function getWeatherKey(code, isDay) {
+        const dayNight = isDay ? "day" : "night";
+        const map = {
+          0: isDay ? "weather_status_clear_day" : "weather_status_clear_night",
+          1: isDay ? "weather_status_mainly_clear_day" : "weather_status_mainly_clear_night",
+          2: isDay ? "weather_status_partly_cloudy_day" : "weather_status_partly_cloudy_night",
+          3: "weather_status_overcast",
+          45: "weather_status_fog",
+          48: "weather_status_depositing_rime_fog",
+          51: "weather_status_drizzle_light",
+          53: "weather_status_drizzle_moderate",
+          55: "weather_status_drizzle_dense",
+          56: "weather_status_freezing_drizzle_light",
+          57: "weather_status_freezing_drizzle_dense",
+          61: "weather_status_rain_slight",
+          63: "weather_status_rain_moderate",
+          65: "weather_status_rain_heavy",
+          66: "weather_status_freezing_rain_light",
+          67: "weather_status_freezing_rain_heavy",
+          71: "weather_status_snow_slight",
+          73: "weather_status_snow_moderate",
+          75: "weather_status_snow_heavy",
+          77: "weather_status_snow_grains",
+          80: "weather_status_rain_showers_slight",
+          81: "weather_status_rain_showers_moderate",
+          82: "weather_status_rain_showers_violent",
+          85: "weather_status_snow_showers_slight",
+          86: "weather_status_snow_showers_heavy",
+          95: "weather_status_thunderstorm",
+          96: "weather_status_thunderstorm_slight_hail",
+          99: "weather_status_thunderstorm_heavy_hail"
+        };
+        return map[code] || "weather_loading";
+      }
+
+      function updateWeatherVisual(code, isDay) {
+        const iconMap = {
+          clearDay: "fas fa-sun",
+          clearNight: "fas fa-moon",
+          cloudy: "fas fa-cloud-sun",
+          overcast: "fas fa-cloud",
+          fog: "fas fa-smog",
+          drizzle: "fas fa-cloud-rain",
+          rain: "fas fa-cloud-showers-heavy",
+          snow: "fas fa-snowflake",
+          thunder: "fas fa-bolt"
+        };
+
+        let iconClass = iconMap.cloudy;
+        if (code === 0) iconClass = isDay ? iconMap.clearDay : iconMap.clearNight;
+        else if ([1,2].includes(code)) iconClass = iconMap.cloudy;
+        else if ([3].includes(code)) iconClass = iconMap.overcast;
+        else if ([45,48].includes(code)) iconClass = iconMap.fog;
+        else if ([51,53,55,56,57].includes(code)) iconClass = iconMap.drizzle;
+        else if ([61,63,65,66,67,80,81,82].includes(code)) iconClass = iconMap.rain;
+        else if ([71,73,75,77,85,86].includes(code)) iconClass = iconMap.snow;
+        else if ([95,96,99].includes(code)) iconClass = iconMap.thunder;
+
+        el.icon.className = iconClass;
+      }
+
+      async function reverseGeocode(lat, lon) {
+        const lang = currentLang() === "en" ? "en" : "zh-TW";
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&accept-language=${encodeURIComponent(lang)}`;
+        const res = await fetch(url, { headers: { "Accept": "application/json" } });
+        if (!res.ok) throw new Error("reverse geocoding failed");
+        const data = await res.json();
+        const addr = data.address || {};
+        return addr.city || addr.town || addr.village || addr.suburb || addr.county || data.name || t("weather_location_unavailable");
+      }
+
+      async function fetchWeatherByCoords(lat, lon) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code&hourly=precipitation_probability&timezone=auto&forecast_days=1`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("weather fetch failed");
+        return res.json();
+      }
+
+      function getCurrentHourlyRain(hourly, currentTime) {
+        if (!hourly || !Array.isArray(hourly.time) || !Array.isArray(hourly.precipitation_probability)) return null;
+        const idx = hourly.time.indexOf(currentTime);
+        if (idx >= 0) return hourly.precipitation_probability[idx];
+        return hourly.precipitation_probability[0] ?? null;
+      }
+
+      async function refreshWeather() {
+        el.status.textContent = t("weather_loading");
+        el.location.textContent = t("weather_locating");
+        try {
+          const position = await new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+              reject(new Error("geolocation unsupported"));
+              return;
+            }
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            });
+          });
+
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          const [weather, place] = await Promise.all([
+            fetchWeatherByCoords(lat, lon),
+            reverseGeocode(lat, lon).catch(() => t("weather_location_unavailable"))
+          ]);
+
+          const current = weather.current || {};
+          const rain = getCurrentHourlyRain(weather.hourly, current.time);
+          const code = Number(current.weather_code ?? 0);
+          const isDay = Number(current.is_day ?? 1) === 1;
+
+          el.temp.textContent = `${Math.round(current.temperature_2m ?? 0)}°C`;
+          el.feelsLike.textContent = `${Math.round(current.apparent_temperature ?? 0)}°C`;
+          el.humidity.textContent = `${Math.round(current.relative_humidity_2m ?? 0)}%`;
+          el.rain.textContent = rain == null ? "--%" : `${Math.round(rain)}%`;
+          el.status.textContent = t(getWeatherKey(code, isDay));
+          el.location.textContent = place;
+          el.updatedAt.textContent = formatUpdateTime(new Date());
+          updateWeatherVisual(code, isDay);
+        } catch (error) {
+          const msg = error && error.code === 1 ? t("weather_permission_denied") : t("weather_fetch_failed");
+          el.status.textContent = msg;
+          el.location.textContent = t("weather_location_unavailable");
+          el.updatedAt.textContent = formatUpdateTime(new Date());
+        }
+      }
+
+      document.addEventListener("click", function(event) {
+        const btn = event.target.closest("#lang-switcher");
+        if (!btn) return;
+        setTimeout(refreshWeather, 80);
+      });
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", refreshWeather);
+      } else {
+        refreshWeather();
+      }
+      setInterval(refreshWeather, REFRESH_MS);
+    })();
+  </script>
 </body>
 </html>
