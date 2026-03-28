@@ -5,177 +5,630 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="main_title_full">安泰醫療社團法人附設安泰護理之家</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-
-  <!-- ⭐ 已改為使用你的 LOGO -->
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/notify-192.png">
   <link rel="apple-touch-icon" href="/icons/notify-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <style>
+    :root {
+      --bg: #f4f6fb;
+      --bg-soft: #edf2f8;
+      --card: rgba(255, 255, 255, 0.86);
+      --text: #1f2937;
+      --muted: #667085;
+      --primary: #f4c400;
+      --primary-deep: #d7a600;
+      --accent: #1f2a44;
+      --accent-soft: #31415f;
+      --border: rgba(255, 255, 255, 0.5);
+      --shadow-lg: 0 24px 48px rgba(31, 42, 68, 0.14);
+      --shadow-md: 0 12px 28px rgba(31, 42, 68, 0.12);
+      --shadow-sm: 0 8px 18px rgba(31, 42, 68, 0.08);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; }
+
     body {
-      background-color: #f5f5f5;
+      min-height: 100vh;
       font-family: "Noto Sans TC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(244, 196, 0, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(49, 65, 95, 0.14), transparent 26%),
+        linear-gradient(180deg, #f8fafc 0%, #eef3f8 48%, #e8edf5 100%);
+      position: relative;
+      overflow-x: hidden;
     }
 
-    /* 🔹 深灰頂部標題 */
-    .header-bar {
-      background: linear-gradient(135deg, #2f2f2f, #3c3c3c);
-      color: white;
-      padding: 25px 0;
-      text-align: center;
-    }
-    .header-bar h1 {
-      font-weight: 700;
-      margin-bottom: 5px;
-      font-size: 1.5rem;
-    }
-    .header-bar p {
-      font-size: 1.1rem;
-      color: #f0f0f0;
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+      filter: blur(10px);
     }
 
-    /* 🔹 跑馬燈公告 */
+    body::before {
+      width: 320px;
+      height: 320px;
+      top: -120px;
+      right: -70px;
+      background: rgba(244, 196, 0, 0.18);
+    }
+
+    body::after {
+      width: 360px;
+      height: 360px;
+      bottom: -160px;
+      left: -120px;
+      background: rgba(49, 65, 95, 0.12);
+    }
+
+    .page-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1200px, calc(100% - 32px));
+      margin: 22px auto;
+      padding: 24px;
+      border-radius: 34px;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(12px);
+    }
+
     #announcement-marquee {
-      background: #fff3cd;
-      color: #000;
-      font-weight: bold;
-      border-bottom: 1px solid #f0e68c;
-      padding: 6px 0;
-      white-space: nowrap;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,248,214,0.95));
+      color: #7a5c00;
+      border: 1px solid rgba(244, 196, 0, 0.22);
+      border-radius: 18px;
+      box-shadow: var(--shadow-sm);
       overflow: hidden;
     }
-    #marquee-text span {
-      margin-right: 2px;
+
+    .marquee-inner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      min-height: 52px;
     }
 
-    /* 🔹 主選單區塊 */
-    .menu-section {
-      margin: 40px auto;
-      max-width: 1000px;
-      padding: 0 20px;
+    .marquee-badge {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: rgba(244, 196, 0, 0.18);
+      color: #8b6a00;
+      font-size: 0.95rem;
+    }
+
+    #marquee-text {
+      flex: 1;
+      font-size: 0.96rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 26px;
+    }
+
+    .hero-main,
+    .hero-side {
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-main {
+      padding: 40px 42px;
+      background:
+        linear-gradient(135deg, rgba(31,42,68,0.96), rgba(49,65,95,0.92));
+      color: #fff;
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      isolation: isolate;
+    }
+
+    .hero-main::before {
+      content: "";
+      position: absolute;
+      inset: auto -60px -70px auto;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(244,196,0,0.38), rgba(244,196,0,0));
+      z-index: -1;
+    }
+
+    .hero-topline {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #f8e79c;
+      margin-bottom: 18px;
+    }
+
+    .hero-title {
+      margin: 0;
+      font-size: clamp(1.75rem, 3vw, 2.6rem);
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+      font-weight: 800;
+    }
+
+    .hero-subtitle {
+      margin: 14px 0 0;
+      font-size: 1.05rem;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.82);
+      max-width: 680px;
+    }
+
+    .hero-side {
+      background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,249,253,0.92));
+      border: 1px solid rgba(255,255,255,0.64);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 260px;
+    }
+
+    .side-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin: 0 0 8px;
+    }
+
+    .side-card-title i {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(244, 196, 0, 0.16);
+      color: #8b6a00;
+    }
+
+    .quick-info {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .info-box {
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(31,42,68,0.06);
+      padding: 14px 16px;
+      box-shadow: 0 6px 14px rgba(31, 42, 68, 0.05);
+    }
+
+    .info-label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      font-size: 1rem;
+      color: var(--text);
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .lang-button {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      background: linear-gradient(135deg, #f4c400, #ffdd4c);
+      color: #3a2e00;
+      font-weight: 800;
+      padding: 12px 18px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 10px 18px rgba(244, 196, 0, 0.24);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .lang-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 24px rgba(244, 196, 0, 0.3);
+    }
+
+    .menu-panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(247,249,253,0.9));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      padding: 26px;
+      margin-bottom: 22px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title-wrap h2 {
+      margin: 0 0 8px;
+      font-size: 1.45rem;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .panel-title-wrap p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.7;
+    }
+
+    .panel-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(31,42,68,0.06);
+      color: var(--accent);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
     }
 
     .menu-grid {
       display: grid;
-      gap: 20px;
-      justify-content: center;
-      grid-template-columns: repeat(4, 1fr);
-    }
-
-    @media (max-width: 991px) {
-      .menu-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-    @media (max-width: 768px) {
-      .menu-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
-      }
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
     }
 
     .menu-item {
+      position: relative;
       text-decoration: none;
-      background-color: #ffda00;
-      color: #333;
-      border-radius: 15px;
-      text-align: center;
-      padding: 30px 10px;
-      font-weight: 600;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      transition: 0.3s;
+      color: var(--text);
+      background: linear-gradient(180deg, #fff6bf 0%, #ffe15c 100%);
+      border-radius: 24px;
+      min-height: 184px;
+      padding: 22px 20px;
+      box-shadow: 0 14px 24px rgba(181, 141, 0, 0.16);
+      border: 1px solid rgba(255,255,255,0.55);
+      overflow: hidden;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 120px;
-    }
-    .menu-item:hover {
-      background-color: #ffeb5c;
-      transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-    }
-    .menu-item i {
-      font-size: 2.5rem;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      isolation: isolate;
     }
 
-    footer {
-      text-align: center;
-      padding: 25px 0;
+    .menu-item::before {
+      content: "";
+      position: absolute;
+      top: -44px;
+      right: -34px;
+      width: 118px;
+      height: 118px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.26);
+      z-index: -1;
+    }
+
+    .menu-item:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 22px 34px rgba(181, 141, 0, 0.22);
+      filter: saturate(1.03);
+    }
+
+    .menu-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      background: rgba(31, 42, 68, 0.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-size: 1.7rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+    }
+
+    .menu-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .menu-title {
+      font-size: 1.18rem;
+      font-weight: 800;
+      line-height: 1.35;
+      color: #1f2937;
+    }
+
+    .menu-desc {
+      font-size: 0.92rem;
+      line-height: 1.6;
+      color: rgba(31,41,55,0.78);
+    }
+
+    .menu-arrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       font-size: 0.9rem;
-      color: #888;
-      background-color: #fff;
+      font-weight: 800;
+      color: #6b5300;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 6px 8px 2px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .footer-brand i {
+      color: #c59a00;
+    }
+
+    @media (max-width: 1100px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 800px) {
+      .page-shell {
+        width: min(100% - 18px, 100%);
+        margin: 10px auto;
+        padding: 14px;
+        border-radius: 24px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .menu-panel {
+        border-radius: 22px;
+      }
+
+      .hero-main {
+        padding: 28px 22px;
+        min-height: auto;
+      }
+
+      .hero-side,
+      .menu-panel {
+        padding: 18px;
+      }
+
+      .menu-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .menu-item {
+        min-height: 164px;
+        border-radius: 20px;
+        padding: 18px 16px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-header,
+      .footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .lang-button {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
-
 <body>
-  <!-- 公告跑馬燈 -->
-  <div id="announcement-marquee" class="text-center">
-    <marquee behavior="scroll" direction="left" id="marquee-text"></marquee>
-  </div>
-
-  <!-- 深灰標題區 -->
-  <div class="header-bar">
-    <h1 data-i18n="main_title_full">安泰醫療社團法人附設安泰護理之家</h1>
-    <p data-i18n="main_menu_title">服務選單</p>
-  </div>
-
-  <!-- 主選單 -->
-  <div class="menu-section">
-    <div class="menu-grid">
-
-      <a href="booking.html" class="menu-item">
-        <i class="fas fa-calendar-check"></i>
-        <div data-i18n="booking_visit">預約探視</div>
-      </a>
-
-      <a href="query.html" class="menu-item">
-        <i class="fas fa-search"></i>
-        <div data-i18n="query_cancel_booking">查詢/取消預約</div>
-      </a>
-
-      <a href="affairs.html" class="menu-item">
-        <i class="fas fa-clipboard-list"></i>
-        <div data-i18n="affairs_system">事務系統</div>
-      </a>
-
-      <a href="contact.html" class="menu-item">
-        <i class="fas fa-phone"></i>
-        <div data-i18n="contact_us">聯絡我們</div>
-      </a>
-
-      <a href="announcements.html" class="menu-item">
-        <i class="fas fa-bullhorn"></i>
-        <div>公告系統</div>
-      </a>
-
-      <a href="caregiver.html" class="menu-item">
-        <i class="fas fa-user-friends"></i>
-        <div data-i18n="caregiver_login">照服員登入</div>
-      </a>
-
-      <a href="admin.html" class="menu-item">
-        <i class="fas fa-user-shield"></i>
-        <div data-i18n="nurse_login">護理師登入</div>
-      </a>
-
-      <a href="office.html" class="menu-item">
-        <i class="fas fa-briefcase"></i>
-        <div data-i18n="office_login">辦公室登入</div>
-      </a>
-
+  <div class="page-shell">
+    <div id="announcement-marquee">
+      <div class="marquee-inner">
+        <div class="marquee-badge"><i class="fas fa-bullhorn"></i></div>
+        <marquee behavior="scroll" direction="left" id="marquee-text"></marquee>
+      </div>
     </div>
+
+    <section class="hero">
+      <div class="hero-main">
+        <div class="hero-topline">
+          <i class="fas fa-house-medical"></i>
+          <span>House System</span>
+        </div>
+        <h1 class="hero-title" data-i18n="main_title_full">安泰醫療社團法人附設安泰護理之家</h1>
+        <p class="hero-subtitle">
+          服務整合入口，提供探視預約、公告查詢、各系統登入與聯繫資訊，讓住民家屬與工作人員都能更快速找到需要的功能。
+        </p>
+      </div>
+
+      <aside class="hero-side">
+        <div>
+          <h2 class="side-card-title"><i class="fas fa-circle-info"></i><span data-i18n="main_menu_title">服務選單</span></h2>
+          <div class="quick-info">
+            <div class="info-box">
+              <span class="info-label">系統特色</span>
+              <div class="info-value">簡潔首頁、功能分類清楚、支援中英文切換</div>
+            </div>
+            <div class="info-box">
+              <span class="info-label">適用對象</span>
+              <div class="info-value">家屬、照服員、護理師、辦公室人員</div>
+            </div>
+          </div>
+        </div>
+
+        <button id="lang-switcher" class="lang-button" type="button">
+          <i class="fas fa-language"></i>
+          <span>English</span>
+        </button>
+      </aside>
+    </section>
+
+    <section class="menu-panel">
+      <div class="panel-header">
+        <div class="panel-title-wrap">
+          <h2>主要功能入口</h2>
+          <p>首頁不再沿用全站共用版面，改為獨立設計，整體更乾淨、現代，也更適合當作系統主入口。</p>
+        </div>
+        <div class="panel-chip"><i class="fas fa-grid-2"></i><span>8 個常用入口</span></div>
+      </div>
+
+      <div class="menu-grid">
+        <a href="booking.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="booking_visit">預約探視</div>
+            <div class="menu-desc">提供家屬線上預約探視，流程更直覺。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="query.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-magnifying-glass"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="query_cancel_booking">查詢／取消預約</div>
+            <div class="menu-desc">快速查詢既有預約資料，也可直接取消。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="affairs.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-clipboard-list"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="affairs_system">事務系統</div>
+            <div class="menu-desc">整合行政相關流程與常用事務功能。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="contact.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-phone"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="contact_us">聯絡我們</div>
+            <div class="menu-desc">提供聯繫資訊與相關服務窗口。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="announcements.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-bullhorn"></i></div>
+          <div class="menu-content">
+            <div class="menu-title">公告系統</div>
+            <div class="menu-desc">最新通知與重要公告可在此即時查看。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="caregiver.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-user-friends"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="caregiver_login">照服員登入</div>
+            <div class="menu-desc">照服員專用登入入口，快速進入工作頁面。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="admin.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-user-shield"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="nurse_login">護理師登入</div>
+            <div class="menu-desc">護理師系統登入入口，管理臨床與照護相關功能。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+
+        <a href="office.html" class="menu-item">
+          <div class="menu-icon"><i class="fas fa-briefcase"></i></div>
+          <div class="menu-content">
+            <div class="menu-title" data-i18n="office_login">辦公室登入</div>
+            <div class="menu-desc">辦公室後台入口，處理行政與管理作業。</div>
+          </div>
+          <div class="menu-arrow">立即前往 <i class="fas fa-arrow-right"></i></div>
+        </a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-brand">
+        <i class="fas fa-shield-heart"></i>
+        <span>安泰護理之家 House System</span>
+      </div>
+      <div>© 2025 Copyright. All Rights Reserved. 版權所有 翻印必究</div>
+    </footer>
   </div>
 
-  <footer>
-    <button id="lang-switcher" class="btn btn-sm btn-outline-secondary mb-2"></button><br />
-    © 2025 Copyright. All Rights Reserved. 版權所有 翻印必究
-  </footer>
-
-  <!-- Firebase & JS -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
