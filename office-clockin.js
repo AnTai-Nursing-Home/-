@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tableBody += `
                 <tr>
                     <td rowspan="2">${employee.empId}</td>
-                    <td rowspan="2">${employee.empName}</td>
+                    <td rowspan="2" style="min-width:80px; writing-mode: vertical-rl; letter-spacing:2px;">${employee.empName}</td>
                     <td>上班</td>
                     ${clockInCells}
                 </tr>
@@ -192,6 +192,127 @@ document.addEventListener('DOMContentLoaded', function() {
             th,td{border:1px solid #000;padding:2px;text-align:center;font-size:8pt;}
             td[rowspan]{vertical-align:middle;}
         </style></head><body><h1>安泰醫療社團法人附設安泰護理之家</h1><h2>${title} (${monthSelect.value})</h2><table><thead>${tableHeader}</thead><tbody>${tableBody}</tbody></table></body></html>`;
+    }
+
+
+    function getRoleLabel(role) {
+        return role === 'nurse' ? '護理師' : '照服員';
+    }
+
+    function getDaysInSelectedMonth() {
+        const [year, month] = monthSelect.value.split('-').map(Number);
+        return new Date(year, month, 0).getDate();
+    }
+
+    async function exportStyledExcel(reportData, role) {
+        if (typeof ExcelJS === 'undefined') {
+            alert('ExcelJS 載入失敗，無法匯出 Excel。');
+            return;
+        }
+        const roleLabel = getRoleLabel(role);
+        const daysInMonth = getDaysInSelectedMonth();
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'ChatGPT';
+        workbook.created = new Date();
+        const sheet = workbook.addWorksheet(roleLabel, {
+            views: [{ state: 'frozen', xSplit: 3, ySplit: 4 }]
+        });
+
+        const totalCols = 3 + daysInMonth;
+        const lastCol = excelCol(totalCols);
+        sheet.mergeCells(`A1:${lastCol}1`);
+        sheet.mergeCells(`A2:${lastCol}2`);
+        sheet.getCell('A1').value = '安泰醫療社團法人附設安泰護理之家';
+        sheet.getCell('A2').value = `${roleLabel}打卡紀錄總表 (${monthSelect.value})`;
+        sheet.getCell('A1').font = { name: '標楷體', size: 16, bold: true };
+        sheet.getCell('A2').font = { name: '標楷體', size: 13, bold: true };
+        sheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+        sheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+        sheet.getRow(1).height = 24;
+        sheet.getRow(2).height = 22;
+
+        const headerRow = 4;
+        sheet.getCell(`A${headerRow}`).value = '員編';
+        sheet.getCell(`B${headerRow}`).value = '姓名';
+        sheet.getCell(`C${headerRow}`).value = '項目';
+        for (let i = 1; i <= daysInMonth; i++) {
+            sheet.getCell(headerRow, 3 + i).value = i;
+        }
+
+        const border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+        for (let c = 1; c <= totalCols; c++) {
+            const cell = sheet.getCell(headerRow, c);
+            cell.font = { name: '標楷體', size: 11, bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E2F3' } };
+            cell.border = border;
+        }
+
+        let rowIndex = 5;
+        reportData.forEach(emp => {
+            sheet.mergeCells(`A${rowIndex}:A${rowIndex + 1}`);
+            sheet.mergeCells(`B${rowIndex}:B${rowIndex + 1}`);
+            sheet.getCell(`A${rowIndex}`).value = emp.empId;
+            sheet.getCell(`B${rowIndex}`).value = emp.empName;
+            sheet.getCell(`C${rowIndex}`).value = '上班';
+            sheet.getCell(`C${rowIndex + 1}`).value = '下班';
+            sheet.getCell(`C${rowIndex}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+            sheet.getCell(`C${rowIndex + 1}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+            for (let i = 0; i < daysInMonth; i++) {
+                sheet.getCell(rowIndex, 4 + i).value = emp.dailyRecords[i]?.clockIn || '';
+                sheet.getCell(rowIndex + 1, 4 + i).value = emp.dailyRecords[i]?.clockOut || '';
+            }
+            for (let r = rowIndex; r <= rowIndex + 1; r++) {
+                for (let c = 1; c <= totalCols; c++) {
+                    const cell = sheet.getCell(r, c);
+                    cell.font = { name: '標楷體', size: 10 };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = border;
+                }
+                sheet.getRow(r).height = 22;
+            }
+            rowIndex += 2;
+        });
+
+        sheet.columns = [
+            { width: 12 },
+            { width: 10 },
+            { width: 8 },
+            ...Array.from({ length: daysInMonth }, () => ({ width: 8 }))
+        ];
+
+        sheet.pageSetup = {
+            paperSize: 9,
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+        };
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${roleLabel}打卡紀錄總表-${monthSelect.value}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function excelCol(n) {
+        let s = '';
+        while (n > 0) {
+            const m = (n - 1) % 26;
+            s = String.fromCharCode(65 + m) + s;
+            n = Math.floor((n - 1) / 26);
+        }
+        return s;
     }
 
     function getActiveCache() {
@@ -291,40 +412,20 @@ document.addEventListener('DOMContentLoaded', function() {
         URL.revokeObjectURL(url);
     });
 
-    exportExcelBtn.addEventListener('click', () => {
+    exportExcelBtn.addEventListener('click', async () => {
         const reportData = generateReportData(getActiveCache(), currentTab);
-        const wb = XLSX.utils.book_new();
-        const roleLabel = currentTab === 'nurse' ? '護理師' : '照服員';
-        const [year, month] = monthSelect.value.split('-').map(Number);
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const header = ['員編', '姓名', '項目'];
-        for (let i = 1; i <= daysInMonth; i++) header.push(String(i));
-        const rows = [header];
-        reportData.forEach(employee => {
-            const inRow = [employee.empId, employee.empName, '上班'];
-            const outRow = ['', '', '下班'];
-            employee.dailyRecords.slice(0, daysInMonth).forEach(d => {
-                inRow.push(d.clockIn || '');
-                outRow.push(d.clockOut || '');
-            });
-            rows.push(inRow, outRow);
-        });
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 8 }, ...Array(daysInMonth).fill({ wch: 8 })];
-        XLSX.utils.book_append_sheet(wb, ws, roleLabel);
-        XLSX.writeFile(wb, `${roleLabel}打卡紀錄總表-${monthSelect.value}.xlsx`);
+        await exportStyledExcel(reportData, currentTab);
     });
 
     printBtn.addEventListener('click', () => {
-        nurseSection.classList.remove('print-active');
-        careSection.classList.remove('print-active');
-        if (currentTab === 'nurse') nurseSection.classList.add('print-active');
-        else careSection.classList.add('print-active');
-        window.print();
-        setTimeout(() => {
-            nurseSection.classList.remove('print-active');
-            careSection.classList.remove('print-active');
-        }, 300);
+        const reportData = generateReportData(getActiveCache(), currentTab);
+        const content = generateExportHTML(reportData, currentTab);
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return alert('無法開啟列印視窗，請確認瀏覽器是否封鎖彈出視窗。');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
     });
 
     const today = new Date();
