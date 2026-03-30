@@ -32,6 +32,7 @@ function buildTableHTML(tabId) {
                 <th>長照證效期</th>
                 <th>學歷</th>
                 <th>畢業學校</th>
+                <th>畢業證書</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -232,11 +233,16 @@ document.addEventListener('firebase-ready', () => {
   const certificateSummaryModal = certificateSummaryModalEl ? new bootstrap.Modal(certificateSummaryModalEl) : null;
   const certificateSummaryModalMeta = document.getElementById('certificate-summary-modal-meta');
   const certificateSummaryModalList = document.getElementById('certificate-summary-modal-list');
+  const graduationCertificateManageBtn = document.getElementById('graduation-certificate-manage-btn');
+  const graduationCertificateStatusEl = document.getElementById('graduation-certificate-status');
+  const graduationCertificateModalEl = document.getElementById('graduation-certificate-modal');
+  const graduationCertificateModal = graduationCertificateModalEl ? new bootstrap.Modal(graduationCertificateModalEl) : null;
+  const graduationCertificateModalMeta = document.getElementById('graduation-certificate-modal-meta');
+  const graduationCertificateFileInput = document.getElementById('graduation-certificate-file');
+  const graduationCertificatePreviewWrap = document.getElementById('graduation-certificate-preview-wrap');
   const licenseTypeInput = null;
   const licenseNumberInput = null;
   const licenseRenewDateInput = document.getElementById('employee-licenseRenewDate');
-  const longtermCertNumberInput = document.getElementById('employee-longtermCertNumber');
-  const longtermExpireDateInput = document.getElementById('employee-longtermExpireDate');
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
   const inactiveDateInput = document.getElementById('employee-inactiveDate');
@@ -294,9 +300,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 27;
-    if (tabId === 'foreignCaregivers') return 26;
-    return 23;
+    if (tabId === 'inactiveEmployees') return 28;
+    if (tabId === 'foreignCaregivers') return 27;
+    return 24;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -398,6 +404,7 @@ document.addEventListener('firebase-ready', () => {
     { value: '04:社工師執照', label: '04:社工師執照' },
     { value: '05:BLS', label: '05:BLS' },
     { value: '06:勞動部聘雇許可函', label: '06:勞動部聘雇許可函' },
+    { value: '07:長照小卡', label: '07:長照小卡' },
   ];
 
   const BLS_ORGANIZER_OPTIONS = [
@@ -427,8 +434,15 @@ document.addEventListener('firebase-ready', () => {
     return value === '03:BLS' || value === '04:BLS' || value === '04BLS' || value === '05:BLS' || value === '05BLS' || value === 'BLS';
   }
 
+  function isLongtermCardType(type = '') {
+    const value = String(type || '').trim();
+    return value === '07:長照小卡' || value === '長照小卡';
+  }
+
   function getCertificateNumberLabel(type = '') {
-    return isBLSType(type) ? '證書字號' : '發證字號';
+    if (isBLSType(type)) return '證書字號';
+    if (isLongtermCardType(type)) return '長照證號';
+    return '發證字號';
   }
 
   function buildCertificateExtraFields(item = {}) {
@@ -456,6 +470,14 @@ document.addEventListener('firebase-ready', () => {
         </div>
       `;
     }
+    if (isLongtermCardType(type)) {
+      return `
+        <div class="col-12 col-md-4">
+          <label class="form-label">長照證效期</label>
+          <input type="text" class="form-control cert-longterm-expire-date" placeholder="例：109/10/23-115/10/22" value="${escapeHtml(item.longtermExpireDate || item.validDate || '')}">
+        </div>
+      `;
+    }
     return '';
   }
 
@@ -466,6 +488,7 @@ document.addEventListener('firebase-ready', () => {
       renewDate: String(item.renewDate || item.licenseRenewDate || '').trim(),
       organizer: String(item.organizer || item.hostOrg || '').trim(),
       validDate: String(item.validDate || item.expireDate || '').trim(),
+      longtermExpireDate: String(item.longtermExpireDate || item.longtermExpiry || item.ltcExpiry || '').trim(),
       frontUrl: String(item.frontUrl || '').trim(),
       frontName: String(item.frontName || '').trim(),
       frontPath: String(item.frontPath || '').trim(),
@@ -478,24 +501,57 @@ document.addEventListener('firebase-ready', () => {
       backSize: Number(item.backSize || 0) || 0,
     })) : [];
 
-    if (fromArray.length) return fromArray;
+    if (fromArray.length) {
+      const hasLongterm = fromArray.some(item => isLongtermCardType(item.type));
+      if (!hasLongterm && (String(e.longtermCertNumber || e.ltcNo || '').trim() || String(e.longtermExpireDate || e.ltcExpiry || '').trim())) {
+        fromArray.push({
+          type: '07:長照小卡',
+          number: String(e.longtermCertNumber || e.ltcNo || '').trim(),
+          renewDate: '',
+          organizer: '',
+          validDate: '',
+          longtermExpireDate: String(e.longtermExpireDate || e.ltcExpiry || '').trim(),
+          frontUrl: '',
+          frontName: '',
+          backUrl: '',
+          backName: '',
+        });
+      }
+      return fromArray;
+    }
 
+    const result = [];
     const legacyType = String(e.licenseType || '').trim();
     const legacyNo = String(e.licenseNumber || e.licenseNo || '').trim();
     if (legacyType || legacyNo) {
-      return [{
+      result.push({
         type: legacyType,
         number: legacyNo,
         renewDate: String(e.licenseRenewDate || '').trim(),
         organizer: String(e.blsOrganizer || e.hostOrg || '').trim(),
         validDate: String(e.blsValidDate || '').trim(),
+        longtermExpireDate: '',
         frontUrl: '',
         frontName: '',
         backUrl: '',
         backName: '',
-      }];
+      });
     }
-    return [];
+    if (String(e.longtermCertNumber || e.ltcNo || '').trim() || String(e.longtermExpireDate || e.ltcExpiry || '').trim()) {
+      result.push({
+        type: '07:長照小卡',
+        number: String(e.longtermCertNumber || e.ltcNo || '').trim(),
+        renewDate: '',
+        organizer: '',
+        validDate: '',
+        longtermExpireDate: String(e.longtermExpireDate || e.ltcExpiry || '').trim(),
+        frontUrl: '',
+        frontName: '',
+        backUrl: '',
+        backName: '',
+      });
+    }
+    return result;
   }
 
   function getCertificatesSummary(list = certificateItems) {
@@ -506,6 +562,7 @@ document.addEventListener('firebase-ready', () => {
         if ((item.number || '').trim()) parts.push(`${getCertificateNumberLabel(item.type)}:${item.number}`);
         if ((item.renewDate || '').trim()) parts.push(`更新:${item.renewDate}`);
         if ((item.validDate || '').trim()) parts.push(`有效:${item.validDate}`);
+        if ((item.longtermExpireDate || '').trim()) parts.push(`長照證效期:${item.longtermExpireDate}`);
         return parts.filter(Boolean).join(' / ');
       })
       .join('；');
@@ -539,6 +596,7 @@ document.addEventListener('firebase-ready', () => {
             item.renewDate ? `<div>執照應更新日期：<strong>${escapeHtml(item.renewDate)}</strong></div>` : '',
             item.organizer ? `<div>主辦單位：<strong>${escapeHtml(item.organizer)}</strong></div>` : '',
             item.validDate ? `<div>有效日期：<strong>${escapeHtml(item.validDate)}</strong></div>` : '',
+            item.longtermExpireDate ? `<div>長照證效期：<strong>${escapeHtml(item.longtermExpireDate)}</strong></div>` : '',
           ].filter(Boolean).join('');
           return `
             <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
@@ -614,11 +672,13 @@ document.addEventListener('firebase-ready', () => {
       const renewDateEl = row.querySelector('.cert-renew-date');
       const organizerEl = row.querySelector('.cert-organizer');
       const validDateEl = row.querySelector('.cert-valid-date');
+      const longtermExpireDateEl = row.querySelector('.cert-longterm-expire-date');
       certificateItems[idx].type = typeEl?.value?.trim() || '';
       certificateItems[idx].number = numberEl?.value?.trim() || '';
       certificateItems[idx].renewDate = renewDateEl?.value?.trim() || '';
       certificateItems[idx].organizer = organizerEl?.value?.trim() || '';
       certificateItems[idx].validDate = validDateEl?.value?.trim() || '';
+      certificateItems[idx].longtermExpireDate = longtermExpireDateEl?.value?.trim() || '';
     });
   }
 
@@ -632,6 +692,7 @@ document.addEventListener('firebase-ready', () => {
       if (cert.renewDate) metaLines.push(`執照應更新日期：<strong>${escapeHtml(cert.renewDate)}</strong>`);
       if (cert.organizer) metaLines.push(`主辦單位：<strong>${escapeHtml(cert.organizer)}</strong>`);
       if (cert.validDate) metaLines.push(`有效日期：<strong>${escapeHtml(cert.validDate)}</strong>`);
+      if (cert.longtermExpireDate) metaLines.push(`長照證效期：<strong>${escapeHtml(cert.longtermExpireDate)}</strong>`);
       certificateFileModalMeta.innerHTML = metaLines.join('<br>');
     }
     if (certificateFrontLinkWrap) {
@@ -643,6 +704,98 @@ document.addEventListener('firebase-ready', () => {
       certificateBackLinkWrap.innerHTML = cert.backUrl
         ? `<a class="upload-preview-link" href="${escapeHtml(cert.backUrl)}" target="_blank" rel="noopener">查看反面：${escapeHtml(cert.backName || '檔案')}</a>`
         : '<span class="text-muted">尚未上傳反面檔案</span>';
+    }
+  }
+
+
+  let graduationCertificateData = {
+    url: '',
+    name: '',
+    path: '',
+    contentType: '',
+    size: 0,
+  };
+  let graduationCertificateModalMetaOverride = '';
+  let graduationCertificateUploadEnabled = true;
+
+  function resetGraduationCertificateState() {
+    graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
+    graduationCertificateModalMetaOverride = '';
+    graduationCertificateUploadEnabled = true;
+    if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
+    refreshGraduationCertificateUI();
+  }
+
+  function refreshGraduationCertificateUI() {
+    if (graduationCertificateStatusEl) {
+      graduationCertificateStatusEl.textContent = graduationCertificateData.url
+        ? `已上傳：${graduationCertificateData.name || '畢業證書圖片'}`
+        : '尚未上傳';
+    }
+    if (graduationCertificateModalMeta) {
+      if (graduationCertificateModalMetaOverride) {
+        graduationCertificateModalMeta.innerHTML = graduationCertificateModalMetaOverride;
+      } else {
+        const lines = [
+          `畢業學校：<strong>${escapeHtml(schoolInput?.value?.trim() || '未填寫')}</strong>`,
+          `檔案名稱：<strong>${escapeHtml(graduationCertificateData.name || '未上傳')}</strong>`,
+        ];
+        graduationCertificateModalMeta.innerHTML = lines.join('<br>');
+      }
+    }
+    if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
+    if (graduationCertificatePreviewWrap) {
+      graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
+        ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
+        : '<div class="text-muted">尚未上傳畢業證書</div>';
+    }
+  }
+
+  function loadGraduationCertificateFromEmployee(data = {}) {
+    graduationCertificateData = {
+      url: String(data.graduationCertificateUrl || '').trim(),
+      name: String(data.graduationCertificateName || '').trim(),
+      path: String(data.graduationCertificatePath || '').trim(),
+      contentType: String(data.graduationCertificateContentType || '').trim(),
+      size: Number(data.graduationCertificateSize || 0) || 0,
+    };
+    refreshGraduationCertificateUI();
+  }
+
+  async function uploadGraduationCertificate(file) {
+    if (!file) return;
+    const employeeId = idInput.value.trim();
+    const collection = currentEditing?.collection || typeInput.value;
+    if (!employeeId) {
+      alert('請先填寫員編，再上傳畢業證書。');
+      if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
+      return;
+    }
+    if (!collection) {
+      alert('目前無法判定員工類別，請先選擇分頁後再操作。');
+      return;
+    }
+    try {
+      const uploads = await uploadEmployeeCertificateFilesViaApi(
+        `${collection}-${employeeId}`,
+        `employees-graduation-certificate-${collection}`,
+        [file]
+      );
+      const uploaded = uploads[0];
+      if (!uploaded || !uploaded.url) throw new Error('上傳完成，但未取得檔案連結');
+      graduationCertificateData = {
+        url: String(uploaded.url || '').trim(),
+        name: String(uploaded.name || file.name || '畢業證書').trim(),
+        path: String(uploaded.path || '').trim(),
+        contentType: String(uploaded.contentType || file.type || '').trim(),
+        size: Number(uploaded.size || file.size || 0) || 0,
+      };
+      refreshGraduationCertificateUI();
+    } catch (err) {
+      console.error(err);
+      alert('畢業證書上傳失敗：' + (err.message || err));
+    } finally {
+      if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     }
   }
 
@@ -797,6 +950,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
         <td>${pick(e, ['education'])}</td>
         <td>${pick(e, ['school'])}</td>
+        <td>${pick(e, ['graduationCertificateUrl']) ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-graduation-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
         <td>
           <button class="btn btn-sm btn-primary btn-edit">編輯</button>
           <button class="btn btn-sm btn-danger btn-del ms-1">${actionLabel}</button>
@@ -831,6 +985,7 @@ function loadAll() {
     document.getElementById('employee-modal-title').textContent = `新增 - ${tab.label}`;
     syncForeignFieldVisibility(tab.collection);
     resetCertificateState();
+    resetGraduationCertificateState();
     idInput.disabled = false;
     if (inactiveWrap) inactiveWrap.classList.add('d-none');
     if (inactiveDateInput) inactiveDateInput.value = '';
@@ -897,11 +1052,11 @@ function fillFormFromRow(row) {
     emgPhoneInput.value = values[i++] || '';
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
-        licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
-    longtermCertNumberInput.value = values[i++] || '';
-    longtermExpireDateInput.value = values[i++] || '';
+    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
+    i += 2; // 長照證號、長照證效期改由證書資料管理
     educationInput.value = values[i++] || '';
     schoolInput.value = values[i++] || '';
+    i++; // 畢業證書欄位（查看按鈕）
 
     if (inactiveWrap) inactiveWrap.classList.toggle('d-none', !isInactive);
     syncForeignFieldVisibility(collection);
@@ -917,6 +1072,7 @@ function fillFormFromRow(row) {
         renewDate: formatDateInput(String(item.renewDate || '').trim()),
         organizer: String(item.organizer || '').trim(),
         validDate: formatDateInput(String(item.validDate || '').trim()),
+        longtermExpireDate: String(item.longtermExpireDate || '').trim(),
         frontUrl: String(item.frontUrl || '').trim(),
         frontName: String(item.frontName || '').trim(),
         backUrl: String(item.backUrl || '').trim(),
@@ -928,14 +1084,22 @@ function fillFormFromRow(row) {
           item.validDate = '';
         } else if (isBLSType(item.type)) {
           item.renewDate = '';
+          item.longtermExpireDate = '';
+        } else if (isLongtermCardType(item.type)) {
+          item.renewDate = '';
+          item.organizer = '';
+          item.validDate = '';
         } else {
           item.renewDate = '';
           item.organizer = '';
           item.validDate = '';
+          item.longtermExpireDate = '';
         }
         return item;
       })
-      .filter(item => item.type || item.number || item.renewDate || item.organizer || item.validDate || item.frontUrl || item.backUrl);
+      .filter(item => item.type || item.number || item.renewDate || item.organizer || item.validDate || item.longtermExpireDate || item.frontUrl || item.backUrl);
+
+    const longtermCard = cleanedCertificates.find(item => isLongtermCardType(item.type)) || {};
 
     const payload = {
       sortOrder: parseInt(sortOrderInput.value) || 999,
@@ -963,10 +1127,15 @@ function fillFormFromRow(row) {
       licenseType: cleanedCertificates.map(item => item.type).filter(Boolean).join('；'),
       licenseNumber: cleanedCertificates.map(item => item.number).filter(Boolean).join('；'),
       licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
-      longtermCertNumber: longtermCertNumberInput.value.trim(),
-      longtermExpireDate: longtermExpireDateInput.value.trim(),
+      longtermCertNumber: String(longtermCard.number || '').trim(),
+      longtermExpireDate: String(longtermCard.longtermExpireDate || '').trim(),
       education: educationInput.value.trim(),
       school: schoolInput.value.trim(),
+      graduationCertificateUrl: graduationCertificateData.url || '',
+      graduationCertificateName: graduationCertificateData.name || '',
+      graduationCertificatePath: graduationCertificateData.path || '',
+      graduationCertificateContentType: graduationCertificateData.contentType || '',
+      graduationCertificateSize: graduationCertificateData.size || 0,
       inactiveDate: formatDateInput(inactiveDateInput.value.trim()),
     };
 
@@ -1015,9 +1184,11 @@ function fillFormFromRow(row) {
           nationalityInput.value = collection === 'caregivers' ? (data.nationality || '') : '';
           certificateItems = normalizeCertificatesFromEmployee(data);
           renderCertificateRows();
+          loadGraduationCertificateFromEmployee(data);
         }).catch(err => {
           console.error(err);
           resetCertificateState();
+          resetGraduationCertificateState();
         });
         document.getElementById('employee-modal-title').textContent = `編輯 - ${label}`;
         idInput.disabled = false;
@@ -1050,7 +1221,7 @@ function fillFormFromRow(row) {
   if (addCertificateBtn) {
     addCertificateBtn.addEventListener('click', () => {
       syncCertificateInputsFromDOM();
-      certificateItems.push({ type: '', number: '', renewDate: '', organizer: '', validDate: '', frontUrl: '', frontName: '', backUrl: '', backName: '' });
+      certificateItems.push({ type: '', number: '', renewDate: '', organizer: '', validDate: '', longtermExpireDate: '', frontUrl: '', frontName: '', backUrl: '', backName: '' });
       renderCertificateRows();
     });
   }
@@ -1066,6 +1237,7 @@ function fillFormFromRow(row) {
       if (e.target.classList.contains('cert-renew-date')) certificateItems[idx].renewDate = e.target.value.trim();
       if (e.target.classList.contains('cert-organizer')) certificateItems[idx].organizer = e.target.value.trim();
       if (e.target.classList.contains('cert-valid-date')) certificateItems[idx].validDate = e.target.value.trim();
+      if (e.target.classList.contains('cert-longterm-expire-date')) certificateItems[idx].longtermExpireDate = e.target.value.trim();
     });
 
     certificatesListEl.addEventListener('change', (e) => {
@@ -1082,10 +1254,16 @@ function fillFormFromRow(row) {
           certificateItems[idx].validDate = '';
         } else if (isBLSType(nextType)) {
           certificateItems[idx].renewDate = '';
+          certificateItems[idx].longtermExpireDate = '';
+        } else if (isLongtermCardType(nextType)) {
+          certificateItems[idx].renewDate = '';
+          certificateItems[idx].organizer = '';
+          certificateItems[idx].validDate = '';
         } else if (prevType !== nextType) {
           certificateItems[idx].renewDate = '';
           certificateItems[idx].organizer = '';
           certificateItems[idx].validDate = '';
+          certificateItems[idx].longtermExpireDate = '';
         }
         renderCertificateRows();
       }
@@ -1111,6 +1289,14 @@ function fillFormFromRow(row) {
 
   certificateFrontFileInput?.addEventListener('change', (e) => uploadCertificateFile('front', e.target.files?.[0]));
   certificateBackFileInput?.addEventListener('change', (e) => uploadCertificateFile('back', e.target.files?.[0]));
+  graduationCertificateManageBtn?.addEventListener('click', () => {
+    graduationCertificateModalMetaOverride = '';
+    graduationCertificateUploadEnabled = true;
+    refreshGraduationCertificateUI();
+    graduationCertificateModal?.show();
+  });
+  graduationCertificateFileInput?.addEventListener('change', (e) => uploadGraduationCertificate(e.target.files?.[0]));
+  schoolInput?.addEventListener('input', refreshGraduationCertificateUI);
   // 排序 header
   document.querySelectorAll('.sortable-header').forEach(h => {
     h.addEventListener('click', () => {
@@ -1330,6 +1516,7 @@ async function generateReportHTML() {
           <td>${e.longtermExpireDate ?? ''}</td>
           <td>${e.education ?? ''}</td>
           <td>${e.school ?? ''}</td>
+          <td>${e.graduationCertificateUrl ? '有' : '—'}</td>
         </tr>
       `;
     });
@@ -1349,8 +1536,8 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         ${tab.id === 'foreignCaregivers'
-        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'
-        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th>'}
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -1456,6 +1643,7 @@ async function generateReportHTML() {
           getVal(e, ['longtermExpireDate','ltcExpiry']),
           getVal(e, ['education']),
           getVal(e, ['school']),
+          getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
         ];
         return includeSource ? [getVal(e, ['sourceLabel']), ...base] : base;
       }
@@ -1631,6 +1819,7 @@ async function generateReportHTML() {
         { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
+        { header: '畢業證書', key: 'graduationCertificate', width: 12 },
       ];
       const COLS_FOREIGN = [
         { header: '排序', key: 'sortOrder', width: 6 },
@@ -1658,6 +1847,7 @@ async function generateReportHTML() {
         { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
+        { header: '畢業證書', key: 'graduationCertificate', width: 12 },
       ];
 
       const getVal = (obj, keys) => {
@@ -1741,6 +1931,7 @@ async function generateReportHTML() {
           longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
           education: getVal(e, ['education']),
           school: getVal(e, ['school']),
+          graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
         };
       }
 
@@ -1896,6 +2087,7 @@ async function generateReportHTML() {
             longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
+          graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
             sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined
           };
 
