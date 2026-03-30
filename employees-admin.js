@@ -2008,18 +2008,58 @@ async function generateReportHTML() {
         });
       }
 
-      async function fetchImageForExcel(url, filename = '') {
-        if (!url) return null;
+      function normalizeExcelImageBase64(dataUrl) {
+        const raw = String(dataUrl || '').trim();
+        if (!raw) return '';
+        const commaIndex = raw.indexOf(',');
+        return commaIndex >= 0 ? raw.slice(commaIndex + 1) : raw;
+      }
+
+      async function blobFromUrl(url) {
+        const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (!blob || !blob.size) throw new Error('empty blob');
+        return blob;
+      }
+
+      async function blobFromFirebasePath(path) {
+        if (!path || !firebase || typeof firebase.storage !== 'function') return null;
+        const ref = firebase.storage().ref(path);
+        if (typeof ref.getBlob === 'function') {
+          const blob = await ref.getBlob();
+          if (blob && blob.size) return blob;
+        }
+        const dl = await ref.getDownloadURL();
+        if (!dl) throw new Error('download url not found');
+        return await blobFromUrl(dl);
+      }
+
+      async function fetchImageForExcel(url, path = '', filename = '') {
+        if (!url && !path) return null;
         try {
-          const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const blob = await res.blob();
+          let blob = null;
+          let sourceForExt = url || filename || '';
+          if (path) {
+            try {
+              blob = await blobFromFirebasePath(path);
+              sourceForExt = path || sourceForExt;
+            } catch (pathErr) {
+              console.warn('Excel 圖片以 storage path 讀取失敗，改用 URL：', path, pathErr);
+            }
+          }
+          if (!blob && url) {
+            blob = await blobFromUrl(url);
+            sourceForExt = url || sourceForExt;
+          }
           if (!blob || !blob.size) throw new Error('empty blob');
-          const extension = inferExcelImageExtension(url, blob.type || '', filename || '');
-          const base64 = await blobToDataUrl(blob);
+          const extension = inferExcelImageExtension(sourceForExt, blob.type || '', filename || '');
+          const dataUrl = await blobToDataUrl(blob);
+          const base64 = normalizeExcelImageBase64(dataUrl);
+          if (!base64) throw new Error('base64 empty');
           return { base64, extension };
         } catch (err) {
-          console.warn('Excel 圖片下載失敗：', url, err);
+          console.warn('Excel 圖片下載失敗：', { url, path, filename }, err);
           return null;
         }
       }
@@ -2056,7 +2096,7 @@ async function generateReportHTML() {
             applyRowStyle(row);
             row.height = 118;
 
-            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontName || '');
+            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
               ws.addImage(imgId, {
@@ -2066,7 +2106,7 @@ async function generateReportHTML() {
               });
               row.getCell('F').value = '';
             }
-            const backImg = await fetchImageForExcel(cert.backUrl, cert.backName || '');
+            const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
               ws.addImage(imgId, {
