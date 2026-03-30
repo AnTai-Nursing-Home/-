@@ -145,8 +145,6 @@ document.addEventListener('firebase-ready', () => {
       .trim();
 
     setLoginBadge(label || '登入者：—');
-    console.log('[employees-admin] login user from session =', su.sourceKey, su);
-
     return su;
   }
 
@@ -2018,16 +2016,44 @@ async function generateReportHTML() {
         return blob;
       }
 
-      async function blobFromFirebasePath(path) {
-        if (!path || !firebase || typeof firebase.storage !== 'function') return null;
-        const ref = firebase.storage().ref(path);
-        if (typeof ref.getBlob === 'function') {
-          const blob = await ref.getBlob();
-          if (blob && blob.size) return blob;
+      function getProxySessionHeaders() {
+        const keys = ['antai_session_user', 'officeAuth'];
+        for (const key of keys) {
+          try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            const staffId = String(parsed?.staffId || parsed?.id || parsed?.employeeId || parsed?.empId || '').trim();
+            const displayName = String(parsed?.displayName || parsed?.name || parsed?.staffName || parsed?.username || '').trim();
+            if (!staffId && !displayName) continue;
+            return {
+              'x-house-session': btoa(unescape(encodeURIComponent(JSON.stringify({
+                staffId,
+                displayName,
+                sourceKey: key
+              })))),
+            };
+          } catch (_) {}
         }
-        const dl = await ref.getDownloadURL();
-        if (!dl) throw new Error('download url not found');
-        return await blobFromUrl(dl);
+        return {};
+      }
+
+      async function blobFromProxyPath(path) {
+        if (!path) return null;
+        const normalizedPath = String(path || '').trim().replace(/^\/+/, '');
+        if (!normalizedPath) return null;
+
+        const res = await fetch(`/api/storage-proxy?path=${encodeURIComponent(normalizedPath)}`, {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: getProxySessionHeaders(),
+        });
+
+        if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (!blob || !blob.size) throw new Error('empty blob');
+        return blob;
       }
 
       function loadHtmlImage(src) {
@@ -2076,12 +2102,16 @@ async function generateReportHTML() {
           let blob = null;
           if (path) {
             try {
-              blob = await blobFromFirebasePath(path);
+              blob = await blobFromProxyPath(path);
             } catch (pathErr) {
-              console.warn('Excel 圖片以 storage path 讀取失敗，改用 URL：', path, pathErr);
+              console.warn('Excel 圖片以 proxy path 讀取失敗，改用 URL：', path, pathErr);
             }
           }
-          if (!blob && url) blob = await blobFromUrl(url);
+          if (!blob && url) {
+            const fixedUrl = String(url || '')
+              .replace('/b/antai-nursing-home.appspot.com/', '/b/antai-nursing-home.firebasestorage.app/');
+            blob = await blobFromUrl(fixedUrl);
+          }
           if (!blob || !blob.size) throw new Error('empty blob');
           return await imageBlobToExcelPayload(blob);
         } catch (err) {
