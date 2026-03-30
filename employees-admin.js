@@ -227,6 +227,8 @@ document.addEventListener('firebase-ready', () => {
   const certificateBackFileInput = document.getElementById('certificate-back-file');
   const certificateFrontLinkWrap = document.getElementById('certificate-front-link-wrap');
   const certificateBackLinkWrap = document.getElementById('certificate-back-link-wrap');
+  const certificateFrontDeleteBtn = document.getElementById('certificate-front-delete-btn');
+  const certificateBackDeleteBtn = document.getElementById('certificate-back-delete-btn');
   const certificateSummaryModalEl = document.getElementById('certificate-summary-modal');
   const certificateSummaryModal = certificateSummaryModalEl ? new bootstrap.Modal(certificateSummaryModalEl) : null;
   const certificateSummaryModalMeta = document.getElementById('certificate-summary-modal-meta');
@@ -237,6 +239,7 @@ document.addEventListener('firebase-ready', () => {
   const graduationCertificateModal = graduationCertificateModalEl ? new bootstrap.Modal(graduationCertificateModalEl) : null;
   const graduationCertificateModalMeta = document.getElementById('graduation-certificate-modal-meta');
   const graduationCertificateFileInput = document.getElementById('graduation-certificate-file');
+  const graduationCertificateDeleteBtn = document.getElementById('graduation-certificate-delete-btn');
   const graduationCertificatePreviewWrap = document.getElementById('graduation-certificate-preview-wrap');
   const licenseTypeInput = null;
   const licenseNumberInput = null;
@@ -703,6 +706,8 @@ document.addEventListener('firebase-ready', () => {
         ? `<a class="upload-preview-link" href="${escapeHtml(cert.backUrl)}" target="_blank" rel="noopener">查看反面：${escapeHtml(cert.backName || '檔案')}</a>`
         : '<span class="text-muted">尚未上傳反面檔案</span>';
     }
+    if (certificateFrontDeleteBtn) certificateFrontDeleteBtn.disabled = !cert.frontUrl;
+    if (certificateBackDeleteBtn) certificateBackDeleteBtn.disabled = !cert.backUrl;
   }
 
 
@@ -742,6 +747,7 @@ document.addEventListener('firebase-ready', () => {
       }
     }
     if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
+    if (graduationCertificateDeleteBtn) graduationCertificateDeleteBtn.disabled = !graduationCertificateUploadEnabled || !graduationCertificateData.url;
     if (graduationCertificatePreviewWrap) {
       graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
         ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
@@ -795,6 +801,49 @@ document.addEventListener('firebase-ready', () => {
     } finally {
       if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     }
+  }
+
+
+  function removeGraduationCertificate() {
+    if (!graduationCertificateData.url) {
+      alert('目前沒有可刪除的畢業證書圖片。');
+      return;
+    }
+    if (!confirm('確定要刪除此畢業證書圖片嗎？')) return;
+    graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
+    if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
+    refreshGraduationCertificateUI();
+  }
+
+  function removeCertificateFile(which) {
+    const cert = certificateItems[activeCertificateIndex];
+    if (!cert) {
+      alert('目前沒有可操作的證書資料。');
+      return;
+    }
+    const hasFile = which === 'front' ? !!cert.frontUrl : !!cert.backUrl;
+    if (!hasFile) {
+      alert(which === 'front' ? '目前沒有可刪除的正面圖片。' : '目前沒有可刪除的反面圖片。');
+      return;
+    }
+    if (!confirm(which === 'front' ? '確定要刪除此證書正面圖片嗎？' : '確定要刪除此證書反面圖片嗎？')) return;
+    if (which === 'front') {
+      cert.frontUrl = '';
+      cert.frontName = '';
+      cert.frontPath = '';
+      cert.frontContentType = '';
+      cert.frontSize = 0;
+      if (certificateFrontFileInput) certificateFrontFileInput.value = '';
+    } else {
+      cert.backUrl = '';
+      cert.backName = '';
+      cert.backPath = '';
+      cert.backContentType = '';
+      cert.backSize = 0;
+      if (certificateBackFileInput) certificateBackFileInput.value = '';
+    }
+    refreshCertificateModalLinks();
+    renderCertificateRows();
   }
 
   async function uploadEmployeeCertificateFilesViaApi(docId, who, files) {
@@ -1302,6 +1351,8 @@ function fillFormFromRow(row) {
 
   certificateFrontFileInput?.addEventListener('change', (e) => uploadCertificateFile('front', e.target.files?.[0]));
   certificateBackFileInput?.addEventListener('change', (e) => uploadCertificateFile('back', e.target.files?.[0]));
+  certificateFrontDeleteBtn?.addEventListener('click', () => removeCertificateFile('front'));
+  certificateBackDeleteBtn?.addEventListener('click', () => removeCertificateFile('back'));
   graduationCertificateManageBtn?.addEventListener('click', () => {
     graduationCertificateModalMetaOverride = '';
     graduationCertificateUploadEnabled = true;
@@ -1309,6 +1360,7 @@ function fillFormFromRow(row) {
     graduationCertificateModal?.show();
   });
   graduationCertificateFileInput?.addEventListener('change', (e) => uploadGraduationCertificate(e.target.files?.[0]));
+  graduationCertificateDeleteBtn?.addEventListener('click', removeGraduationCertificate);
   schoolInput?.addEventListener('input', refreshGraduationCertificateUI);
   // 排序 header
   document.querySelectorAll('.sortable-header').forEach(h => {
@@ -1962,10 +2014,8 @@ async function generateReportHTML() {
           { header: '姓名', key: 'name', width: 14 },
           { header: '證書種類', key: 'certType', width: 24 },
           { header: '發證字號', key: 'certNo', width: 24 },
-          { header: '正面', key: 'front', width: 18 },
-          { header: '反面', key: 'back', width: 18 },
-          { header: '正面連結', key: 'frontUrl', width: 42 },
-          { header: '反面連結', key: 'backUrl', width: 42 },
+          { header: '正面圖片', key: 'front', width: 18 },
+          { header: '反面圖片', key: 'back', width: 18 },
         ];
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
@@ -1982,31 +2032,29 @@ async function generateReportHTML() {
               name: emp.name || '',
               certType: cert.type || '',
               certNo: cert.number || '',
-              front: cert.frontUrl ? '見圖' : '',
-              back: cert.backUrl ? '見圖' : '',
-              frontUrl: cert.frontUrl || '',
-              backUrl: cert.backUrl || '',
+              front: cert.frontUrl ? '圖片如下' : '—',
+              back: cert.backUrl ? '圖片如下' : '—',
             };
             applyRowStyle(row);
-            row.height = 90;
-            if (cert.frontUrl) ws.getCell(`H${rowIndex}`).value = { text: cert.frontUrl, hyperlink: cert.frontUrl };
-            if (cert.backUrl) ws.getCell(`I${rowIndex}`).value = { text: cert.backUrl, hyperlink: cert.backUrl };
+            row.height = 92;
 
             const frontImg = await fetchImageBuffer(cert.frontUrl);
             if (frontImg) {
               const imgId = wb.addImage({ buffer: frontImg.buffer, extension: frontImg.extension });
-              ws.addImage(imgId, { tl: { col: 5, row: rowIndex - 1 + 0.1 }, ext: { width: 110, height: 110 } });
+              ws.addImage(imgId, { tl: { col: 5 + 0.08, row: rowIndex - 1 + 0.08 }, ext: { width: 105, height: 105 } });
+              row.getCell('F').value = '';
             }
             const backImg = await fetchImageBuffer(cert.backUrl);
             if (backImg) {
               const imgId = wb.addImage({ buffer: backImg.buffer, extension: backImg.extension });
-              ws.addImage(imgId, { tl: { col: 6, row: rowIndex - 1 + 0.1 }, ext: { width: 110, height: 110 } });
+              ws.addImage(imgId, { tl: { col: 6 + 0.08, row: rowIndex - 1 + 0.08 }, ext: { width: 105, height: 105 } });
+              row.getCell('G').value = '';
             }
             rowIndex += 1;
           }
         }
         if (rowIndex === 2) {
-          ws.mergeCells('A2:I2');
+          ws.mergeCells('A2:G2');
           ws.getCell('A2').value = '此分類目前沒有已上傳的證書照片';
           ws.getCell('A2').alignment = { vertical:'middle', horizontal:'center' };
           ws.getCell('A2').font = fontCell;
