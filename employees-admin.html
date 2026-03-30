@@ -492,11 +492,17 @@ body{
             <div class="col-12 col-md-6">
               <label class="form-label">正面檔案</label>
               <input type="file" class="form-control" id="certificate-front-file" accept="image/*,.pdf">
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <button type="button" class="btn btn-outline-danger btn-sm" id="certificate-front-delete-btn">刪除正面圖片</button>
+              </div>
               <div class="mt-2" id="certificate-front-link-wrap"></div>
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label">反面檔案</label>
               <input type="file" class="form-control" id="certificate-back-file" accept="image/*,.pdf">
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <button type="button" class="btn btn-outline-danger btn-sm" id="certificate-back-delete-btn">刪除反面圖片</button>
+              </div>
               <div class="mt-2" id="certificate-back-link-wrap"></div>
             </div>
           </div>
@@ -522,6 +528,9 @@ body{
           <div class="mb-3">
             <label class="form-label">畢業證書圖片</label>
             <input type="file" class="form-control" id="graduation-certificate-file" accept="image/*">
+            <div class="d-flex gap-2 flex-wrap mt-2">
+              <button type="button" class="btn btn-outline-danger btn-sm" id="graduation-certificate-delete-btn">刪除圖片</button>
+            </div>
             <div class="form-text">僅供查看；如需更新請在編輯頁面重新上傳圖片。</div>
           </div>
           <div id="graduation-certificate-preview-wrap" class="border rounded-4 p-3 bg-light text-center">
