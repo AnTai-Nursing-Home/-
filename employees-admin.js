@@ -28,8 +28,6 @@ function buildTableHTML(tabId) {
                 ${isForeignTab ? '<th>國籍</th>' : ''}
                 <th>證書摘要</th>
                 <th>換證日期</th>
-                <th>長照證號</th>
-                <th>長照證效期</th>
                 <th>學歷</th>
                 <th>畢業學校</th>
                 <th>畢業證書</th>
@@ -300,9 +298,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 28;
-    if (tabId === 'foreignCaregivers') return 27;
-    return 24;
+    if (tabId === 'inactiveEmployees') return 26;
+    if (tabId === 'foreignCaregivers') return 25;
+    return 22;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -946,8 +944,6 @@ document.addEventListener('firebase-ready', () => {
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
         <td>${certSummary ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
         <td>${pick(e, ['licenseRenewDate'])}</td>
-        <td>${pick(e, ['longtermCertNumber','ltcNo'])}</td>
-        <td>${pick(e, ['longtermExpireDate','ltcExpiry'])}</td>
         <td>${pick(e, ['education'])}</td>
         <td>${pick(e, ['school'])}</td>
         <td>${pick(e, ['graduationCertificateUrl']) ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-graduation-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
@@ -1053,7 +1049,6 @@ function fillFormFromRow(row) {
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
     licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
-    i += 2; // 長照證號、長照證效期改由證書資料管理
     educationInput.value = values[i++] || '';
     schoolInput.value = values[i++] || '';
     i++; // 畢業證書欄位（查看按鈕）
@@ -1201,6 +1196,24 @@ function fillFormFromRow(row) {
         }).catch(err => {
           console.error(err);
           alert('讀取證書摘要失敗');
+        });
+      } else if (e.target.classList.contains('btn-graduation-cert-summary')) {
+        const collection = def.collection || row.dataset.collection;
+        db.collection(collection).doc(id).get().then(docSnap => {
+          const data = docSnap.exists ? (docSnap.data() || {}) : {};
+          graduationCertificateModalMetaOverride = [
+            `員編：<strong>${escapeHtml(data.id || id || '')}</strong>`,
+            `姓名：<strong>${escapeHtml(data.name || '')}</strong>`,
+            `畢業學校：<strong>${escapeHtml(data.school || '')}</strong>`,
+            `檔案名稱：<strong>${escapeHtml(data.graduationCertificateName || '未上傳')}</strong>`
+          ].join('<br>');
+          graduationCertificateUploadEnabled = false;
+          loadGraduationCertificateFromEmployee(data);
+          refreshGraduationCertificateUI();
+          graduationCertificateModal?.show();
+        }).catch(err => {
+          console.error(err);
+          alert('讀取畢業證書失敗');
         });
       } else if (e.target.classList.contains('btn-del')) {
         const collection = def.collection || row.dataset.collection;
@@ -1512,8 +1525,6 @@ async function generateReportHTML() {
           ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
           <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
           <td>${e.licenseRenewDate ?? ''}</td>
-          <td>${e.longtermCertNumber ?? ''}</td>
-          <td>${e.longtermExpireDate ?? ''}</td>
           <td>${e.education ?? ''}</td>
           <td>${e.school ?? ''}</td>
           <td>${e.graduationCertificateUrl ? '有' : '—'}</td>
@@ -1536,8 +1547,8 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         ${tab.id === 'foreignCaregivers'
-        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
-        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>長照證號</th><th>長照證效期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -1613,9 +1624,9 @@ async function generateReportHTML() {
 
       const headersBase = (tab.id === 'foreignCaregivers')
         ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','承接日期','續聘日期','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','換證日期','長照證號','長照證效期','學歷','畢業學校']
+           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','換證日期','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','證書摘要','換證日期','長照證號','長照證效期','學歷','畢業學校'];
+           '緊急聯絡人','關係','緊急電話','證書摘要','換證日期','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
@@ -1639,8 +1650,6 @@ async function generateReportHTML() {
           ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
           getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
           getVal(e, ['licenseRenewDate']),
-          getVal(e, ['longtermCertNumber','ltcNo']),
-          getVal(e, ['longtermExpireDate','ltcExpiry']),
           getVal(e, ['education']),
           getVal(e, ['school']),
           getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -1815,8 +1824,6 @@ async function generateReportHTML() {
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1843,8 +1850,6 @@ async function generateReportHTML() {
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
         { header: '換證日期', key: 'licenseRenewDate', width: 12 },
-        { header: '長照證號', key: 'longtermCertNumber', width: 20 },
-        { header: '長照證效期', key: 'longtermExpireDate', width: 14 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1927,8 +1932,6 @@ async function generateReportHTML() {
           nationality: isForeign ? getVal(e, ['nationality']) : '',
           licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
           licenseRenewDate: getVal(e, ['licenseRenewDate']),
-          longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
-          longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
           education: getVal(e, ['education']),
           school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -2083,8 +2086,6 @@ async function generateReportHTML() {
             nationality: isForeignSheet ? getVal(e, ['nationality']) : '',
             licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
             licenseRenewDate: getVal(e, ['licenseRenewDate']),
-            longtermCertNumber: getVal(e, ['longtermCertNumber','ltcNo']),
-            longtermExpireDate: getVal(e, ['longtermExpireDate','ltcExpiry']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
