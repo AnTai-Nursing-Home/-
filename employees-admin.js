@@ -1990,18 +1990,36 @@ async function generateReportHTML() {
         };
       }
 
-      async function fetchImageBuffer(url) {
+      function inferExcelImageExtension(url = '', mime = '', filename = '') {
+        const lowerMime = String(mime || '').toLowerCase();
+        const lowerUrl = String(url || '').toLowerCase();
+        const lowerName = String(filename || '').toLowerCase();
+        if (lowerMime.includes('png') || lowerUrl.includes('.png') || lowerName.endsWith('.png')) return 'png';
+        if (lowerMime.includes('gif') || lowerUrl.includes('.gif') || lowerName.endsWith('.gif')) return 'gif';
+        return 'jpeg';
+      }
+
+      function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function fetchImageForExcel(url, filename = '') {
         if (!url) return null;
         try {
-          const res = await fetch(url);
+          const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const blob = await res.blob();
-          const mime = (blob.type || '').toLowerCase();
-          const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'png' : 'jpeg');
-          const arrayBuffer = await blob.arrayBuffer();
-          return { buffer: arrayBuffer, extension: ext };
+          if (!blob || !blob.size) throw new Error('empty blob');
+          const extension = inferExcelImageExtension(url, blob.type || '', filename || '');
+          const base64 = await blobToDataUrl(blob);
+          return { base64, extension };
         } catch (err) {
-          console.warn('證書圖片下載失敗：', url, err);
+          console.warn('Excel 圖片下載失敗：', url, err);
           return null;
         }
       }
@@ -2014,8 +2032,8 @@ async function generateReportHTML() {
           { header: '姓名', key: 'name', width: 14 },
           { header: '證書種類', key: 'certType', width: 24 },
           { header: '發證字號', key: 'certNo', width: 24 },
-          { header: '正面圖片', key: 'front', width: 18 },
-          { header: '反面圖片', key: 'back', width: 18 },
+          { header: '正面圖片', key: 'front', width: 20 },
+          { header: '反面圖片', key: 'back', width: 20 },
         ];
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
@@ -2036,18 +2054,26 @@ async function generateReportHTML() {
               back: cert.backUrl ? '圖片如下' : '—',
             };
             applyRowStyle(row);
-            row.height = 92;
+            row.height = 118;
 
-            const frontImg = await fetchImageBuffer(cert.frontUrl);
+            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontName || '');
             if (frontImg) {
-              const imgId = wb.addImage({ buffer: frontImg.buffer, extension: frontImg.extension });
-              ws.addImage(imgId, { tl: { col: 5 + 0.08, row: rowIndex - 1 + 0.08 }, ext: { width: 105, height: 105 } });
+              const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
+              ws.addImage(imgId, {
+                tl: { col: 5 + 0.08, row: rowIndex - 1 + 0.08 },
+                ext: { width: 118, height: 118 },
+                editAs: 'oneCell'
+              });
               row.getCell('F').value = '';
             }
-            const backImg = await fetchImageBuffer(cert.backUrl);
+            const backImg = await fetchImageForExcel(cert.backUrl, cert.backName || '');
             if (backImg) {
-              const imgId = wb.addImage({ buffer: backImg.buffer, extension: backImg.extension });
-              ws.addImage(imgId, { tl: { col: 6 + 0.08, row: rowIndex - 1 + 0.08 }, ext: { width: 105, height: 105 } });
+              const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
+              ws.addImage(imgId, {
+                tl: { col: 6 + 0.08, row: rowIndex - 1 + 0.08 },
+                ext: { width: 118, height: 118 },
+                editAs: 'oneCell'
+              });
               row.getCell('G').value = '';
             }
             rowIndex += 1;
