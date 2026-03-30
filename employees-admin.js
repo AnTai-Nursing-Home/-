@@ -1990,14 +1990,9 @@ async function generateReportHTML() {
         };
       }
 
-      function inferExcelImageExtension(url = '', mime = '', filename = '') {
-        const lowerMime = String(mime || '').toLowerCase();
-        const lowerUrl = String(url || '').toLowerCase();
-        const lowerName = String(filename || '').toLowerCase();
-        if (lowerMime.includes('png') || lowerUrl.includes('.png') || lowerName.endsWith('.png')) return 'png';
-        if (lowerMime.includes('gif') || lowerUrl.includes('.gif') || lowerName.endsWith('.gif')) return 'gif';
-        return 'jpeg';
-      }
+      const EXCEL_IMAGE_CELL_WIDTH = 18;
+      const EXCEL_IMAGE_PIXEL_SIZE = 150;
+      const EXCEL_IMAGE_ROW_HEIGHT = 118;
 
       function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
@@ -2016,7 +2011,7 @@ async function generateReportHTML() {
       }
 
       async function blobFromUrl(url) {
-        const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+        const res = await fetch(url, { mode: 'cors', cache: 'no-store', credentials: 'omit' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         if (!blob || !blob.size) throw new Error('empty blob');
@@ -2035,33 +2030,72 @@ async function generateReportHTML() {
         return await blobFromUrl(dl);
       }
 
+      function loadHtmlImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('image decode failed'));
+          img.src = src;
+        });
+      }
+
+      async function imageBlobToExcelPayload(blob) {
+        if (!blob || !blob.size) throw new Error('empty blob');
+
+        const mime = String(blob.type || '').toLowerCase();
+        const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
+        if (directOk) {
+          const dataUrl = await blobToDataUrl(blob);
+          const base64 = normalizeExcelImageBase64(dataUrl);
+          if (!base64) throw new Error('base64 empty');
+          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const img = await loadHtmlImage(objectUrl);
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width || 1;
+          canvas.height = img.naturalHeight || img.height || 1;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('canvas context unavailable');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const pngDataUrl = canvas.toDataURL('image/png');
+          const base64 = normalizeExcelImageBase64(pngDataUrl);
+          if (!base64) throw new Error('png base64 empty');
+          return { base64, extension: 'png' };
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      }
+
       async function fetchImageForExcel(url, path = '', filename = '') {
         if (!url && !path) return null;
         try {
           let blob = null;
-          let sourceForExt = url || filename || '';
           if (path) {
             try {
               blob = await blobFromFirebasePath(path);
-              sourceForExt = path || sourceForExt;
             } catch (pathErr) {
               console.warn('Excel 圖片以 storage path 讀取失敗，改用 URL：', path, pathErr);
             }
           }
-          if (!blob && url) {
-            blob = await blobFromUrl(url);
-            sourceForExt = url || sourceForExt;
-          }
+          if (!blob && url) blob = await blobFromUrl(url);
           if (!blob || !blob.size) throw new Error('empty blob');
-          const extension = inferExcelImageExtension(sourceForExt, blob.type || '', filename || '');
-          const dataUrl = await blobToDataUrl(blob);
-          const base64 = normalizeExcelImageBase64(dataUrl);
-          if (!base64) throw new Error('base64 empty');
-          return { base64, extension };
+          return await imageBlobToExcelPayload(blob);
         } catch (err) {
           console.warn('Excel 圖片下載失敗：', { url, path, filename }, err);
           return null;
         }
+      }
+
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, size = EXCEL_IMAGE_PIXEL_SIZE) {
+        ws.addImage(imageId, {
+          tl: { col: (colNumber - 1) + 0.08, row: (rowNumber - 1) + 0.08 },
+          ext: { width: size, height: size },
+          editAs: 'oneCell'
+        });
       }
 
       async function addCertificatePhotoSheet(sheetName, employees) {
@@ -2072,15 +2106,17 @@ async function generateReportHTML() {
           { header: '姓名', key: 'name', width: 14 },
           { header: '證書種類', key: 'certType', width: 24 },
           { header: '發證字號', key: 'certNo', width: 24 },
-          { header: '正面圖片', key: 'front', width: 20 },
-          { header: '反面圖片', key: 'back', width: 20 },
+          { header: '正面圖片', key: 'front', width: EXCEL_IMAGE_CELL_WIDTH },
+          { header: '反面圖片', key: 'back', width: EXCEL_IMAGE_CELL_WIDTH },
         ];
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
 
         let rowIndex = 2;
+        let embeddedCount = 0;
+        let failedCount = 0;
         for (const emp of employees) {
-          const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl));
+          const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl || c.frontPath || c.backPath));
           if (!certs.length) continue;
           for (const cert of certs) {
             const row = ws.getRow(rowIndex);
@@ -2090,31 +2126,30 @@ async function generateReportHTML() {
               name: emp.name || '',
               certType: cert.type || '',
               certNo: cert.number || '',
-              front: cert.frontUrl ? '圖片如下' : '—',
-              back: cert.backUrl ? '圖片如下' : '—',
+              front: (cert.frontUrl || cert.frontPath) ? '圖片嵌入失敗' : '—',
+              back: (cert.backUrl || cert.backPath) ? '圖片嵌入失敗' : '—',
             };
             applyRowStyle(row);
-            row.height = 118;
+            row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              ws.addImage(imgId, {
-                tl: { col: 5 + 0.08, row: rowIndex - 1 + 0.08 },
-                ext: { width: 118, height: 118 },
-                editAs: 'oneCell'
-              });
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
               row.getCell('F').value = '';
+              embeddedCount += 1;
+            } else if (cert.frontUrl || cert.frontPath) {
+              failedCount += 1;
             }
+
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              ws.addImage(imgId, {
-                tl: { col: 6 + 0.08, row: rowIndex - 1 + 0.08 },
-                ext: { width: 118, height: 118 },
-                editAs: 'oneCell'
-              });
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
               row.getCell('G').value = '';
+              embeddedCount += 1;
+            } else if (cert.backUrl || cert.backPath) {
+              failedCount += 1;
             }
             rowIndex += 1;
           }
@@ -2125,7 +2160,79 @@ async function generateReportHTML() {
           ws.getCell('A2').alignment = { vertical:'middle', horizontal:'center' };
           ws.getCell('A2').font = fontCell;
           ws.getCell('A2').border = borderThin;
+        } else if (failedCount > 0) {
+          const noteRow = ws.getRow(rowIndex + 1);
+          ws.mergeCells(`A${noteRow.number}:G${noteRow.number}`);
+          const cell = ws.getCell(`A${noteRow.number}`);
+          cell.value = `已成功嵌入 ${embeddedCount} 張圖片；仍有 ${failedCount} 張無法嵌入，請檢查 Firebase Storage 權限 / 圖片網址 / CORS。`;
+          cell.font = { name:'Microsoft JhengHei', size:10, color:{ argb:'FF9A3412' } };
+          cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
         }
+        setPrint(ws);
+        return { embeddedCount, failedCount };
+      }
+
+      async function addGraduationPhotoSheet(sheetName, employees) {
+        const ws = wb.addWorksheet(sheetName);
+        ws.columns = [
+          { header: '員工類別', key: 'category', width: 12 },
+          { header: '員編', key: 'id', width: 12 },
+          { header: '姓名', key: 'name', width: 14 },
+          { header: '學歷', key: 'education', width: 12 },
+          { header: '畢業學校', key: 'school', width: 24 },
+          { header: '畢業證書圖片', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
+        ];
+        applyRowStyle(ws.getRow(1), { header:true });
+        ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+        let rowIndex = 2;
+        let embeddedCount = 0;
+        let failedCount = 0;
+        for (const emp of employees) {
+          const imageUrl = String(emp.graduationCertificateUrl || '').trim();
+          const imagePath = String(emp.graduationCertificatePath || '').trim();
+          if (!imageUrl && !imagePath) continue;
+
+          const row = ws.getRow(rowIndex);
+          row.values = {
+            category: emp.__categoryLabel || '',
+            id: emp.id || '',
+            name: emp.name || '',
+            education: emp.education || '',
+            school: emp.school || '',
+            graduationImage: '圖片嵌入失敗',
+          };
+          applyRowStyle(row);
+          row.height = EXCEL_IMAGE_ROW_HEIGHT;
+
+          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
+          if (img) {
+            const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
+            row.getCell('F').value = '';
+            embeddedCount += 1;
+          } else {
+            failedCount += 1;
+          }
+          rowIndex += 1;
+        }
+
+        if (rowIndex === 2) {
+          ws.mergeCells('A2:F2');
+          ws.getCell('A2').value = '此分類目前沒有已上傳的畢業證書圖片';
+          ws.getCell('A2').alignment = { vertical:'middle', horizontal:'center' };
+          ws.getCell('A2').font = fontCell;
+          ws.getCell('A2').border = borderThin;
+        } else if (failedCount > 0) {
+          const noteRow = ws.getRow(rowIndex + 1);
+          ws.mergeCells(`A${noteRow.number}:F${noteRow.number}`);
+          const cell = ws.getCell(`A${noteRow.number}`);
+          cell.value = `已成功嵌入 ${embeddedCount} 張圖片；仍有 ${failedCount} 張無法嵌入，請檢查 Firebase Storage 權限 / 圖片網址 / CORS。`;
+          cell.font = { name:'Microsoft JhengHei', size:10, color:{ argb:'FF9A3412' } };
+          cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+        }
+        setPrint(ws);
+        return { embeddedCount, failedCount };
       }
 
       function applyRowStyle(row, { header=false } = {}) {
@@ -2249,12 +2356,25 @@ async function generateReportHTML() {
       addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true });
 
       // 6) 證書照片分頁
-      await addCertificatePhotoSheet('證書照片-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' })));
-      await addCertificatePhotoSheet('證書照片-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' })));
-      await addCertificatePhotoSheet('證書照片-其他', [
+      const certificateSheetResults = [];
+      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' }))));
+      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' }))));
+      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-其他', [
         ...local.map(e => ({ ...e, __categoryLabel: '台籍照服員' })),
         ...admin.map(e => ({ ...e, __categoryLabel: '行政/其他' }))
-      ]);
+      ]));
+
+      // 7) 畢業證書圖片分頁
+      const graduationSheetResults = [];
+      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' }))));
+      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' }))));
+      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-其他', [
+        ...local.map(e => ({ ...e, __categoryLabel: '台籍照服員' })),
+        ...admin.map(e => ({ ...e, __categoryLabel: '行政/其他' }))
+      ]));
+
+      const totalEmbeddedImages = [...certificateSheetResults, ...graduationSheetResults].reduce((sum, item) => sum + Number(item?.embeddedCount || 0), 0);
+      const totalFailedImages = [...certificateSheetResults, ...graduationSheetResults].reduce((sum, item) => sum + Number(item?.failedCount || 0), 0);
 
       // ---- 下載 ----
       const y = new Date().getFullYear();
@@ -2270,6 +2390,11 @@ async function generateReportHTML() {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+
+      if (totalFailedImages > 0) {
+        alert(`Excel 匯出完成。已成功嵌入 ${totalEmbeddedImages} 張圖片，另有 ${totalFailedImages} 張圖片未能嵌入。
+若分頁中仍看到「圖片嵌入失敗」，請檢查 Storage 權限、檔案 URL 或 CORS 設定。`);
+      }
 
     } catch (err) {
       console.error(err);
