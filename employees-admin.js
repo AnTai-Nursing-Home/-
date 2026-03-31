@@ -2019,9 +2019,9 @@ async function generateReportHTML() {
         };
       }
 
-      const EXCEL_IMAGE_CELL_WIDTH = 22;
+      const EXCEL_IMAGE_CELL_WIDTH = 27.3; // 約 5.05 cm
       const EXCEL_IMAGE_PIXEL_SIZE = 150;
-      const EXCEL_IMAGE_ROW_HEIGHT = 118;
+      const EXCEL_IMAGE_ROW_HEIGHT = 148; // 約 5.22 cm
       const EXCEL_IMAGE_INSET_PX = 4;
 
       function blobToDataUrl(blob) {
@@ -2363,13 +2363,13 @@ async function generateReportHTML() {
           applyRowStyle(row);
           row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-          const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-          const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
-
           const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
-          if (img) {
+          if (img?.isPdf) {
+            row.getCell('F').value = 'PDF檔案';
+            row.getCell('F').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+          } else if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
