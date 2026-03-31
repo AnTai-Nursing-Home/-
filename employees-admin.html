@@ -444,6 +444,10 @@ body{
         <div class="section-heading"><i class="fa-solid fa-user-graduate"></i><span>其他資料</span></div>
         <div class="row g-3">
           <div class="col-6 col-md-3">
+            <label class="form-label">換證日期</label>
+            <input type="date" class="form-control" id="employee-licenseRenewDate">
+          </div>
+          <div class="col-6 col-md-3">
             <label class="form-label">學歷</label>
             <input type="text" class="form-control" id="employee-education">
           </div>
@@ -522,12 +526,12 @@ body{
         <div class="modal-body">
           <div id="graduation-certificate-modal-meta" class="alert alert-light border mb-3">—</div>
           <div class="mb-3">
-            <label class="form-label">畢業證書檔案</label>
-            <input type="file" class="form-control" id="graduation-certificate-file" accept="image/*,application/pdf,.pdf">
+            <label class="form-label">畢業證書圖片</label>
+            <input type="file" class="form-control" id="graduation-certificate-file" accept="image/*">
             <div class="d-flex gap-2 flex-wrap mt-2">
-              <button type="button" class="btn btn-outline-danger btn-sm" id="graduation-certificate-delete-btn">刪除檔案</button>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="graduation-certificate-delete-btn">刪除圖片</button>
             </div>
-            <div class="form-text">支援圖片或 PDF；如需更新請在編輯頁面重新上傳檔案。</div>
+            <div class="form-text">僅供查看；如需更新請在編輯頁面重新上傳圖片。</div>
           </div>
           <div id="graduation-certificate-preview-wrap" class="border rounded-4 p-3 bg-light text-center">
             <div class="text-muted">尚未上傳畢業證書</div>
