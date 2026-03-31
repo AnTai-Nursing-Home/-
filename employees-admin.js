@@ -1989,8 +1989,15 @@ async function generateReportHTML() {
       }
 
       const EXCEL_IMAGE_CELL_WIDTH = 18;
-      const EXCEL_IMAGE_PIXEL_SIZE = 150;
       const EXCEL_IMAGE_ROW_HEIGHT = 118;
+
+      function columnWidthToPx(width) {
+        return Math.floor((Number(width || 8.43) * 7) + 5);
+      }
+
+      function rowHeightToPx(heightPt) {
+        return Math.floor((Number(heightPt || 15) * 96) / 72);
+      }
 
       function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
@@ -2120,11 +2127,24 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, size = EXCEL_IMAGE_PIXEL_SIZE) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+        const colWidth = ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH;
+        const rowHeight = ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT;
+
+        const cellWidthPx = columnWidthToPx(colWidth);
+        const cellHeightPx = rowHeightToPx(rowHeight);
+
+        const padX = Math.max(3, Math.floor(cellWidthPx * 0.04));
+        const padY = Math.max(3, Math.floor(cellHeightPx * 0.04));
+
+        const left = (colNumber - 1) + (padX / cellWidthPx);
+        const top = (rowNumber - 1) + (padY / cellHeightPx);
+        const right = colNumber - (padX / cellWidthPx);
+        const bottom = rowNumber - (padY / cellHeightPx);
+
         ws.addImage(imageId, {
-          tl: { col: (colNumber - 1) + 0.08, row: (rowNumber - 1) + 0.08 },
-          ext: { width: size, height: size },
-          editAs: 'oneCell'
+          tl: { col: left, row: top },
+          br: { col: right, row: bottom }
         });
       }
 
@@ -2139,6 +2159,9 @@ async function generateReportHTML() {
           { header: '正面圖片', key: 'front', width: EXCEL_IMAGE_CELL_WIDTH },
           { header: '反面圖片', key: 'back', width: EXCEL_IMAGE_CELL_WIDTH },
         ];
+        ['F', 'G'].forEach(col => {
+          ws.getColumn(col).alignment = { vertical:'middle', horizontal:'center' };
+        });
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
 
@@ -2165,7 +2188,7 @@ async function generateReportHTML() {
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
@@ -2175,7 +2198,7 @@ async function generateReportHTML() {
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2212,6 +2235,7 @@ async function generateReportHTML() {
           { header: '畢業學校', key: 'school', width: 24 },
           { header: '畢業證書圖片', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
         ];
+        ws.getColumn('F').alignment = { vertical:'middle', horizontal:'center' };
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
 
@@ -2238,7 +2262,7 @@ async function generateReportHTML() {
           const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
           if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, EXCEL_IMAGE_PIXEL_SIZE);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
