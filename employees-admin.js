@@ -27,7 +27,6 @@ function buildTableHTML(tabId) {
                 <th>緊急電話</th>
                 ${isForeignTab ? '<th>國籍</th>' : ''}
                 <th>證書摘要</th>
-                <th>換證日期</th>
                 <th>學歷</th>
                 <th>畢業學校</th>
                 <th>畢業證書</th>
@@ -241,7 +240,7 @@ document.addEventListener('firebase-ready', () => {
   const graduationCertificatePreviewWrap = document.getElementById('graduation-certificate-preview-wrap');
   const licenseTypeInput = null;
   const licenseNumberInput = null;
-  const licenseRenewDateInput = document.getElementById('employee-licenseRenewDate');
+  const licenseRenewDateInput = null;
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
   const inactiveDateInput = document.getElementById('employee-inactiveDate');
@@ -299,9 +298,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 26;
-    if (tabId === 'foreignCaregivers') return 25;
-    return 22;
+    if (tabId === 'inactiveEmployees') return 22;
+    if (tabId === 'foreignCaregivers') return 24;
+    return 20;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -404,6 +403,9 @@ document.addEventListener('firebase-ready', () => {
     { value: '05:BLS', label: '05:BLS' },
     { value: '06:勞動部聘雇許可函', label: '06:勞動部聘雇許可函' },
     { value: '07:長照小卡', label: '07:長照小卡' },
+    { value: '08:基礎訓練；照服員結業證書', label: '08:基礎訓練；照服員結業證書' },
+    { value: '09:進階訓練1；身障支持課程', label: '09:進階訓練1；身障支持課程' },
+    { value: '10:進階訓練2；失智支持課程', label: '10:進階訓練2；失智支持課程' },
   ];
 
   const BLS_ORGANIZER_OPTIONS = [
@@ -439,8 +441,10 @@ document.addEventListener('firebase-ready', () => {
   }
 
   function getCertificateNumberLabel(type = '') {
-    if (isBLSType(type)) return '證書字號';
-    if (isLongtermCardType(type)) return '長照證號';
+    const value = String(type || '').trim();
+    if (isBLSType(value)) return '證書字號';
+    if (isLongtermCardType(value)) return '長照證號';
+    if (value.startsWith('08:') || value.startsWith('09:') || value.startsWith('10:')) return '證書字號';
     return '發證字號';
   }
 
@@ -990,7 +994,6 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
         <td>${certSummary ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
-        <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['education'])}</td>
         <td>${pick(e, ['school'])}</td>
         <td>${pick(e, ['graduationCertificateUrl']) ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-graduation-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
@@ -1095,7 +1098,6 @@ function fillFormFromRow(row) {
     emgPhoneInput.value = values[i++] || '';
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
-    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
     educationInput.value = values[i++] || '';
     schoolInput.value = values[i++] || '';
     i++; // 畢業證書欄位（查看按鈕）
@@ -1168,7 +1170,6 @@ function fillFormFromRow(row) {
       certificates: cleanedCertificates,
       licenseType: cleanedCertificates.map(item => item.type).filter(Boolean).join('；'),
       licenseNumber: cleanedCertificates.map(item => item.number).filter(Boolean).join('；'),
-      licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
       longtermCertNumber: String(longtermCard.number || '').trim(),
       longtermExpireDate: String(longtermCard.longtermExpireDate || '').trim(),
       education: educationInput.value.trim(),
@@ -1574,7 +1575,6 @@ async function generateReportHTML() {
           <td>${e.emergencyPhone ?? ''}</td>
           ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
           <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
-          <td>${e.licenseRenewDate ?? ''}</td>
           <td>${e.education ?? ''}</td>
           <td>${e.school ?? ''}</td>
           <td>${e.graduationCertificateUrl ? '有' : '—'}</td>
@@ -1597,8 +1597,8 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         ${tab.id === 'foreignCaregivers'
-        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
-        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -1674,9 +1674,9 @@ async function generateReportHTML() {
 
       const headersBase = (tab.id === 'foreignCaregivers')
         ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','承接日期','續聘日期','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','換證日期','學歷','畢業學校']
+           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','證書摘要','換證日期','學歷','畢業學校'];
+           '緊急聯絡人','關係','緊急電話','證書摘要','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
@@ -1699,7 +1699,6 @@ async function generateReportHTML() {
           getVal(e, ['emergencyPhone','emgPhone']),
           ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
           getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-          getVal(e, ['licenseRenewDate']),
           getVal(e, ['education']),
           getVal(e, ['school']),
           getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -1873,7 +1872,6 @@ async function generateReportHTML() {
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1899,7 +1897,6 @@ async function generateReportHTML() {
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1981,7 +1978,6 @@ async function generateReportHTML() {
           emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
           nationality: isForeign ? getVal(e, ['nationality']) : '',
           licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-          licenseRenewDate: getVal(e, ['licenseRenewDate']),
           education: getVal(e, ['education']),
           school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -2412,7 +2408,6 @@ async function generateReportHTML() {
             emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
             nationality: isForeignSheet ? getVal(e, ['nationality']) : '',
             licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-            licenseRenewDate: getVal(e, ['licenseRenewDate']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
