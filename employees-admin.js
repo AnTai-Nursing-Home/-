@@ -2066,7 +2066,7 @@ async function generateReportHTML() {
         };
       }
 
-      const EXCEL_IMAGE_CELL_WIDTH = 18;
+      const EXCEL_IMAGE_CELL_WIDTH = 22;
       const EXCEL_IMAGE_ROW_HEIGHT = 118;
 
       function columnWidthToPx(width) {
@@ -2218,40 +2218,72 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
+      function getExcelImageBoxMetrics(ws, colNumber, rowNumber) {
         const colWidth = ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH;
         const rowHeight = ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT;
 
         const cellWidthPx = Math.max(1, columnWidthToPx(colWidth));
         const cellHeightPx = Math.max(1, rowHeightToPx(rowHeight));
-
-        const outerPadX = Math.max(4, Math.round(cellWidthPx * 0.04));
-        const outerPadY = Math.max(4, Math.round(cellHeightPx * 0.04));
-
+        const outerPadX = Math.max(2, Math.round(cellWidthPx * 0.02));
+        const outerPadY = Math.max(2, Math.round(cellHeightPx * 0.02));
         const availableWidth = Math.max(1, cellWidthPx - (outerPadX * 2));
         const availableHeight = Math.max(1, cellHeightPx - (outerPadY * 2));
 
-        const imageWidth = Math.max(1, Number(imageMeta?.width || 1));
-        const imageHeight = Math.max(1, Number(imageMeta?.height || 1));
-        const imageRatio = imageWidth / imageHeight;
-        const boxRatio = availableWidth / availableHeight;
+        return { cellWidthPx, cellHeightPx, outerPadX, outerPadY, availableWidth, availableHeight };
+      }
 
-        let drawWidth = availableWidth;
-        let drawHeight = availableHeight;
+      async function fitExcelImageToCell(imageMeta, ws, colNumber, rowNumber) {
+        if (!imageMeta?.base64) return imageMeta;
 
-        if (imageRatio > boxRatio) {
-          drawHeight = Math.max(1, Math.round(drawWidth / imageRatio));
+        const { availableWidth, availableHeight } = getExcelImageBoxMetrics(ws, colNumber, rowNumber);
+        const mime = String(imageMeta.extension || '').toLowerCase() === 'png' ? 'image/png' : 'image/jpeg';
+        const dataUrl = `data:${mime};base64,${imageMeta.base64}`;
+        const img = await loadHtmlImage(dataUrl);
+
+        const srcWidth = Math.max(1, img.naturalWidth || img.width || imageMeta.width || 1);
+        const srcHeight = Math.max(1, img.naturalHeight || img.height || imageMeta.height || 1);
+        const srcRatio = srcWidth / srcHeight;
+        const targetRatio = availableWidth / availableHeight;
+
+        let cropWidth = srcWidth;
+        let cropHeight = srcHeight;
+        let cropX = 0;
+        let cropY = 0;
+
+        if (srcRatio > targetRatio) {
+          cropWidth = Math.max(1, Math.round(srcHeight * targetRatio));
+          cropX = Math.max(0, Math.floor((srcWidth - cropWidth) / 2));
         } else {
-          drawWidth = Math.max(1, Math.round(drawHeight * imageRatio));
+          cropHeight = Math.max(1, Math.round(srcWidth / targetRatio));
+          cropY = Math.max(0, Math.floor((srcHeight - cropHeight) / 2));
         }
 
-        const innerOffsetX = Math.max(0, Math.floor((availableWidth - drawWidth) / 2));
-        const innerOffsetY = Math.max(0, Math.floor((availableHeight - drawHeight) / 2));
+        const canvas = document.createElement('canvas');
+        canvas.width = availableWidth;
+        canvas.height = availableHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('canvas context unavailable');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, availableWidth, availableHeight);
 
-        const leftPx = outerPadX + innerOffsetX;
-        const topPx = outerPadY + innerOffsetY;
-        const rightPx = leftPx + drawWidth;
-        const bottomPx = topPx + drawHeight;
+        const pngDataUrl = canvas.toDataURL('image/png');
+        const base64 = normalizeExcelImageBase64(pngDataUrl);
+        if (!base64) throw new Error('cropped png base64 empty');
+        return {
+          base64,
+          extension: 'png',
+          width: availableWidth,
+          height: availableHeight,
+        };
+      }
+
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+        const { cellWidthPx, cellHeightPx, outerPadX, outerPadY, availableWidth, availableHeight } = getExcelImageBoxMetrics(ws, colNumber, rowNumber);
+        const leftPx = outerPadX;
+        const topPx = outerPadY;
+        const rightPx = leftPx + availableWidth;
+        const bottomPx = topPx + availableHeight;
 
         ws.addImage(imageId, {
           tl: {
@@ -2304,8 +2336,9 @@ async function generateReportHTML() {
 
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
-              const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
+              const fittedFrontImg = await fitExcelImageToCell(frontImg, ws, 6, rowIndex);
+              const imgId = wb.addImage({ base64: fittedFrontImg.base64, extension: fittedFrontImg.extension });
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
@@ -2314,8 +2347,9 @@ async function generateReportHTML() {
 
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
-              const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
+              const fittedBackImg = await fitExcelImageToCell(backImg, ws, 7, rowIndex);
+              const imgId = wb.addImage({ base64: fittedBackImg.base64, extension: fittedBackImg.extension });
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2378,8 +2412,9 @@ async function generateReportHTML() {
 
           const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
           if (img) {
-            const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
+            const fittedImg = await fitExcelImageToCell(img, ws, 6, rowIndex);
+            const imgId = wb.addImage({ base64: fittedImg.base64, extension: fittedImg.extension });
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
