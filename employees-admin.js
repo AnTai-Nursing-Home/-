@@ -726,10 +726,23 @@ document.addEventListener('firebase-ready', () => {
     refreshGraduationCertificateUI();
   }
 
+  function isPdfFileByMeta(name = '', contentType = '', url = '') {
+    const safeName = String(name || '').toLowerCase();
+    const safeType = String(contentType || '').toLowerCase();
+    const safeUrl = String(url || '').toLowerCase();
+    return safeType.includes('pdf') || safeName.endsWith('.pdf') || safeUrl.includes('.pdf');
+  }
+
   function refreshGraduationCertificateUI() {
+    const isPdf = isPdfFileByMeta(
+      graduationCertificateData.name,
+      graduationCertificateData.contentType,
+      graduationCertificateData.url
+    );
+
     if (graduationCertificateStatusEl) {
       graduationCertificateStatusEl.textContent = graduationCertificateData.url
-        ? `已上傳：${graduationCertificateData.name || '畢業證書圖片'}`
+        ? `已上傳：${graduationCertificateData.name || '畢業證書檔案'}`
         : '尚未上傳';
     }
     if (graduationCertificateModalMeta) {
@@ -739,6 +752,7 @@ document.addEventListener('firebase-ready', () => {
         const lines = [
           `畢業學校：<strong>${escapeHtml(schoolInput?.value?.trim() || '未填寫')}</strong>`,
           `檔案名稱：<strong>${escapeHtml(graduationCertificateData.name || '未上傳')}</strong>`,
+          `檔案類型：<strong>${isPdf ? 'PDF' : (graduationCertificateData.url ? '圖片' : '未上傳')}</strong>`,
         ];
         graduationCertificateModalMeta.innerHTML = lines.join('<br>');
       }
@@ -746,9 +760,20 @@ document.addEventListener('firebase-ready', () => {
     if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
     if (graduationCertificateDeleteBtn) graduationCertificateDeleteBtn.disabled = !graduationCertificateUploadEnabled || !graduationCertificateData.url;
     if (graduationCertificatePreviewWrap) {
-      graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
-        ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
-        : '<div class="text-muted">尚未上傳畢業證書</div>';
+      if (!graduationCertificateData.url) {
+        graduationCertificatePreviewWrap.innerHTML = '<div class="text-muted">尚未上傳畢業證書</div>';
+      } else if (isPdf) {
+        graduationCertificatePreviewWrap.innerHTML = `
+          <div class="d-flex flex-column gap-3 align-items-stretch">
+            <div class="text-start small text-muted">目前檔案為 PDF，可直接預覽或另開新視窗。</div>
+            <div class="d-flex justify-content-center">
+              <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(graduationCertificateData.url)}" target="_blank" rel="noopener">開啟 PDF</a>
+            </div>
+            <iframe src="${escapeHtml(graduationCertificateData.url)}" title="畢業證書 PDF" style="width:100%;height:70vh;border:1px solid #dee2e6;border-radius:12px;background:#fff;"></iframe>
+          </div>`;
+      } else {
+        graduationCertificatePreviewWrap.innerHTML = `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`;
+      }
     }
   }
 
@@ -803,10 +828,10 @@ document.addEventListener('firebase-ready', () => {
 
   function removeGraduationCertificate() {
     if (!graduationCertificateData.url) {
-      alert('目前沒有可刪除的畢業證書圖片。');
+      alert('目前沒有可刪除的畢業證書檔案。');
       return;
     }
-    if (!confirm('確定要刪除此畢業證書圖片嗎？')) return;
+    if (!confirm('確定要刪除此畢業證書檔案嗎？')) return;
     graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
     if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     refreshGraduationCertificateUI();
@@ -2133,34 +2158,41 @@ async function generateReportHTML() {
       async function imageBlobToExcelPayload(blob) {
         if (!blob || !blob.size) throw new Error('empty blob');
 
-        const mime = String(blob.type || '').toLowerCase();
-        const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
-        if (directOk) {
-          const dataUrl = await blobToDataUrl(blob);
-          const base64 = normalizeExcelImageBase64(dataUrl);
-          if (!base64) throw new Error('base64 empty');
-          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
-        }
-
         const objectUrl = URL.createObjectURL(blob);
         try {
           const img = await loadHtmlImage(objectUrl);
+          const sourceWidth = Math.max(1, img.naturalWidth || img.width || 1);
+          const sourceHeight = Math.max(1, img.naturalHeight || img.height || 1);
+          const mime = String(blob.type || '').toLowerCase();
+          const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
+          if (directOk) {
+            const dataUrl = await blobToDataUrl(blob);
+            const base64 = normalizeExcelImageBase64(dataUrl);
+            if (!base64) throw new Error('base64 empty');
+            return {
+              base64,
+              extension: mime.includes('png') ? 'png' : 'jpeg',
+              width: sourceWidth,
+              height: sourceHeight
+            };
+          }
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || img.width || 1;
-          canvas.height = img.naturalHeight || img.height || 1;
+          canvas.width = sourceWidth;
+          canvas.height = sourceHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) throw new Error('canvas context unavailable');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const pngDataUrl = canvas.toDataURL('image/png');
           const base64 = normalizeExcelImageBase64(pngDataUrl);
           if (!base64) throw new Error('png base64 empty');
-          return { base64, extension: 'png' };
+          return { base64, extension: 'png', width: sourceWidth, height: sourceHeight };
         } finally {
           URL.revokeObjectURL(objectUrl);
         }
       }
 
-      async function fetchImageForExcel(url, path = '', filename = '', targetWidthPx = 0, targetHeightPx = 0) {
+      async function fetchImageForExcel(url, path = '', filename = '') {
         if (!url && !path) return null;
         try {
           let blob = null;
@@ -2177,9 +2209,10 @@ async function generateReportHTML() {
             blob = await blobFromUrl(fixedUrl);
           }
           if (!blob || !blob.size) throw new Error('empty blob');
-
-          if (targetWidthPx > 0 && targetHeightPx > 0) {
-            return await imageBlobToCroppedExcelPayload(blob, targetWidthPx, targetHeightPx);
+          const mime = String(blob.type || '').toLowerCase();
+          const lowerName = String(filename || '').toLowerCase();
+          if (mime.includes('pdf') || lowerName.endsWith('.pdf')) {
+            return { isPdf: true };
           }
           return await imageBlobToExcelPayload(blob);
         } catch (err) {
@@ -2188,15 +2221,24 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
         const colWidthPx = columnWidthToPx(ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH);
         const rowHeightPx = rowHeightPtToPx(ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT);
         const insetX = Math.min(8, EXCEL_IMAGE_INSET_PX);
         const insetY = Math.min(8, EXCEL_IMAGE_INSET_PX);
+        const boxWidthPx = Math.max(24, Math.round(colWidthPx - insetX * 2));
+        const boxHeightPx = Math.max(24, Math.round(rowHeightPx - insetY * 2));
+        const sourceWidth = Math.max(1, Math.round(Number(imageMeta.width) || boxWidthPx));
+        const sourceHeight = Math.max(1, Math.round(Number(imageMeta.height) || boxHeightPx));
+        const scale = Math.min(boxWidthPx / sourceWidth, boxHeightPx / sourceHeight);
+        const drawWidthPx = Math.max(1, Math.round(sourceWidth * scale));
+        const drawHeightPx = Math.max(1, Math.round(sourceHeight * scale));
+        const offsetX = insetX + Math.max(0, Math.round((boxWidthPx - drawWidthPx) / 2));
+        const offsetY = insetY + Math.max(0, Math.round((boxHeightPx - drawHeightPx) / 2));
 
         ws.addImage(imageId, {
-          tl: { col: (colNumber - 1) + (insetX / colWidthPx), row: (rowNumber - 1) + (insetY / rowHeightPx) },
-          br: { col: colNumber - (insetX / colWidthPx), row: rowNumber - (insetY / rowHeightPx) },
+          tl: { col: (colNumber - 1) + (offsetX / colWidthPx), row: (rowNumber - 1) + (offsetY / rowHeightPx) },
+          ext: { width: drawWidthPx, height: drawHeightPx },
           editAs: 'oneCell'
         });
       }
@@ -2238,23 +2280,26 @@ async function generateReportHTML() {
             applyRowStyle(row);
             row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-            const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-            const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
-
-            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '', targetImageWidthPx, targetImageHeightPx);
-            if (frontImg) {
+            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
+            if (frontImg?.isPdf) {
+              row.getCell('F').value = 'PDF檔案';
+              row.getCell('F').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+            } else if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
               failedCount += 1;
             }
 
-            const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '', targetImageWidthPx, targetImageHeightPx);
-            if (backImg) {
+            const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
+            if (backImg?.isPdf) {
+              row.getCell('G').value = 'PDF檔案';
+              row.getCell('G').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+            } else if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2321,10 +2366,10 @@ async function generateReportHTML() {
           const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
           const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
 
-          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '', targetImageWidthPx, targetImageHeightPx);
+          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
           if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
