@@ -734,7 +734,7 @@ document.addEventListener('firebase-ready', () => {
   function refreshGraduationCertificateUI() {
     if (graduationCertificateStatusEl) {
       graduationCertificateStatusEl.textContent = graduationCertificateData.url
-        ? `已上傳：${graduationCertificateData.name || '畢業證書圖片'}`
+        ? `已上傳：${graduationCertificateData.name || '畢業證書檔案'}`
         : '尚未上傳';
     }
     if (graduationCertificateModalMeta) {
@@ -751,9 +751,24 @@ document.addEventListener('firebase-ready', () => {
     if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
     if (graduationCertificateDeleteBtn) graduationCertificateDeleteBtn.disabled = !graduationCertificateUploadEnabled || !graduationCertificateData.url;
     if (graduationCertificatePreviewWrap) {
-      graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
-        ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
-        : '<div class="text-muted">尚未上傳畢業證書</div>';
+      const fileUrl = String(graduationCertificateData.url || '').trim();
+      const fileName = String(graduationCertificateData.name || '畢業證書').trim();
+      const contentType = String(graduationCertificateData.contentType || '').toLowerCase();
+      const isPdf = contentType.includes('pdf') || /\.pdf(?:$|[?#])/i.test(fileUrl) || /\.pdf$/i.test(fileName);
+      if (!fileUrl) {
+        graduationCertificatePreviewWrap.innerHTML = '<div class="text-muted">尚未上傳畢業證書</div>';
+      } else if (isPdf) {
+        graduationCertificatePreviewWrap.innerHTML = `
+          <div class="d-flex flex-column gap-3 align-items-center">
+            <div class="text-muted">目前上傳的是 PDF 檔案</div>
+            <div class="w-100 border rounded-3 overflow-hidden bg-white" style="height:min(70vh, 900px);">
+              <iframe src="${escapeHtml(fileUrl)}" title="畢業證書 PDF" style="width:100%;height:100%;border:0;"></iframe>
+            </div>
+            <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">開啟 PDF：${escapeHtml(fileName)}</a>
+          </div>`;
+      } else {
+        graduationCertificatePreviewWrap.innerHTML = `<img src="${escapeHtml(fileUrl)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`;
+      }
     }
   }
 
@@ -808,10 +823,10 @@ document.addEventListener('firebase-ready', () => {
 
   function removeGraduationCertificate() {
     if (!graduationCertificateData.url) {
-      alert('目前沒有可刪除的畢業證書圖片。');
+      alert('目前沒有可刪除的畢業證書檔案。');
       return;
     }
-    if (!confirm('確定要刪除此畢業證書圖片嗎？')) return;
+    if (!confirm('確定要刪除此畢業證書檔案嗎？')) return;
     graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
     if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     refreshGraduationCertificateUI();
@@ -1984,10 +1999,10 @@ async function generateReportHTML() {
         };
       }
 
-      const EXCEL_IMAGE_CELL_WIDTH = 22;
-      const EXCEL_IMAGE_PIXEL_SIZE = 150;
-      const EXCEL_IMAGE_ROW_HEIGHT = 118;
-      const EXCEL_IMAGE_INSET_PX = 4;
+      const EXCEL_IMAGE_CELL_WIDTH = 30;
+      const EXCEL_IMAGE_PIXEL_SIZE = 180;
+      const EXCEL_IMAGE_ROW_HEIGHT = 150;
+      const EXCEL_IMAGE_INSET_PX = 3;
 
       function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
@@ -2129,7 +2144,18 @@ async function generateReportHTML() {
           const dataUrl = await blobToDataUrl(blob);
           const base64 = normalizeExcelImageBase64(dataUrl);
           if (!base64) throw new Error('base64 empty');
-          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
+          const objectUrl = URL.createObjectURL(blob);
+          try {
+            const img = await loadHtmlImage(objectUrl);
+            return {
+              base64,
+              extension: mime.includes('png') ? 'png' : 'jpeg',
+              width: img.naturalWidth || img.width || 0,
+              height: img.naturalHeight || img.height || 0,
+            };
+          } finally {
+            URL.revokeObjectURL(objectUrl);
+          };
         }
 
         const objectUrl = URL.createObjectURL(blob);
@@ -2144,7 +2170,7 @@ async function generateReportHTML() {
           const pngDataUrl = canvas.toDataURL('image/png');
           const base64 = normalizeExcelImageBase64(pngDataUrl);
           if (!base64) throw new Error('png base64 empty');
-          return { base64, extension: 'png' };
+          return { base64, extension: 'png', width: canvas.width, height: canvas.height };
         } finally {
           URL.revokeObjectURL(objectUrl);
         }
@@ -2178,15 +2204,24 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
         const colWidthPx = columnWidthToPx(ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH);
         const rowHeightPx = rowHeightPtToPx(ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT);
         const insetX = Math.min(8, EXCEL_IMAGE_INSET_PX);
         const insetY = Math.min(8, EXCEL_IMAGE_INSET_PX);
+        const boxWidthPx = Math.max(24, Math.round(colWidthPx - insetX * 2));
+        const boxHeightPx = Math.max(24, Math.round(rowHeightPx - insetY * 2));
+        const sourceWidth = Math.max(1, Math.round(Number(imageMeta.width) || boxWidthPx));
+        const sourceHeight = Math.max(1, Math.round(Number(imageMeta.height) || boxHeightPx));
+        const scale = Math.min(boxWidthPx / sourceWidth, boxHeightPx / sourceHeight);
+        const drawWidthPx = Math.max(1, Math.round(sourceWidth * scale));
+        const drawHeightPx = Math.max(1, Math.round(sourceHeight * scale));
+        const offsetX = insetX + Math.max(0, Math.round((boxWidthPx - drawWidthPx) / 2));
+        const offsetY = insetY + Math.max(0, Math.round((boxHeightPx - drawHeightPx) / 2));
 
         ws.addImage(imageId, {
-          tl: { col: (colNumber - 1) + (insetX / colWidthPx), row: (rowNumber - 1) + (insetY / rowHeightPx) },
-          br: { col: colNumber - (insetX / colWidthPx), row: rowNumber - (insetY / rowHeightPx) },
+          tl: { col: (colNumber - 1) + (offsetX / colWidthPx), row: (rowNumber - 1) + (offsetY / rowHeightPx) },
+          ext: { width: drawWidthPx, height: drawHeightPx },
           editAs: 'oneCell'
         });
       }
@@ -2233,7 +2268,7 @@ async function generateReportHTML() {
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '', targetImageWidthPx, targetImageHeightPx);
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
@@ -2243,7 +2278,7 @@ async function generateReportHTML() {
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '', targetImageWidthPx, targetImageHeightPx);
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2278,7 +2313,7 @@ async function generateReportHTML() {
           { header: '姓名', key: 'name', width: 14 },
           { header: '學歷', key: 'education', width: 12 },
           { header: '畢業學校', key: 'school', width: 24 },
-          { header: '畢業證書圖片', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
+          { header: '畢業證書檔案', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
         ];
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
@@ -2290,6 +2325,9 @@ async function generateReportHTML() {
         for (const emp of employees) {
           const imageUrl = String(emp.graduationCertificateUrl || '').trim();
           const imagePath = String(emp.graduationCertificatePath || '').trim();
+          const graduationName = String(emp.graduationCertificateName || '').trim();
+          const graduationContentType = String(emp.graduationCertificateContentType || '').toLowerCase();
+          const isPdfFile = graduationContentType.includes('pdf') || /\.pdf(?:$|[?#])/i.test(imageUrl) || /\.pdf$/i.test(graduationName);
           if (!imageUrl && !imagePath) continue;
 
           const row = ws.getRow(rowIndex);
@@ -2299,22 +2337,24 @@ async function generateReportHTML() {
             name: emp.name || '',
             education: emp.education || '',
             school: emp.school || '',
-            graduationImage: '圖片嵌入失敗',
+            graduationImage: isPdfFile ? `PDF：${graduationName || '畢業證書'}` : '圖片嵌入失敗',
           };
           applyRowStyle(row);
           row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-          const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-          const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
+          if (!isPdfFile) {
+            const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
+            const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
 
-          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '', targetImageWidthPx, targetImageHeightPx);
-          if (img) {
-            const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
-            row.getCell('F').value = '';
-            embeddedCount += 1;
-          } else {
-            failedCount += 1;
+            const img = await fetchImageForExcel(imageUrl, imagePath, graduationName || '', targetImageWidthPx, targetImageHeightPx);
+            if (img) {
+              const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
+              row.getCell('F').value = '';
+              embeddedCount += 1;
+            } else {
+              failedCount += 1;
+            }
           }
           rowIndex += 1;
         }
