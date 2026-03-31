@@ -85,6 +85,83 @@ document.addEventListener('firebase-ready', () => {
   const importStatus = document.getElementById('import-status');
 
 
+  function getExportLoadingOverlay() {
+    let overlay = document.getElementById('employees-export-loading-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'employees-export-loading-overlay';
+    overlay.innerHTML = `
+      <div class="employees-export-loading-card">
+        <div class="employees-export-loading-spinner" aria-hidden="true"></div>
+        <div class="employees-export-loading-title">Excel 匯出中</div>
+        <div class="employees-export-loading-text">正在整理資料與圖片，請稍候…</div>
+      </div>
+    `;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #employees-export-loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.38);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        backdrop-filter: blur(2px);
+      }
+      #employees-export-loading-overlay.show { display: flex; }
+      #employees-export-loading-overlay .employees-export-loading-card {
+        min-width: 280px;
+        max-width: 92vw;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 18px 48px rgba(15,23,42,.18);
+        padding: 24px 28px;
+        text-align: center;
+      }
+      #employees-export-loading-overlay .employees-export-loading-spinner {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        border: 4px solid rgba(59,130,246,.16);
+        border-top-color: #3b82f6;
+        animation: employeesExportSpin .8s linear infinite;
+      }
+      #employees-export-loading-overlay .employees-export-loading-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 6px;
+      }
+      #employees-export-loading-overlay .employees-export-loading-text {
+        font-size: 14px;
+        color: #475569;
+      }
+      @keyframes employeesExportSpin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function setExcelExportLoading(isLoading, text = '正在整理資料與圖片，請稍候…') {
+    const overlay = getExportLoadingOverlay();
+    const textEl = overlay.querySelector('.employees-export-loading-text');
+    if (textEl) textEl.textContent = text;
+    overlay.classList.toggle('show', !!isLoading);
+    if (exportExcelBtn) {
+      exportExcelBtn.disabled = !!isLoading;
+      exportExcelBtn.dataset.originalText = exportExcelBtn.dataset.originalText || exportExcelBtn.innerHTML;
+      exportExcelBtn.innerHTML = isLoading ? '匯出中…' : exportExcelBtn.dataset.originalText;
+    }
+  }
+
+
   // ====================== 登入者（顯示與匯出使用） ======================
   const loginBadgeEl = document.getElementById('loginBadge');
 
@@ -1847,6 +1924,7 @@ async function generateReportHTML() {
     const exportUser = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim() || '—';
     if (window.__exportingEmployeesXlsx) return;
     window.__exportingEmployeesXlsx = true;
+    setExcelExportLoading(true);
 
     try {
       if (typeof ExcelJS === 'undefined') {
@@ -2076,28 +2154,41 @@ async function generateReportHTML() {
       async function imageBlobToExcelPayload(blob) {
         if (!blob || !blob.size) throw new Error('empty blob');
 
-        const mime = String(blob.type || '').toLowerCase();
-        const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
-        if (directOk) {
-          const dataUrl = await blobToDataUrl(blob);
-          const base64 = normalizeExcelImageBase64(dataUrl);
-          if (!base64) throw new Error('base64 empty');
-          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
-        }
-
         const objectUrl = URL.createObjectURL(blob);
         try {
           const img = await loadHtmlImage(objectUrl);
+          const naturalWidth = img.naturalWidth || img.width || 1;
+          const naturalHeight = img.naturalHeight || img.height || 1;
+          const mime = String(blob.type || '').toLowerCase();
+          const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
+
+          if (directOk) {
+            const dataUrl = await blobToDataUrl(blob);
+            const base64 = normalizeExcelImageBase64(dataUrl);
+            if (!base64) throw new Error('base64 empty');
+            return {
+              base64,
+              extension: mime.includes('png') ? 'png' : 'jpeg',
+              width: naturalWidth,
+              height: naturalHeight,
+            };
+          }
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || img.width || 1;
-          canvas.height = img.naturalHeight || img.height || 1;
+          canvas.width = naturalWidth;
+          canvas.height = naturalHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) throw new Error('canvas context unavailable');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const pngDataUrl = canvas.toDataURL('image/png');
           const base64 = normalizeExcelImageBase64(pngDataUrl);
           if (!base64) throw new Error('png base64 empty');
-          return { base64, extension: 'png' };
+          return {
+            base64,
+            extension: 'png',
+            width: naturalWidth,
+            height: naturalHeight,
+          };
         } finally {
           URL.revokeObjectURL(objectUrl);
         }
@@ -2127,24 +2218,50 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
         const colWidth = ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH;
         const rowHeight = ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT;
 
-        const cellWidthPx = columnWidthToPx(colWidth);
-        const cellHeightPx = rowHeightToPx(rowHeight);
+        const cellWidthPx = Math.max(1, columnWidthToPx(colWidth));
+        const cellHeightPx = Math.max(1, rowHeightToPx(rowHeight));
 
-        const padX = Math.max(3, Math.floor(cellWidthPx * 0.04));
-        const padY = Math.max(3, Math.floor(cellHeightPx * 0.04));
+        const outerPadX = Math.max(4, Math.round(cellWidthPx * 0.04));
+        const outerPadY = Math.max(4, Math.round(cellHeightPx * 0.04));
 
-        const left = (colNumber - 1) + (padX / cellWidthPx);
-        const top = (rowNumber - 1) + (padY / cellHeightPx);
-        const right = colNumber - (padX / cellWidthPx);
-        const bottom = rowNumber - (padY / cellHeightPx);
+        const availableWidth = Math.max(1, cellWidthPx - (outerPadX * 2));
+        const availableHeight = Math.max(1, cellHeightPx - (outerPadY * 2));
+
+        const imageWidth = Math.max(1, Number(imageMeta?.width || 1));
+        const imageHeight = Math.max(1, Number(imageMeta?.height || 1));
+        const imageRatio = imageWidth / imageHeight;
+        const boxRatio = availableWidth / availableHeight;
+
+        let drawWidth = availableWidth;
+        let drawHeight = availableHeight;
+
+        if (imageRatio > boxRatio) {
+          drawHeight = Math.max(1, Math.round(drawWidth / imageRatio));
+        } else {
+          drawWidth = Math.max(1, Math.round(drawHeight * imageRatio));
+        }
+
+        const innerOffsetX = Math.max(0, Math.floor((availableWidth - drawWidth) / 2));
+        const innerOffsetY = Math.max(0, Math.floor((availableHeight - drawHeight) / 2));
+
+        const leftPx = outerPadX + innerOffsetX;
+        const topPx = outerPadY + innerOffsetY;
+        const rightPx = leftPx + drawWidth;
+        const bottomPx = topPx + drawHeight;
 
         ws.addImage(imageId, {
-          tl: { col: left, row: top },
-          br: { col: right, row: bottom }
+          tl: {
+            col: (colNumber - 1) + (leftPx / cellWidthPx),
+            row: (rowNumber - 1) + (topPx / cellHeightPx)
+          },
+          br: {
+            col: (colNumber - 1) + (rightPx / cellWidthPx),
+            row: (rowNumber - 1) + (bottomPx / cellHeightPx)
+          }
         });
       }
 
@@ -2188,7 +2305,7 @@ async function generateReportHTML() {
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontPayload);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
@@ -2198,7 +2315,7 @@ async function generateReportHTML() {
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backPayload);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2262,7 +2379,7 @@ async function generateReportHTML() {
           const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
           if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, imagePayload);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
@@ -2443,7 +2560,7 @@ async function generateReportHTML() {
       a.href = url;
       a.download = filename;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
 
       if (totalFailedImages > 0) {
         alert(`Excel 匯出完成。已成功嵌入 ${totalEmbeddedImages} 張圖片，另有 ${totalFailedImages} 張圖片未能嵌入。
@@ -2454,6 +2571,7 @@ async function generateReportHTML() {
       console.error(err);
       alert('匯出失敗，請看 console');
     } finally {
+      setExcelExportLoading(false);
       window.__exportingEmployeesXlsx = false;
     }
   }
