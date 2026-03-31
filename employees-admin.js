@@ -240,7 +240,7 @@ document.addEventListener('firebase-ready', () => {
   const graduationCertificatePreviewWrap = document.getElementById('graduation-certificate-preview-wrap');
   const licenseTypeInput = null;
   const licenseNumberInput = null;
-  const licenseRenewDateInput = null;
+  const licenseRenewDateInput = document.getElementById('employee-licenseRenewDate');
   const educationInput = document.getElementById('employee-education');
   const schoolInput = document.getElementById('employee-school');
   const inactiveDateInput = document.getElementById('employee-inactiveDate');
@@ -298,9 +298,9 @@ document.addEventListener('firebase-ready', () => {
 
   
   function getColspan(tabId) {
-    if (tabId === 'inactiveEmployees') return 22;
+    if (tabId === 'inactiveEmployees') return 25;
     if (tabId === 'foreignCaregivers') return 24;
-    return 20;
+    return 21;
   }
 
   async function loadAndRenderActive(collectionName, tbody, tabId) {
@@ -403,9 +403,6 @@ document.addEventListener('firebase-ready', () => {
     { value: '05:BLS', label: '05:BLS' },
     { value: '06:勞動部聘雇許可函', label: '06:勞動部聘雇許可函' },
     { value: '07:長照小卡', label: '07:長照小卡' },
-    { value: '08:基礎訓練；照服員結業證書', label: '08:基礎訓練；照服員結業證書' },
-    { value: '09:進階訓練1；身障支持課程', label: '09:進階訓練1；身障支持課程' },
-    { value: '10:進階訓練2；失智支持課程', label: '10:進階訓練2；失智支持課程' },
   ];
 
   const BLS_ORGANIZER_OPTIONS = [
@@ -441,10 +438,8 @@ document.addEventListener('firebase-ready', () => {
   }
 
   function getCertificateNumberLabel(type = '') {
-    const value = String(type || '').trim();
-    if (isBLSType(value)) return '證書字號';
-    if (isLongtermCardType(value)) return '長照證號';
-    if (value.startsWith('08:') || value.startsWith('09:') || value.startsWith('10:')) return '證書字號';
+    if (isBLSType(type)) return '證書字號';
+    if (isLongtermCardType(type)) return '長照證號';
     return '發證字號';
   }
 
@@ -734,7 +729,7 @@ document.addEventListener('firebase-ready', () => {
   function refreshGraduationCertificateUI() {
     if (graduationCertificateStatusEl) {
       graduationCertificateStatusEl.textContent = graduationCertificateData.url
-        ? `已上傳：${graduationCertificateData.name || '畢業證書檔案'}`
+        ? `已上傳：${graduationCertificateData.name || '畢業證書圖片'}`
         : '尚未上傳';
     }
     if (graduationCertificateModalMeta) {
@@ -751,24 +746,9 @@ document.addEventListener('firebase-ready', () => {
     if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
     if (graduationCertificateDeleteBtn) graduationCertificateDeleteBtn.disabled = !graduationCertificateUploadEnabled || !graduationCertificateData.url;
     if (graduationCertificatePreviewWrap) {
-      const fileUrl = String(graduationCertificateData.url || '').trim();
-      const fileName = String(graduationCertificateData.name || '畢業證書').trim();
-      const contentType = String(graduationCertificateData.contentType || '').toLowerCase();
-      const isPdf = contentType.includes('pdf') || /\.pdf(?:$|[?#])/i.test(fileUrl) || /\.pdf$/i.test(fileName);
-      if (!fileUrl) {
-        graduationCertificatePreviewWrap.innerHTML = '<div class="text-muted">尚未上傳畢業證書</div>';
-      } else if (isPdf) {
-        graduationCertificatePreviewWrap.innerHTML = `
-          <div class="d-flex flex-column gap-3 align-items-center">
-            <div class="text-muted">目前上傳的是 PDF 檔案</div>
-            <div class="w-100 border rounded-3 overflow-hidden bg-white" style="height:min(70vh, 900px);">
-              <iframe src="${escapeHtml(fileUrl)}" title="畢業證書 PDF" style="width:100%;height:100%;border:0;"></iframe>
-            </div>
-            <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">開啟 PDF：${escapeHtml(fileName)}</a>
-          </div>`;
-      } else {
-        graduationCertificatePreviewWrap.innerHTML = `<img src="${escapeHtml(fileUrl)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`;
-      }
+      graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
+        ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
+        : '<div class="text-muted">尚未上傳畢業證書</div>';
     }
   }
 
@@ -823,10 +803,10 @@ document.addEventListener('firebase-ready', () => {
 
   function removeGraduationCertificate() {
     if (!graduationCertificateData.url) {
-      alert('目前沒有可刪除的畢業證書檔案。');
+      alert('目前沒有可刪除的畢業證書圖片。');
       return;
     }
-    if (!confirm('確定要刪除此畢業證書檔案嗎？')) return;
+    if (!confirm('確定要刪除此畢業證書圖片嗎？')) return;
     graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
     if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     refreshGraduationCertificateUI();
@@ -1009,6 +989,7 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
         <td>${certSummary ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
+        <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['education'])}</td>
         <td>${pick(e, ['school'])}</td>
         <td>${pick(e, ['graduationCertificateUrl']) ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-graduation-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
@@ -1113,6 +1094,7 @@ function fillFormFromRow(row) {
     emgPhoneInput.value = values[i++] || '';
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
+    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
     educationInput.value = values[i++] || '';
     schoolInput.value = values[i++] || '';
     i++; // 畢業證書欄位（查看按鈕）
@@ -1185,6 +1167,7 @@ function fillFormFromRow(row) {
       certificates: cleanedCertificates,
       licenseType: cleanedCertificates.map(item => item.type).filter(Boolean).join('；'),
       licenseNumber: cleanedCertificates.map(item => item.number).filter(Boolean).join('；'),
+      licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
       longtermCertNumber: String(longtermCard.number || '').trim(),
       longtermExpireDate: String(longtermCard.longtermExpireDate || '').trim(),
       education: educationInput.value.trim(),
@@ -1590,6 +1573,7 @@ async function generateReportHTML() {
           <td>${e.emergencyPhone ?? ''}</td>
           ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
           <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
+          <td>${e.licenseRenewDate ?? ''}</td>
           <td>${e.education ?? ''}</td>
           <td>${e.school ?? ''}</td>
           <td>${e.graduationCertificateUrl ? '有' : '—'}</td>
@@ -1661,7 +1645,8 @@ async function generateReportHTML() {
         return '';
       };
 
-      async function fetchActiveFromCollection(collectionName) {
+      async function fetchActiveFromCollection(collectionName, tracker, label) {
+        tracker?.mark(`正在讀取 ${label || collectionName} 資料…`);
         const snap = await db.collection(collectionName).orderBy('sortOrder').orderBy('id').get();
         const rows = [];
         snap.forEach(doc => {
@@ -1672,10 +1657,11 @@ async function generateReportHTML() {
         return rows;
       }
 
-      async function fetchInactiveMerged() {
+      async function fetchInactiveMerged(tracker) {
         const rows = [];
         for (const def of TAB_DEFS) {
           if (def.id === 'inactiveEmployees') continue;
+          tracker?.mark(`正在讀取 ${def.label} 離職資料…`);
           const snap = await db.collection(def.collection).orderBy('id').get();
           snap.forEach(doc => {
             const e = doc.data() || {};
@@ -1714,6 +1700,7 @@ async function generateReportHTML() {
           getVal(e, ['emergencyPhone','emgPhone']),
           ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
           getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
+          getVal(e, ['licenseRenewDate']),
           getVal(e, ['education']),
           getVal(e, ['school']),
           getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -1856,6 +1843,96 @@ async function generateReportHTML() {
   }
 
 // ========= Excel 匯出（整合所有名冊到同一個 .xlsx，分頁區分） =========
+  function formatDurationText(ms) {
+    const safeMs = Math.max(0, Number(ms) || 0);
+    const totalSec = Math.ceil(safeMs / 1000);
+    const mm = Math.floor(totalSec / 60);
+    const ss = totalSec % 60;
+    if (mm <= 0) return `${ss} 秒`;
+    return `${mm} 分 ${String(ss).padStart(2, '0')} 秒`;
+  }
+
+  function updateExportLoadingStatus({ title, detail, estimateText, progressText, percent }) {
+    const overlay = ensureExportLoadingOverlay();
+    const titleEl = overlay.querySelector('[data-role="title"]');
+    const detailEl = overlay.querySelector('[data-role="detail"]');
+    const estimateEl = overlay.querySelector('[data-role="estimate"]');
+    const progressEl = overlay.querySelector('[data-role="progress"]');
+    const barEl = overlay.querySelector('[data-role="bar"]');
+    if (titleEl && title) titleEl.textContent = title;
+    if (detailEl) detailEl.textContent = detail || '請稍候，完成後會自動下載';
+    if (estimateEl) estimateEl.textContent = estimateText || '正在估算剩餘時間…';
+    if (progressEl) progressEl.textContent = progressText || '';
+    if (barEl) {
+      const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      barEl.style.width = `${safePercent}%`;
+    }
+  }
+
+  function createExportProgressTracker() {
+    const state = {
+      totalUnits: 0,
+      completedUnits: 0,
+      startTime: Date.now(),
+      title: 'Excel 匯出中…',
+      detail: '正在準備匯出資料…',
+      rafTimer: null,
+      forceTick: 0,
+    };
+
+    function render(force = false) {
+      const now = Date.now();
+      if (!force && now - state.forceTick < 120) return;
+      state.forceTick = now;
+      const elapsed = Math.max(1, now - state.startTime);
+      const percent = state.totalUnits > 0 ? (state.completedUnits / state.totalUnits) * 100 : 0;
+      let estimateText = '正在估算剩餘時間…';
+      if (state.totalUnits > 0 && state.completedUnits > 0) {
+        const remainingUnits = Math.max(0, state.totalUnits - state.completedUnits);
+        const msPerUnit = elapsed / state.completedUnits;
+        estimateText = remainingUnits > 0
+          ? `預計剩餘：約 ${formatDurationText(remainingUnits * msPerUnit)}`
+          : '即將完成，正在整理檔案…';
+      }
+      updateExportLoadingStatus({
+        title: state.title,
+        detail: state.detail,
+        estimateText,
+        progressText: state.totalUnits > 0 ? `進度：${state.completedUnits} / ${state.totalUnits}` : '進度：準備中',
+        percent,
+      });
+    }
+
+    return {
+      setTotal(totalUnits) {
+        state.totalUnits = Math.max(0, Number(totalUnits) || 0);
+        render(true);
+      },
+      setTitle(title) {
+        state.title = title || state.title;
+        render(true);
+      },
+      setDetail(detail) {
+        state.detail = detail || state.detail;
+        render(true);
+      },
+      step(units = 1, detail = '') {
+        state.completedUnits += Math.max(0, Number(units) || 0);
+        if (detail) state.detail = detail;
+        render();
+      },
+      mark(detail = '') {
+        if (detail) state.detail = detail;
+        render(true);
+      },
+      finish(detail = '匯出完成，正在下載檔案…') {
+        state.completedUnits = Math.max(state.completedUnits, state.totalUnits || state.completedUnits);
+        state.detail = detail;
+        render(true);
+      }
+    };
+  }
+
   async function exportAllToExcelXlsx() {
     const exportTime = formatExportTime(new Date());
     const exportUser = `${CURRENT_USER.staffId} ${CURRENT_USER.name}`.trim() || '—';
@@ -1926,7 +2003,8 @@ async function generateReportHTML() {
       };
 
       // ---- 讀取資料 ----
-      async function fetchActiveFromCollection(collectionName) {
+      async function fetchActiveFromCollection(collectionName, tracker, label) {
+        tracker?.mark(`正在讀取 ${label || collectionName} 資料…`);
         const snap = await db.collection(collectionName).orderBy('sortOrder').orderBy('id').get();
         const rows = [];
         snap.forEach(doc => {
@@ -1937,10 +2015,11 @@ async function generateReportHTML() {
         return rows;
       }
 
-      async function fetchInactiveMerged() {
+      async function fetchInactiveMerged(tracker) {
         const rows = [];
         for (const def of TAB_DEFS) {
           if (def.id === 'inactiveEmployees') continue;
+          tracker?.mark(`正在讀取 ${def.label} 離職資料…`);
           const snap = await db.collection(def.collection).orderBy('id').get();
           snap.forEach(doc => {
             const e = doc.data() || {};
@@ -1999,10 +2078,10 @@ async function generateReportHTML() {
         };
       }
 
-      const EXCEL_IMAGE_CELL_WIDTH = 30;
-      const EXCEL_IMAGE_PIXEL_SIZE = 180;
-      const EXCEL_IMAGE_ROW_HEIGHT = 150;
-      const EXCEL_IMAGE_INSET_PX = 3;
+      const EXCEL_IMAGE_CELL_WIDTH = 22;
+      const EXCEL_IMAGE_PIXEL_SIZE = 150;
+      const EXCEL_IMAGE_ROW_HEIGHT = 118;
+      const EXCEL_IMAGE_INSET_PX = 4;
 
       function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
@@ -2144,18 +2223,7 @@ async function generateReportHTML() {
           const dataUrl = await blobToDataUrl(blob);
           const base64 = normalizeExcelImageBase64(dataUrl);
           if (!base64) throw new Error('base64 empty');
-          const objectUrl = URL.createObjectURL(blob);
-          try {
-            const img = await loadHtmlImage(objectUrl);
-            return {
-              base64,
-              extension: mime.includes('png') ? 'png' : 'jpeg',
-              width: img.naturalWidth || img.width || 0,
-              height: img.naturalHeight || img.height || 0,
-            };
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          };
+          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
         }
 
         const objectUrl = URL.createObjectURL(blob);
@@ -2170,7 +2238,7 @@ async function generateReportHTML() {
           const pngDataUrl = canvas.toDataURL('image/png');
           const base64 = normalizeExcelImageBase64(pngDataUrl);
           if (!base64) throw new Error('png base64 empty');
-          return { base64, extension: 'png', width: canvas.width, height: canvas.height };
+          return { base64, extension: 'png' };
         } finally {
           URL.revokeObjectURL(objectUrl);
         }
@@ -2204,29 +2272,20 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
         const colWidthPx = columnWidthToPx(ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH);
         const rowHeightPx = rowHeightPtToPx(ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT);
         const insetX = Math.min(8, EXCEL_IMAGE_INSET_PX);
         const insetY = Math.min(8, EXCEL_IMAGE_INSET_PX);
-        const boxWidthPx = Math.max(24, Math.round(colWidthPx - insetX * 2));
-        const boxHeightPx = Math.max(24, Math.round(rowHeightPx - insetY * 2));
-        const sourceWidth = Math.max(1, Math.round(Number(imageMeta.width) || boxWidthPx));
-        const sourceHeight = Math.max(1, Math.round(Number(imageMeta.height) || boxHeightPx));
-        const scale = Math.min(boxWidthPx / sourceWidth, boxHeightPx / sourceHeight);
-        const drawWidthPx = Math.max(1, Math.round(sourceWidth * scale));
-        const drawHeightPx = Math.max(1, Math.round(sourceHeight * scale));
-        const offsetX = insetX + Math.max(0, Math.round((boxWidthPx - drawWidthPx) / 2));
-        const offsetY = insetY + Math.max(0, Math.round((boxHeightPx - drawHeightPx) / 2));
 
         ws.addImage(imageId, {
-          tl: { col: (colNumber - 1) + (offsetX / colWidthPx), row: (rowNumber - 1) + (offsetY / rowHeightPx) },
-          ext: { width: drawWidthPx, height: drawHeightPx },
+          tl: { col: (colNumber - 1) + (insetX / colWidthPx), row: (rowNumber - 1) + (insetY / rowHeightPx) },
+          br: { col: colNumber - (insetX / colWidthPx), row: rowNumber - (insetY / rowHeightPx) },
           editAs: 'oneCell'
         });
       }
 
-      async function addCertificatePhotoSheet(sheetName, employees) {
+      async function addCertificatePhotoSheet(sheetName, employees, tracker) {
         const ws = wb.addWorksheet(sheetName);
         ws.columns = [
           { header: '員工類別', key: 'category', width: 12 },
@@ -2245,6 +2304,8 @@ async function generateReportHTML() {
         let rowIndex = 2;
         let embeddedCount = 0;
         let failedCount = 0;
+        tracker?.mark(`正在建立 ${sheetName}…`);
+        tracker?.mark(`正在建立 ${sheetName}…`);
         for (const emp of employees) {
           const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl || c.frontPath || c.backPath));
           if (!certs.length) continue;
@@ -2265,25 +2326,28 @@ async function generateReportHTML() {
             const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
             const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
 
+            tracker?.step(1, `正在處理 ${sheetName}：${emp.name || emp.id || ''} 的證書圖片…`);
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '', targetImageWidthPx, targetImageHeightPx);
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
               failedCount += 1;
             }
 
+            tracker?.step(1, `正在處理 ${sheetName}：${emp.name || emp.id || ''} 的反面圖片…`);
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '', targetImageWidthPx, targetImageHeightPx);
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
               failedCount += 1;
             }
+            tracker?.step(1, `已完成 ${sheetName}：${emp.name || emp.id || ''} 的證書列`);
             rowIndex += 1;
           }
         }
@@ -2305,7 +2369,7 @@ async function generateReportHTML() {
         return { embeddedCount, failedCount };
       }
 
-      async function addGraduationPhotoSheet(sheetName, employees) {
+      async function addGraduationPhotoSheet(sheetName, employees, tracker) {
         const ws = wb.addWorksheet(sheetName);
         ws.columns = [
           { header: '員工類別', key: 'category', width: 12 },
@@ -2313,7 +2377,7 @@ async function generateReportHTML() {
           { header: '姓名', key: 'name', width: 14 },
           { header: '學歷', key: 'education', width: 12 },
           { header: '畢業學校', key: 'school', width: 24 },
-          { header: '畢業證書檔案', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
+          { header: '畢業證書圖片', key: 'graduationImage', width: EXCEL_IMAGE_CELL_WIDTH },
         ];
         applyRowStyle(ws.getRow(1), { header:true });
         ws.views = [{ state: 'frozen', ySplit: 1 }];
@@ -2325,9 +2389,6 @@ async function generateReportHTML() {
         for (const emp of employees) {
           const imageUrl = String(emp.graduationCertificateUrl || '').trim();
           const imagePath = String(emp.graduationCertificatePath || '').trim();
-          const graduationName = String(emp.graduationCertificateName || '').trim();
-          const graduationContentType = String(emp.graduationCertificateContentType || '').toLowerCase();
-          const isPdfFile = graduationContentType.includes('pdf') || /\.pdf(?:$|[?#])/i.test(imageUrl) || /\.pdf$/i.test(graduationName);
           if (!imageUrl && !imagePath) continue;
 
           const row = ws.getRow(rowIndex);
@@ -2337,25 +2398,25 @@ async function generateReportHTML() {
             name: emp.name || '',
             education: emp.education || '',
             school: emp.school || '',
-            graduationImage: isPdfFile ? `PDF：${graduationName || '畢業證書'}` : '圖片嵌入失敗',
+            graduationImage: '圖片嵌入失敗',
           };
           applyRowStyle(row);
           row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-          if (!isPdfFile) {
-            const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-            const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
+          const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
+          const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
 
-            const img = await fetchImageForExcel(imageUrl, imagePath, graduationName || '', targetImageWidthPx, targetImageHeightPx);
-            if (img) {
-              const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
-              row.getCell('F').value = '';
-              embeddedCount += 1;
-            } else {
-              failedCount += 1;
-            }
+          tracker?.step(1, `正在處理 ${sheetName}：${emp.name || emp.id || ''} 的畢業證書…`);
+          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '', targetImageWidthPx, targetImageHeightPx);
+          if (img) {
+            const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+            row.getCell('F').value = '';
+            embeddedCount += 1;
+          } else {
+            failedCount += 1;
           }
+          tracker?.step(1, `已完成 ${sheetName}：${emp.name || emp.id || ''}`);
           rowIndex += 1;
         }
 
@@ -2398,7 +2459,7 @@ async function generateReportHTML() {
         };
       }
 
-      function addSheet(sheetName, title, cols, dataRows, { includeSource=false, isForeignSheet=false } = {}) {
+      function addSheet(sheetName, title, cols, dataRows, { includeSource=false, isForeignSheet=false, tracker=null } = {}) {
         const ws = wb.addWorksheet(sheetName, { views:[{ state:'frozen', ySplit:2 }] });
 
         const finalCols = includeSource
@@ -2424,6 +2485,7 @@ async function generateReportHTML() {
         headerRow.values = finalCols.map(c => c.header);
         applyRowStyle(headerRow, { header:true });
 
+        tracker?.mark(`正在建立 ${title}…`);
         // Data rows
         dataRows.forEach((e) => {
           const rowObj = {
@@ -2448,6 +2510,7 @@ async function generateReportHTML() {
             emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
             nationality: isForeignSheet ? getVal(e, ['nationality']) : '',
             licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
+            licenseRenewDate: getVal(e, ['licenseRenewDate']),
             education: getVal(e, ['education']),
             school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -2457,6 +2520,7 @@ async function generateReportHTML() {
           const values = finalCols.map(c => rowObj[c.key] ?? '');
           const r = ws.addRow(values);
           applyRowStyle(r, { header:false });
+          tracker?.step(1, `正在建立 ${title}：${getVal(e, ['name']) || getVal(e, ['id','docId']) || ''}`);
         });
 
 
@@ -2475,47 +2539,71 @@ async function generateReportHTML() {
         return ws;
       }
 
+      const tracker = createExportProgressTracker();
+      tracker.setTitle('Excel 匯出中…');
+      tracker.mark('正在讀取資料，稍後會顯示預估剩餘時間…');
+
       // ---- 建立各名冊 Sheet ----
       // 1) 護理師
-      const nurses = await fetchActiveFromCollection('nurses');
-      addSheet('護理師', '護理師名冊', COLS_NORMAL, nurses);
+      const nurses = await fetchActiveFromCollection('nurses', tracker, '護理師');
 
       // 2) 外籍照服員 caregivers
-      const foreign = await fetchActiveFromCollection('caregivers');
-      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign, { isForeignSheet:true });
+      const foreign = await fetchActiveFromCollection('caregivers', tracker, '外籍照服員');
 
       // 3) 台籍照服員 localCaregivers
-      const local = await fetchActiveFromCollection('localCaregivers');
-      addSheet('台籍照服員', '台籍照服員名冊', COLS_NORMAL, local);
+      const local = await fetchActiveFromCollection('localCaregivers', tracker, '台籍照服員');
 
       // 4) 行政/其他 adminStaff
-      const admin = await fetchActiveFromCollection('adminStaff');
-      addSheet('行政其他', '行政/其他名冊', COLS_NORMAL, admin);
+      const admin = await fetchActiveFromCollection('adminStaff', tracker, '行政/其他');
 
       // 5) 離職員工（合併）
-      const inactive = await fetchInactiveMerged();
-      addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true });
+      const inactive = await fetchInactiveMerged(tracker);
+
+      const totalCertificateEntries = [...nurses, ...foreign, ...local, ...admin].reduce((sum, emp) => {
+        const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl || c.frontPath || c.backPath));
+        return sum + certs.length;
+      }, 0);
+      const totalCertificateImageTasks = [...nurses, ...foreign, ...local, ...admin].reduce((sum, emp) => {
+        const certs = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl || c.frontPath || c.backPath));
+        return sum + certs.reduce((inner, cert) => inner + ((cert.frontUrl || cert.frontPath) ? 1 : 0) + ((cert.backUrl || cert.backPath) ? 1 : 0), 0);
+      }, 0);
+      const totalGraduationImageTasks = [...nurses, ...foreign, ...local, ...admin].reduce((sum, emp) => {
+        return sum + ((emp.graduationCertificateUrl || emp.graduationCertificatePath) ? 1 : 0);
+      }, 0);
+      const totalRowTasks = nurses.length + foreign.length + local.length + admin.length + inactive.length;
+      tracker.setTotal(totalRowTasks + totalCertificateEntries + totalCertificateImageTasks + (totalGraduationImageTasks * 2) + 8);
+      tracker.mark('已完成資料統計，開始建立 Excel…');
+
+      addSheet('護理師', '護理師名冊', COLS_NORMAL, nurses, { tracker });
+      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign, { isForeignSheet:true, tracker });
+      addSheet('台籍照服員', '台籍照服員名冊', COLS_NORMAL, local, { tracker });
+      addSheet('行政其他', '行政/其他名冊', COLS_NORMAL, admin, { tracker });
+      addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true, tracker });
+      tracker.step(1, '名冊分頁建立完成，開始整理圖片…');
 
       // 6) 證書照片分頁
       const certificateSheetResults = [];
-      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' }))));
-      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' }))));
+      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' })), tracker));
+      certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' })), tracker));
       certificateSheetResults.push(await addCertificatePhotoSheet('證書照片-其他', [
         ...local.map(e => ({ ...e, __categoryLabel: '台籍照服員' })),
         ...admin.map(e => ({ ...e, __categoryLabel: '行政/其他' }))
-      ]));
+      ], tracker));
+      tracker.step(1, '證書照片分頁完成，開始整理畢業證書…');
 
       // 7) 畢業證書圖片分頁
       const graduationSheetResults = [];
-      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' }))));
-      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' }))));
+      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-護理師', nurses.map(e => ({ ...e, __categoryLabel: '護理師' })), tracker));
+      graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-外籍照服員', foreign.map(e => ({ ...e, __categoryLabel: '外籍照服員' })), tracker));
       graduationSheetResults.push(await addGraduationPhotoSheet('畢業證書-其他', [
         ...local.map(e => ({ ...e, __categoryLabel: '台籍照服員' })),
         ...admin.map(e => ({ ...e, __categoryLabel: '行政/其他' }))
-      ]));
+      ], tracker));
 
       const totalEmbeddedImages = [...certificateSheetResults, ...graduationSheetResults].reduce((sum, item) => sum + Number(item?.embeddedCount || 0), 0);
       const totalFailedImages = [...certificateSheetResults, ...graduationSheetResults].reduce((sum, item) => sum + Number(item?.failedCount || 0), 0);
+
+      tracker.step(1, '正在產生 Excel 檔案，這一步會稍微久一點…');
 
       // ---- 下載 ----
       const y = new Date().getFullYear();
@@ -2524,11 +2612,13 @@ async function generateReportHTML() {
       const filename = `人員名冊整合_${y}${m}${d}.xlsx`;
 
       const buf = await wb.xlsx.writeBuffer();
+      tracker.step(2, 'Excel 檔案已建立，正在準備下載…');
       const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      tracker.finish('Excel 匯出完成，正在啟動下載…');
       a.click();
       URL.revokeObjectURL(url);
 
@@ -2562,10 +2652,15 @@ async function generateReportHTML() {
     overlay = document.createElement('div');
     overlay.id = 'excel-export-loading-overlay';
     overlay.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;background:#fff;padding:24px 28px;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.18);min-width:220px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;background:#fff;padding:24px 28px;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.18);min-width:320px;max-width:92vw;">
         <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-        <div style="font-size:16px;font-weight:700;">Excel 匯出中…</div>
-        <div style="font-size:13px;color:#6b7280;">請稍候，完成後會自動下載</div>
+        <div data-role="title" style="font-size:16px;font-weight:700;">Excel 匯出中…</div>
+        <div data-role="detail" style="font-size:13px;color:#374151;text-align:center;line-height:1.6;">請稍候，完成後會自動下載</div>
+        <div style="width:100%;height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+          <div data-role="bar" style="width:0%;height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);transition:width .18s ease;"></div>
+        </div>
+        <div data-role="estimate" style="font-size:13px;color:#2563eb;font-weight:700;">正在估算剩餘時間…</div>
+        <div data-role="progress" style="font-size:12px;color:#6b7280;">進度：準備中</div>
       </div>
     `;
     Object.assign(overlay.style, {
@@ -2585,10 +2680,17 @@ async function generateReportHTML() {
   function showExportLoading() {
     const overlay = ensureExportLoadingOverlay();
     overlay.style.display = 'flex';
+    updateExportLoadingStatus({
+      title: 'Excel 匯出中…',
+      detail: '正在準備匯出資料…',
+      estimateText: '正在估算剩餘時間…',
+      progressText: '進度：準備中',
+      percent: 0,
+    });
     if (exportExcelBtn) {
       exportExcelBtn.dataset.originalText = exportExcelBtn.dataset.originalText || exportExcelBtn.innerHTML;
       exportExcelBtn.disabled = true;
-      exportExcelBtn.innerHTML = '匯出中…';
+      exportExcelBtn.innerHTML = '匯出中（估時中）…';
     }
   }
 
