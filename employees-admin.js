@@ -2305,7 +2305,7 @@ async function generateReportHTML() {
             const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
             if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontPayload);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
@@ -2315,7 +2315,7 @@ async function generateReportHTML() {
             const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
             if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backPayload);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
@@ -2379,7 +2379,7 @@ async function generateReportHTML() {
           const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
           if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, imagePayload);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
