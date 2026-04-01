@@ -27,7 +27,6 @@ function buildTableHTML(tabId) {
                 <th>緊急電話</th>
                 ${isForeignTab ? '<th>國籍</th>' : ''}
                 <th>證書摘要</th>
-                <th>換證日期</th>
                 <th>學歷</th>
                 <th>畢業學校</th>
                 <th>畢業證書</th>
@@ -732,10 +731,23 @@ document.addEventListener('firebase-ready', () => {
     refreshGraduationCertificateUI();
   }
 
+  function isPdfFileByMeta(name = '', contentType = '', url = '') {
+    const safeName = String(name || '').toLowerCase();
+    const safeType = String(contentType || '').toLowerCase();
+    const safeUrl = String(url || '').toLowerCase();
+    return safeType.includes('pdf') || safeName.endsWith('.pdf') || safeUrl.includes('.pdf');
+  }
+
   function refreshGraduationCertificateUI() {
+    const isPdf = isPdfFileByMeta(
+      graduationCertificateData.name,
+      graduationCertificateData.contentType,
+      graduationCertificateData.url
+    );
+
     if (graduationCertificateStatusEl) {
       graduationCertificateStatusEl.textContent = graduationCertificateData.url
-        ? `已上傳：${graduationCertificateData.name || '畢業證書圖片'}`
+        ? `已上傳：${graduationCertificateData.name || '畢業證書檔案'}`
         : '尚未上傳';
     }
     if (graduationCertificateModalMeta) {
@@ -745,6 +757,7 @@ document.addEventListener('firebase-ready', () => {
         const lines = [
           `畢業學校：<strong>${escapeHtml(schoolInput?.value?.trim() || '未填寫')}</strong>`,
           `檔案名稱：<strong>${escapeHtml(graduationCertificateData.name || '未上傳')}</strong>`,
+          `檔案類型：<strong>${isPdf ? 'PDF' : (graduationCertificateData.url ? '圖片' : '未上傳')}</strong>`,
         ];
         graduationCertificateModalMeta.innerHTML = lines.join('<br>');
       }
@@ -752,9 +765,20 @@ document.addEventListener('firebase-ready', () => {
     if (graduationCertificateFileInput) graduationCertificateFileInput.disabled = !graduationCertificateUploadEnabled;
     if (graduationCertificateDeleteBtn) graduationCertificateDeleteBtn.disabled = !graduationCertificateUploadEnabled || !graduationCertificateData.url;
     if (graduationCertificatePreviewWrap) {
-      graduationCertificatePreviewWrap.innerHTML = graduationCertificateData.url
-        ? `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`
-        : '<div class="text-muted">尚未上傳畢業證書</div>';
+      if (!graduationCertificateData.url) {
+        graduationCertificatePreviewWrap.innerHTML = '<div class="text-muted">尚未上傳畢業證書</div>';
+      } else if (isPdf) {
+        graduationCertificatePreviewWrap.innerHTML = `
+          <div class="d-flex flex-column gap-3 align-items-stretch">
+            <div class="text-start small text-muted">目前檔案為 PDF，可直接預覽或另開新視窗。</div>
+            <div class="d-flex justify-content-center">
+              <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(graduationCertificateData.url)}" target="_blank" rel="noopener">開啟 PDF</a>
+            </div>
+            <iframe src="${escapeHtml(graduationCertificateData.url)}" title="畢業證書 PDF" style="width:100%;height:70vh;border:1px solid #dee2e6;border-radius:12px;background:#fff;"></iframe>
+          </div>`;
+      } else {
+        graduationCertificatePreviewWrap.innerHTML = `<img src="${escapeHtml(graduationCertificateData.url)}" alt="畢業證書" class="img-fluid rounded-3 shadow-sm" style="max-height:70vh;object-fit:contain;">`;
+      }
     }
   }
 
@@ -809,10 +833,10 @@ document.addEventListener('firebase-ready', () => {
 
   function removeGraduationCertificate() {
     if (!graduationCertificateData.url) {
-      alert('目前沒有可刪除的畢業證書圖片。');
+      alert('目前沒有可刪除的畢業證書檔案。');
       return;
     }
-    if (!confirm('確定要刪除此畢業證書圖片嗎？')) return;
+    if (!confirm('確定要刪除此畢業證書檔案嗎？')) return;
     graduationCertificateData = { url: '', name: '', path: '', contentType: '', size: 0 };
     if (graduationCertificateFileInput) graduationCertificateFileInput.value = '';
     refreshGraduationCertificateUI();
@@ -995,7 +1019,6 @@ document.addEventListener('firebase-ready', () => {
         <td>${pick(e, ['emergencyPhone','emgPhone'])}</td>
         ${isForeign ? `<td>${pick(e, ['nationality'])}</td>` : ''}
         <td>${certSummary ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
-        <td>${pick(e, ['licenseRenewDate'])}</td>
         <td>${pick(e, ['education'])}</td>
         <td>${pick(e, ['school'])}</td>
         <td>${pick(e, ['graduationCertificateUrl']) ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-graduation-cert-summary">查看</button>` : '<span class="text-muted">—</span>'}</td>
@@ -1100,8 +1123,7 @@ function fillFormFromRow(row) {
     emgPhoneInput.value = values[i++] || '';
     nationalityInput.value = isForeign ? (values[i++] || '') : '';
     i++; // 證書摘要（實際以 DB 為準）
-    licenseRenewDateInput.value = toISODateForInput(values[i++] || '');
-    educationInput.value = values[i++] || '';
+        educationInput.value = values[i++] || '';
     schoolInput.value = values[i++] || '';
     i++; // 畢業證書欄位（查看按鈕）
 
@@ -1173,7 +1195,6 @@ function fillFormFromRow(row) {
       certificates: cleanedCertificates,
       licenseType: cleanedCertificates.map(item => item.type).filter(Boolean).join('；'),
       licenseNumber: cleanedCertificates.map(item => item.number).filter(Boolean).join('；'),
-      licenseRenewDate: formatDateInput(licenseRenewDateInput.value.trim()),
       longtermCertNumber: String(longtermCard.number || '').trim(),
       longtermExpireDate: String(longtermCard.longtermExpireDate || '').trim(),
       education: educationInput.value.trim(),
@@ -1579,7 +1600,6 @@ async function generateReportHTML() {
           <td>${e.emergencyPhone ?? ''}</td>
           ${tab.id === 'foreignCaregivers' ? `<td>${e.nationality ?? ''}</td>` : ''}
           <td>${getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || e.licenseType || ''}</td>
-          <td>${e.licenseRenewDate ?? ''}</td>
           <td>${e.education ?? ''}</td>
           <td>${e.school ?? ''}</td>
           <td>${e.graduationCertificateUrl ? '有' : '—'}</td>
@@ -1602,8 +1622,8 @@ async function generateReportHTML() {
       <h2>${tab.label}名冊</h2>
       <table><thead><tr>
         ${tab.id === 'foreignCaregivers'
-        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
-        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>換證日期</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
+        ? '<th>排序</th><th>員編</th><th>姓名</th><th>英文姓名</th><th>性別</th><th>生日</th><th>身分證字號(ARC)</th><th>承接日期</th><th>續聘日期</th><th>ARC有效期限迄日</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>國籍</th><th>證書摘要</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'
+        : '<th>排序</th><th>員編</th><th>姓名</th><th>性別</th><th>生日</th><th>身分證字號</th><th>到職日</th><th>組別</th><th>職稱</th><th>手機</th><th>日間電話</th><th>地址</th><th>緊急聯絡人</th><th>關係</th><th>緊急電話</th><th>證書摘要</th><th>學歷</th><th>畢業學校</th><th>畢業證書</th>'}
       </tr></thead><tbody>${rows}</tbody></table>
 
       <div style="width:95%;margin:18px auto 0 auto;font-size:12px;text-align:right;color:#333">
@@ -1652,6 +1672,7 @@ async function generateReportHTML() {
       };
 
       async function fetchActiveFromCollection(collectionName) {
+        updateExportLoadingProgress({ stepText: `正在讀取 ${collectionName} 資料…`, completedUnits: exportProgressCompleted });
         const snap = await db.collection(collectionName).orderBy('sortOrder').orderBy('id').get();
         const rows = [];
         snap.forEach(doc => {
@@ -1659,10 +1680,12 @@ async function generateReportHTML() {
           if (e.isActive === false) return;
           rows.push({ docId: doc.id, ...e });
         });
+        advanceExportProgress(`已完成讀取 ${collectionName} 資料`);
         return rows;
       }
 
       async function fetchInactiveMerged() {
+        updateExportLoadingProgress({ stepText: '正在讀取離職員工資料…', completedUnits: exportProgressCompleted });
         const rows = [];
         for (const def of TAB_DEFS) {
           if (def.id === 'inactiveEmployees') continue;
@@ -1674,14 +1697,15 @@ async function generateReportHTML() {
           });
         }
         rows.sort((a,b)=>String(a.id||a.docId||'').localeCompare(String(b.id||b.docId||''), 'zh-Hant'));
+        advanceExportProgress('已完成讀取離職員工資料');
         return rows;
       }
 
       const headersBase = (tab.id === 'foreignCaregivers')
         ? ['排序','員編','姓名','英文姓名','性別','生日','身分證字號(ARC)','承接日期','續聘日期','ARC有效期限迄日','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','換證日期','學歷','畢業學校']
+           '緊急聯絡人','關係','緊急電話','國籍','證書摘要','學歷','畢業學校']
         : ['排序','員編','姓名','性別','生日','身分證字號','到職日','組別','職稱','手機','日間電話','地址',
-           '緊急聯絡人','關係','緊急電話','證書摘要','換證日期','學歷','畢業學校'];
+           '緊急聯絡人','關係','緊急電話','證書摘要','學歷','畢業學校'];
 
       function buildRowValues(e, includeSource) {
         const base = [
@@ -1704,7 +1728,6 @@ async function generateReportHTML() {
           getVal(e, ['emergencyPhone','emgPhone']),
           ...(tab.id === 'foreignCaregivers' ? [getVal(e, ['nationality'])] : []),
           getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-          getVal(e, ['licenseRenewDate']),
           getVal(e, ['education']),
           getVal(e, ['school']),
           getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
@@ -1853,11 +1876,18 @@ async function generateReportHTML() {
     if (window.__exportingEmployeesXlsx) return;
     window.__exportingEmployeesXlsx = true;
 
+    let exportProgressCompleted = 0;
+    const advanceExportProgress = (stepText, units = 1) => {
+      exportProgressCompleted += Math.max(0, Number(units) || 0);
+      updateExportLoadingProgress({ stepText, completedUnits: exportProgressCompleted });
+    };
+
     try {
       if (typeof ExcelJS === 'undefined') {
         alert('ExcelJS 尚未載入，無法匯出 .xlsx（含樣式）。');
         return;
       }
+      updateExportLoadingProgress({ stepText: '正在初始化 Excel 活頁簿…', completedUnits: exportProgressCompleted, totalUnits: 12 });
 
       // ---- 欄位定義：與表頭一致 ----
       // 注意：歷史資料可能有不同欄位名稱，這裡做多 key fallback
@@ -1878,7 +1908,6 @@ async function generateReportHTML() {
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1904,7 +1933,6 @@ async function generateReportHTML() {
         { header: '關係', key: 'emergencyRelation', width: 10 },
         { header: '緊急電話', key: 'emergencyPhone', width: 16 },
         { header: '證書摘要', key: 'licenseType', width: 30 },
-        { header: '換證日期', key: 'licenseRenewDate', width: 12 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
         { header: '畢業證書', key: 'graduationCertificate', width: 12 },
@@ -1920,6 +1948,7 @@ async function generateReportHTML() {
 
       // ---- 讀取資料 ----
       async function fetchActiveFromCollection(collectionName) {
+        updateExportLoadingProgress({ stepText: `正在讀取 ${collectionName} 資料…`, completedUnits: exportProgressCompleted });
         const snap = await db.collection(collectionName).orderBy('sortOrder').orderBy('id').get();
         const rows = [];
         snap.forEach(doc => {
@@ -1927,10 +1956,12 @@ async function generateReportHTML() {
           if (e.isActive === false) return;
           rows.push({ docId: doc.id, ...e });
         });
+        advanceExportProgress(`已完成讀取 ${collectionName} 資料`);
         return rows;
       }
 
       async function fetchInactiveMerged() {
+        updateExportLoadingProgress({ stepText: '正在讀取離職員工資料…', completedUnits: exportProgressCompleted });
         const rows = [];
         for (const def of TAB_DEFS) {
           if (def.id === 'inactiveEmployees') continue;
@@ -1943,6 +1974,7 @@ async function generateReportHTML() {
         }
         // 預設用員編排序
         rows.sort((a,b)=>String(a.id||a.docId||'').localeCompare(String(b.id||b.docId||''), 'zh-Hant'));
+        advanceExportProgress('已完成讀取離職員工資料');
         return rows;
       }
 
@@ -1986,16 +2018,15 @@ async function generateReportHTML() {
           emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
           nationality: isForeign ? getVal(e, ['nationality']) : '',
           licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-          licenseRenewDate: getVal(e, ['licenseRenewDate']),
           education: getVal(e, ['education']),
           school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
         };
       }
 
-      const EXCEL_IMAGE_CELL_WIDTH = 22;
+      const EXCEL_IMAGE_CELL_WIDTH = 27.3; // 約 5.05 cm
       const EXCEL_IMAGE_PIXEL_SIZE = 150;
-      const EXCEL_IMAGE_ROW_HEIGHT = 118;
+      const EXCEL_IMAGE_ROW_HEIGHT = 148; // 約 5.22 cm
       const EXCEL_IMAGE_INSET_PX = 4;
 
       function blobToDataUrl(blob) {
@@ -2132,34 +2163,41 @@ async function generateReportHTML() {
       async function imageBlobToExcelPayload(blob) {
         if (!blob || !blob.size) throw new Error('empty blob');
 
-        const mime = String(blob.type || '').toLowerCase();
-        const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
-        if (directOk) {
-          const dataUrl = await blobToDataUrl(blob);
-          const base64 = normalizeExcelImageBase64(dataUrl);
-          if (!base64) throw new Error('base64 empty');
-          return { base64, extension: mime.includes('png') ? 'png' : 'jpeg' };
-        }
-
         const objectUrl = URL.createObjectURL(blob);
         try {
           const img = await loadHtmlImage(objectUrl);
+          const sourceWidth = Math.max(1, img.naturalWidth || img.width || 1);
+          const sourceHeight = Math.max(1, img.naturalHeight || img.height || 1);
+          const mime = String(blob.type || '').toLowerCase();
+          const directOk = mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg');
+          if (directOk) {
+            const dataUrl = await blobToDataUrl(blob);
+            const base64 = normalizeExcelImageBase64(dataUrl);
+            if (!base64) throw new Error('base64 empty');
+            return {
+              base64,
+              extension: mime.includes('png') ? 'png' : 'jpeg',
+              width: sourceWidth,
+              height: sourceHeight
+            };
+          }
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || img.width || 1;
-          canvas.height = img.naturalHeight || img.height || 1;
+          canvas.width = sourceWidth;
+          canvas.height = sourceHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) throw new Error('canvas context unavailable');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const pngDataUrl = canvas.toDataURL('image/png');
           const base64 = normalizeExcelImageBase64(pngDataUrl);
           if (!base64) throw new Error('png base64 empty');
-          return { base64, extension: 'png' };
+          return { base64, extension: 'png', width: sourceWidth, height: sourceHeight };
         } finally {
           URL.revokeObjectURL(objectUrl);
         }
       }
 
-      async function fetchImageForExcel(url, path = '', filename = '', targetWidthPx = 0, targetHeightPx = 0) {
+      async function fetchImageForExcel(url, path = '', filename = '') {
         if (!url && !path) return null;
         try {
           let blob = null;
@@ -2176,9 +2214,10 @@ async function generateReportHTML() {
             blob = await blobFromUrl(fixedUrl);
           }
           if (!blob || !blob.size) throw new Error('empty blob');
-
-          if (targetWidthPx > 0 && targetHeightPx > 0) {
-            return await imageBlobToCroppedExcelPayload(blob, targetWidthPx, targetHeightPx);
+          const mime = String(blob.type || '').toLowerCase();
+          const lowerName = String(filename || '').toLowerCase();
+          if (mime.includes('pdf') || lowerName.endsWith('.pdf')) {
+            return { isPdf: true };
           }
           return await imageBlobToExcelPayload(blob);
         } catch (err) {
@@ -2187,20 +2226,30 @@ async function generateReportHTML() {
         }
       }
 
-      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber) {
+      function insertExcelImageIntoCell(ws, imageId, colNumber, rowNumber, imageMeta = {}) {
         const colWidthPx = columnWidthToPx(ws.getColumn(colNumber).width || EXCEL_IMAGE_CELL_WIDTH);
         const rowHeightPx = rowHeightPtToPx(ws.getRow(rowNumber).height || EXCEL_IMAGE_ROW_HEIGHT);
         const insetX = Math.min(8, EXCEL_IMAGE_INSET_PX);
         const insetY = Math.min(8, EXCEL_IMAGE_INSET_PX);
+        const boxWidthPx = Math.max(24, Math.round(colWidthPx - insetX * 2));
+        const boxHeightPx = Math.max(24, Math.round(rowHeightPx - insetY * 2));
+        const sourceWidth = Math.max(1, Math.round(Number(imageMeta.width) || boxWidthPx));
+        const sourceHeight = Math.max(1, Math.round(Number(imageMeta.height) || boxHeightPx));
+        const scale = Math.min(boxWidthPx / sourceWidth, boxHeightPx / sourceHeight);
+        const drawWidthPx = Math.max(1, Math.round(sourceWidth * scale));
+        const drawHeightPx = Math.max(1, Math.round(sourceHeight * scale));
+        const offsetX = insetX + Math.max(0, Math.round((boxWidthPx - drawWidthPx) / 2));
+        const offsetY = insetY + Math.max(0, Math.round((boxHeightPx - drawHeightPx) / 2));
 
         ws.addImage(imageId, {
-          tl: { col: (colNumber - 1) + (insetX / colWidthPx), row: (rowNumber - 1) + (insetY / rowHeightPx) },
-          br: { col: colNumber - (insetX / colWidthPx), row: rowNumber - (insetY / rowHeightPx) },
+          tl: { col: (colNumber - 1) + (offsetX / colWidthPx), row: (rowNumber - 1) + (offsetY / rowHeightPx) },
+          ext: { width: drawWidthPx, height: drawHeightPx },
           editAs: 'oneCell'
         });
       }
 
       async function addCertificatePhotoSheet(sheetName, employees) {
+        updateExportLoadingProgress({ stepText: `正在建立 ${sheetName}…`, completedUnits: exportProgressCompleted });
         const ws = wb.addWorksheet(sheetName);
         ws.columns = [
           { header: '員工類別', key: 'category', width: 12 },
@@ -2236,29 +2285,33 @@ async function generateReportHTML() {
             applyRowStyle(row);
             row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-            const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-            const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
-
-            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '', targetImageWidthPx, targetImageHeightPx);
-            if (frontImg) {
+            const frontImg = await fetchImageForExcel(cert.frontUrl, cert.frontPath || '', cert.frontName || '');
+            if (frontImg?.isPdf) {
+              row.getCell('F').value = 'PDF檔案';
+              row.getCell('F').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+            } else if (frontImg) {
               const imgId = wb.addImage({ base64: frontImg.base64, extension: frontImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 6, rowIndex, frontImg);
               row.getCell('F').value = '';
               embeddedCount += 1;
             } else if (cert.frontUrl || cert.frontPath) {
               failedCount += 1;
             }
 
-            const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '', targetImageWidthPx, targetImageHeightPx);
-            if (backImg) {
+            const backImg = await fetchImageForExcel(cert.backUrl, cert.backPath || '', cert.backName || '');
+            if (backImg?.isPdf) {
+              row.getCell('G').value = 'PDF檔案';
+              row.getCell('G').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+            } else if (backImg) {
               const imgId = wb.addImage({ base64: backImg.base64, extension: backImg.extension });
-              insertExcelImageIntoCell(ws, imgId, 7, rowIndex);
+              insertExcelImageIntoCell(ws, imgId, 7, rowIndex, backImg);
               row.getCell('G').value = '';
               embeddedCount += 1;
             } else if (cert.backUrl || cert.backPath) {
               failedCount += 1;
             }
             rowIndex += 1;
+            advanceExportProgress(`${sheetName}：${emp.name || emp.id || '員工'} / ${cert.type || '證書'} 已處理`);
           }
         }
         if (rowIndex === 2) {
@@ -2276,10 +2329,12 @@ async function generateReportHTML() {
           cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
         }
         setPrint(ws);
+        advanceExportProgress(`已完成 ${sheetName}`);
         return { embeddedCount, failedCount };
       }
 
       async function addGraduationPhotoSheet(sheetName, employees) {
+        updateExportLoadingProgress({ stepText: `正在建立 ${sheetName}…`, completedUnits: exportProgressCompleted });
         const ws = wb.addWorksheet(sheetName);
         ws.columns = [
           { header: '員工類別', key: 'category', width: 12 },
@@ -2313,19 +2368,20 @@ async function generateReportHTML() {
           applyRowStyle(row);
           row.height = EXCEL_IMAGE_ROW_HEIGHT;
 
-          const targetImageWidthPx = columnWidthToPx(ws.getColumn(6).width || EXCEL_IMAGE_CELL_WIDTH) - (EXCEL_IMAGE_INSET_PX * 2);
-          const targetImageHeightPx = rowHeightPtToPx(row.height || EXCEL_IMAGE_ROW_HEIGHT) - (EXCEL_IMAGE_INSET_PX * 2);
-
-          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '', targetImageWidthPx, targetImageHeightPx);
-          if (img) {
+          const img = await fetchImageForExcel(imageUrl, imagePath, emp.graduationCertificateName || '');
+          if (img?.isPdf) {
+            row.getCell('F').value = 'PDF檔案';
+            row.getCell('F').font = { ...fontCell, color: { argb:'FF1D4ED8' }, underline: true };
+          } else if (img) {
             const imgId = wb.addImage({ base64: img.base64, extension: img.extension });
-            insertExcelImageIntoCell(ws, imgId, 6, rowIndex);
+            insertExcelImageIntoCell(ws, imgId, 6, rowIndex, img);
             row.getCell('F').value = '';
             embeddedCount += 1;
           } else {
             failedCount += 1;
           }
           rowIndex += 1;
+          advanceExportProgress(`${sheetName}：${emp.name || emp.id || '員工'} 已處理`);
         }
 
         if (rowIndex === 2) {
@@ -2343,6 +2399,7 @@ async function generateReportHTML() {
           cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
         }
         setPrint(ws);
+        advanceExportProgress(`已完成 ${sheetName}`);
         return { embeddedCount, failedCount };
       }
 
@@ -2417,8 +2474,7 @@ async function generateReportHTML() {
             emergencyPhone: getVal(e, ['emergencyPhone','emgPhone']),
             nationality: isForeignSheet ? getVal(e, ['nationality']) : '',
             licenseType: getCertificatesSummary(normalizeCertificatesFromEmployee(e)) || getVal(e, ['licenseType']),
-            licenseRenewDate: getVal(e, ['licenseRenewDate']),
-            education: getVal(e, ['education']),
+              education: getVal(e, ['education']),
             school: getVal(e, ['school']),
           graduationCertificate: getVal(e, ['graduationCertificateUrl']) ? '有' : '—',
             sourceLabel: includeSource ? getVal(e, ['sourceLabel']) : undefined
@@ -2448,23 +2504,52 @@ async function generateReportHTML() {
       // ---- 建立各名冊 Sheet ----
       // 1) 護理師
       const nurses = await fetchActiveFromCollection('nurses');
-      addSheet('護理師', '護理師名冊', COLS_NORMAL, nurses);
 
       // 2) 外籍照服員 caregivers
       const foreign = await fetchActiveFromCollection('caregivers');
-      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign, { isForeignSheet:true });
 
       // 3) 台籍照服員 localCaregivers
       const local = await fetchActiveFromCollection('localCaregivers');
-      addSheet('台籍照服員', '台籍照服員名冊', COLS_NORMAL, local);
 
       // 4) 行政/其他 adminStaff
       const admin = await fetchActiveFromCollection('adminStaff');
-      addSheet('行政其他', '行政/其他名冊', COLS_NORMAL, admin);
 
       // 5) 離職員工（合併）
       const inactive = await fetchInactiveMerged();
+
+      const certificateWorkUnits = [nurses, foreign, local, admin].reduce((sum, employees) => {
+        return sum + employees.reduce((empSum, emp) => {
+          const certCount = normalizeCertificatesFromEmployee(emp).filter(c => c && (c.type || c.number || c.frontUrl || c.backUrl || c.frontPath || c.backPath)).length;
+          return empSum + certCount;
+        }, 0);
+      }, 0);
+      const graduationWorkUnits = [nurses, foreign, local, admin].reduce((sum, employees) => {
+        return sum + employees.filter(emp => String(emp.graduationCertificateUrl || '').trim() || String(emp.graduationCertificatePath || '').trim()).length;
+      }, 0);
+      const rosterSheetUnits = 5;
+      const photoSheetUnits = 6;
+      const finalizeUnits = 2;
+      const totalExportUnits = 5 + rosterSheetUnits + photoSheetUnits + finalizeUnits + certificateWorkUnits + graduationWorkUnits;
+      updateExportLoadingProgress({
+        stepText: '資料讀取完成，正在整理匯出內容…',
+        completedUnits: exportProgressCompleted,
+        totalUnits: totalExportUnits
+      });
+
+      addSheet('護理師', '護理師名冊', COLS_NORMAL, nurses);
+      advanceExportProgress('已建立護理師名冊');
+
+      addSheet('外籍照服員', '外籍照服員名冊', COLS_FOREIGN, foreign, { isForeignSheet:true });
+      advanceExportProgress('已建立外籍照服員名冊');
+
+      addSheet('台籍照服員', '台籍照服員名冊', COLS_NORMAL, local);
+      advanceExportProgress('已建立台籍照服員名冊');
+
+      addSheet('行政其他', '行政/其他名冊', COLS_NORMAL, admin);
+      advanceExportProgress('已建立行政/其他名冊');
+
       addSheet('離職員工', '離職員工名冊（合併）', COLS_NORMAL, inactive, { includeSource:true });
+      advanceExportProgress('已建立離職員工名冊');
 
       // 6) 證書照片分頁
       const certificateSheetResults = [];
@@ -2493,7 +2578,9 @@ async function generateReportHTML() {
       const d = String(new Date().getDate()).padStart(2,'0');
       const filename = `人員名冊整合_${y}${m}${d}.xlsx`;
 
+      updateExportLoadingProgress({ stepText: '正在產生 Excel 檔案…', completedUnits: exportProgressCompleted });
       const buf = await wb.xlsx.writeBuffer();
+      advanceExportProgress('Excel 檔案產生完成');
       const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2501,6 +2588,7 @@ async function generateReportHTML() {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+      advanceExportProgress('已完成下載準備');
 
       if (totalFailedImages > 0) {
         alert(`Excel 匯出完成。已成功嵌入 ${totalEmbeddedImages} 張圖片，另有 ${totalFailedImages} 張圖片未能嵌入。
@@ -2532,10 +2620,27 @@ async function generateReportHTML() {
     overlay = document.createElement('div');
     overlay.id = 'excel-export-loading-overlay';
     overlay.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;background:#fff;padding:24px 28px;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.18);min-width:220px;">
-        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-        <div style="font-size:16px;font-weight:700;">Excel 匯出中…</div>
-        <div style="font-size:13px;color:#6b7280;">請稍候，完成後會自動下載</div>
+      <div style="display:flex;flex-direction:column;gap:14px;background:#fff;padding:24px 28px;border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.18);min-width:min(92vw,420px);max-width:min(92vw,420px);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+          <div>
+            <div id="excel-export-loading-title" style="font-size:18px;font-weight:800;">Excel 匯出中…</div>
+            <div id="excel-export-loading-subtitle" style="font-size:13px;color:#6b7280;">請稍候，完成後會自動下載</div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px;color:#475569;">
+            <span id="excel-export-loading-step">準備匯出…</span>
+            <span id="excel-export-loading-percent">0%</span>
+          </div>
+          <div style="height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+            <div id="excel-export-loading-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#2563eb,#38bdf8);transition:width .25s ease;border-radius:999px;"></div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#6b7280;">
+          <span id="excel-export-loading-elapsed">已耗時：0 秒</span>
+          <span id="excel-export-loading-eta">預計剩餘：估算中…</span>
+        </div>
       </div>
     `;
     Object.assign(overlay.style, {
@@ -2552,13 +2657,68 @@ async function generateReportHTML() {
     return overlay;
   }
 
+  const exportLoadingState = {
+    startedAt: 0,
+    totalUnits: 1,
+    completedUnits: 0,
+  };
+
+  function formatExportDuration(ms) {
+    const totalSeconds = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+    if (totalSeconds < 60) return `${totalSeconds} 秒`;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) return `${minutes} 分 ${seconds} 秒`;
+    const hours = Math.floor(minutes / 60);
+    const remainMinutes = minutes % 60;
+    return `${hours} 小時 ${remainMinutes} 分 ${seconds} 秒`;
+  }
+
+  function updateExportLoadingProgress({ stepText = '', completedUnits = null, totalUnits = null } = {}) {
+    const overlay = ensureExportLoadingOverlay();
+    const bar = overlay.querySelector('#excel-export-loading-bar');
+    const stepEl = overlay.querySelector('#excel-export-loading-step');
+    const percentEl = overlay.querySelector('#excel-export-loading-percent');
+    const elapsedEl = overlay.querySelector('#excel-export-loading-elapsed');
+    const etaEl = overlay.querySelector('#excel-export-loading-eta');
+
+    if (Number.isFinite(totalUnits) && totalUnits > 0) exportLoadingState.totalUnits = totalUnits;
+    if (Number.isFinite(completedUnits) && completedUnits >= 0) exportLoadingState.completedUnits = completedUnits;
+
+    const startedAt = exportLoadingState.startedAt || Date.now();
+    const elapsedMs = Date.now() - startedAt;
+    const total = Math.max(1, Number(exportLoadingState.totalUnits) || 1);
+    const completed = Math.max(0, Math.min(total, Number(exportLoadingState.completedUnits) || 0));
+    const ratio = Math.max(0, Math.min(1, completed / total));
+    const percent = Math.round(ratio * 100);
+
+    if (bar) bar.style.width = `${percent}%`;
+    if (stepEl) stepEl.textContent = stepText || '處理中…';
+    if (percentEl) percentEl.textContent = `${percent}%`;
+    if (elapsedEl) elapsedEl.textContent = `已耗時：${formatExportDuration(elapsedMs)}`;
+
+    if (etaEl) {
+      if (completed <= 0 || ratio <= 0.02) {
+        etaEl.textContent = '預計剩餘：估算中…';
+      } else {
+        const estimatedTotalMs = elapsedMs / ratio;
+        const remainingMs = Math.max(0, estimatedTotalMs - elapsedMs);
+        etaEl.textContent = `預計剩餘：${formatExportDuration(remainingMs)}`;
+      }
+    }
+  }
+
   function showExportLoading() {
     const overlay = ensureExportLoadingOverlay();
+    exportLoadingState.startedAt = Date.now();
+    exportLoadingState.totalUnits = 1;
+    exportLoadingState.completedUnits = 0;
     overlay.style.display = 'flex';
+    updateExportLoadingProgress({ stepText: '正在準備匯出…', completedUnits: 0, totalUnits: 1 });
     if (exportExcelBtn) {
       exportExcelBtn.dataset.originalText = exportExcelBtn.dataset.originalText || exportExcelBtn.innerHTML;
       exportExcelBtn.disabled = true;
-      exportExcelBtn.innerHTML = '匯出中…';
+      exportExcelBtn.innerHTML = '匯出中（估時中）…';
     }
   }
 
