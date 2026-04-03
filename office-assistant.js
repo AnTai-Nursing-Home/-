@@ -46,18 +46,10 @@
     return new Date(y, (m||1)-1, d||1, hh, mm, 0, 0);
   }
   function getLoadingHtml(text='讀取中...'){
-    return `
-      <div class="loading-box">
-        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-        <div>${esc(text)}</div>
-      </div>
-    `;
+    return `<div class="loading-box"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div>${esc(text)}</div></div>`;
   }
   function isSameDay(a, b){
-    return a && b &&
-      a.getFullYear() === b.getFullYear() &&
-      a.getMonth() === b.getMonth() &&
-      a.getDate() === b.getDate();
+    return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
   }
 
   function getAuth(){
@@ -107,20 +99,11 @@
     });
   }
 
-  function ensurePopupDom(){}
-
   function toast(message, type='primary'){
     const wrap = $('assistantToastWrap');
     if (!wrap) return;
     const id = 'toast_' + Math.random().toString(16).slice(2);
-    wrap.insertAdjacentHTML('beforeend', `
-      <div id="${id}" class="toast align-items-center text-bg-${esc(type)} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-          <div class="toast-body">${esc(message)}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    `);
+    wrap.insertAdjacentHTML('beforeend', `<div id="${id}" class="toast align-items-center text-bg-${esc(type)} border-0" role="alert" aria-live="assertive" aria-atomic="true"><div class="d-flex"><div class="toast-body">${esc(message)}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`);
     const el = $(id);
     const t = new bootstrap.Toast(el, { delay: 3200 });
     t.show();
@@ -128,6 +111,10 @@
   }
 
   function isOnAssistantPage(){ return !!$('assistantLoginUser'); }
+  function isOnOfficeDashboard(){
+    const dashboard = $('dashboard-section-office');
+    return !!dashboard && !dashboard.classList.contains('d-none');
+  }
   function renderLoginUser(){
     const me = getCurrentUser();
     if ($('assistantLoginUser')) $('assistantLoginUser').textContent = me ? `${me.staffId || ''} ${me.displayName || ''}`.trim() : '未登入';
@@ -139,12 +126,7 @@
     const ref = db.collection(SETTINGS_COLLECTION).doc(key);
     const snap = await ref.get();
     if (!snap.exists) {
-      const initial = {
-        staffId: key,
-        displayName: getCurrentUser()?.displayName || '',
-        todoSources: { incident: true, maintenance: true, stay: true },
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
+      const initial = { staffId:key, displayName:getCurrentUser()?.displayName || '', todoSources:{ incident:true, maintenance:true, stay:true }, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
       await ref.set(initial, { merge:true });
       currentTodoSourceSettings = initial.todoSources;
       return { id:key, ...initial };
@@ -153,7 +135,6 @@
     currentTodoSourceSettings = { incident:true, maintenance:true, stay:true, ...(data.todoSources || {}) };
     return data;
   }
-
   async function saveUserSettings(partial){
     const key = getUserKey();
     if (!key) throw new Error('尚未登入');
@@ -181,7 +162,6 @@
     if (p === 'important') return '<span class="badge text-bg-warning text-dark">重要</span>';
     return '<span class="badge text-bg-secondary">一般</span>';
   }
-
   function applyReminderFilterSort(list){
     let out = Array.isArray(list) ? list.slice() : [];
     const status = $('filterReminderStatus')?.value || 'pending';
@@ -203,35 +183,12 @@
 
   function renderReminderRows(list){
     if (!list.length) return '<div class="assistant-empty">目前沒有資料</div>';
-    return `
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead><tr><th>日期</th><th>內容</th><th>狀態</th><th>優先</th><th class="text-end">操作</th></tr></thead>
-          <tbody>
-            ${list.map(item=>{
-              const done = item.done === true;
-              return `
-                <tr class="${done ? 'opacity-50' : ''}">
-                  <td>${esc(fmtDate(item.remindAt, true))}</td>
-                  <td>
-                    <div style="${done ? 'text-decoration:line-through;' : ''}">${esc(item.text || '')}</div>
-                    <div class="small text-muted mt-1">建立：${esc(fmtDate(item.createdAt, true))}</div>
-                  </td>
-                  <td>${done ? '<span class="badge text-bg-success">已完成</span>' : '<span class="badge text-bg-primary">未完成</span>'}</td>
-                  <td>${getPriorityBadge(item.priority)}</td>
-                  <td class="text-end">
-                    <div class="btn-group btn-group-sm">
-                      <button class="btn btn-outline-secondary" data-action="toggle-reminder" data-id="${esc(item.id)}">${done ? '取消完成' : '完成'}</button>
-                      <button class="btn btn-outline-primary" data-action="edit-reminder" data-id="${esc(item.id)}">編輯</button>
-                      <button class="btn btn-outline-danger" data-action="delete-reminder" data-id="${esc(item.id)}">刪除</button>
-                    </div>
-                  </td>
-                </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+    return `<div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>日期</th><th>內容</th><th>狀態</th><th>優先</th><th class="text-end">操作</th></tr></thead><tbody>
+      ${list.map(item=>{
+        const done = item.done === true;
+        return `<tr class="${done ? 'opacity-50' : ''}"><td>${esc(fmtDate(item.remindAt, true))}</td><td><div style="${done ? 'text-decoration:line-through;' : ''}">${esc(item.text || '')}</div><div class="small text-muted mt-1">建立：${esc(fmtDate(item.createdAt, true))}</div></td><td>${done ? '<span class="badge text-bg-success">已完成</span>' : '<span class="badge text-bg-primary">未完成</span>'}</td><td>${getPriorityBadge(item.priority)}</td><td class="text-end"><div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" data-action="toggle-reminder" data-id="${esc(item.id)}">${done ? '取消完成' : '完成'}</button><button class="btn btn-outline-primary" data-action="edit-reminder" data-id="${esc(item.id)}">編輯</button><button class="btn btn-outline-danger" data-action="delete-reminder" data-id="${esc(item.id)}">刪除</button></div></td></tr>`;
+      }).join('')}
+    </tbody></table></div>`;
   }
 
   async function renderReminderList(){
@@ -244,10 +201,8 @@
 
     const list = applyReminderFilterSort(await loadReminders());
     const now = new Date();
-
     const todayList = [];
     const futureList = [];
-
     list.forEach(item=>{
       const dt = tsToDate(item.remindAt);
       if (!dt) return;
@@ -258,7 +213,6 @@
 
     if ($('todayReminderCount')) $('todayReminderCount').textContent = String(todayList.length);
     if ($('futureReminderCount')) $('futureReminderCount').textContent = String(futureList.length);
-
     todayWrap.innerHTML = renderReminderRows(todayList);
     futureWrap.innerHTML = renderReminderRows(futureList);
   }
@@ -289,10 +243,7 @@
       $('reminderError').classList.remove('d-none');
       return;
     }
-    const payload = {
-      staffId: key, displayName: getCurrentUser()?.displayName || '', text, priority, done, remindAt,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
+    const payload = { staffId:key, displayName:getCurrentUser()?.displayName || '', text, priority, done, remindAt, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
     if (id) {
       await db.collection(REMINDER_COLLECTION).doc(id).set(payload, { merge:true });
       toast('提醒已更新', 'success');
@@ -315,7 +266,6 @@
     await renderReminderList();
     await refreshTodoPreview();
   }
-
   async function deleteReminder(id){
     if (!confirm('確定要刪除這筆提醒嗎？')) return;
     await db.collection(REMINDER_COLLECTION).doc(id).delete();
@@ -323,7 +273,6 @@
     await renderReminderList();
     await refreshTodoPreview();
   }
-
   async function bindReminderTableActions(e){
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
@@ -347,25 +296,17 @@
       snap.forEach(doc=>{
         const d = doc.data() || {};
         if (isReviewedIncident(d)) return;
-        out.push({
-          id: doc.id,
-          type: d.incidentType || d.type || '意外事件',
-          resident: d.residentName || d.name || d.resident || '',
-          occurredAt: d.occurredAt || d.eventTime || d.createdAt || null,
-          note: d.summary || d.description || d.incidentSummary || ''
-        });
+        out.push({ id:doc.id, type:d.incidentType || d.type || '意外事件', resident:d.residentName || d.name || d.resident || '', occurredAt:d.occurredAt || d.eventTime || d.createdAt || null, note:d.summary || d.description || d.incidentSummary || '' });
       });
       return out;
     }catch(_){ return null; }
   }
-
   async function loadIncidentTodos(){
     let out = await tryLoadIncidentCollection('qc_incidents');
     if (out === null) out = await tryLoadIncidentCollection('qcIncidents');
     if (out === null) out = await tryLoadIncidentCollection('incidents');
     cachedTodoData.incident = Array.isArray(out) ? out : [];
   }
-
   function isMaintenanceClosed(status){
     const v = String(status || '').trim();
     return ['已完成','紀錄','無法修復'].includes(v);
@@ -376,19 +317,14 @@
     snap.forEach(doc=>{
       const d = doc.data() || {};
       if (isMaintenanceClosed(d.status)) return;
-      out.push({
-        id: doc.id, category: d.category || '', location: d.location || '', item: d.item || '',
-        detail: d.detail || '', reporter: d.reporter || '', status: d.status || '待處理', createdAt: d.createdAt || null
-      });
+      out.push({ id:doc.id, category:d.category || '', location:d.location || '', item:d.item || '', detail:d.detail || '', reporter:d.reporter || '', status:d.status || '待處理', createdAt:d.createdAt || null });
     });
     cachedTodoData.maintenance = out;
   }
-
   function normalizeText(v){ return String(v || '').trim().toLowerCase(); }
   function isStayClosedByName(name){
     const v = normalizeText(name);
-    const keywords = ['已完成','完成','結案','已結案','已返家','已返院','已銷案','已取消','取消','核准','退回','駁回','批准','approve','approved','reject','rejected','return','returned']
-      .map(s=>String(s).toLowerCase());
+    const keywords = ['已完成','完成','結案','已結案','已返家','已返院','已銷案','已取消','取消','核准','退回','駁回','批准','approve','approved','reject','rejected','return','returned'].map(s=>String(s).toLowerCase());
     return keywords.some(k => v.includes(k));
   }
   async function loadStayStatusMap(){
@@ -396,7 +332,7 @@
     const snap = await db.collection('stayStatusDefs').get();
     snap.forEach(doc=>{
       const d = doc.data() || {};
-      stayStatusMap[doc.id] = { id:doc.id, name:d.name || doc.id, color:d.color || '#6c757d', order:d.order ?? 10 };
+      stayStatusMap[doc.id] = { id:doc.id, name:d.name || doc.id };
     });
   }
   async function loadStayTodos(){
@@ -408,10 +344,7 @@
       const statusId = d.statusId || '';
       const statusName = stayStatusMap[statusId]?.name || statusId || d.status || '';
       if (isStayClosedByName(statusName)) return;
-      out.push({
-        id: doc.id, applicantName: d.applicantName || '', startDateTime: d.startDateTime || null,
-        endDateTime: d.endDateTime || null, statusId, statusName
-      });
+      out.push({ id:doc.id, applicantName:d.applicantName || '', startDateTime:d.startDateTime || null, endDateTime:d.endDateTime || null, statusId, statusName });
     });
     cachedTodoData.stay = out;
   }
@@ -450,7 +383,6 @@
     }
     wrap.innerHTML = blocks.length ? blocks.join('') : '<div class="assistant-empty">目前沒有待辦事項</div>';
   }
-
   async function refreshTodoPreview(){
     if (!getCurrentUser()) return;
     if ($('todoPreviewWrap')) $('todoPreviewWrap').innerHTML = getLoadingHtml('待辦資料讀取中...');
@@ -467,7 +399,6 @@
     if ($('toggleMaintenance')) $('toggleMaintenance').checked = s.maintenance === true;
     if ($('toggleStay')) $('toggleStay').checked = s.stay === true;
   }
-
   async function handleToggleChange(e){
     const el = e.target;
     if (!el.classList.contains('todo-source-toggle')) return;
@@ -483,26 +414,12 @@
 
   function renderPopupReminderCards(list){
     if (!list.length) return '<div class="assistant-empty p-3">目前沒有資料</div>';
-    return list.map(x=>`
-      <div class="popup-item">
-        <div class="d-flex justify-content-between align-items-start gap-2">
-          <div>
-            <div class="fw-bold">${esc(x.text || '')}</div>
-            <div class="small text-muted mt-1">${esc(fmtDate(x.remindAt, true))}</div>
-          </div>
-          <div class="d-flex flex-column align-items-end gap-2">
-            <span class="popup-tag tag-reminder">提醒</span>
-            ${getPriorityBadge(x.priority)}
-          </div>
-        </div>
-      </div>`).join('');
+    return list.map(x=>`<div class="popup-item"><div class="d-flex justify-content-between align-items-start gap-2"><div><div class="fw-bold">${esc(x.text || '')}</div><div class="small text-muted mt-1">${esc(fmtDate(x.remindAt, true))}</div></div><div class="d-flex flex-column align-items-end gap-2"><span class="popup-tag tag-reminder">提醒</span>${getPriorityBadge(x.priority)}</div></div></div>`).join('');
   }
-
   function renderPopupReminderList(reminders){
     const now = new Date();
     const todayList = [];
     const futureList = [];
-
     reminders.forEach(item=>{
       const dt = tsToDate(item.remindAt);
       if (!dt) return;
@@ -510,7 +427,6 @@
       else if (dt.getTime() > now.getTime()) futureList.push(item);
       else todayList.push(item);
     });
-
     if ($('popupReminderCount')) $('popupReminderCount').textContent = String(reminders.length);
     if ($('popupTodayReminderCount')) $('popupTodayReminderCount').textContent = String(todayList.length);
     if ($('popupFutureReminderCount')) $('popupFutureReminderCount').textContent = String(futureList.length);
@@ -519,15 +435,10 @@
   }
 
   function setTodoSectionVisibility(source, visible){
-    const map = {
-      incident: 'popupSectionIncident',
-      maintenance: 'popupSectionMaintenance',
-      stay: 'popupSectionStay'
-    };
+    const map = { incident:'popupSectionIncident', maintenance:'popupSectionMaintenance', stay:'popupSectionStay' };
     const el = $(map[source]);
     if (el) el.hidden = !visible;
   }
-
   function renderPopupTodoGroup(targetId, countId, items, source){
     const target = $(targetId), count = $(countId);
     if (!target || !count) return;
@@ -547,9 +458,7 @@
   }
 
   async function buildPopupData(){
-    const reminders = (await loadReminders())
-      .filter(x=>x.done !== true)
-      .sort((a,b)=>(tsToDate(a.remindAt)?.getTime()||0)-(tsToDate(b.remindAt)?.getTime()||0));
+    const reminders = (await loadReminders()).filter(x=>x.done !== true).sort((a,b)=>(tsToDate(a.remindAt)?.getTime()||0)-(tsToDate(b.remindAt)?.getTime()||0));
     await loadTodoData();
     return { reminders };
   }
@@ -560,14 +469,8 @@
     if (!force && hasShownPopupForCurrentLogin()) return;
 
     popupOpening = true;
-
-    if (!popupModal && $('assistantPopupModal')) {
-      popupModal = new bootstrap.Modal($('assistantPopupModal'));
-    }
-    if (!popupModal) {
-      popupOpening = false;
-      return;
-    }
+    if (!popupModal && $('assistantPopupModal')) popupModal = new bootstrap.Modal($('assistantPopupModal'));
+    if (!popupModal) { popupOpening = false; return; }
 
     if ($('popupLoadingWrap')) $('popupLoadingWrap').innerHTML = getLoadingHtml('通知與待辦讀取中...');
     if ($('popupBodyWrap')) $('popupBodyWrap').style.display = 'none';
@@ -584,17 +487,12 @@
       if (currentTodoSourceSettings.maintenance) renderPopupTodoGroup('popupTodoMaintenance', 'popupCountMaintenance', cachedTodoData.maintenance, 'maintenance');
       if (currentTodoSourceSettings.stay) renderPopupTodoGroup('popupTodoStay', 'popupCountStay', cachedTodoData.stay, 'stay');
 
-      const totalTodo =
-        (currentTodoSourceSettings.incident ? cachedTodoData.incident.length : 0) +
-        (currentTodoSourceSettings.maintenance ? cachedTodoData.maintenance.length : 0) +
-        (currentTodoSourceSettings.stay ? cachedTodoData.stay.length : 0);
-
+      const totalTodo = (currentTodoSourceSettings.incident ? cachedTodoData.incident.length : 0) + (currentTodoSourceSettings.maintenance ? cachedTodoData.maintenance.length : 0) + (currentTodoSourceSettings.stay ? cachedTodoData.stay.length : 0);
       if ($('popupTodoCount')) $('popupTodoCount').textContent = String(totalTodo);
 
       if ($('popupLoadingWrap')) $('popupLoadingWrap').innerHTML = '';
       if ($('popupBodyWrap')) $('popupBodyWrap').style.display = '';
       popupModal.show();
-
       if (!force) markPopupShownForCurrentLogin();
     }catch(err){
       console.error('showHomepagePopup error:', err);
@@ -626,19 +524,59 @@
     await refreshTodoPreview();
   }
 
+  function watchOfficeDashboard(){
+    const dashboard = $('dashboard-section-office');
+    if (!dashboard) return;
+    let lastVisible = isOnOfficeDashboard();
+
+    const tryPopup = async ()=>{
+      loginUser = null;
+      if (isOnOfficeDashboard() && getCurrentUser()) {
+        await showHomepagePopup(false);
+      }
+    };
+
+    if (lastVisible) setTimeout(tryPopup, 700);
+
+    const obs = new MutationObserver(()=>{
+      const visible = isOnOfficeDashboard();
+      if (visible && !lastVisible) setTimeout(tryPopup, 500);
+      lastVisible = visible;
+    });
+    obs.observe(dashboard, { attributes:true, attributeFilter:['class'] });
+
+    const loginBtn = $('loginButton-office') || document.querySelector('[id*="loginButton"]') || document.querySelector('button[type="button"],button[type="submit"]');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', ()=>{ setTimeout(tryPopup, 1200); });
+    }
+  }
+
   async function boot(){
     await waitForDbReady();
     if ($('assistantPopupModal')) popupModal = new bootstrap.Modal($('assistantPopupModal'));
     if ($('reminderModal')) reminderModal = new bootstrap.Modal($('reminderModal'));
 
-    if (!getCurrentUser()) return;
-
-    if (isOnAssistantPage()){
+    if (isOnAssistantPage() && getCurrentUser()){
       renderLoginUser();
       bindAssistantPageUI();
       await initAssistantPage();
     }
+
+    watchOfficeDashboard();
+
+    if (!isOnAssistantPage()) {
+      setTimeout(async ()=>{
+        loginUser = null;
+        if (isOnOfficeDashboard() && getCurrentUser()) {
+          await showHomepagePopup(false);
+        }
+      }, 900);
+    }
   }
+
+  window.officeAssistant = {
+    showPopup: () => showHomepagePopup(true)
+  };
 
   document.addEventListener('DOMContentLoaded', ()=>{
     boot().catch(err=>{
