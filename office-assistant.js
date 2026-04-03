@@ -106,8 +106,8 @@
           <div class="modal-content">
             <div class="modal-header">
               <div>
-                <h5 class="modal-title m-0">今日通知與待辦</h5>
-                <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
+                <h5 class="modal-title m-0">今日通知與待辦事項</h5>
+                <div class="small opacity-75">以下為今日和未來事項之提醒和系統代辦事項</div>
               </div>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
