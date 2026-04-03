@@ -50,12 +50,34 @@
     <div class="topbar-card p-4 mb-4">
       <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
         <div>
-          <div class="section-title">輔助系統</div>
-          <div class="helper-muted">個人提醒、代辦來源設定、辦公室首頁彈窗</div>
+          <div class="section-title">提醒事項</div>
+          <div class="helper-muted">上半部顯示今日提醒，下半部顯示之後日期提醒</div>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
           <span class="pill"><i class="fa-regular fa-user"></i><span id="assistantLoginUser">未登入</span></span>
-          <a href="office.html?view=dashboard" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>返回辦公室主頁</a>
+          <button class="btn btn-primary" id="btnNewReminder"><i class="fa-solid fa-plus me-1"></i>新增提醒</button>
+        </div>
+      </div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-4">
+          <label class="form-label">篩選</label>
+          <select class="form-select" id="filterReminderStatus">
+            <option value="all">全部</option>
+            <option value="pending" selected>未完成</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">排序</label>
+          <select class="form-select" id="sortReminder">
+            <option value="asc" selected>日期由近到遠</option>
+            <option value="desc">日期由遠到近</option>
+            <option value="createdDesc">建立時間最新</option>
+            <option value="createdAsc">建立時間最舊</option>
+          </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button class="btn btn-outline-dark w-100" id="btnRefreshReminder"><i class="fa-solid fa-rotate me-1"></i>重新整理</button>
         </div>
       </div>
     </div>
@@ -63,35 +85,6 @@
     <div class="row g-4 grid-main-equal">
       <div class="col-xl-7 full-height-col">
         <div class="card-soft p-4 h-100">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <div class="section-title">提醒事項</div>
-              <div class="helper-muted">上半部顯示今日提醒，下半部顯示之後日期提醒</div>
-            </div>
-            <button class="btn btn-primary" id="btnNewReminder"><i class="fa-solid fa-plus me-1"></i>新增提醒</button>
-          </div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">篩選</label>
-              <select class="form-select" id="filterReminderStatus">
-                <option value="all">全部</option>
-                <option value="pending" selected>未完成</option>
-                <option value="done">已完成</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">排序</label>
-              <select class="form-select" id="sortReminder">
-                <option value="asc" selected>日期由近到遠</option>
-                <option value="desc">日期由遠到近</option>
-                <option value="createdDesc">建立時間最新</option>
-                <option value="createdAsc">建立時間最舊</option>
-              </select>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-              <button class="btn btn-outline-dark w-100" id="btnRefreshReminder"><i class="fa-solid fa-rotate me-1"></i>重新整理</button>
-            </div>
-          </div>
           <div class="reminder-split">
             <div class="reminder-pane">
               <div class="reminder-pane-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="todayReminderCount">0</span></div>
@@ -104,7 +97,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-xl-5 full-height-col">
         <div class="card-soft p-4 h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -157,7 +149,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="reminderModalTitle">新增提醒</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <input type="hidden" id="editingReminderId">
@@ -169,7 +161,7 @@
                 <option value="normal" selected>一般</option><option value="important">重要</option><option value="urgent">緊急</option>
               </select>
             </div>
-            <div class="col-12"><label class="form-label">提醒內容</label><textarea class="form-control" id="reminderText" rows="4" placeholder="請輸入提醒內容"></textarea></div>
+            <div class="col-12"><label class="form-label">提醒內容</label><textarea class="form-control" id="reminderText" rows="4"></textarea></div>
             <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="reminderDone"><label class="form-check-label" for="reminderDone">已完成</label></div></div>
           </div>
           <div class="text-danger small mt-3 d-none" id="reminderError">請輸入完整資料</div>
@@ -187,50 +179,29 @@
             <h5 class="modal-title m-0">今日通知與待辦</h5>
             <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
           </div>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div id="popupLoadingWrap"></div>
           <div class="row g-4" id="popupBodyWrap">
             <div class="col-lg-5">
               <div class="popup-section h-100">
-                <div class="popup-section-head">
-                  <div><div class="fw-bold">提醒事項</div><div class="small text-muted">左側單獨捲動</div></div>
-                  <span class="count-chip" id="popupReminderCount">0</span>
-                </div>
+                <div class="popup-section-head"><div><div class="fw-bold">提醒事項</div><div class="small text-muted">左側單獨捲動</div></div><span class="count-chip" id="popupReminderCount">0</span></div>
                 <div class="popup-section-body popup-scroll">
                   <div class="popup-two-stack">
-                    <div class="popup-subsection">
-                      <div class="popup-subsection-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="popupTodayReminderCount">0</span></div>
-                      <div class="popup-subsection-body" id="popupTodayReminderList"></div>
-                    </div>
-                    <div class="popup-subsection">
-                      <div class="popup-subsection-head"><div class="fw-bold">之後提醒</div><span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span></div>
-                      <div class="popup-subsection-body" id="popupFutureReminderList"></div>
-                    </div>
+                    <div class="popup-subsection"><div class="popup-subsection-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="popupTodayReminderCount">0</span></div><div class="popup-subsection-body" id="popupTodayReminderList"></div></div>
+                    <div class="popup-subsection"><div class="popup-subsection-head"><div class="fw-bold">之後提醒</div><span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span></div><div class="popup-subsection-body" id="popupFutureReminderList"></div></div>
                   </div>
                 </div>
               </div>
             </div>
             <div class="col-lg-7">
               <div class="popup-section h-100">
-                <div class="popup-section-head">
-                  <div><div class="fw-bold">代辦事項</div><div class="small text-muted">右側單獨捲動，且依開關顯示類別</div></div>
-                  <span class="count-chip" id="popupTodoCount">0</span>
-                </div>
+                <div class="popup-section-head"><div><div class="fw-bold">代辦事項</div><div class="small text-muted">右側單獨捲動，且依開關顯示類別</div></div><span class="count-chip" id="popupTodoCount">0</span></div>
                 <div class="popup-section-body popup-scroll">
-                  <div class="mb-3 todo-section" id="popupSectionIncident">
-                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">意外事件</div><span class="badge text-bg-danger" id="popupCountIncident">0</span></div>
-                    <div id="popupTodoIncident"></div>
-                  </div>
-                  <div class="mb-3 todo-section" id="popupSectionMaintenance">
-                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">器材報修</div><span class="badge text-bg-secondary" id="popupCountMaintenance">0</span></div>
-                    <div id="popupTodoMaintenance"></div>
-                  </div>
-                  <div class="todo-section" id="popupSectionStay">
-                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">外宿申請</div><span class="badge text-bg-success" id="popupCountStay">0</span></div>
-                    <div id="popupTodoStay"></div>
-                  </div>
+                  <div class="mb-3 todo-section" id="popupSectionIncident"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">意外事件</div><span class="badge text-bg-danger" id="popupCountIncident">0</span></div><div id="popupTodoIncident"></div></div>
+                  <div class="mb-3 todo-section" id="popupSectionMaintenance"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">器材報修</div><span class="badge text-bg-secondary" id="popupCountMaintenance">0</span></div><div id="popupTodoMaintenance"></div></div>
+                  <div class="todo-section" id="popupSectionStay"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">外宿申請</div><span class="badge text-bg-success" id="popupCountStay">0</span></div><div id="popupTodoStay"></div></div>
                 </div>
               </div>
             </div>
@@ -246,7 +217,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
   <script src="office-assistant.js"></script>
 </body>
