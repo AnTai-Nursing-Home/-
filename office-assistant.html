@@ -7,9 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    :root{
-      --bg:#f4f6fb; --card:#fff; --line:rgba(15,23,42,.08); --text:#0f172a; --muted:#64748b;
-    }
+    :root{--bg:#f4f6fb;--card:#fff;--line:rgba(15,23,42,.08);--text:#0f172a;--muted:#64748b}
     body{background:var(--bg);color:var(--text)}
     .page-wrap{width:100%;max-width:none;margin:0;padding:18px}
     .topbar-card,.card-soft{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 30px rgba(15,23,42,.05)}
@@ -41,17 +39,10 @@
     .popup-subsection{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
     .popup-subsection-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);background:#fbfcff}
     .popup-subsection-body{padding:12px;overflow:auto;max-height:220px}
-    .todo-section[hidden]{display:none !important;}
+    .todo-section[hidden]{display:none !important}
     .grid-main-equal{align-items:stretch}
-    .full-height-col{display:flex}
-    .full-height-col > .card-soft{width:100%}
-    @media (max-width: 992px){
-      .kpi-grid{grid-template-columns:1fr}
-      .reminder-split{min-height:auto}
-      .reminder-pane-body{max-height:320px}
-      .popup-two-stack{min-height:auto}
-      .popup-subsection-body{max-height:240px}
-    }
+    .full-height-col{display:flex}.full-height-col>.card-soft{width:100%}
+    @media (max-width:992px){.kpi-grid{grid-template-columns:1fr}.reminder-split{min-height:auto}.reminder-pane-body{max-height:320px}.popup-two-stack{min-height:auto}.popup-subsection-body{max-height:240px}}
   </style>
 </head>
 <body>
@@ -79,7 +70,6 @@
             </div>
             <button class="btn btn-primary" id="btnNewReminder"><i class="fa-solid fa-plus me-1"></i>新增提醒</button>
           </div>
-
           <div class="row g-3 mb-3">
             <div class="col-md-4">
               <label class="form-label">篩選</label>
@@ -102,20 +92,13 @@
               <button class="btn btn-outline-dark w-100" id="btnRefreshReminder"><i class="fa-solid fa-rotate me-1"></i>重新整理</button>
             </div>
           </div>
-
           <div class="reminder-split">
             <div class="reminder-pane">
-              <div class="reminder-pane-head">
-                <div class="fw-bold">今日提醒</div>
-                <span class="badge text-bg-primary" id="todayReminderCount">0</span>
-              </div>
+              <div class="reminder-pane-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="todayReminderCount">0</span></div>
               <div class="reminder-pane-body" id="todayReminderWrap"></div>
             </div>
             <div class="reminder-pane">
-              <div class="reminder-pane-head">
-                <div class="fw-bold">之後提醒</div>
-                <span class="badge text-bg-secondary" id="futureReminderCount">0</span>
-              </div>
+              <div class="reminder-pane-head"><div class="fw-bold">之後提醒</div><span class="badge text-bg-secondary" id="futureReminderCount">0</span></div>
               <div class="reminder-pane-body" id="futureReminderWrap"></div>
             </div>
           </div>
@@ -131,7 +114,6 @@
             </div>
             <button class="btn btn-outline-primary" id="btnPreviewPopup"><i class="fa-regular fa-window-restore me-1"></i>預覽彈窗</button>
           </div>
-
           <div class="vstack gap-3 mb-4">
             <div class="source-box">
               <div class="form-check form-switch">
@@ -141,7 +123,6 @@
               <div class="helper-muted small mt-2">顯示尚未覆核的案件。</div>
               <div class="mt-2"><span class="badge text-bg-danger" id="countIncident">0</span></div>
             </div>
-
             <div class="source-box">
               <div class="form-check form-switch">
                 <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleMaintenance" data-source="maintenance">
@@ -150,7 +131,6 @@
               <div class="helper-muted small mt-2">排除已完成、紀錄、無法修復。</div>
               <div class="mt-2"><span class="badge text-bg-secondary" id="countMaintenance">0</span></div>
             </div>
-
             <div class="source-box">
               <div class="form-check form-switch">
                 <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleStay" data-source="stay">
@@ -160,14 +140,12 @@
               <div class="mt-2"><span class="badge text-bg-success" id="countStay">0</span></div>
             </div>
           </div>
-
           <div class="section-title mb-3">目前待辦總覽</div>
           <div class="kpi-grid mb-4">
             <div class="kpi-card"><div class="kpi-label">意外事件</div><div class="kpi-value" id="kpiIncident">0</div></div>
             <div class="kpi-card"><div class="kpi-label">器材報修</div><div class="kpi-value" id="kpiMaintenance">0</div></div>
             <div class="kpi-card"><div class="kpi-label">外宿申請</div><div class="kpi-value" id="kpiStay">0</div></div>
           </div>
-
           <div id="todoPreviewWrap"></div>
         </div>
       </div>
@@ -223,17 +201,11 @@
                 <div class="popup-section-body popup-scroll">
                   <div class="popup-two-stack">
                     <div class="popup-subsection">
-                      <div class="popup-subsection-head">
-                        <div class="fw-bold">今日提醒</div>
-                        <span class="badge text-bg-primary" id="popupTodayReminderCount">0</span>
-                      </div>
+                      <div class="popup-subsection-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="popupTodayReminderCount">0</span></div>
                       <div class="popup-subsection-body" id="popupTodayReminderList"></div>
                     </div>
                     <div class="popup-subsection">
-                      <div class="popup-subsection-head">
-                        <div class="fw-bold">之後提醒</div>
-                        <span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span>
-                      </div>
+                      <div class="popup-subsection-head"><div class="fw-bold">之後提醒</div><span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span></div>
                       <div class="popup-subsection-body" id="popupFutureReminderList"></div>
                     </div>
                   </div>
@@ -274,7 +246,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
   <script src="office-assistant.js"></script>
 </body>
