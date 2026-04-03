@@ -64,7 +64,89 @@
     });
   }
 
+  function ensureInjectedStyles(){
+    if (document.getElementById('officeAssistantInjectedStyle')) return;
+    const style = document.createElement('style');
+    style.id = 'officeAssistantInjectedStyle';
+    style.textContent = `
+      .assistant-modal .modal-content{border-radius:22px;border:none;box-shadow:0 24px 60px rgba(0,0,0,.18)}
+      .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:22px;border-top-right-radius:22px}
+      .count-chip{min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#111827;color:#fff;font-size:.84rem;padding:0 9px}
+      .popup-scroll{max-height:65vh;overflow:auto;padding-right:4px}
+      .popup-section{border:1px solid rgba(15,23,42,.08);border-radius:18px;background:#fff;overflow:hidden}
+      .popup-section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(180deg,#f8fafc,#fff);border-bottom:1px solid rgba(15,23,42,.08)}
+      .popup-section-body{padding:14px}
+      .popup-item{border:1px solid rgba(15,23,42,.08);border-radius:16px;padding:14px;background:#fff}
+      .popup-item + .popup-item{margin-top:10px}
+      .popup-tag{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:700;color:#fff}
+      .tag-reminder{background:#4f46e5}.tag-incident{background:#dc2626}.tag-maintenance{background:#334155}.tag-stay{background:#0f766e}
+      .assistant-empty{padding:26px;text-align:center;color:#64748b}
+      .loading-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:28px;color:#64748b}
+      .todo-section[hidden]{display:none !important;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function ensurePopupDom(){
+    ensureInjectedStyles();
+
+    if (!document.getElementById('assistantToastWrap')) {
+      const toastWrap = document.createElement('div');
+      toastWrap.id = 'assistantToastWrap';
+      toastWrap.className = 'toast-container position-fixed top-0 end-0 p-3';
+      toastWrap.style.zIndex = '2000';
+      document.body.appendChild(toastWrap);
+    }
+
+    if (!document.getElementById('assistantPopupModal')) {
+      const box = document.createElement('div');
+      box.innerHTML = `
+      <div class="modal fade assistant-modal" id="assistantPopupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <h5 class="modal-title m-0">今日通知與待辦</h5>
+                <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
+              </div>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="popupLoadingWrap"></div>
+              <div class="row g-4" id="popupBodyWrap">
+                <div class="col-lg-5">
+                  <div class="popup-section h-100">
+                    <div class="popup-section-head"><div><div class="fw-bold">提醒事項</div><div class="small text-muted">左側單獨捲動</div></div><span class="count-chip" id="popupReminderCount">0</span></div>
+                    <div class="popup-section-body popup-scroll">
+                      <div class="popup-two-stack">
+                        <div class="popup-subsection"><div class="popup-subsection-head"><div class="fw-bold">今日提醒</div><span class="badge text-bg-primary" id="popupTodayReminderCount">0</span></div><div class="popup-subsection-body" id="popupTodayReminderList"></div></div>
+                        <div class="popup-subsection"><div class="popup-subsection-head"><div class="fw-bold">之後提醒</div><span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span></div><div class="popup-subsection-body" id="popupFutureReminderList"></div></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-7">
+                  <div class="popup-section h-100">
+                    <div class="popup-section-head"><div><div class="fw-bold">代辦事項</div><div class="small text-muted">右側單獨捲動，且依開關顯示類別</div></div><span class="count-chip" id="popupTodoCount">0</span></div>
+                    <div class="popup-section-body popup-scroll">
+                      <div class="mb-3 todo-section" id="popupSectionIncident"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">意外事件</div><span class="badge text-bg-danger" id="popupCountIncident">0</span></div><div id="popupTodoIncident"></div></div>
+                      <div class="mb-3 todo-section" id="popupSectionMaintenance"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">器材報修</div><span class="badge text-bg-secondary" id="popupCountMaintenance">0</span></div><div id="popupTodoMaintenance"></div></div>
+                      <div class="todo-section" id="popupSectionStay"><div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">外宿申請</div><span class="badge text-bg-success" id="popupCountStay">0</span></div><div id="popupTodoStay"></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer"><a href="office-assistant.html" class="btn btn-outline-primary">前往輔助系統</a><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
+          </div>
+        </div>
+      </div>`;
+      while (box.firstChild) document.body.appendChild(box.firstChild);
+    }
+  }
+
   function toast(message, type='primary'){
+    ensurePopupDom();
     const wrap = $('assistantToastWrap'); if (!wrap) return;
     const id = 'toast_' + Math.random().toString(16).slice(2);
     wrap.insertAdjacentHTML('beforeend', `<div id="${id}" class="toast align-items-center text-bg-${esc(type)} border-0" role="alert"><div class="d-flex"><div class="toast-body">${esc(message)}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`);
@@ -296,6 +378,7 @@
     return { reminders };
   }
   async function showHomepagePopup(force=false){
+    ensurePopupDom();
     if (!getCurrentUser()) return;
     if (popupOpening) return;
     if (!force && hasShownPopupForCurrentLogin()) return;
@@ -361,6 +444,7 @@
 
   async function boot(){
     await waitForDbReady();
+    ensurePopupDom();
     if ($('assistantPopupModal')) popupModal=new bootstrap.Modal($('assistantPopupModal'));
     if ($('reminderModal')) reminderModal=new bootstrap.Modal($('reminderModal'));
     if (isOnAssistantPage() && getCurrentUser()){
