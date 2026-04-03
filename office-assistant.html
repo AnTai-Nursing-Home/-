@@ -21,8 +21,6 @@
     .assistant-modal .modal-content{border-radius:22px;border:none;box-shadow:0 24px 60px rgba(0,0,0,.18)}
     .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:22px;border-top-right-radius:22px}
     .count-chip{min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#111827;color:#fff;font-size:.84rem;padding:0 9px}
-    .reminder-row.done{opacity:.6}
-    .reminder-row.done .reminder-text{text-decoration:line-through}
     .popup-scroll{max-height:65vh;overflow:auto;padding-right:4px}
     .popup-section{border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
     .popup-section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(180deg,#f8fafc,#fff);border-bottom:1px solid var(--line)}
@@ -35,9 +33,25 @@
     .kpi-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff,#fafcff)}
     .kpi-label{font-size:.9rem;color:var(--muted);margin-bottom:6px}.kpi-value{font-size:1.7rem;font-weight:800}
     .loading-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:28px;color:var(--muted)}
-    .loading-box.sm{padding:16px}
-    .spinner-grow.spinner-grow-xs{width:.7rem;height:.7rem}
-    @media (max-width: 992px){.kpi-grid{grid-template-columns:1fr}}
+    .reminder-split{display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:14px;min-height:620px}
+    .reminder-pane{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#fff,#fafcff);overflow:hidden;display:flex;flex-direction:column}
+    .reminder-pane-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);background:#fff}
+    .reminder-pane-body{padding:12px;overflow:auto;max-height:270px}
+    .popup-two-stack{display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:12px;min-height:520px}
+    .popup-subsection{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+    .popup-subsection-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);background:#fbfcff}
+    .popup-subsection-body{padding:12px;overflow:auto;max-height:220px}
+    .todo-section[hidden]{display:none !important;}
+    .grid-main-equal{align-items:stretch}
+    .full-height-col{display:flex}
+    .full-height-col > .card-soft{width:100%}
+    @media (max-width: 992px){
+      .kpi-grid{grid-template-columns:1fr}
+      .reminder-split{min-height:auto}
+      .reminder-pane-body{max-height:320px}
+      .popup-two-stack{min-height:auto}
+      .popup-subsection-body{max-height:240px}
+    }
   </style>
 </head>
 <body>
@@ -55,13 +69,13 @@
       </div>
     </div>
 
-    <div class="row g-4">
-      <div class="col-xl-7">
+    <div class="row g-4 grid-main-equal">
+      <div class="col-xl-7 full-height-col">
         <div class="card-soft p-4 h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
               <div class="section-title">提醒事項</div>
-              <div class="helper-muted">只顯示登入者自己設定的提醒</div>
+              <div class="helper-muted">上半部顯示今日提醒，下半部顯示之後日期提醒</div>
             </div>
             <button class="btn btn-primary" id="btnNewReminder"><i class="fa-solid fa-plus me-1"></i>新增提醒</button>
           </div>
@@ -89,11 +103,26 @@
             </div>
           </div>
 
-          <div id="reminderListWrap"></div>
+          <div class="reminder-split">
+            <div class="reminder-pane">
+              <div class="reminder-pane-head">
+                <div class="fw-bold">今日提醒</div>
+                <span class="badge text-bg-primary" id="todayReminderCount">0</span>
+              </div>
+              <div class="reminder-pane-body" id="todayReminderWrap"></div>
+            </div>
+            <div class="reminder-pane">
+              <div class="reminder-pane-head">
+                <div class="fw-bold">之後提醒</div>
+                <span class="badge text-bg-secondary" id="futureReminderCount">0</span>
+              </div>
+              <div class="reminder-pane-body" id="futureReminderWrap"></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="col-xl-5">
+      <div class="col-xl-5 full-height-col">
         <div class="card-soft p-4 h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
@@ -178,7 +207,7 @@
         <div class="modal-header">
           <div>
             <h5 class="modal-title m-0">今日通知與待辦</h5>
-            <div class="small opacity-75">提醒事項和代辦事項提醒</div>
+            <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
           </div>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -188,28 +217,45 @@
             <div class="col-lg-5">
               <div class="popup-section h-100">
                 <div class="popup-section-head">
-                  <div><div class="fw-bold">提醒事項</div><div class="small text-muted">以下為您的提醒事項</div></div>
+                  <div><div class="fw-bold">提醒事項</div><div class="small text-muted">左側單獨捲動</div></div>
                   <span class="count-chip" id="popupReminderCount">0</span>
                 </div>
-                <div class="popup-section-body popup-scroll" id="popupReminderList"></div>
+                <div class="popup-section-body popup-scroll">
+                  <div class="popup-two-stack">
+                    <div class="popup-subsection">
+                      <div class="popup-subsection-head">
+                        <div class="fw-bold">今日提醒</div>
+                        <span class="badge text-bg-primary" id="popupTodayReminderCount">0</span>
+                      </div>
+                      <div class="popup-subsection-body" id="popupTodayReminderList"></div>
+                    </div>
+                    <div class="popup-subsection">
+                      <div class="popup-subsection-head">
+                        <div class="fw-bold">之後提醒</div>
+                        <span class="badge text-bg-secondary" id="popupFutureReminderCount">0</span>
+                      </div>
+                      <div class="popup-subsection-body" id="popupFutureReminderList"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="col-lg-7">
               <div class="popup-section h-100">
                 <div class="popup-section-head">
-                  <div><div class="fw-bold">代辦事項</div><div class="small text-muted">以下為系統內待審核之代辦事項</div></div>
+                  <div><div class="fw-bold">代辦事項</div><div class="small text-muted">右側單獨捲動，且依開關顯示類別</div></div>
                   <span class="count-chip" id="popupTodoCount">0</span>
                 </div>
                 <div class="popup-section-body popup-scroll">
-                  <div class="mb-3">
+                  <div class="mb-3 todo-section" id="popupSectionIncident">
                     <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">意外事件</div><span class="badge text-bg-danger" id="popupCountIncident">0</span></div>
                     <div id="popupTodoIncident"></div>
                   </div>
-                  <div class="mb-3">
+                  <div class="mb-3 todo-section" id="popupSectionMaintenance">
                     <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">器材報修</div><span class="badge text-bg-secondary" id="popupCountMaintenance">0</span></div>
                     <div id="popupTodoMaintenance"></div>
                   </div>
-                  <div>
+                  <div class="todo-section" id="popupSectionStay">
                     <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">外宿申請</div><span class="badge text-bg-success" id="popupCountStay">0</span></div>
                     <div id="popupTodoStay"></div>
                   </div>
@@ -230,6 +276,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
+  <script src="idle-timeout.js"></script>
   <script src="office-assistant.js"></script>
 </body>
 </html>
