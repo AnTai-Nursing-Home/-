@@ -2,6 +2,7 @@
   const AUTH_KEY = 'officeAuth';
   const SETTINGS_COLLECTION = 'officeAssistantSettings';
   const REMINDER_COLLECTION = 'officeAssistantReminders';
+  const POPUP_SHOWN_KEY = 'officeAssistant_popup_shown_for_login';
 
   let loginUser = null;
   let popupModal = null;
@@ -58,6 +59,21 @@
       return raw ? JSON.parse(raw) : null;
     }catch(_){ return null; }
   }
+  function getCurrentLoginToken(){
+    const auth = getAuth();
+    return String(auth?.loginAt || '');
+  }
+  function hasShownPopupForCurrentLogin(){
+    const token = getCurrentLoginToken();
+    if (!token) return false;
+    return sessionStorage.getItem(POPUP_SHOWN_KEY) === token;
+  }
+  function markPopupShownForCurrentLogin(){
+    const token = getCurrentLoginToken();
+    if (!token) return;
+    sessionStorage.setItem(POPUP_SHOWN_KEY, token);
+  }
+
   function getCurrentUser(){
     if (loginUser) return loginUser;
     const auth = getAuth();
@@ -600,6 +616,8 @@
     ensurePopupDom();
     if (!getCurrentUser()) return;
     if (popupOpening) return;
+    if (!force && hasShownPopupForCurrentLogin()) return;
+
     popupOpening = true;
 
     if (!popupModal && $('assistantPopupModal')) {
@@ -624,6 +642,10 @@
       if ($('popupLoadingWrap')) $('popupLoadingWrap').innerHTML = '';
       if ($('popupBodyWrap')) $('popupBodyWrap').style.display = '';
       popupModal.show();
+
+      if (!force) {
+        markPopupShownForCurrentLogin();
+      }
     }catch(err){
       console.error('showHomepagePopup error:', err);
       toast(err?.message || '彈窗載入失敗', 'danger');
@@ -658,7 +680,7 @@
 
     const tryPopup = async ()=>{
       if (isOnOfficeDashboard()) {
-        await showHomepagePopup(true);
+        await showHomepagePopup(false);
       }
     };
 
