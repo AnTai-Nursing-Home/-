@@ -1,27 +1,239 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>輔助系統</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>輔助系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body{background:#f6f8fb}
+    .page-wrap{max-width:1200px;margin:32px auto;padding:0 16px}
+    .topbar-card,.card-soft{
+      background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;
+      box-shadow:0 10px 24px rgba(15,23,42,.06)
+    }
+    .section-title{font-size:1.15rem;font-weight:800}
+    .helper-muted{color:#6b7280}
+    .todo-badge{font-size:.78rem}
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 10px;background:#fff
+    }
+    .reminder-row.done{opacity:.6}
+    .reminder-row.done .reminder-text{text-decoration:line-through}
+    .source-box{border:1px dashed rgba(0,0,0,.12);border-radius:14px;padding:12px;background:#fafbfc}
+    .popup-list{max-height:280px;overflow:auto}
+    .assistant-modal .modal-content{border-radius:20px;border:none;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+    .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:20px;border-top-right-radius:20px}
+    .assistant-empty{padding:24px;text-align:center;color:#6b7280}
+    .count-chip{
+      min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+      border-radius:999px;background:#111827;color:#fff;font-size:.82rem;padding:0 8px
+    }
+    .table thead th{white-space:nowrap}
+  </style>
 </head>
-<body class="p-4">
-<h3>輔助系統</h3>
+<body>
+  <div class="page-wrap">
+    <div class="topbar-card p-4 mb-4">
+      <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
+        <div>
+          <div class="section-title">輔助系統</div>
+          <div class="helper-muted">個人提醒、個人待辦來源設定、辦公室首頁登入後彈窗</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="pill"><i class="fa-regular fa-user"></i><span id="assistantLoginUser">未登入</span></span>
+          <a href="office.html?view=dashboard" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>返回辦公室主頁</a>
+        </div>
+      </div>
+    </div>
 
-<div class="mb-3">
-    <input type="date" id="reminderDate" class="form-control">
-</div>
-<div class="mb-3">
-    <input type="text" id="reminderText" class="form-control" placeholder="提醒內容">
-</div>
-<button class="btn btn-primary" onclick="addReminder()">新增提醒</button>
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card-soft p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="section-title">提醒事項</div>
+              <div class="helper-muted">只顯示登入者自己設定的提醒</div>
+            </div>
+            <button class="btn btn-primary" id="btnNewReminder">
+              <i class="fa-solid fa-plus me-1"></i>新增提醒
+            </button>
+          </div>
 
-<hr>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">篩選</label>
+              <select class="form-select" id="filterReminderStatus">
+                <option value="all">全部</option>
+                <option value="pending" selected>未完成</option>
+                <option value="done">已完成</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">排序</label>
+              <select class="form-select" id="sortReminder">
+                <option value="asc" selected>日期由近到遠</option>
+                <option value="desc">日期由遠到近</option>
+                <option value="createdDesc">建立時間最新</option>
+                <option value="createdAsc">建立時間最舊</option>
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-outline-dark w-100" id="btnRefreshReminder">
+                <i class="fa-solid fa-rotate me-1"></i>重新整理
+              </button>
+            </div>
+          </div>
 
-<h5>提醒事項</h5>
-<ul id="reminderList"></ul>
+          <div id="reminderListWrap"></div>
+        </div>
+      </div>
 
-<script src="office-assistant-simple.js"></script>
+      <div class="col-lg-6">
+        <div class="card-soft p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="section-title">待辦提醒來源</div>
+              <div class="helper-muted">勾選後，辦公室首頁登入成功會顯示對應待辦</div>
+            </div>
+            <button class="btn btn-outline-primary" id="btnPreviewPopup">
+              <i class="fa-regular fa-window-restore me-1"></i>預覽首頁彈窗
+            </button>
+          </div>
+
+          <div class="vstack gap-3">
+            <div class="source-box">
+              <div class="form-check form-switch">
+                <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleIncident" data-source="incident">
+                <label class="form-check-label fw-bold" for="toggleIncident">意外事件未審核提醒</label>
+              </div>
+              <div class="helper-muted small mt-2">抓品管意外事件系統中尚未覆核的案件。</div>
+              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countIncident">0</span></div>
+            </div>
+
+            <div class="source-box">
+              <div class="form-check form-switch">
+                <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleMaintenance" data-source="maintenance">
+                <label class="form-check-label fw-bold" for="toggleMaintenance">器材報修未完成提醒</label>
+              </div>
+              <div class="helper-muted small mt-2">抓器材報修中狀態不是「已完成／紀錄」的案件。</div>
+              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countMaintenance">0</span></div>
+            </div>
+
+            <div class="source-box">
+              <div class="form-check form-switch">
+                <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleStay" data-source="stay">
+                <label class="form-check-label fw-bold" for="toggleStay">外宿申請待辦提醒</label>
+              </div>
+              <div class="helper-muted small mt-2">抓外宿申請中狀態名稱不是完成類的案件。</div>
+              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countStay">0</span></div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div>
+            <div class="section-title mb-3">目前待辦預覽</div>
+            <div id="todoPreviewWrap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reminder modal -->
+  <div class="modal fade assistant-modal" id="reminderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reminderModalTitle">新增提醒</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editingReminderId">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">提醒日期</label>
+              <input type="date" class="form-control" id="reminderDate">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">提醒時間</label>
+              <input type="time" class="form-control" id="reminderTime">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">優先程度</label>
+              <select class="form-select" id="reminderPriority">
+                <option value="normal" selected>一般</option>
+                <option value="important">重要</option>
+                <option value="urgent">緊急</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">提醒內容</label>
+              <textarea class="form-control" id="reminderText" rows="4" placeholder="請輸入提醒內容"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="reminderDone">
+                <label class="form-check-label" for="reminderDone">已完成</label>
+              </div>
+            </div>
+          </div>
+          <div class="text-danger small mt-3 d-none" id="reminderError">請輸入完整資料</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="btnSaveReminder">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- homepage popup -->
+  <div class="modal fade assistant-modal" id="assistantPopupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title m-0">今日待處理提醒</h5>
+            <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="section-title">提醒事項</div>
+                <span class="count-chip" id="popupReminderCount">0</span>
+              </div>
+              <div id="popupReminderList" class="popup-list"></div>
+            </div>
+            <div class="col-lg-6">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="section-title">代辦事項</div>
+                <span class="count-chip" id="popupTodoCount">0</span>
+              </div>
+              <div id="popupTodoList" class="popup-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="office-assistant.html" class="btn btn-outline-primary" id="assistantManageLink">前往輔助系統</a>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed top-0 end-0 p-3" id="assistantToastWrap" style="z-index:2000"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="office-assistant.js"></script>
 </body>
 </html>
