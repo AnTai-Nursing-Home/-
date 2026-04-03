@@ -160,7 +160,7 @@
       setAuth(user);
       showDashboard(user);
 
-      // 通知輔助系統：登入完成後跳一次通知彈窗
+      // 通知輔助系統登入成功，可跳一次通知彈窗
       try {
         document.dispatchEvent(new CustomEvent('office-login-success', { detail: user }));
       } catch (e) {}
@@ -168,7 +168,6 @@
         window.dispatchEvent(new CustomEvent('office-login-success', { detail: user }));
       } catch (e) {}
 
-      // 若輔助系統已完成初始化，直接要求跳出通知
       setTimeout(() => {
         try { window.officeAssistant?.showPopup?.(); } catch (e) {}
       }, 350);
