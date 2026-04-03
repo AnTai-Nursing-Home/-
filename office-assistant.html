@@ -8,89 +8,36 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     :root{
-      --bg:#f4f6fb;
-      --card:#ffffff;
-      --line:rgba(15,23,42,.08);
-      --text:#0f172a;
-      --muted:#64748b;
-      --primary:#111827;
-      --soft:#eef2ff;
-      --soft2:#f8fafc;
+      --bg:#f4f6fb; --card:#fff; --line:rgba(15,23,42,.08); --text:#0f172a; --muted:#64748b;
     }
     body{background:var(--bg);color:var(--text)}
     .page-wrap{width:100%;max-width:none;margin:0;padding:18px}
-    .topbar-card,.card-soft{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:20px;
-      box-shadow:0 10px 30px rgba(15,23,42,.05)
-    }
+    .topbar-card,.card-soft{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 30px rgba(15,23,42,.05)}
     .section-title{font-size:1.2rem;font-weight:800}
     .helper-muted{color:var(--muted)}
-    .pill{
-      display:inline-flex;align-items:center;gap:8px;
-      border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff
-    }
-    .source-box{
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:14px;
-      background:linear-gradient(180deg,#fff,#fbfdff);
-    }
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff}
+    .source-box{border:1px solid var(--line);border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff,#fbfdff)}
     .assistant-empty{padding:26px;text-align:center;color:var(--muted)}
     .assistant-modal .modal-content{border-radius:22px;border:none;box-shadow:0 24px 60px rgba(0,0,0,.18)}
     .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:22px;border-top-right-radius:22px}
-    .count-chip{
-      min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
-      border-radius:999px;background:#111827;color:#fff;font-size:.84rem;padding:0 9px
-    }
+    .count-chip{min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#111827;color:#fff;font-size:.84rem;padding:0 9px}
     .reminder-row.done{opacity:.6}
     .reminder-row.done .reminder-text{text-decoration:line-through}
     .popup-scroll{max-height:65vh;overflow:auto;padding-right:4px}
-    .popup-section{
-      border:1px solid var(--line);
-      border-radius:18px;
-      background:#fff;
-      overflow:hidden;
-    }
-    .popup-section-head{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:14px 16px;
-      background:linear-gradient(180deg,#f8fafc,#fff);
-      border-bottom:1px solid var(--line);
-    }
+    .popup-section{border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+    .popup-section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(180deg,#f8fafc,#fff);border-bottom:1px solid var(--line)}
     .popup-section-body{padding:14px}
-    .popup-item{
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:14px;
-      background:#fff;
-    }
+    .popup-item{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff}
     .popup-item + .popup-item{margin-top:10px}
-    .popup-tag{
-      display:inline-flex;align-items:center;justify-content:center;
-      min-width:74px;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:700;color:#fff
-    }
-    .tag-reminder{background:#4f46e5}
-    .tag-incident{background:#dc2626}
-    .tag-maintenance{background:#334155}
-    .tag-stay{background:#0f766e}
-    .kpi-grid{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:12px;
-    }
-    .kpi-card{
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:14px;
-      background:linear-gradient(180deg,#fff,#fafcff);
-    }
-    .kpi-label{font-size:.9rem;color:var(--muted);margin-bottom:6px}
-    .kpi-value{font-size:1.7rem;font-weight:800}
-    @media (max-width: 992px){
-      .kpi-grid{grid-template-columns:1fr}
-    }
+    .popup-tag{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:700;color:#fff}
+    .tag-reminder{background:#4f46e5}.tag-incident{background:#dc2626}.tag-maintenance{background:#334155}.tag-stay{background:#0f766e}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .kpi-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:linear-gradient(180deg,#fff,#fafcff)}
+    .kpi-label{font-size:.9rem;color:var(--muted);margin-bottom:6px}.kpi-value{font-size:1.7rem;font-weight:800}
+    .loading-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:28px;color:var(--muted)}
+    .loading-box.sm{padding:16px}
+    .spinner-grow.spinner-grow-xs{width:.7rem;height:.7rem}
+    @media (max-width: 992px){.kpi-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -187,18 +134,9 @@
 
           <div class="section-title mb-3">目前待辦總覽</div>
           <div class="kpi-grid mb-4">
-            <div class="kpi-card">
-              <div class="kpi-label">意外事件</div>
-              <div class="kpi-value" id="kpiIncident">0</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">器材報修</div>
-              <div class="kpi-value" id="kpiMaintenance">0</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">外宿申請</div>
-              <div class="kpi-value" id="kpiStay">0</div>
-            </div>
+            <div class="kpi-card"><div class="kpi-label">意外事件</div><div class="kpi-value" id="kpiIncident">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">器材報修</div><div class="kpi-value" id="kpiMaintenance">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">外宿申請</div><div class="kpi-value" id="kpiStay">0</div></div>
           </div>
 
           <div id="todoPreviewWrap"></div>
@@ -217,39 +155,19 @@
         <div class="modal-body">
           <input type="hidden" id="editingReminderId">
           <div class="row g-3">
-            <div class="col-md-4">
-              <label class="form-label">提醒日期</label>
-              <input type="date" class="form-control" id="reminderDate">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">提醒時間</label>
-              <input type="time" class="form-control" id="reminderTime">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">優先程度</label>
+            <div class="col-md-4"><label class="form-label">提醒日期</label><input type="date" class="form-control" id="reminderDate"></div>
+            <div class="col-md-4"><label class="form-label">提醒時間</label><input type="time" class="form-control" id="reminderTime"></div>
+            <div class="col-md-4"><label class="form-label">優先程度</label>
               <select class="form-select" id="reminderPriority">
-                <option value="normal" selected>一般</option>
-                <option value="important">重要</option>
-                <option value="urgent">緊急</option>
+                <option value="normal" selected>一般</option><option value="important">重要</option><option value="urgent">緊急</option>
               </select>
             </div>
-            <div class="col-12">
-              <label class="form-label">提醒內容</label>
-              <textarea class="form-control" id="reminderText" rows="4" placeholder="請輸入提醒內容"></textarea>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="reminderDone">
-                <label class="form-check-label" for="reminderDone">已完成</label>
-              </div>
-            </div>
+            <div class="col-12"><label class="form-label">提醒內容</label><textarea class="form-control" id="reminderText" rows="4" placeholder="請輸入提醒內容"></textarea></div>
+            <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="reminderDone"><label class="form-check-label" for="reminderDone">已完成</label></div></div>
           </div>
           <div class="text-danger small mt-3 d-none" id="reminderError">請輸入完整資料</div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-primary" id="btnSaveReminder">儲存</button>
-        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button type="button" class="btn btn-primary" id="btnSaveReminder">儲存</button></div>
       </div>
     </div>
   </div>
@@ -265,14 +183,12 @@
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="row g-4">
+          <div id="popupLoadingWrap"></div>
+          <div class="row g-4" id="popupBodyWrap">
             <div class="col-lg-5">
               <div class="popup-section h-100">
                 <div class="popup-section-head">
-                  <div>
-                    <div class="fw-bold">提醒事項</div>
-                    <div class="small text-muted">已到提醒日期的個人提醒</div>
-                  </div>
+                  <div><div class="fw-bold">提醒事項</div><div class="small text-muted">已到提醒日期的個人提醒</div></div>
                   <span class="count-chip" id="popupReminderCount">0</span>
                 </div>
                 <div class="popup-section-body popup-scroll" id="popupReminderList"></div>
@@ -281,32 +197,20 @@
             <div class="col-lg-7">
               <div class="popup-section h-100">
                 <div class="popup-section-head">
-                  <div>
-                    <div class="fw-bold">代辦事項</div>
-                    <div class="small text-muted">依類別分開顯示，方便查看</div>
-                  </div>
+                  <div><div class="fw-bold">代辦事項</div><div class="small text-muted">依類別分開顯示，方便查看</div></div>
                   <span class="count-chip" id="popupTodoCount">0</span>
                 </div>
                 <div class="popup-section-body popup-scroll">
                   <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                      <div class="fw-bold">意外事件</div>
-                      <span class="badge text-bg-danger" id="popupCountIncident">0</span>
-                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">意外事件</div><span class="badge text-bg-danger" id="popupCountIncident">0</span></div>
                     <div id="popupTodoIncident"></div>
                   </div>
                   <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                      <div class="fw-bold">器材報修</div>
-                      <span class="badge text-bg-secondary" id="popupCountMaintenance">0</span>
-                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">器材報修</div><span class="badge text-bg-secondary" id="popupCountMaintenance">0</span></div>
                     <div id="popupTodoMaintenance"></div>
                   </div>
                   <div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                      <div class="fw-bold">外宿申請</div>
-                      <span class="badge text-bg-success" id="popupCountStay">0</span>
-                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold">外宿申請</div><span class="badge text-bg-success" id="popupCountStay">0</span></div>
                     <div id="popupTodoStay"></div>
                   </div>
                 </div>
@@ -314,10 +218,7 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <a href="office-assistant.html" class="btn btn-outline-primary">前往輔助系統</a>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-        </div>
+        <div class="modal-footer"><a href="office-assistant.html" class="btn btn-outline-primary">前往輔助系統</a><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
       </div>
     </div>
   </div>
