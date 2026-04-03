@@ -7,31 +7,90 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    body{background:#f6f8fb}
-    .page-wrap{max-width:1200px;margin:32px auto;padding:0 16px}
-    .topbar-card,.card-soft{
-      background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;
-      box-shadow:0 10px 24px rgba(15,23,42,.06)
+    :root{
+      --bg:#f4f6fb;
+      --card:#ffffff;
+      --line:rgba(15,23,42,.08);
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#111827;
+      --soft:#eef2ff;
+      --soft2:#f8fafc;
     }
-    .section-title{font-size:1.15rem;font-weight:800}
-    .helper-muted{color:#6b7280}
-    .todo-badge{font-size:.78rem}
+    body{background:var(--bg);color:var(--text)}
+    .page-wrap{width:100%;max-width:none;margin:0;padding:18px}
+    .topbar-card,.card-soft{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:0 10px 30px rgba(15,23,42,.05)
+    }
+    .section-title{font-size:1.2rem;font-weight:800}
+    .helper-muted{color:var(--muted)}
     .pill{
-      display:inline-flex;align-items:center;gap:6px;
-      border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 10px;background:#fff
+      display:inline-flex;align-items:center;gap:8px;
+      border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff
+    }
+    .source-box{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:linear-gradient(180deg,#fff,#fbfdff);
+    }
+    .assistant-empty{padding:26px;text-align:center;color:var(--muted)}
+    .assistant-modal .modal-content{border-radius:22px;border:none;box-shadow:0 24px 60px rgba(0,0,0,.18)}
+    .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:22px;border-top-right-radius:22px}
+    .count-chip{
+      min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
+      border-radius:999px;background:#111827;color:#fff;font-size:.84rem;padding:0 9px
     }
     .reminder-row.done{opacity:.6}
     .reminder-row.done .reminder-text{text-decoration:line-through}
-    .source-box{border:1px dashed rgba(0,0,0,.12);border-radius:14px;padding:12px;background:#fafbfc}
-    .popup-list{max-height:280px;overflow:auto}
-    .assistant-modal .modal-content{border-radius:20px;border:none;box-shadow:0 20px 60px rgba(0,0,0,.18)}
-    .assistant-modal .modal-header{background:#111827;color:#fff;border-top-left-radius:20px;border-top-right-radius:20px}
-    .assistant-empty{padding:24px;text-align:center;color:#6b7280}
-    .count-chip{
-      min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
-      border-radius:999px;background:#111827;color:#fff;font-size:.82rem;padding:0 8px
+    .popup-scroll{max-height:65vh;overflow:auto;padding-right:4px}
+    .popup-section{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:#fff;
+      overflow:hidden;
     }
-    .table thead th{white-space:nowrap}
+    .popup-section-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;
+      background:linear-gradient(180deg,#f8fafc,#fff);
+      border-bottom:1px solid var(--line);
+    }
+    .popup-section-body{padding:14px}
+    .popup-item{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:#fff;
+    }
+    .popup-item + .popup-item{margin-top:10px}
+    .popup-tag{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:74px;padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:700;color:#fff
+    }
+    .tag-reminder{background:#4f46e5}
+    .tag-incident{background:#dc2626}
+    .tag-maintenance{background:#334155}
+    .tag-stay{background:#0f766e}
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
+    }
+    .kpi-card{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:linear-gradient(180deg,#fff,#fafcff);
+    }
+    .kpi-label{font-size:.9rem;color:var(--muted);margin-bottom:6px}
+    .kpi-value{font-size:1.7rem;font-weight:800}
+    @media (max-width: 992px){
+      .kpi-grid{grid-template-columns:1fr}
+    }
   </style>
 </head>
 <body>
@@ -40,7 +99,7 @@
       <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
         <div>
           <div class="section-title">輔助系統</div>
-          <div class="helper-muted">個人提醒、個人待辦來源設定、辦公室首頁登入後彈窗</div>
+          <div class="helper-muted">個人提醒、代辦來源設定、辦公室首頁彈窗</div>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
           <span class="pill"><i class="fa-regular fa-user"></i><span id="assistantLoginUser">未登入</span></span>
@@ -50,16 +109,14 @@
     </div>
 
     <div class="row g-4">
-      <div class="col-lg-6">
+      <div class="col-xl-7">
         <div class="card-soft p-4 h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
               <div class="section-title">提醒事項</div>
               <div class="helper-muted">只顯示登入者自己設定的提醒</div>
             </div>
-            <button class="btn btn-primary" id="btnNewReminder">
-              <i class="fa-solid fa-plus me-1"></i>新增提醒
-            </button>
+            <button class="btn btn-primary" id="btnNewReminder"><i class="fa-solid fa-plus me-1"></i>新增提醒</button>
           </div>
 
           <div class="row g-3 mb-3">
@@ -81,9 +138,7 @@
               </select>
             </div>
             <div class="col-md-4 d-flex align-items-end">
-              <button class="btn btn-outline-dark w-100" id="btnRefreshReminder">
-                <i class="fa-solid fa-rotate me-1"></i>重新整理
-              </button>
+              <button class="btn btn-outline-dark w-100" id="btnRefreshReminder"><i class="fa-solid fa-rotate me-1"></i>重新整理</button>
             </div>
           </div>
 
@@ -91,26 +146,24 @@
         </div>
       </div>
 
-      <div class="col-lg-6">
+      <div class="col-xl-5">
         <div class="card-soft p-4 h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
               <div class="section-title">待辦提醒來源</div>
-              <div class="helper-muted">勾選後，辦公室首頁登入成功會顯示對應待辦</div>
+              <div class="helper-muted">勾選後，首頁彈窗才會顯示</div>
             </div>
-            <button class="btn btn-outline-primary" id="btnPreviewPopup">
-              <i class="fa-regular fa-window-restore me-1"></i>預覽首頁彈窗
-            </button>
+            <button class="btn btn-outline-primary" id="btnPreviewPopup"><i class="fa-regular fa-window-restore me-1"></i>預覽彈窗</button>
           </div>
 
-          <div class="vstack gap-3">
+          <div class="vstack gap-3 mb-4">
             <div class="source-box">
               <div class="form-check form-switch">
                 <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleIncident" data-source="incident">
                 <label class="form-check-label fw-bold" for="toggleIncident">意外事件未審核提醒</label>
               </div>
-              <div class="helper-muted small mt-2">抓品管意外事件系統中尚未覆核的案件。</div>
-              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countIncident">0</span></div>
+              <div class="helper-muted small mt-2">顯示尚未覆核的案件。</div>
+              <div class="mt-2"><span class="badge text-bg-danger" id="countIncident">0</span></div>
             </div>
 
             <div class="source-box">
@@ -118,8 +171,8 @@
                 <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleMaintenance" data-source="maintenance">
                 <label class="form-check-label fw-bold" for="toggleMaintenance">器材報修未完成提醒</label>
               </div>
-              <div class="helper-muted small mt-2">抓器材報修中狀態不是「已完成／紀錄」的案件。</div>
-              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countMaintenance">0</span></div>
+              <div class="helper-muted small mt-2">排除已完成、紀錄、無法修復。</div>
+              <div class="mt-2"><span class="badge text-bg-secondary" id="countMaintenance">0</span></div>
             </div>
 
             <div class="source-box">
@@ -127,23 +180,33 @@
                 <input class="form-check-input todo-source-toggle" type="checkbox" id="toggleStay" data-source="stay">
                 <label class="form-check-label fw-bold" for="toggleStay">外宿申請待辦提醒</label>
               </div>
-              <div class="helper-muted small mt-2">抓外宿申請中狀態名稱不是完成類的案件。</div>
-              <div class="mt-2"><span class="badge text-bg-secondary todo-badge" id="countStay">0</span></div>
+              <div class="helper-muted small mt-2">排除核准、退回、完成、取消等已處理狀態。</div>
+              <div class="mt-2"><span class="badge text-bg-success" id="countStay">0</span></div>
             </div>
           </div>
 
-          <hr class="my-4">
-
-          <div>
-            <div class="section-title mb-3">目前待辦預覽</div>
-            <div id="todoPreviewWrap"></div>
+          <div class="section-title mb-3">目前待辦總覽</div>
+          <div class="kpi-grid mb-4">
+            <div class="kpi-card">
+              <div class="kpi-label">意外事件</div>
+              <div class="kpi-value" id="kpiIncident">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">器材報修</div>
+              <div class="kpi-value" id="kpiMaintenance">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">外宿申請</div>
+              <div class="kpi-value" id="kpiStay">0</div>
+            </div>
           </div>
+
+          <div id="todoPreviewWrap"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Reminder modal -->
   <div class="modal fade assistant-modal" id="reminderModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -191,37 +254,68 @@
     </div>
   </div>
 
-  <!-- homepage popup -->
   <div class="modal fade assistant-modal" id="assistantPopupModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <div>
-            <h5 class="modal-title m-0">今日待處理提醒</h5>
+            <h5 class="modal-title m-0">今日通知與待辦</h5>
             <div class="small opacity-75">依登入者顯示個人提醒與已啟用的待辦來源</div>
           </div>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="row g-4">
-            <div class="col-lg-6">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="section-title">提醒事項</div>
-                <span class="count-chip" id="popupReminderCount">0</span>
+            <div class="col-lg-5">
+              <div class="popup-section h-100">
+                <div class="popup-section-head">
+                  <div>
+                    <div class="fw-bold">提醒事項</div>
+                    <div class="small text-muted">已到提醒日期的個人提醒</div>
+                  </div>
+                  <span class="count-chip" id="popupReminderCount">0</span>
+                </div>
+                <div class="popup-section-body popup-scroll" id="popupReminderList"></div>
               </div>
-              <div id="popupReminderList" class="popup-list"></div>
             </div>
-            <div class="col-lg-6">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="section-title">代辦事項</div>
-                <span class="count-chip" id="popupTodoCount">0</span>
+            <div class="col-lg-7">
+              <div class="popup-section h-100">
+                <div class="popup-section-head">
+                  <div>
+                    <div class="fw-bold">代辦事項</div>
+                    <div class="small text-muted">依類別分開顯示，方便查看</div>
+                  </div>
+                  <span class="count-chip" id="popupTodoCount">0</span>
+                </div>
+                <div class="popup-section-body popup-scroll">
+                  <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div class="fw-bold">意外事件</div>
+                      <span class="badge text-bg-danger" id="popupCountIncident">0</span>
+                    </div>
+                    <div id="popupTodoIncident"></div>
+                  </div>
+                  <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div class="fw-bold">器材報修</div>
+                      <span class="badge text-bg-secondary" id="popupCountMaintenance">0</span>
+                    </div>
+                    <div id="popupTodoMaintenance"></div>
+                  </div>
+                  <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div class="fw-bold">外宿申請</div>
+                      <span class="badge text-bg-success" id="popupCountStay">0</span>
+                    </div>
+                    <div id="popupTodoStay"></div>
+                  </div>
+                </div>
               </div>
-              <div id="popupTodoList" class="popup-list"></div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <a href="office-assistant.html" class="btn btn-outline-primary" id="assistantManageLink">前往輔助系統</a>
+          <a href="office-assistant.html" class="btn btn-outline-primary">前往輔助系統</a>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
         </div>
       </div>
@@ -233,7 +327,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <script src="firebase-init.js"></script>
   <script src="office-assistant.js"></script>
 </body>
