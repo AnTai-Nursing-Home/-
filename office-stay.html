@@ -57,7 +57,11 @@
     .summary-card .value{font-size:1.85rem; font-weight:800; line-height:1;}
     .summary-card .sub{margin-top:8px; font-size:.84rem; color:rgba(255,255,255,.75);}
     .notify-bar{display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding:16px 22px; border-top:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04);}
-    .soft-pill{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background:#fff; color:var(--ink); border:1px solid var(--line);}
+    .soft-pill{display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:999px; background:#fff; color:var(--ink); border:1px solid var(--line); min-height:50px;}
+    .notify-toggle{padding-left:14px !important; margin:0; flex-wrap:nowrap;}
+    .notify-toggle.form-check.form-switch .form-check-input{float:none; margin:0; width:2.4em; height:1.35em; flex:0 0 auto;}
+    .notify-toggle.form-check .form-check-label{margin:0; line-height:1.2; white-space:nowrap;}
+    .notify-hint{display:inline-flex; align-items:center; min-height:42px;}
     .nav-wrap{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
     .nav-tabs{
       border:none; background:#eef3f8; padding:8px; border-radius:18px; gap:8px; display:inline-flex; flex-wrap:wrap;
@@ -171,15 +175,15 @@
         </div>
 
         <div class="notify-bar no-print" id="notifyWorkspace">
-          <div class="form-check form-switch mb-0 soft-pill">
+          <div class="form-check form-switch mb-0 soft-pill notify-toggle">
             <input class="form-check-input" type="checkbox" id="notifyToggle">
             <label class="form-check-label" for="notifyToggle">接收新外宿申請通知</label>
           </div>
           <button class="btn btn-sm btn-light" id="btnAskNotification" type="button">
             <i class="fa-regular fa-bell me-1"></i>啟用瀏覽器通知
           </button>
-          <span class="small-muted" id="notifyHint"></span>
-          <span class="small-muted ms-auto">提示：通知僅在此頁面開啟時即時跳出。</span>
+          <span class="small-muted notify-hint" id="notifyHint"></span>
+          <span class="small-muted ms-auto notify-hint">提示：通知僅在此頁面開啟時即時跳出。</span>
         </div>
       </section>
 
