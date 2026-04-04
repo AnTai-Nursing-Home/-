@@ -388,6 +388,7 @@ async function renderRoster() {
     tbody.innerHTML = '';
     if (activeForeign.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">目前沒有在職的外籍照服員</td></tr>';
+        updateRosterSummary([], new Set());
         return;
     }
 
@@ -405,6 +406,8 @@ async function renderRoster() {
         `;
         tbody.appendChild(tr);
     });
+
+    updateRosterSummary(activeForeign, outSet);
 }
 
 function initTabs() {
@@ -422,6 +425,10 @@ function initTabs() {
         const targetTab = document.querySelector(`#officeStayTabs .nav-link[data-tab="${tabId}"]`);
         if (targetPane) targetPane.classList.add('show', 'active');
         if (targetTab) targetTab.classList.add('active');
+
+        const map = { tabApps:'外宿申請', tabRoster:'照服員名冊', tabStatus:'狀態設定', tabConflict:'互斥規則' };
+        const labelEl = document.getElementById('currentTabLabel');
+        if (labelEl) labelEl.textContent = map[tabId] || '外宿申請';
 
         if (tabId === 'tabRoster') {
             // 第一次切到名冊時才載入（避免一進來就多打一堆查詢）
@@ -621,6 +628,7 @@ function initConflictForm() {
 function initAppSection() {
     document.getElementById('btnFilter').addEventListener('click', async () => { await loadApplicationsByFilter(); try{ bumpLastSeen(); }catch(_){} });
     document.getElementById('btnNewApp').addEventListener('click', () => openAppModal());
+    document.getElementById('heroNewApp')?.addEventListener('click', () => openAppModal());
     document.getElementById('btnSaveApp').addEventListener('click', saveAppFromModal);
 
     document.getElementById('btnPrint').addEventListener('click', () => {
@@ -789,7 +797,54 @@ const start = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
         titleText = `${startROC}-${endROC} 外宿申請單`;
     }
     titleEl.textContent = `安泰醫療社團法人附設安泰護理之家  ${titleText}`;
+    updateStayDashboardSummary(docs.map(d => ({ id:d.id, ...(d.data()||{}) })));
     try { bumpLastSeen(); } catch (_) {}
+}
+
+
+function classifyStayStatus(statusId) {
+    const raw = String(statusId || '').toLowerCase();
+    const def = statusMapOffice[statusId] || {};
+    const name = String(def.name || '').toLowerCase();
+    const text = `${raw} ${name}`;
+    if (text.includes('核准') || text.includes('完成') || text.includes('結案') || text.includes('approved') || text.includes('complete') || text.includes('done')) return 'approved';
+    if (text.includes('退回') || text.includes('拒絕') || text.includes('取消') || text.includes('rejected') || text.includes('cancel')) return 'other';
+    return 'pending';
+}
+
+function updateStayDashboardSummary(apps) {
+    const list = Array.isArray(apps) ? apps : [];
+    const visible = list.length;
+    let pending = 0, approved = 0, unsigned = 0;
+    list.forEach(app => {
+        const cls = classifyStayStatus(app.statusId);
+        if (cls === 'approved') approved += 1;
+        else if (cls === 'pending') pending += 1;
+        const sign = String(app?.signName ?? '').trim();
+        if (!sign || sign === '—' || sign === '-') unsigned += 1;
+    });
+    const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = String(value); };
+    setText('summaryVisibleCount', visible);
+    setText('summaryPendingCount', pending);
+    setText('summaryApprovedCount', approved);
+    setText('summaryUnsignedCount', unsigned);
+    setText('metricVisibleApps', visible);
+    setText('metricApprovedApps', approved);
+    setText('metricUnsignedApps', unsigned);
+    setText('tableCountText', visible);
+}
+
+function updateRosterSummary(activeForeign, outSet) {
+    const total = Array.isArray(activeForeign) ? activeForeign.length : 0;
+    const out = outSet?.size || 0;
+    const pending = Math.max(total - out, 0);
+    const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = String(value); };
+    if (document.getElementById('currentTabLabel')?.textContent === '照服員名冊') {
+      setText('summaryVisibleCount', total);
+      setText('summaryPendingCount', pending);
+      setText('summaryApprovedCount', out);
+      setText('summaryUnsignedCount', 0);
+    }
 }
 
 function toROCDate(isoDateStr) {
