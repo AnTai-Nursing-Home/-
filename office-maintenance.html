@@ -1,129 +1,695 @@
 <!DOCTYPE html>
-
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>辦公室端 - 器材報修管理</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<style>
-    th, td { vertical-align: middle; }
-    .status-badge {
-      padding: 4px 8px; border-radius: 4px; color: #fff; font-weight: 500;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>辦公室端 - 器材報修管理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-1: #f3f7fb;
+      --bg-2: #e9f0f8;
+      --panel: rgba(255,255,255,.88);
+      --panel-strong: #ffffff;
+      --line: rgba(17, 24, 39, .08);
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2457c5;
+      --primary-2: #4f7df0;
+      --success-soft: #e8f7ef;
+      --warning-soft: #fff4dd;
+      --danger-soft: #ffe8e8;
+      --shadow: 0 18px 48px rgba(15, 23, 42, .10);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 16px;
     }
-    .comment { background: #f8f9fa; }
 
-    /* 列印樣式（正式、橫向、只顯示乾淨表格） */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(79,125,240,.18), transparent 28%),
+        radial-gradient(circle at right 12% top 10%, rgba(36,87,197,.12), transparent 24%),
+        linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 42%, #f8fbff 100%);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    .page-shell {
+      min-height: 100vh;
+      padding: 22px;
+    }
+
+    .workspace {
+      max-width: 100%;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.6);
+      border-radius: 34px;
+      padding: 26px 28px;
+      background: linear-gradient(135deg, rgba(18,33,74,.96), rgba(36,87,197,.92) 56%, rgba(91,135,255,.88));
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      pointer-events: none;
+    }
+    .hero::before { width: 280px; height: 280px; right: -80px; top: -100px; }
+    .hero::after { width: 180px; height: 180px; right: 180px; bottom: -90px; }
+
+    .hero-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .hero-title {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .hero-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.14);
+      backdrop-filter: blur(10px);
+      font-size: 26px;
+      flex: 0 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+    }
+    .hero-title h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 2.5vw, 2.35rem);
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .hero-title p {
+      margin: 8px 0 0;
+      color: rgba(255,255,255,.82);
+      font-size: 1rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .login-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      color: rgba(255,255,255,.95);
+      backdrop-filter: blur(10px);
+      font-size: .95rem;
+      border: 1px solid rgba(255,255,255,.14);
+    }
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 700;
+      transition: .18s ease;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .hero-btn.light {
+      background: #fff;
+      color: var(--primary);
+    }
+    .hero-btn.ghost {
+      color: #fff;
+      background: rgba(255,255,255,.10);
+    }
+    .hero-btn:hover { transform: translateY(-1px); color: inherit; }
+
+    .stats-grid {
+      position: relative;
+      z-index: 1;
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .stat-card {
+      padding: 18px 18px 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(8px);
+      min-height: 118px;
+    }
+    .stat-card .label {
+      color: rgba(255,255,255,.78);
+      font-size: .95rem;
+      margin-bottom: 10px;
+    }
+    .stat-card .value {
+      font-size: clamp(1.55rem, 2vw, 2.2rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .stat-card .sub {
+      margin-top: 10px;
+      color: rgba(255,255,255,.78);
+      font-size: .88rem;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.78);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .panel-header {
+      padding: 22px 24px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .panel-title {
+      margin: 0;
+      font-size: 1.18rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-title i { color: var(--primary); }
+    .panel-subtitle {
+      font-size: .92rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .panel-body {
+      padding: 0 24px 24px;
+    }
+
+    .status-create {
+      display: grid;
+      grid-template-columns: 1fr 82px;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .field-block + .field-block { margin-top: 14px; }
+    .field-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: .92rem;
+      color: #334155;
+    }
+    .glass-input,
+    .glass-select,
+    .glass-textarea,
+    .form-control,
+    .form-select {
+      border-radius: 16px !important;
+      border: 1px solid var(--line) !important;
+      background: rgba(255,255,255,.92) !important;
+      color: var(--text) !important;
+      box-shadow: none !important;
+      min-height: 48px;
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .glass-textarea,
+    textarea.form-control { min-height: 110px; resize: vertical; }
+    .form-control:focus,
+    .form-select:focus,
+    textarea.form-control:focus {
+      border-color: rgba(36,87,197,.36) !important;
+      box-shadow: 0 0 0 4px rgba(36,87,197,.10) !important;
+      background: #fff !important;
+    }
+
+    .form-control-color {
+      min-height: 48px !important;
+      padding: 6px !important;
+      width: 100% !important;
+      cursor: pointer;
+    }
+
+    .primary-btn,
+    .soft-btn,
+    .ghost-btn,
+    .danger-btn {
+      border: none;
+      border-radius: 16px;
+      min-height: 48px;
+      padding: 0 16px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: .18s ease;
+      text-decoration: none;
+    }
+    .primary-btn {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(36,87,197,.20);
+    }
+    .soft-btn {
+      background: #eef4ff;
+      color: var(--primary);
+      border: 1px solid rgba(36,87,197,.10);
+    }
+    .ghost-btn {
+      background: rgba(255,255,255,.8);
+      color: #334155;
+      border: 1px solid var(--line);
+    }
+    .danger-btn {
+      background: #fff1f2;
+      color: #be123c;
+      border: 1px solid rgba(190,18,60,.10);
+    }
+    .primary-btn:hover,
+    .soft-btn:hover,
+    .ghost-btn:hover,
+    .danger-btn:hover,
+    .btn:hover { transform: translateY(-1px); }
+
+    #statusList {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .status-row {
+      background: rgba(255,255,255,.95);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px 12px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+    }
+    .drag-handle { color: #94a3b8; cursor: grab; }
+    .orderBadge {
+      font-size: .78rem;
+      padding: 8px 11px;
+      border-radius: 999px !important;
+      background: #e2e8f0 !important;
+      color: #334155 !important;
+      font-weight: 700;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 180px 180px 180px auto auto auto auto auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .filter-tools {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .table-panel-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .table-status-note {
+      color: var(--muted);
+      font-size: .94rem;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,.75);
+      overflow: hidden;
+    }
+    .table-responsive {
+      max-height: calc(100vh - 350px);
+      overflow: auto;
+    }
+    .table {
+      margin-bottom: 0;
+      min-width: 1320px;
+      --bs-table-bg: transparent;
+    }
+    .table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: linear-gradient(180deg, #f8fbff, #eef4fb) !important;
+      color: #334155;
+      font-size: .92rem;
+      letter-spacing: .02em;
+      border-bottom: 1px solid #dbe4f0;
+      white-space: nowrap;
+      padding: 14px 12px;
+    }
+    .table td {
+      padding: 14px 12px;
+      border-color: #e8eef6 !important;
+      vertical-align: top;
+      background: rgba(255,255,255,.70);
+    }
+    .table tbody tr:hover td { background: #f8fbff; }
+    .table tbody tr:nth-child(even) td { background: rgba(247,250,254,.88); }
+
+    .comment-shell {
+      min-width: 320px;
+    }
+    .comment-card {
+      border: 1px solid #e5ebf3;
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: #fcfdff;
+    }
+
+    .quick-empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 18px;
+      padding: 26px 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255,255,255,.5);
+    }
+
+    .modal-content {
+      border: 1px solid rgba(255,255,255,.65);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .20);
+      background: rgba(248,251,255,.96);
+      backdrop-filter: blur(14px);
+    }
+    .modal-header {
+      padding: 20px 22px;
+      background: linear-gradient(135deg, #17306d, #2457c5);
+      color: #fff;
+      border-bottom: none;
+    }
+    .modal-title { font-weight: 800; }
+    .modal-body { padding: 22px; }
+    .modal-footer {
+      padding: 0 22px 22px;
+      border-top: none;
+      gap: 10px;
+    }
+
+    .hint-box {
+      border-radius: 18px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #f8fbff, #eff5ff);
+      border: 1px solid #dce7fb;
+      color: #3b4f74;
+      font-size: .92rem;
+      line-height: 1.7;
+    }
+
+    .status-badge-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: .86rem;
+      color: #334155;
+      background: #eff6ff;
+      border: 1px solid #dbeafe;
+      font-weight: 700;
+    }
+
     @media print {
       @page { size: A4 landscape; margin: 12mm; }
-      .no-print { display: none !important; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .print-header { text-align: center; margin-bottom: 12px; }
-      .print-header h1 { font-size: 20px; margin: 0; font-weight: 700; }
-      .print-header h2 { font-size: 16px; margin: 6px 0 12px; font-weight: 600; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #000; padding: 6px 8px; }
+      .no-print, .hero, .left-column { display: none !important; }
+      body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-shell, .workspace, .main-grid { display: block; padding: 0; }
+      .panel { box-shadow: none; border: none; background: #fff; }
+      .table-responsive { max-height: none; overflow: visible; }
+      .table-wrap { border: none; }
+      .table thead th, .table td { background: #fff !important; }
+    }
+
+    @media (max-width: 1500px) {
+      .filter-grid { grid-template-columns: repeat(4, minmax(160px, 1fr)); }
+      .filter-tools { grid-column: 1 / -1; justify-content: flex-start; }
+    }
+
+    @media (max-width: 1180px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .main-grid { grid-template-columns: 1fr; }
+      .left-column { order: 2; }
+      .right-column { order: 1; }
+      .table-responsive { max-height: none; }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 14px; }
+      .hero { padding: 20px; border-radius: 26px; }
+      .hero-top { flex-direction: column; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .panel-header, .panel-body { padding-left: 16px; padding-right: 16px; }
+      .status-create, .filter-grid { grid-template-columns: 1fr; }
+      .filter-tools { justify-content: stretch; }
+      .filter-tools > * { width: 100%; }
     }
   </style>
 </head>
-<body class="bg-light">
-<div class="container my-4">
-<!-- 狀態管理（上方） -->
-<div class="card shadow-sm mb-4">
-<div class="card-header bg-secondary text-white">
-<h5 class="mb-0">狀態管理</h5>
-</div>
-<div class="card-body">
-<div class="row g-3 align-items-end mb-3">
-<div class="col-md-4">
-<label class="form-label">新增狀態名稱</label>
-<input class="form-control" id="new-status" placeholder="例：待處理、維修中、已完成" type="text"/>
-</div>
-<div class="col-md-2">
-<label class="form-label">顏色</label>
-<input class="form-control form-control-color" id="new-status-color" title="選擇顏色" type="color" value="#007bff"/>
-</div>
-<div class="col-md-2 d-grid">
-<button class="btn btn-secondary" id="btn-add-status">
-<i class="fa-solid fa-plus me-1"></i> 新增狀態
-            </button>
-</div>
-</div>
-<ul class="list-group" id="statusList"></ul>
-</div>
-</div>
-<!-- 報修清單 -->
-<div class="card shadow-sm">
-<div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap">
-<h4 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>器材報修管理（辦公室端）</h4>
+<body>
+  <div class="page-shell">
+    <div class="workspace">
+      <section class="hero no-print">
+        <div class="hero-top">
+          <div class="hero-title">
+            <div class="hero-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+            <div>
+              <h1>器材報修管理工作台</h1>
+              <p>辦公室端滿版管理介面，集中處理狀態、報修進度、日期篩選與匯出作業。</p>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <span class="login-pill" id="loginUserInfo"><i class="fa-solid fa-user-shield"></i> 登入者：未登入</span>
+            <button class="hero-btn light" id="addRequestBtn" type="button"><i class="fa-solid fa-plus"></i> 新增報修單</button>
+            <a class="hero-btn ghost" href="office.html?view=dashboard"><i class="fa-solid fa-arrow-left"></i> 返回辦公室儀表板</a>
+          </div>
+        </div>
 
-<div class="d-flex align-items-center gap-2 flex-wrap justify-content-end"><span class="small text-white-50" id="loginUserInfo">登入者：未登入</span><a class="btn btn-sm btn-outline-light" href="office.html?view=dashboard">返回辦公室儀表板</a></div></div>
-<div class="card-body">
-<!-- 篩選列：狀態 + 日期區間 + 匯出/列印 -->
-<div class="row g-2 align-items-end no-print">
-<div class="col-auto d-flex align-items-center">
-<label class="form-label fw-bold me-2 mb-0">狀態篩選：</label>
-<select class="form-select" id="statusFilter" style="width:auto;display:inline-block;">
-<option value="all">全部</option>
-</select>
-</div>
-<div class="col-auto">
-<label class="form-label mb-1">開始日期</label>
-<input class="form-control" id="startDate" type="date"/>
-</div>
-<div class="col-auto">
-<label class="form-label mb-1">結束日期</label>
-<input class="form-control" id="endDate" type="date"/>
-</div>
-<div class="col-auto">
-<button class="btn btn-outline-primary" id="applyDateBtn"><i class="fa-solid fa-filter"></i> 套用區間</button>
-<button class="btn btn-outline-secondary" id="clearDateBtn"><i class="fa-solid fa-xmark"></i> 清除</button>
-</div>
-<div class="col-auto ms-auto">
-<button class="btn btn-outline-success" id="exportExcelBtn"><i class="fa-solid fa-file-excel"></i> 匯出Excel</button>
-<button class="btn btn-outline-primary" id="exportWordBtn"><i class="fa-solid fa-file-word"></i> 匯出Word</button>
-<button class="btn btn-outline-dark" id="printBtn"><i class="fa-solid fa-print"></i> 列印</button>
-</div>
-</div>
-<div class="d-flex justify-content-between align-items-center mb-3 mt-2">
-<h5 class="mb-0">報修清單</h5>
-<button class="btn btn-success btn-sm no-print" id="addRequestBtn"><i class="fa-solid fa-plus"></i> 新增報修單</button>
-</div>
-<div class="table-responsive">
-<table class="table table-bordered align-middle">
-<thead class="table-light">
-<tr><th>分類</th><th>位置</th><th>報修物品</th><th>詳細資訊</th><th>報修人</th><th>狀態</th><th>報修時間</th><th>備註</th><th class="no-print">操作</th></tr>
-</thead>
-<tbody id="maintenanceTableBody">
-<tr><td class="text-center text-muted" colspan="9">讀取中...</td></tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<!-- 新增報修單 Modal -->
-<div aria-hidden="true" aria-labelledby="addRequestModalLabel" class="modal fade" id="addRequestModal" tabindex="-1">
-<div class="modal-dialog modal-dialog-centered">
-<div class="modal-content">
-<div class="modal-header bg-primary text-white">
-<h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
-<button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button"></button>
-</div>
-<div class="modal-body"><div class="mb-3"><label class="form-label">分類</label><select class="form-select" id="categorySelect"></select></div><div class="mb-3"><label class="form-label">位置</label><select class="form-select" id="locationSelect"></select></div><div class="mb-3"><label class="form-label">報修物品</label><select class="form-select" id="itemSelect"></select></div><div class="mb-3"><label class="form-label">詳細資訊</label><textarea class="form-control" id="detail" placeholder="請輸入詳細資訊"></textarea></div><div class="mb-3"><label class="form-label">報修人</label><input class="form-control" id="reporter" readonly="readonly" type="text"/></div><div class="mb-3"><label class="form-label">狀態</label><select class="form-select" id="statusSelect"></select></div><div class="mb-3"><label class="form-label">備註</label><textarea class="form-control" id="note" placeholder="可選填"></textarea></div></div>
-<div class="modal-footer">
-<button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-<button class="btn btn-primary" id="saveRequestBtn">儲存</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-<script src="firebase-init.js"></script>
-<script src="office-maintenance.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">目前顯示筆數</div>
+            <div class="value" id="summaryFiltered">0</div>
+            <div class="sub">依目前篩選條件計算</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">全部報修單</div>
+            <div class="value" id="summaryTotal">0</div>
+            <div class="sub">系統內所有報修資料</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">待處理／進行中</div>
+            <div class="value" id="summaryActive">0</div>
+            <div class="sub">未完成與未歸檔案件</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">已完成／已紀錄</div>
+            <div class="value" id="summaryClosed">0</div>
+            <div class="sub">已完成的報修案件</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="main-grid">
+        <aside class="left-column">
+          <section class="panel no-print">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> 狀態管理</h2>
+                <div class="panel-subtitle">自訂報修流程狀態、顏色與排序。</div>
+              </div>
+              <span class="status-badge-mini"><i class="fa-solid fa-list-check"></i> <span id="statusCountLabel">0 個狀態</span></span>
+            </div>
+            <div class="panel-body">
+              <div class="field-block">
+                <label class="field-label" for="new-status">新增狀態名稱</label>
+                <div class="status-create">
+                  <input class="form-control" id="new-status" placeholder="例：待處理、維修中、已完成" type="text" />
+                  <input class="form-control form-control-color" id="new-status-color" title="選擇顏色" type="color" value="#2457c5" />
+                </div>
+                <button class="primary-btn w-100" id="btn-add-status" type="button"><i class="fa-solid fa-plus"></i> 新增狀態</button>
+              </div>
+
+              <div class="hint-box mt-3">
+                你可以在這裡直接調整狀態顏色與排序，右側報修清單會跟著同步使用這些狀態設定。
+              </div>
+
+              <div id="statusList" class="mt-3"></div>
+            </div>
+          </section>
+        </aside>
+
+        <main class="right-column">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title"><i class="fa-solid fa-clipboard-list"></i> 報修清單</h2>
+                <div class="panel-subtitle">集中查看報修案件、更新狀態、補註解與匯出列印。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="filter-grid no-print">
+                <div class="field-block">
+                  <label class="field-label" for="statusFilter">狀態篩選</label>
+                  <select class="form-select" id="statusFilter">
+                    <option value="all">全部</option>
+                  </select>
+                </div>
+                <div class="field-block">
+                  <label class="field-label" for="startDate">開始日期</label>
+                  <input class="form-control" id="startDate" type="date" />
+                </div>
+                <div class="field-block">
+                  <label class="field-label" for="endDate">結束日期</label>
+                  <input class="form-control" id="endDate" type="date" />
+                </div>
+                <div class="field-block">
+                  <label class="field-label">套用篩選</label>
+                  <button class="soft-btn w-100" id="applyDateBtn" type="button"><i class="fa-solid fa-filter"></i> 套用區間</button>
+                </div>
+                <div class="field-block">
+                  <label class="field-label">清除條件</label>
+                  <button class="ghost-btn w-100" id="clearDateBtn" type="button"><i class="fa-solid fa-rotate-left"></i> 清除</button>
+                </div>
+                <div class="filter-tools">
+                  <button class="soft-btn" id="exportExcelBtn" type="button"><i class="fa-solid fa-file-excel"></i> 匯出 Excel</button>
+                  <button class="soft-btn" id="exportWordBtn" type="button"><i class="fa-solid fa-file-word"></i> 匯出 Word</button>
+                  <button class="ghost-btn" id="printBtn" type="button"><i class="fa-solid fa-print"></i> 列印</button>
+                </div>
+              </div>
+
+              <div class="table-panel-top mt-4 mt-md-3">
+                <div class="table-status-note">可直接於表格內調整狀態與新增註解。</div>
+                <div class="table-status-note" id="tableResultInfo">目前共有 0 筆資料</div>
+              </div>
+
+              <div class="table-wrap">
+                <div class="table-responsive">
+                  <table class="table align-middle">
+                    <thead>
+                      <tr>
+                        <th>分類</th>
+                        <th>位置</th>
+                        <th>報修物品</th>
+                        <th>詳細資訊</th>
+                        <th>報修人</th>
+                        <th>狀態</th>
+                        <th>報修時間</th>
+                        <th>備註 / 註解</th>
+                        <th class="no-print">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="maintenanceTableBody">
+                      <tr><td class="text-center text-muted" colspan="9">讀取中...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div aria-hidden="true" aria-labelledby="addRequestModalLabel" class="modal fade" id="addRequestModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addRequestModalLabel"><i class="fa-solid fa-plus me-2"></i>新增報修單</h5>
+          <button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="field-label">分類</label>
+              <select class="form-select" id="categorySelect"></select>
+            </div>
+            <div class="col-md-4">
+              <label class="field-label">位置</label>
+              <select class="form-select" id="locationSelect"></select>
+            </div>
+            <div class="col-md-4">
+              <label class="field-label">報修物品</label>
+              <select class="form-select" id="itemSelect"></select>
+            </div>
+            <div class="col-12">
+              <label class="field-label">詳細資訊</label>
+              <textarea class="form-control" id="detail" placeholder="請輸入設備損壞情形、異常狀況、需要處理的內容"></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="field-label">報修人</label>
+              <input class="form-control" id="reporter" readonly="readonly" type="text" />
+            </div>
+            <div class="col-md-6">
+              <label class="field-label">狀態</label>
+              <select class="form-select" id="statusSelect"></select>
+            </div>
+            <div class="col-12">
+              <label class="field-label">備註</label>
+              <textarea class="form-control" id="note" placeholder="可填寫交接事項、補充說明或其他提醒"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost-btn" data-bs-dismiss="modal" type="button">取消</button>
+          <button class="primary-btn" id="saveRequestBtn" type="button"><i class="fa-solid fa-floppy-disk"></i> 儲存報修單</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="office-maintenance-redesign.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
