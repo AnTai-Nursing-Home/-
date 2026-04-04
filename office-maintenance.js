@@ -656,13 +656,42 @@
       ].join("");
     }
 
+    function updateSummaryCards(filteredRows) {
+      const total = allRequests.length;
+      const filtered = filteredRows.length;
+      const isClosedStatus = (s) => {
+        const v = String(s || "").trim();
+        return v === "已完成" || v === "紀錄";
+      };
+      const closed = allRequests.filter((r) => isClosedStatus(r.status)).length;
+      const active = total - closed;
+
+      const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+      };
+      setText("summaryTotal", total);
+      setText("summaryFiltered", filtered);
+      setText("summaryActive", active);
+      setText("summaryClosed", closed);
+      const info = document.getElementById("tableResultInfo");
+      if (info) {
+        info.textContent = `目前顯示 ${filtered} 筆資料，共 ${total} 筆報修單`;
+      }
+      const statusCountLabel = document.getElementById("statusCountLabel");
+      if (statusCountLabel) {
+        statusCountLabel.textContent = `${statuses.length} 個狀態`;
+      }
+    }
+
     function renderRequests() {
       if (!$tbody) return;
       const rows = getFiltered();
+      updateSummaryCards(rows);
       $tbody.innerHTML = "";
       if (!rows.length) {
         $tbody.innerHTML =
-          '<tr><td colspan="9" class="text-center text-muted">目前沒有報修單</td></tr>';
+          '<tr><td colspan="9"><div class="quick-empty">目前沒有符合條件的報修單</div></td></tr>';
         return;
       }
 
@@ -674,7 +703,7 @@
         tr.innerHTML = [
           "<td>" + esc(r.category || "") + "</td>",
           "<td>" + esc(r.location || "") + "</td>",
-          "<td>" + esc(r.item || "") + "</td>",
+          "<td><strong>" + esc(r.item || "") + "</strong></td>",
           "<td>" + esc(r.detail || "") + "</td>",
           "<td>" + esc(r.reporter || "") + "</td>",
           "<td>",
@@ -695,23 +724,18 @@
           "  </select>",
           "</td>",
           "<td>" + fmtTS(r.createdAt) + "</td>",
-          '<td style="min-width:320px;">',
-          '  <div class="mb-2"><strong>備註：</strong> ' + esc(r.note || "") + "</div>",
-          '  <div class="mb-2"><strong>註解：</strong><div class="mt-1">' +
-            commentsHTML +
-            "</div></div>",
-          '  <textarea class="form-control form-control-sm comment-input mb-1" placeholder="新增註解..."></textarea>',
+          '<td class="comment-shell">',
+          '  <div class="comment-card mb-2"><strong>備註：</strong> ' + esc(r.note || "") + "</div>",
+          '  <div class="mb-2"><strong>註解：</strong><div class="mt-2">' + commentsHTML + "</div></div>",
+          '  <textarea class="form-control form-control-sm comment-input mb-2" placeholder="新增註解..."></textarea>',
           '  <button class="btn btn-sm btn-primary btn-add-comment">新增註解</button>',
           "</td>",
           '<td class="text-end no-print">',
-          '  <button class="btn btn-sm btn-outline-danger" title="刪除報修單" data-delreq="' +
-            r.id +
-            '"><i class="fa-solid fa-trash"></i></button>',
+          '  <button class="btn btn-sm btn-outline-danger" title="刪除報修單" data-delreq="' + r.id + '"><i class="fa-solid fa-trash"></i></button>',
           "</td>",
         ].join("");
         $tbody.appendChild(tr);
 
-        // Apply colored select style (Option C)
         const sel = tr.querySelector(".statusSelectCell");
         if (sel) setSelectColor(sel, r.status);
       });
