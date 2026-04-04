@@ -1,382 +1,496 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外宿申請管理 - 辦公室端</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <style>
-        @media print {
-            body {
-                font-family: "DFKai-SB","BiauKai","標楷體",serif;
-            }
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-            .no-print {
-                display: none !important;
-            }
-        }
-    
-
-    /* 外宿申請-簽名欄寬度調整 */
-    #officeStayTable th:nth-child(8),
-    #officeStayTable td:nth-child(8){
-        min-width: 90px;
-        white-space: nowrap;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>外宿申請管理 - 辦公室端</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root{
+      --bg:#f3f6fb;
+      --card:#ffffff;
+      --ink:#142033;
+      --muted:#66758a;
+      --line:#dfe7f2;
+      --primary:#1f4b99;
+      --primary-soft:#e8f0ff;
+      --success-soft:#eaf8ef;
+      --warning-soft:#fff4dd;
+      --danger-soft:#fdeceb;
+      --shadow:0 18px 45px rgba(16,30,54,.08);
+      --radius:24px;
     }
-
-    
-    /* ===== 即時通知（Toast / Browser Notification） ===== */
-    .toast-container{ position: fixed; bottom: 16px; right: 16px; z-index: 2000; }
-    @media (max-width: 576px){ .toast-container{ bottom: 10px; right: 10px; } }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:"Segoe UI","Noto Sans TC",system-ui,-apple-system,sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(31,75,153,.08), transparent 32%),
+        linear-gradient(180deg,#f7f9fd 0%, #eef3f9 100%);
+      color:var(--ink);
+    }
+    .page-shell{padding:24px;}
+    .workspace{max-width:none; width:100%;}
+    .hero{
+      background:linear-gradient(135deg, #16253f 0%, #1b3766 55%, #23529c 100%);
+      color:#fff; border-radius:30px; box-shadow:var(--shadow); overflow:hidden; position:relative;
+    }
+    .hero:before{
+      content:""; position:absolute; inset:auto -5% -40% auto; width:340px; height:340px;
+      background:radial-gradient(circle, rgba(255,255,255,.18), rgba(255,255,255,0));
+      border-radius:50%; pointer-events:none;
+    }
+    .hero-body{padding:28px 30px 22px; position:relative; z-index:1;}
+    .eyebrow{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.12); font-size:.88rem;}
+    .hero h1{font-size:2rem; margin:14px 0 8px; font-weight:800; letter-spacing:.02em;}
+    .hero p{margin:0; color:rgba(255,255,255,.82); max-width:900px;}
+    .hero-actions .btn{border-radius:14px; padding:.7rem 1rem; font-weight:600;}
+    .hero-actions .btn-outline-light{border-color:rgba(255,255,255,.35);}
+    .panel{background:var(--card); border:1px solid rgba(255,255,255,.45); border-radius:var(--radius); box-shadow:var(--shadow);}
+    .panel-header{padding:18px 22px 0;}
+    .panel-body{padding:20px 22px 22px;}
+    .summary-grid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-top:18px;}
+    .summary-card{background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.18); border-radius:20px; padding:18px 18px 16px; backdrop-filter:blur(8px);}
+    .summary-card .label{font-size:.9rem; color:rgba(255,255,255,.78); margin-bottom:10px;}
+    .summary-card .value{font-size:1.85rem; font-weight:800; line-height:1;}
+    .summary-card .sub{margin-top:8px; font-size:.84rem; color:rgba(255,255,255,.75);}
+    .notify-bar{display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding:16px 22px; border-top:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04);}
+    .soft-pill{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background:#fff; color:var(--ink); border:1px solid var(--line);}
+    .nav-wrap{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+    .nav-tabs{
+      border:none; background:#eef3f8; padding:8px; border-radius:18px; gap:8px; display:inline-flex; flex-wrap:wrap;
+    }
+    .nav-tabs .nav-link{
+      border:none; border-radius:14px; color:#41536c; font-weight:700; padding:.75rem 1rem; background:transparent;
+    }
+    .nav-tabs .nav-link.active{background:#fff; color:var(--primary); box-shadow:0 6px 16px rgba(19,40,76,.08);}
+    .section-toolbar{display:flex; gap:12px; align-items:end; justify-content:space-between; flex-wrap:wrap;}
+    .filters{display:grid; grid-template-columns:repeat(3,minmax(180px, 240px)); gap:14px; align-items:end;}
+    .card-lite{background:#f8fbff; border:1px solid var(--line); border-radius:20px;}
+    .card-lite .card-head{padding:16px 18px 0;}
+    .card-lite .card-bodyx{padding:18px;}
+    .metric-row{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;}
+    .metric-box{background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px 18px; min-height:102px;}
+    .metric-box .k{font-size:.86rem; color:var(--muted);}
+    .metric-box .v{font-size:1.65rem; font-weight:800; margin-top:8px;}
+    .metric-box .i{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;margin-bottom:10px;}
+    .i-primary{background:var(--primary-soft); color:var(--primary);}
+    .i-success{background:var(--success-soft); color:#198754;}
+    .i-warning{background:var(--warning-soft); color:#a06a00;}
+    .i-danger{background:var(--danger-soft); color:#b54034;}
+    .table-wrap{background:#fff; border:1px solid var(--line); border-radius:22px; overflow:hidden;}
+    .table-topbar{display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; padding:16px 18px; border-bottom:1px solid var(--line); background:#fbfdff;}
+    .table-responsive{max-height:none; overflow:auto;}
+    table{margin-bottom:0 !important;}
+    .table thead th{position:sticky; top:0; z-index:2; background:#eef4fb !important; color:#32455f; border-bottom:1px solid #d9e3f0; white-space:nowrap;}
+    .table > :not(caption) > * > *{padding:.9rem .8rem; border-color:#e6edf6; vertical-align:middle;}
+    .table tbody tr:hover{background:#f8fbff;}
+    .badge-soft{display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:8px 12px; background:#eef4ff; color:var(--primary); font-weight:700;}
     .small-muted{ color:#6b7280; font-size:.9rem; }
-
-    
-
-    /* 未簽名案件標示 */
-    .tr-no-signature > td,
-    .tr-no-signature > th{
-        background-color:#fff3cd !important;
+    .toast-container{ position: fixed; bottom: 16px; right: 16px; z-index: 2000; }
+    .tr-no-signature > td,.tr-no-signature > th{ background-color:#fff8e6 !important; }
+    .tr-no-signature > *{ --bs-table-bg:#fff8e6 !important; --bs-table-accent-bg:#fff8e6 !important; }
+    #officeStayTable th:nth-child(8), #officeStayTable td:nth-child(8){ min-width:96px; white-space:nowrap; }
+    .modal-content{border:none; border-radius:24px; overflow:hidden; box-shadow:0 24px 60px rgba(18,31,54,.18);}
+    .modal-header{background:linear-gradient(135deg,#1c3665,#2958a4); color:#fff; border-bottom:none; padding:18px 22px;}
+    .modal-header .btn-close{filter:invert(1) brightness(200%);}
+    .modal-footer{border-top:1px solid var(--line); padding:16px 20px;}
+    .form-control,.form-select{border-radius:14px; border-color:#d9e3f0; min-height:46px;}
+    textarea.form-control{min-height:110px;}
+    .btn{border-radius:14px; font-weight:700;}
+    .btn-primary{background:#2452a0; border-color:#2452a0;}
+    .btn-outline-secondary,.btn-outline-light,.btn-light{font-weight:700;}
+    .table-sm > :not(caption) > * > *{padding:.7rem .75rem;}
+    .tab-pane .panel + .panel{margin-top:18px;}
+    .legend-inline{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .legend-inline .badge{padding:.55em .8em; border-radius:999px;}
+    .app-count{font-weight:800; color:var(--primary);}
+    @media (max-width: 1200px){ .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .metric-row{grid-template-columns:1fr;} }
+    @media (max-width: 992px){ .filters{grid-template-columns:1fr 1fr;} }
+    @media (max-width: 768px){
+      .page-shell{padding:14px;}
+      .hero-body{padding:22px 18px 18px;}
+      .hero h1{font-size:1.6rem;}
+      .summary-grid{grid-template-columns:1fr;}
+      .filters{grid-template-columns:1fr;}
+      .panel-header,.panel-body,.notify-bar{padding-left:16px;padding-right:16px;}
     }
-    /* Bootstrap table uses CSS variables for cell backgrounds; set them too */
-    .tr-no-signature > *{
-        --bs-table-bg: #fff3cd !important;
-        --bs-table-accent-bg: #fff3cd !important;
+    @media print {
+      body { font-family: "DFKai-SB","BiauKai","標楷體",serif; background:#fff !important; }
+      @page { size: A4 landscape; margin: 10mm; }
+      .no-print, .hero, .nav-wrap, #notifyWorkspace, #summaryWorkspace { display:none !important; }
+      .page-shell, .workspace, .panel{padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; background:#fff !important;}
+      .table-wrap{border:none !important;}
+      .table thead th{position:static !important;}
     }
-
-    </style>
+  </style>
 </head>
 <body>
-    <!-- Toast 通知容器（右上角） -->
-    <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer"></div>
 
-    <div class="container my-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-11">
-                <div class="card shadow">
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0">外宿申請管理</h3>
-                        <a href="office.html?view=dashboard" class="btn btn-sm btn-outline-light">返回儀表板</a>
-                        </a>
-                    </div>
-
-                    <!-- 即時通知設定（參考照會系統） -->
-                    <div class="px-3 py-2 border-bottom no-print" style="background: rgba(0,0,0,.04);">
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="notifyToggle">
-                                <label class="form-check-label" for="notifyToggle">接收新外宿申請通知</label>
-                            </div>
-                            <button class="btn btn-sm btn-outline-secondary" id="btnAskNotification" type="button">
-                                <i class="fa-regular fa-bell me-1"></i>啟用瀏覽器通知
-                            </button>
-                            <span class="small-muted" id="notifyHint"></span>
-
-                            <div class="ms-auto small-muted">
-                                提示：通知僅在此頁面開著時即時跳出（Toast / Browser Notification）。
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card-body">
-
-                        <!-- 分頁導覽 -->
-                        <ul class="nav nav-tabs mb-3 no-print" id="officeStayTabs">
-                            <li class="nav-item"><button class="nav-link active" data-tab="tabApps" type="button">外宿申請</button></li>
-                            <li class="nav-item"><button class="nav-link" data-tab="tabRoster" type="button">照服員名冊</button></li>
-                            <li class="nav-item"><button class="nav-link" data-tab="tabStatus" type="button">狀態設定</button></li>
-                            <li class="nav-item"><button class="nav-link" data-tab="tabConflict" type="button">互斥規則</button></li>
-                        </ul>
-
-                        <div class="tab-content" id="officeStayTabContent">
-
-
-                        
-                        <div class="tab-pane fade" id="tabStatus">
-<!-- 狀態設定 -->
-                        <div class="card mb-4 no-print">
-                            <div class="card-header bg-secondary text-white">
-                                案件狀態與顏色設定
-                            </div>
-                            <div class="card-body">
-                                <form id="statusForm" class="row g-3 align-items-end mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label">狀態名稱</label>
-                                        <input type="text" id="statusName" class="form-control" placeholder="例如：待審核" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">顯示顏色</label>
-                                        <input type="color" id="statusColor" class="form-control form-control-color" value="#6c757d">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">排序（數字愈小愈前面）</label>
-                                        <input type="number" id="statusOrder" class="form-control" value="10">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="submit" class="btn btn-primary w-100">
-                                            <i class="fas fa-plus me-1"></i>新增狀態
-                                        </button>
-                                    </div>
-                                </form>
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-sm align-middle" id="statusTable">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>名稱</th>
-                                                <th>顏色</th>
-                                                <th>排序</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        
-                        </div>
-
-                        <div class="tab-pane fade" id="tabConflict">
-<!-- 同日不得外宿設定 -->
-                        <div class="card mb-4 no-print">
-                            <div class="card-header bg-secondary text-white">
-                                同日不得同時外宿員工設定
-                            </div>
-                            <div class="card-body">
-                                <form id="conflictForm" class="row g-3 align-items-end mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label">規則名稱</label>
-                                        <input type="text" id="conflictRuleName" class="form-control" placeholder="例如：A棟1樓夜班互斥" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">包含員工（按著ctrl可多選）</label>
-                                        <select id="conflictEmployees" class="form-select" multiple size="4"></select>
-                                        <div class="form-text">同一規則內的員工同一天僅能一人外宿</div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="submit" class="btn btn-primary w-100">
-                                            <i class="fas fa-plus me-1"></i>新增規則
-                                        </button>
-                                    </div>
-                                </form>
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-sm align-middle" id="conflictTable">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>規則名稱</th>
-                                                <th>員工名單</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        
-                        </div>
-
-                        <div class="tab-pane fade show active" id="tabApps">
-<!-- 外宿案件管理 -->
-                        <div class="card">
-                            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                                <span>外宿申請列表</span>
-                                <div class="no-print">
-                                    <button id="btnNewApp" class="btn btn-sm btn-success me-2">
-                                        <i class="fas fa-file-circle-plus me-1"></i>新增申請單
-                                    </button>
-                                    <button id="btnExportExcel" class="btn btn-sm btn-light me-2">
-                                        <i class="fas fa-file-excel me-1"></i>匯出 Excel
-                                    </button>
-                                    <button id="btnPrint" class="btn btn-sm btn-outline-light">
-                                        <i class="fas fa-print me-1"></i>列印
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <!-- 區間篩選 -->
-                                <div class="row g-3 mb-3 no-print">
-                                    <div class="col-md-3">
-                                        <label class="form-label">起日</label>
-                                        <input type="date" id="filterStart" class="form-control">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">迄日</label>
-                                        <input type="date" id="filterEnd" class="form-control">
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end">
-                                        <button id="btnFilter" class="btn btn-primary w-100">
-                                            <i class="fas fa-magnifying-glass me-1"></i>查詢
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div id="reportTitle" class="text-center mb-3 fw-bold"></div>
-
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-sm align-middle" id="officeStayTable">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>申請人</th>
-                                                <th>送件時間</th>
-                                                <th>起訖時間</th>
-                                                <th>返回日班別</th>
-                                                <th>地點</th>
-                                                <th>原因</th>
-                                                <th>狀態</th>
-                                                <th>簽名</th>
-                                                <th>註解</th>
-                                                <th class="no-print">操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    
-                        </div>
-
-                        <!-- 照服員名冊 -->
-                        <div class="tab-pane fade" id="tabRoster">
-                            <div class="card mb-4">
-                                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                                    <span>照服員名冊（外籍・未離職）</span>
-                                    <div class="no-print">
-                                        <button id="btnRefreshRoster" class="btn btn-sm btn-light">
-                                            <i class="fas fa-rotate me-1"></i>重新整理
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped align-middle" id="rosterTable">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 60px;">#</th>
-                                                    <th>姓名</th>
-                                                    <th style="width: 160px;">狀態</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr><td colspan="3" class="text-center text-muted">載入中...</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="text-muted small">
-                                        狀態說明：<span class="badge bg-success">於宿舍</span>、<span class="badge bg-warning text-dark">外宿中</span>（以「核准」且日期涵蓋今日的申請單判定）
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        </div>
-<!-- 新增 / 編輯申請 Modal -->
-    <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">外宿申請單</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <form id="appForm">
-              <input type="hidden" id="appId">
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label">申請人</label>
-                  <select id="applicantSelectOffice" class="form-select" required></select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">起始日期時間</label>
-                  <input type="datetime-local" id="startDateTimeOffice" class="form-control" required>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">結束日期時間</label>
-                  <input type="datetime-local" id="endDateTimeOffice" class="form-control" required>
-                </div>
-              </div>
-              <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                  <label class="form-label">返回日班別</label>
-                  <select id="startShiftOffice" class="form-select" required>
-                    <option value="D">D</option>
-                    <option value="N">N</option>
-                    <option value="H">H</option>
-                    <option value="8-17">8-17</option>
-                    <option value="14-17">14-17</option>
-                    <option value="OF">OF</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">地點</label>
-                  <input type="text" id="locationOffice" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">原因</label>
-                  <input type="text" id="reasonOffice" class="form-control" required>
-                </div>
-              </div>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label">案件狀態</label>
-                  <select id="statusSelectOffice" class="form-select"></select>
-                </div>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-            <button type="button" class="btn btn-primary" id="btnSaveApp">儲存</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 註解 Modal（辦公室端可編輯全部） -->
-    <div class="modal fade" id="commentModalOffice" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">案件註解</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <ul class="list-group mb-3" id="commentListOffice"></ul>
+  <div class="page-shell">
+    <div class="workspace">
+      <section class="hero mb-4">
+        <div class="hero-body">
+          <div class="nav-wrap mb-3">
             <div>
-              <label class="form-label">新增 / 編輯註解</label>
-              <textarea id="commentInputOffice" class="form-control" rows="3"></textarea>
-              <input type="hidden" id="editingCommentIdOffice">
+              <span class="eyebrow"><i class="fa-solid fa-bed"></i> 辦公室外宿申請管理</span>
+              <h1>外宿申請工作台</h1>
+              <p>重新整理為更寬、更清楚的辦公室端管理介面，保留原有功能流程，讓案件查詢、簽名、狀態管理與互斥規則都更容易操作。</p>
+            </div>
+            <div class="hero-actions d-flex gap-2 flex-wrap no-print">
+              <button id="heroNewApp" class="btn btn-light"><i class="fas fa-file-circle-plus me-1"></i>新增申請單</button>
+              <a href="office.html?view=dashboard" class="btn btn-outline-light"><i class="fa-solid fa-arrow-left me-1"></i>返回儀表板</a>
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-            <button type="button" class="btn btn-primary" id="btnSaveCommentOffice">儲存註解</button>
+
+          <div class="summary-grid no-print" id="summaryWorkspace">
+            <div class="summary-card">
+              <div class="label">目前顯示案件</div>
+              <div class="value" id="summaryVisibleCount">0</div>
+              <div class="sub">依目前篩選條件顯示的筆數</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">待審核 / 處理中</div>
+              <div class="value" id="summaryPendingCount">0</div>
+              <div class="sub">含待審核、處理中、未完成等狀態</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">已核准 / 完成</div>
+              <div class="value" id="summaryApprovedCount">0</div>
+              <div class="sub">已核准、完成、結案類型案件</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">未簽名案件</div>
+              <div class="value" id="summaryUnsignedCount">0</div>
+              <div class="sub">方便快速追蹤尚未補簽名案件</div>
+            </div>
           </div>
+        </div>
+
+        <div class="notify-bar no-print" id="notifyWorkspace">
+          <div class="form-check form-switch mb-0 soft-pill">
+            <input class="form-check-input" type="checkbox" id="notifyToggle">
+            <label class="form-check-label" for="notifyToggle">接收新外宿申請通知</label>
+          </div>
+          <button class="btn btn-sm btn-light" id="btnAskNotification" type="button">
+            <i class="fa-regular fa-bell me-1"></i>啟用瀏覽器通知
+          </button>
+          <span class="small-muted" id="notifyHint"></span>
+          <span class="small-muted ms-auto">提示：通知僅在此頁面開啟時即時跳出。</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header no-print">
+          <div class="nav-wrap">
+            <ul class="nav nav-tabs" id="officeStayTabs">
+              <li class="nav-item"><button class="nav-link active" data-tab="tabApps" type="button">外宿申請</button></li>
+              <li class="nav-item"><button class="nav-link" data-tab="tabRoster" type="button">照服員名冊</button></li>
+              <li class="nav-item"><button class="nav-link" data-tab="tabStatus" type="button">狀態設定</button></li>
+              <li class="nav-item"><button class="nav-link" data-tab="tabConflict" type="button">互斥規則</button></li>
+            </ul>
+            <div class="badge-soft">目前頁面：<span id="currentTabLabel">外宿申請</span></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="tab-content" id="officeStayTabContent">
+            <div class="tab-pane fade show active" id="tabApps">
+              <div class="metric-row no-print mb-3">
+                <div class="metric-box">
+                  <div class="i i-primary"><i class="fa-regular fa-folder-open"></i></div>
+                  <div class="k">篩選後案件</div>
+                  <div class="v" id="metricVisibleApps">0</div>
+                </div>
+                <div class="metric-box">
+                  <div class="i i-success"><i class="fa-regular fa-circle-check"></i></div>
+                  <div class="k">核准 / 完成</div>
+                  <div class="v" id="metricApprovedApps">0</div>
+                </div>
+                <div class="metric-box">
+                  <div class="i i-warning"><i class="fa-regular fa-pen-to-square"></i></div>
+                  <div class="k">尚未簽名</div>
+                  <div class="v" id="metricUnsignedApps">0</div>
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <div class="table-topbar no-print">
+                  <div>
+                    <div class="fw-bold fs-5">外宿申請列表</div>
+                    <div class="small-muted">目前顯示 <span class="app-count" id="tableCountText">0</span> 筆資料</div>
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button id="btnNewApp" class="btn btn-success"><i class="fas fa-file-circle-plus me-1"></i>新增申請單</button>
+                    <button id="btnExportExcel" class="btn btn-light"><i class="fas fa-file-excel me-1"></i>匯出 Excel</button>
+                    <button id="btnPrint" class="btn btn-outline-secondary"><i class="fas fa-print me-1"></i>列印</button>
+                  </div>
+                </div>
+                <div class="card-lite m-3 no-print">
+                  <div class="card-head"><div class="fw-bold">區間篩選</div></div>
+                  <div class="card-bodyx">
+                    <div class="section-toolbar">
+                      <div class="filters">
+                        <div>
+                          <label class="form-label">起日</label>
+                          <input type="date" id="filterStart" class="form-control">
+                        </div>
+                        <div>
+                          <label class="form-label">迄日</label>
+                          <input type="date" id="filterEnd" class="form-control">
+                        </div>
+                        <div>
+                          <button id="btnFilter" class="btn btn-primary w-100"><i class="fas fa-magnifying-glass me-1"></i>查詢</button>
+                        </div>
+                      </div>
+                      <div class="badge-soft">正式報表標題會依區間自動更新</div>
+                    </div>
+                  </div>
+                </div>
+                <div id="reportTitle" class="text-center py-2 fw-bold"></div>
+                <div class="table-responsive">
+                  <table class="table align-middle" id="officeStayTable">
+                    <thead>
+                      <tr>
+                        <th>申請人</th>
+                        <th>送件時間</th>
+                        <th>起訖時間</th>
+                        <th>返回日班別</th>
+                        <th>地點</th>
+                        <th>原因</th>
+                        <th>狀態</th>
+                        <th>簽名</th>
+                        <th>註解</th>
+                        <th class="no-print">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tabRoster">
+              <div class="table-wrap">
+                <div class="table-topbar">
+                  <div>
+                    <div class="fw-bold fs-5">照服員名冊</div>
+                    <div class="small-muted">外籍、未離職人員目前住宿狀態</div>
+                  </div>
+                  <div class="no-print">
+                    <button id="btnRefreshRoster" class="btn btn-light"><i class="fas fa-rotate me-1"></i>重新整理</button>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="legend-inline mb-3">
+                    <span class="badge bg-success">於宿舍</span>
+                    <span class="badge bg-warning text-dark">外宿中</span>
+                    <span class="small-muted">以「核准」且日期涵蓋今日的申請單判定</span>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="rosterTable">
+                      <thead>
+                        <tr>
+                          <th style="width: 72px;">#</th>
+                          <th>姓名</th>
+                          <th style="width: 180px;">狀態</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colspan="3" class="text-center text-muted">載入中...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tabStatus">
+              <div class="table-wrap no-print">
+                <div class="table-topbar">
+                  <div>
+                    <div class="fw-bold fs-5">案件狀態與顏色設定</div>
+                    <div class="small-muted">可調整案件顯示名稱、顏色與排序</div>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="card-lite mb-3">
+                    <div class="card-bodyx">
+                      <form id="statusForm" class="row g-3 align-items-end">
+                        <div class="col-lg-4 col-md-6">
+                          <label class="form-label">狀態名稱</label>
+                          <input type="text" id="statusName" class="form-control" placeholder="例如：待審核" required>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                          <label class="form-label">顯示顏色</label>
+                          <input type="color" id="statusColor" class="form-control form-control-color" value="#6c757d">
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                          <label class="form-label">排序（數字愈小愈前面）</label>
+                          <input type="number" id="statusOrder" class="form-control" value="10">
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>新增狀態</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="statusTable">
+                      <thead>
+                        <tr>
+                          <th>名稱</th>
+                          <th>顏色</th>
+                          <th>排序</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tabConflict">
+              <div class="table-wrap no-print">
+                <div class="table-topbar">
+                  <div>
+                    <div class="fw-bold fs-5">互斥規則設定</div>
+                    <div class="small-muted">同一天不得同時外宿的員工組合</div>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="card-lite mb-3">
+                    <div class="card-bodyx">
+                      <form id="conflictForm" class="row g-3 align-items-end">
+                        <div class="col-lg-4 col-md-12">
+                          <label class="form-label">規則名稱</label>
+                          <input type="text" id="conflictRuleName" class="form-control" placeholder="例如：A棟1樓夜班互斥" required>
+                        </div>
+                        <div class="col-lg-6 col-md-12">
+                          <label class="form-label">包含員工（按著 ctrl 可多選）</label>
+                          <select id="conflictEmployees" class="form-select" multiple size="4"></select>
+                          <div class="form-text">同一規則內的員工同一天僅能一人外宿</div>
+                        </div>
+                        <div class="col-lg-2 col-md-12">
+                          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>新增規則</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="conflictTable">
+                      <thead>
+                        <tr>
+                          <th>規則名稱</th>
+                          <th>員工名單</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">外宿申請單</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="appForm">
+            <input type="hidden" id="appId">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">申請人</label>
+                <select id="applicantSelectOffice" class="form-select" required></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">起始日期時間</label>
+                <input type="datetime-local" id="startDateTimeOffice" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">結束日期時間</label>
+                <input type="datetime-local" id="endDateTimeOffice" class="form-control" required>
+              </div>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <label class="form-label">返回日班別</label>
+                <select id="startShiftOffice" class="form-select" required>
+                  <option value="D">D</option>
+                  <option value="N">N</option>
+                  <option value="H">H</option>
+                  <option value="8-17">8-17</option>
+                  <option value="14-17">14-17</option>
+                  <option value="OF">OF</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">地點</label>
+                <input type="text" id="locationOffice" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">原因</label>
+                <input type="text" id="reasonOffice" class="form-control" required>
+              </div>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">案件狀態</label>
+                <select id="statusSelectOffice" class="form-select"></select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+          <button type="button" class="btn btn-primary" id="btnSaveApp">儲存</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-    <script src="firebase-init.js"></script>
-    <script src="office-stay.js"></script>
+  <div class="modal fade" id="commentModalOffice" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">案件註解</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group mb-3" id="commentListOffice"></ul>
+          <div>
+            <label class="form-label">新增 / 編輯註解</label>
+            <textarea id="commentInputOffice" class="form-control" rows="3"></textarea>
+            <input type="hidden" id="editingCommentIdOffice">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+          <button type="button" class="btn btn-primary" id="btnSaveCommentOffice">儲存註解</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="office-stay.js"></script>
 </body>
 </html>
