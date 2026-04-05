@@ -17,8 +17,15 @@ document.addEventListener("firebase-ready", () => {
   const addRowBtn = document.getElementById("add-row-btn");
   const saveBtn = document.getElementById("save-btn");
   const exportBtn = document.getElementById("export-btn");
+  const saveStatusEl = document.getElementById("save-status");
 
   const RESIDENTS_BY_BED = {};
+
+  function setSaveStatus(message = "", variant = "muted") {
+    if (!saveStatusEl) return;
+    saveStatusEl.textContent = message || "";
+    saveStatusEl.className = `save-status ${variant}`;
+  }
 
   // =========================
   // Login User (from sessionStorage or Firestore userAccounts)
@@ -66,7 +73,8 @@ document.addEventListener("firebase-ready", () => {
 
 
   function showLoadingRow() {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary py-4">讀取中...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary py-5">讀取中...</td></tr>`;
+    setSaveStatus("資料讀取中…", "muted");
   }
   function clearLoadingRow() {
     const tr = tbody.querySelector("tr");
@@ -85,6 +93,7 @@ document.addEventListener("firebase-ready", () => {
       };
     });
     clearLoadingRow();
+    setSaveStatus("住民資料已載入", "muted");
   }
 
   function buildBedOptions(selected) {
@@ -153,14 +162,14 @@ document.addEventListener("firebase-ready", () => {
     tr.dataset.entryId = row._id || row.entryId || "";
 
     tr.innerHTML = `
-      <td class="text-center idx"></td>
+      <td class="text-center idx fw-semibold text-primary-emphasis"></td>
       <td><select class="form-select form-select-sm bed-select">${buildBedOptions(row.bedNumber || "")}</select></td>
-      <td><input type="text" class="form-control form-control-sm name-input text-center" value="${row.name || ""}" readonly></td>
-      <td><input type="text" class="form-control form-control-sm id-input text-center" value="${row.idNumber || ""}" readonly></td>
-      <td><input type="text" class="form-control form-control-sm vitals-input text-center" value="${row.vitals || ""}"></td>
-      <td><textarea class="form-control form-control-sm cond-input text-center" rows="1">${row.condition || ""}</textarea></td>
-      <td><textarea class="form-control form-control-sm note-input text-center" rows="1">${row.doctorNote || ""}</textarea></td>
-      <td class="text-center"><button class="btn btn-outline-danger btn-sm del-btn"><i class="fa fa-trash"></i></button></td>
+      <td><input type="text" class="form-control form-control-sm name-input text-center bg-light-subtle" value="${row.name || ""}" readonly></td>
+      <td><input type="text" class="form-control form-control-sm id-input text-center bg-light-subtle" value="${row.idNumber || ""}" readonly></td>
+      <td><input type="text" class="form-control form-control-sm vitals-input" value="${row.vitals || ""}" placeholder="例：BP 120/80、T 36.5"></td>
+      <td><textarea class="form-control form-control-sm cond-input" rows="2" placeholder="輸入病情簡述">${row.condition || ""}</textarea></td>
+      <td><textarea class="form-control form-control-sm note-input" rows="2" placeholder="輸入醫師手記">${row.doctorNote || ""}</textarea></td>
+      <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm del-btn" title="刪除此列"><i class="fa fa-trash"></i></button></td>
     `;
 
     const bedSelect = tr.querySelector(".bed-select");
@@ -282,29 +291,16 @@ document.addEventListener("firebase-ready", () => {
     showLoadingRow();
 
     const docRef = db.collection(COLLECTION).doc(date);
-
-    // ensure day doc exists (meta only)
     const daySnap = await docRef.get();
-    if (!daySnap.exists && auto) {
-      await docRef.set({
-        id: date,
-        date,
-        schema: "vC_subcollection",
-        totalPatients: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } else if (daySnap.exists) {
-      // Migrate legacy if needed
+
+    if (daySnap.exists) {
       await migrateLegacyIfNeeded(docRef);
     }
 
-    // Read entries subcollection
-    const entriesSnap = await docRef.collection("entries").get();
+    const entriesSnap = await docRef.collection("entries").orderBy("orderIndex", "asc").get();
 
     tbody.innerHTML = "";
 
-    // Convert to row objects
     const rows = [];
     entriesSnap.forEach((doc) => {
       const e = doc.data() || {};
@@ -319,7 +315,6 @@ document.addEventListener("firebase-ready", () => {
       });
     });
 
-    // Sort by bed like UI
     rows.sort((a, b) => {
       const [a1, a2] = normalizeBedSortKey(a.bedNumber || "");
       const [b1, b2] = normalizeBedSortKey(b.bedNumber || "");
@@ -331,6 +326,12 @@ document.addEventListener("firebase-ready", () => {
     ensureMinRows();
     sortTableByBed();
     refreshMeta();
+
+    if (!daySnap.exists && rows.length === 0) {
+      setSaveStatus("此日期目前尚未建立資料，只有按儲存後才會新增到資料庫", "muted");
+    } else {
+      setSaveStatus(`已載入 ${date} 的資料`, "success");
+    }
   }
 
   async function saveSheet() {
@@ -347,15 +348,27 @@ document.addEventListener("firebase-ready", () => {
     const colRef = docRef.collection("entries");
 
     showLoadingRow();
+    setSaveStatus("資料儲存中…", "warning");
 
-    // Fetch existing docs to delete removed ones
     const existingSnap = await colRef.get();
     const existingIds = new Set();
     existingSnap.forEach(d => existingIds.add(d.id));
 
     const batch = db.batch();
 
-    // Upsert current rows
+    if (payload.rows.length === 0) {
+      existingIds.forEach((id) => batch.delete(colRef.doc(id)));
+      batch.delete(docRef);
+      await batch.commit();
+
+      tbody.innerHTML = "";
+      ensureMinRows();
+      refreshMeta();
+      setSaveStatus("此日期沒有任何住民資料，已自動清除空白文件", "danger");
+      alert("✅ 此日期沒有任何內容，已自動刪除空白資料");
+      return;
+    }
+
     payload.rows.forEach((r, idx) => {
       const id = r._id || genId();
       const ref = colRef.doc(id);
@@ -369,15 +382,13 @@ document.addEventListener("firebase-ready", () => {
         orderIndex: idx,
         updatedAt: new Date().toISOString()
       }, { merge: true });
-      existingIds.delete(id); // left are removed
+      existingIds.delete(id);
     });
 
-    // Delete removed docs
     existingIds.forEach((id) => {
       batch.delete(colRef.doc(id));
     });
 
-    // Update meta doc
     batch.set(docRef, {
       id: date,
       date,
@@ -389,7 +400,8 @@ document.addEventListener("firebase-ready", () => {
     await batch.commit();
 
     clearLoadingRow();
-    await loadSheet(false); // reload to normalize ordering/index
+    await loadSheet(false);
+    setSaveStatus("已儲存", "success");
     alert("✅ 已儲存醫巡單");
   }
 
@@ -428,6 +440,10 @@ document.addEventListener("firebase-ready", () => {
 
     const rocDate = toRoc(data.date);
     const count = (data.entries || []).filter(e => (e.bedNumber || '').trim() !== '').length;
+    if (!(data.entries || []).length) {
+      alert('目前沒有可匯出的醫巡資料');
+      return;
+    }
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'NH System';
@@ -714,12 +730,12 @@ document.addEventListener("firebase-ready", () => {
   saveBtn.addEventListener("click", saveSheet);
   exportBtn.addEventListener("click", exportExcel);
 
-  dateInput.addEventListener("change", async () => { await loadSheet(true); });
+  dateInput.addEventListener("change", async () => { await loadSheet(false); });
 
   (async () => {
     initLoginUser();
     await loadResidents();
     if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
-    await loadSheet(true);
+    await loadSheet(false);
   })();
 });
