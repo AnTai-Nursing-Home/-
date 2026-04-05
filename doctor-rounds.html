@@ -7,64 +7,407 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { background-color: #eef2f5; font-family: 'Microsoft JhengHei', sans-serif; padding: 20px; }
-    .page-container { background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); padding: 20px; max-width: 1100px; margin: auto; }
-    .header-bar { background-color: #1f4e79; color: #fff; padding: 10px 16px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-    .header-bar h4 { margin: 0; font-weight: bold; font-size: 18px; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-    .toolbar button, .toolbar a { border-radius: 6px; font-size: 13px; padding: 4px 10px; }
-    .table th, .table td { vertical-align: middle; text-align: center; font-size: 13px; }
-    .table thead th { background-color: #f3f6f9; font-weight: 600; }
-    .footer-area { margin-top: 15px; text-align: right; border-top: 1px solid #dee2e6; padding-top: 8px; font-size: 13px; color: #555; }
-    @media (max-width: 768px) { body { padding: 10px; } .page-container { padding: 12px; } }
+    :root{
+      --primary:#245c8d;
+      --primary-deep:#143a5c;
+      --bg1:#edf4fb;
+      --bg2:#f8fbff;
+      --line:#d9e4f1;
+      --text:#1f2d3d;
+      --muted:#6d7f92;
+      --success:#198754;
+      --warn:#b7791f;
+      --danger:#c0392b;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:'Microsoft JhengHei',sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, #d8ebff 0, transparent 30%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      padding:22px;
+    }
+    .page-shell{
+      width:min(100%, 1600px);
+      margin:0 auto;
+    }
+    .hero{
+      background:linear-gradient(135deg, var(--primary-deep), var(--primary));
+      color:#fff;
+      border-radius:24px;
+      box-shadow:0 18px 42px rgba(24,57,91,.18);
+      padding:24px 28px;
+      margin-bottom:18px;
+    }
+    .hero-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .hero h1{
+      margin:0 0 6px;
+      font-size:28px;
+      font-weight:800;
+      letter-spacing:.5px;
+    }
+    .hero-sub{
+      margin:0;
+      color:rgba(255,255,255,.84);
+      font-size:14px;
+    }
+    .hero-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .user-badge,.back-btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius:999px;
+      padding:10px 14px;
+      text-decoration:none;
+      font-size:14px;
+      font-weight:600;
+    }
+    .user-badge{
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.18);
+      color:#fff;
+      backdrop-filter: blur(4px);
+    }
+    .back-btn{
+      color:#fff;
+      border:1px solid rgba(255,255,255,.24);
+      background:rgba(255,255,255,.08);
+    }
+    .back-btn:hover{background:rgba(255,255,255,.14);color:#fff;}
+    .control-grid{
+      display:grid;
+      grid-template-columns: 1.2fr .9fr;
+      gap:18px;
+      margin-bottom:18px;
+    }
+    .panel{
+      background:rgba(255,255,255,.88);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:22px;
+      box-shadow:0 12px 30px rgba(31,45,61,.08);
+      backdrop-filter: blur(8px);
+    }
+    .toolbar-card{
+      padding:18px;
+    }
+    .toolbar-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .toolbar-title{
+      margin:0;
+      font-size:18px;
+      font-weight:800;
+    }
+    .toolbar-note{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .field-label{
+      display:block;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .date-wrap{
+      min-width:230px;
+    }
+    .form-control,.form-select,textarea{
+      border-radius:14px !important;
+      border:1px solid var(--line) !important;
+      box-shadow:none !important;
+      font-size:14px !important;
+    }
+    .form-control:focus,.form-select:focus,textarea:focus{
+      border-color:#91b8de !important;
+      box-shadow:0 0 0 .2rem rgba(36,92,141,.12) !important;
+    }
+    .toolbar-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:14px;
+    }
+    .toolbar-actions .btn{
+      border-radius:14px;
+      padding:10px 16px;
+      font-weight:700;
+      font-size:14px;
+      box-shadow:none !important;
+    }
+    .stats-card{
+      padding:18px;
+      display:grid;
+      gap:12px;
+      align-content:start;
+    }
+    .stats-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .stats-head h2{
+      margin:0;
+      font-size:18px;
+      font-weight:800;
+    }
+    .save-status{
+      display:inline-flex;
+      align-items:center;
+      min-height:34px;
+      padding:6px 12px;
+      border-radius:999px;
+      font-size:13px;
+      font-weight:700;
+      background:#eef3f8;
+      color:#556576;
+    }
+    .save-status.success{background:#e9f8f0;color:var(--success);}
+    .save-status.warning{background:#fff5df;color:var(--warn);}
+    .save-status.danger{background:#fdeceb;color:var(--danger);}
+    .save-status.muted{background:#eef3f8;color:#556576;}
+    .meta-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+    .meta-card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px 16px;
+      background:linear-gradient(180deg,#fff,#f7fbff);
+      min-height:96px;
+    }
+    .meta-card .label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:700;
+      margin-bottom:8px;
+      display:block;
+    }
+    .meta-card .value{
+      font-size:22px;
+      font-weight:800;
+      color:var(--primary-deep);
+      line-height:1.2;
+      word-break:break-word;
+    }
+    .meta-card .small{
+      font-size:13px;
+    }
+    .hint-box{
+      border-radius:16px;
+      padding:12px 14px;
+      background:#f7fbff;
+      border:1px dashed #bfd4ea;
+      color:#4c6174;
+      font-size:13px;
+      line-height:1.7;
+    }
+    .table-card{
+      padding:18px;
+    }
+    .table-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .table-title{
+      margin:0;
+      font-size:18px;
+      font-weight:800;
+    }
+    .table-sub{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .table-wrap{
+      border:1px solid var(--line);
+      border-radius:20px;
+      overflow:auto;
+      background:#fff;
+      max-height:calc(100vh - 320px);
+    }
+    table{
+      margin:0 !important;
+      min-width:1120px;
+    }
+    .table > :not(caption) > * > *{
+      padding:12px 10px;
+      vertical-align:middle;
+      font-size:14px;
+      border-color:#e5edf5;
+    }
+    .table thead th{
+      position:sticky;
+      top:0;
+      z-index:3;
+      background:linear-gradient(180deg,#f8fbfe,#eef5fb);
+      color:#37556f;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .table tbody tr:nth-child(even){
+      background:#fbfdff;
+    }
+    .table tbody tr:hover{
+      background:#f2f8ff;
+    }
+    .table td:first-child, .table th:first-child{
+      position:sticky;
+      left:0;
+      z-index:2;
+      background:inherit;
+    }
+    .table thead th:first-child{
+      z-index:4;
+      background:linear-gradient(180deg,#f8fbfe,#eef5fb);
+    }
+    .bottom-note{
+      margin-top:14px;
+      color:var(--muted);
+      font-size:12px;
+      text-align:right;
+    }
+    @media (max-width: 1100px){
+      .control-grid{grid-template-columns:1fr;}
+      .meta-grid{grid-template-columns:1fr 1fr 1fr;}
+      .table-wrap{max-height:none;}
+    }
+    @media (max-width: 768px){
+      body{padding:12px;}
+      .hero{padding:18px;}
+      .hero h1{font-size:22px;}
+      .toolbar-actions .btn{width:100%;}
+      .meta-grid{grid-template-columns:1fr;}
+      .table-card,.toolbar-card,.stats-card{padding:14px;}
+    }
   </style>
 </head>
 <body>
-  <div class="page-container">
-    <div class="header-bar">
-      <h4>醫療巡迴門診掛號及就診狀況交班單</h4>
-      <div class="d-flex align-items-center gap-2">
-        <span id="login-user" class="badge rounded-pill bg-light text-dark px-3 py-2">登入者：—</span>
-        <a href="admin.html?view=dashboard" class="btn btn-sm btn-outline-light">返回護理師儀表板</a>
+  <div class="page-shell">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>醫療巡迴門診掛號及就診狀況交班單</h1>
+          <p class="hero-sub">版面已改成較清楚的巡診工作台，日期切換時只讀取資料，不會自動建立空白文件。</p>
+        </div>
+        <div class="hero-actions">
+          <span id="login-user" class="user-badge"><i class="fa-solid fa-user-nurse"></i> 登入者：—</span>
+          <a href="admin.html?view=dashboard" class="back-btn"><i class="fa-solid fa-arrow-left"></i> 返回護理師儀表板</a>
+        </div>
       </div>
-    </div>
-    <div class="toolbar">
-      <div class="d-flex align-items-center gap-2">
-        <label for="round-date" class="mb-0">巡診日期：</label>
-        <input type="date" id="round-date" class="form-control form-control-sm" style="max-width:180px;">
-      </div>
-      <button id="add-row-btn" class="btn btn-outline-primary"><i class="fa fa-plus"></i> 新增列</button>
-      <button id="save-btn" class="btn btn-success"><i class="fa fa-save"></i> 儲存</button>
-      <button id="export-btn" class="btn btn-warning"><i class="fa fa-file-export"></i> 匯出 Excel</button>
-      <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary"><i class="fa fa-download"></i> 下載醫巡掛號檔案</a>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-bordered align-middle">
-        <thead>
-          <tr>
-            <th>排序</th>
-            <th>床號</th>
-            <th>姓名</th>
-            <th>身分證字號</th>
-            <th>生命徵象</th>
-            <th>病情簡述</th>
-            <th>醫師手記</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="round-tbody">
-          <tr><td colspan="8" class="text-center text-secondary py-4">讀取中...</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="footer-area">
-      <div>醫巡日期：<span id="display-date">—</span></div>
-      <div>看診人數：<span id="patient-count">0</span></div>
-      <div>簽名日期：<span id="sign-date">—</span></div>
-    </div>
-  </div><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    </section>
 
+    <section class="control-grid">
+      <div class="panel toolbar-card">
+        <div class="toolbar-head">
+          <div>
+            <h2 class="toolbar-title">巡診設定</h2>
+            <p class="toolbar-note">先選日期，再新增住民資料。只有按下儲存且有內容時，才會寫入 Firestore。</p>
+          </div>
+          <div class="date-wrap">
+            <label for="round-date" class="field-label">巡診日期</label>
+            <input type="date" id="round-date" class="form-control">
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button id="add-row-btn" class="btn btn-outline-primary"><i class="fa fa-plus me-1"></i>新增列</button>
+          <button id="save-btn" class="btn btn-success"><i class="fa fa-save me-1"></i>儲存資料</button>
+          <button id="export-btn" class="btn btn-warning text-dark"><i class="fa fa-file-export me-1"></i>匯出 Excel</button>
+          <a href="新-特約醫師巡診掛號及就診狀況單.xlsx" download class="btn btn-secondary"><i class="fa fa-download me-1"></i>下載醫巡掛號檔案</a>
+        </div>
+      </div>
+
+      <div class="panel stats-card">
+        <div class="stats-head">
+          <h2>目前狀態</h2>
+          <span id="save-status" class="save-status muted">尚未讀取資料</span>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <span class="label">醫巡日期</span>
+            <div class="value small" id="display-date">—</div>
+          </div>
+          <div class="meta-card">
+            <span class="label">看診人數</span>
+            <div class="value" id="patient-count">0</div>
+          </div>
+          <div class="meta-card">
+            <span class="label">簽名日期</span>
+            <div class="value small" id="sign-date">—</div>
+          </div>
+        </div>
+        <div class="hint-box">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          沒有新增任何住民時，不會自動建立空白日期文件；若某一天原本就是空白資料，按儲存後也會自動清除。
+        </div>
+      </div>
+    </section>
+
+    <section class="panel table-card">
+      <div class="table-head">
+        <div>
+          <h2 class="table-title">巡診明細</h2>
+          <p class="table-sub">床號選定後會自動帶入住民姓名與身分證字號。可直接全螢幕寬度操作。</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table table-bordered align-middle">
+          <thead>
+            <tr>
+              <th style="width:72px;">排序</th>
+              <th style="width:110px;">床號</th>
+              <th style="width:140px;">姓名</th>
+              <th style="width:170px;">身分證字號</th>
+              <th style="width:220px;">生命徵象</th>
+              <th style="width:340px;">病情簡述</th>
+              <th style="width:340px;">醫師手記</th>
+              <th style="width:88px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="round-tbody">
+            <tr><td colspan="8" class="text-center text-secondary py-5">讀取中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="bottom-note">
+        提醒：空白日期只供畫面編輯使用，不會因切換日期而自動佔用資料庫位置。
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -75,10 +418,9 @@
   <script>
     (async () => {
       await AccessControl.init();
-      AccessControl.guardInsideOnly(); // 不是 211.20.249.25 就擋掉
+      AccessControl.guardInsideOnly();
     })();
   </script>
   <script src="doctor-rounds.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </body>
 </html>
