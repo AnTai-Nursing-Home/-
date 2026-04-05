@@ -72,6 +72,17 @@ document.addEventListener("firebase-ready", () => {
   }
 
 
+  function getActorInfo() {
+    const staffId = (CURRENT_USER.staffId || "").trim();
+    const name = (CURRENT_USER.name || "").trim();
+    return {
+      actorStaffId: staffId,
+      actorName: name,
+      actorLabel: [staffId, name].filter(Boolean).join(" ") || "—"
+    };
+  }
+
+
   function showLoadingRow() {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary py-5">讀取中...</td></tr>`;
     setSaveStatus("資料讀取中…", "muted");
@@ -352,9 +363,15 @@ document.addEventListener("firebase-ready", () => {
 
     const existingSnap = await colRef.get();
     const existingIds = new Set();
-    existingSnap.forEach(d => existingIds.add(d.id));
+    const existingMap = new Map();
+    existingSnap.forEach(d => {
+      existingIds.add(d.id);
+      existingMap.set(d.id, d.data() || {});
+    });
 
     const batch = db.batch();
+    const actor = getActorInfo();
+    const nowIso = new Date().toISOString();
 
     if (payload.rows.length === 0) {
       existingIds.forEach((id) => batch.delete(colRef.doc(id)));
@@ -372,7 +389,9 @@ document.addEventListener("firebase-ready", () => {
     payload.rows.forEach((r, idx) => {
       const id = r._id || genId();
       const ref = colRef.doc(id);
-      batch.set(ref, {
+      const existing = existingMap.get(id) || null;
+
+      const saveData = {
         bedNumber: r.bedNumber || "",
         name: r.name || "",
         idNumber: r.idNumber || "",
@@ -380,8 +399,25 @@ document.addEventListener("firebase-ready", () => {
         condition: r.condition || "",
         doctorNote: r.doctorNote || "",
         orderIndex: idx,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+        updatedAt: nowIso,
+        updatedByStaffId: actor.actorStaffId,
+        updatedByName: actor.actorName,
+        updatedByLabel: actor.actorLabel
+      };
+
+      if (!existing) {
+        saveData.createdAt = nowIso;
+        saveData.createdByStaffId = actor.actorStaffId;
+        saveData.createdByName = actor.actorName;
+        saveData.createdByLabel = actor.actorLabel;
+      } else {
+        if (existing.createdAt) saveData.createdAt = existing.createdAt;
+        if (existing.createdByStaffId !== undefined) saveData.createdByStaffId = existing.createdByStaffId;
+        if (existing.createdByName !== undefined) saveData.createdByName = existing.createdByName;
+        if (existing.createdByLabel !== undefined) saveData.createdByLabel = existing.createdByLabel;
+      }
+
+      batch.set(ref, saveData, { merge: true });
       existingIds.delete(id);
     });
 
@@ -394,7 +430,10 @@ document.addEventListener("firebase-ready", () => {
       date,
       schema: "vC_subcollection",
       totalPatients: payload.totalPatients,
-      updatedAt: payload.updatedAt
+      updatedAt: payload.updatedAt,
+      updatedByStaffId: actor.actorStaffId,
+      updatedByName: actor.actorName,
+      updatedByLabel: actor.actorLabel
     }, { merge: true });
 
     await batch.commit();
