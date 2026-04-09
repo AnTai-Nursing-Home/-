@@ -59,6 +59,7 @@
           href: 'admin-resident-system.html',
           children: [
             ['residents-admin.html', '住民資料管理'],
+            ['mobility-assessment.html', '行動能力評估'],
             ['nurse-pipeline.html', '住民管路管理'],
             ['consult.html', '照會營養師']
           ]
