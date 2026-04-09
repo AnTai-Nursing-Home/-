@@ -1,3 +1,4 @@
+
 (function(){
   const COLLECTION = 'mobilityAssessments';
   const RESIDENTS_COLLECTION = 'residents';
@@ -532,7 +533,12 @@
       }
       await loadSheets();
       alert('清單已儲存。');
-      toggleView('list');
+      if (currentSheetId){
+        const fresh = getSheetById(currentSheetId);
+        if (fresh){
+          loadSheetIntoEditor(fresh);
+        }
+      }
     }catch(err){
       console.error(err);
       alert('儲存失敗：' + (err && err.message ? err.message : err));
@@ -587,19 +593,21 @@
 <meta charset="UTF-8">
 <title>${title}</title>
 <style>
-  @page { size: A4 landscape; margin: 8mm; }
+  @page { size: A4 portrait; margin: 7mm; }
+  *{ box-sizing:border-box; }
   body{ font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif; margin:0; color:#111; }
-  .title{ font-size:20px; font-weight:900; text-align:center; margin:0 0 8px; }
-  .meta{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
-  .note{ border:1px solid #000; padding:6px 8px; font-size:11px; line-height:1.45; margin-bottom:8px; }
+  .title{ font-size:16px; font-weight:900; text-align:center; margin:0 0 6px; }
+  .meta{ display:flex; justify-content:space-between; gap:10px; font-size:10px; margin-bottom:5px; }
+  .note{ border:1px solid #000; padding:5px 6px; font-size:8.5px; line-height:1.35; margin-bottom:6px; }
   .note b.red{ color:#c70000; }
   table{ width:100%; border-collapse:collapse; table-layout:fixed; }
-  th,td{ border:1px solid #000; padding:4px 3px; font-size:11px; vertical-align:middle; word-break:break-word; }
+  th,td{ border:1px solid #000; padding:2px 2px; font-size:8.5px; line-height:1.15; vertical-align:middle; word-break:break-word; }
   thead th{ text-align:center; font-weight:900; }
+  tbody td{ height:21px; }
   .center{text-align:center;}
   .rehab-head, .rehab-cell{ background:#fff48a; font-weight:900; }
-  .sign{ margin-top:8px; font-size:12px; display:flex; justify-content:space-between; align-items:flex-end; }
-  .line{ display:inline-block; border-bottom:1px solid #000; min-width:180px; height:1.2em; vertical-align:bottom; }
+  .sign{ margin-top:6px; font-size:10px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .line{ display:inline-block; border-bottom:1px solid #000; min-width:140px; height:1.1em; vertical-align:bottom; }
 </style>
 </head>
 <body>
@@ -618,17 +626,17 @@
     <thead>
       <tr>
         <th style="width:4.5%">編號</th>
-        <th style="width:6.5%">房號</th>
-        <th style="width:8%">名字</th>
-        <th style="width:16%">NAME</th>
-        <th style="width:8%">行動方式</th>
-        <th style="width:6.5%" class="rehab-head">復健<br>Rehabilitation</th>
-        <th>星期一</th>
-        <th>星期二</th>
-        <th>星期三</th>
-        <th>星期四</th>
-        <th>星期五</th>
-        <th>星期六</th>
+        <th style="width:7.5%">房號</th>
+        <th style="width:8.5%">名字</th>
+        <th style="width:15%">NAME</th>
+        <th style="width:8.5%">行動方式</th>
+        <th style="width:6%" class="rehab-head">復健<br>Rehabilitation</th>
+        <th style="width:8.3%">星期一</th>
+        <th style="width:8.3%">星期二</th>
+        <th style="width:8.3%">星期三</th>
+        <th style="width:8.3%">星期四</th>
+        <th style="width:8.3%">星期五</th>
+        <th style="width:8.3%">星期六</th>
       </tr>
     </thead>
     <tbody>
