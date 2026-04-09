@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>行動評估系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --line:#d8e1ee;
+      --text:#1f2d3d;
+      --muted:#6b7a90;
+      --primary:#295d8f;
+      --primary-2:#5b92c7;
+      --accent:#e8f2fc;
+      --success:#dff5e8;
+      --warning:#fff3cd;
+      --danger:#ffe2e2;
+      --shadow:0 10px 24px rgba(21,43,74,.08);
+      --radius:18px;
+    }
+    body{
+      background:linear-gradient(180deg,#eef5fb 0%,#f8fbff 40%,#f4f7fb 100%);
+      color:var(--text);
+      font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif;
+    }
+    .page-shell{
+      max-width: 1800px;
+      margin: 24px auto;
+      padding: 0 18px 28px;
+    }
+    .hero-card{
+      background:linear-gradient(135deg,#1f4972 0%,#4f86b9 100%);
+      color:#fff;
+      border-radius:24px;
+      padding:22px 24px;
+      box-shadow:var(--shadow);
+      margin-bottom:20px;
+    }
+    .hero-top{
+      display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    }
+    .hero-title{font-size:32px;font-weight:900;letter-spacing:.02em;}
+    .hero-sub{font-size:14px;opacity:.92;margin-top:6px}
+    .back-btn{
+      color:#fff;border:1px solid rgba(255,255,255,.32);background:rgba(255,255,255,.08);
+      border-radius:12px;padding:10px 16px;text-decoration:none;font-weight:700;
+    }
+    .back-btn:hover{background:rgba(255,255,255,.16);color:#fff}
+    .hero-user{
+      background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);
+      border-radius:16px;padding:12px 16px;min-width:280px;
+    }
+    .hero-user .label{font-size:12px;opacity:.85}
+    .hero-user .value{font-size:16px;font-weight:800}
+    .content-card{
+      background:var(--card);
+      border:1px solid rgba(56,98,145,.1);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .toolbar{
+      padding:18px 20px;
+      border-bottom:1px solid var(--line);
+      background:#fbfdff;
+    }
+    .toolbar .title{
+      font-size:22px;font-weight:900;margin:0;
+    }
+    .toolbar .sub{
+      color:var(--muted);font-size:13px;margin-top:4px;
+    }
+    .toolbar-row{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    }
+    .stats-row{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      padding:18px 20px 0;
+    }
+    .stat-box{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+      padding:14px 16px;
+    }
+    .stat-label{color:var(--muted);font-size:12px;font-weight:700}
+    .stat-value{font-size:28px;font-weight:900;line-height:1.1;margin-top:6px}
+    .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .panel-body{padding:18px 20px 22px;}
+    .card-lite{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:#fff;
+      overflow:hidden;
+    }
+    .card-lite .head{
+      padding:14px 16px;
+      background:#f7fbff;
+      border-bottom:1px solid var(--line);
+      font-weight:900;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    }
+    .table-wrap{
+      overflow:auto;
+      max-height:calc(100vh - 330px);
+    }
+    .table thead th{
+      position:sticky; top:0; z-index:2;
+      background:#f7fbff;
+      white-space:nowrap;
+      border-bottom:2px solid #d4e0ee;
+      font-size:13px;
+    }
+    .table tbody td{vertical-align:middle;font-size:14px}
+    .badge-soft{
+      background:#edf5fd;color:#214f7d;border:1px solid #d2e5f7;border-radius:999px;
+      padding:6px 10px;font-size:12px;font-weight:800;
+    }
+    .list-actions{display:flex;gap:6px;flex-wrap:wrap}
+    .view-hidden{display:none !important}
+    .editor-top{
+      display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:12px;
+      padding:18px 20px 0;
+    }
+    .field-card{
+      border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px;
+    }
+    .field-card label{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px}
+    .field-card .readonly{
+      font-weight:800;font-size:15px;background:#f8fbff;border-radius:10px;padding:10px 12px;border:1px solid #e1eaf4;
+      min-height:44px;display:flex;align-items:center;
+    }
+    .editor-actions{
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+      padding:18px 20px;
+    }
+    .editor-table-wrap{padding:0 20px 20px}
+    .assessment-table{
+      min-width:1500px;
+    }
+    .assessment-table input[type="text"], .assessment-table textarea{
+      min-width:100px;
+    }
+    .assessment-table .form-control, .assessment-table .form-select{
+      font-size:13px;padding:.35rem .55rem;
+    }
+    .assessment-table textarea{min-height:36px}
+    .mini-btn{
+      border-radius:10px;padding:5px 9px;font-size:12px;font-weight:800;
+    }
+    .resident-select-list{
+      max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff;
+    }
+    .resident-item{
+      border-bottom:1px solid #eef3f8;padding:10px 12px;display:flex;gap:12px;align-items:flex-start;
+    }
+    .resident-item:last-child{border-bottom:none}
+    .resident-item .meta{font-size:12px;color:var(--muted)}
+    .empty-state{
+      text-align:center;padding:50px 20px;color:var(--muted)
+    }
+    .empty-icon{font-size:48px;color:#bfd3e8;margin-bottom:12px}
+    .footer-note{font-size:12px;color:var(--muted)}
+    .loading-overlay{
+      position:fixed; inset:0; background:rgba(248,251,255,.78); backdrop-filter: blur(2px);
+      display:none; align-items:center; justify-content:center; z-index:2000;
+    }
+    .loading-box{
+      background:#fff;border:1px solid var(--line); border-radius:20px; padding:28px 32px; box-shadow:var(--shadow);
+      min-width:260px; text-align:center;
+    }
+    .loading-box .spinner-border{width:3rem;height:3rem}
+    .text-truncate-2{
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    }
+    .sticky-tools{
+      position:sticky; bottom:0; z-index:4; background:linear-gradient(180deg,rgba(255,255,255,.9),#fff);
+      border-top:1px solid var(--line);
+    }
+    .small-muted{color:var(--muted);font-size:12px}
+    @media (max-width: 1200px){
+      .stats-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .editor-top{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media (max-width: 768px){
+      .stats-row{grid-template-columns:1fr;}
+      .editor-top{grid-template-columns:1fr;}
+      .hero-title{font-size:26px}
+      .page-shell{padding:0 10px 20px}
+      .toolbar,.panel-body,.editor-table-wrap,.editor-actions,.stats-row,.editor-top{padding-left:14px;padding-right:14px}
+    }
+    @media print{
+      body{background:#fff}
+      .page-shell,.content-card,.panel-body,.editor-table-wrap{padding:0;margin:0}
+      .hero-card,.toolbar,.stats-row,.editor-actions,.sticky-tools,.modal,.btn,.loading-overlay,.footer-note,.top-nonprint{display:none !important}
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-box">
+      <div class="spinner-border text-primary mb-3"></div>
+      <div class="fw-bold" id="loading-text">處理中...</div>
+    </div>
+  </div>
+
+  <div class="page-shell">
+    <section class="hero-card">
+      <div class="hero-top">
+        <div>
+          <div class="hero-title"><i class="fas fa-wheelchair-move me-2"></i>行動評估系統</div>
+          <div class="hero-sub">建立每日下床／行動評估名單，支援批次匯入住民、列印與 Excel 匯出</div>
+        </div>
+        <a href="admin.html?view=dashboard" class="back-btn"><i class="fas fa-arrow-left me-2"></i>返回護理師儀表板</a>
+      </div>
+      <div class="hero-user mt-3">
+        <div class="label">目前登入者</div>
+        <div class="value" id="login-user-display">讀取中...</div>
+      </div>
+    </section>
+
+    <section class="content-card">
+      <div id="list-view">
+        <div class="toolbar">
+          <div class="toolbar-row">
+            <div>
+              <h2 class="title">案件清單</h2>
+              <div class="sub">預設顯示今年，可切換其他年份查看既有清單</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <select id="year-filter" class="form-select" style="width:120px"></select>
+              <input id="list-search" class="form-control" placeholder="搜尋名單名稱 / 建立者" style="width:240px">
+              <button id="btn-new-sheet" class="btn btn-primary"><i class="fas fa-plus me-2"></i>新增清單</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-label">目前年度</div>
+            <div class="stat-value" id="stat-year">--</div>
+            <div class="stat-sub">目前清單篩選年份</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">清單數量</div>
+            <div class="stat-value" id="stat-count">0</div>
+            <div class="stat-sub">符合條件的行動評估清單</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">住民總筆數</div>
+            <div class="stat-value" id="stat-residents">0</div>
+            <div class="stat-sub">目前畫面所有清單的總住民列數</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">復健總筆數</div>
+            <div class="stat-value" id="stat-rehab">0</div>
+            <div class="stat-sub">勾選復健的列數</div>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="card-lite">
+            <div class="head">
+              <div><i class="fas fa-list-ul me-2"></i>行動評估清單</div>
+              <div class="small-muted">清單可直接查看、編輯、列印、匯出或刪除</div>
+            </div>
+            <div class="table-wrap">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:120px">日期</th>
+                    <th>清單名稱</th>
+                    <th style="width:110px">住民數</th>
+                    <th style="width:110px">復健數</th>
+                    <th style="width:200px">建立者</th>
+                    <th style="width:200px">最後更新</th>
+                    <th style="width:260px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="sheet-list-body"></tbody>
+              </table>
+            </div>
+            <div id="list-empty" class="empty-state view-hidden">
+              <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+              <div class="fw-bold fs-5 mb-2">目前沒有清單</div>
+              <div>你可以先建立一張新的行動評估清單。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="editor-view" class="view-hidden">
+        <div class="toolbar">
+          <div class="toolbar-row">
+            <div>
+              <h2 class="title" id="editor-title">新增行動評估清單</h2>
+              <div class="sub">可從住民資料批次匯入，匯入後仍可修改行動方式、復健與備註</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button id="btn-back-list" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>返回清單</button>
+              <button id="btn-open-import" class="btn btn-outline-primary"><i class="fas fa-users me-2"></i>從住民資料匯入</button>
+              <button id="btn-add-empty-row" class="btn btn-outline-dark"><i class="fas fa-plus me-2"></i>新增空白列</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-top">
+          <div class="field-card">
+            <label for="sheet-title">清單名稱</label>
+            <input id="sheet-title" class="form-control" placeholder="例如：2026年4月行動評估名單">
+          </div>
+          <div class="field-card">
+            <label for="sheet-date">日期</label>
+            <input id="sheet-date" type="date" class="form-control">
+          </div>
+          <div class="field-card">
+            <label for="sheet-year">年度</label>
+            <input id="sheet-year" class="form-control" readonly>
+          </div>
+          <div class="field-card">
+            <label>建立者</label>
+            <div class="readonly" id="sheet-created-by">--</div>
+          </div>
+        </div>
+
+        <div class="editor-actions">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge-soft"><i class="fas fa-table me-1"></i>目前列數：<span id="row-count-display">0</span></span>
+            <span class="badge-soft"><i class="fas fa-dumbbell me-1"></i>復健數：<span id="rehab-count-display">0</span></span>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button id="btn-print-current" class="btn btn-outline-dark"><i class="fas fa-print me-2"></i>列印</button>
+            <button id="btn-export-current" class="btn btn-success"><i class="fas fa-file-excel me-2"></i>匯出 Excel</button>
+            <button id="btn-save-sheet" class="btn btn-primary"><i class="fas fa-floppy-disk me-2"></i>儲存清單</button>
+          </div>
+        </div>
+
+        <div class="editor-table-wrap">
+          <div class="card-lite">
+            <div class="head">
+              <div><i class="fas fa-clipboard-list me-2"></i>評估名單內容</div>
+              <div class="small-muted">復健勾選後，列印與 Excel 會自動顯示 R</div>
+            </div>
+            <div class="table-wrap">
+              <table class="table table-bordered align-middle mb-0 assessment-table">
+                <thead>
+                  <tr>
+                    <th style="width:70px">編號</th>
+                    <th style="width:110px">房號</th>
+                    <th style="width:120px">住民編號</th>
+                    <th style="width:140px">姓名</th>
+                    <th style="width:220px">英文名</th>
+                    <th style="width:140px">行動方式</th>
+                    <th style="width:90px">復健</th>
+                    <th style="width:92px">星期一</th>
+                    <th style="width:92px">星期二</th>
+                    <th style="width:92px">星期三</th>
+                    <th style="width:92px">星期四</th>
+                    <th style="width:92px">星期五</th>
+                    <th style="width:92px">星期六</th>
+                    <th style="width:170px">備註</th>
+                    <th style="width:90px">刪除</th>
+                  </tr>
+                </thead>
+                <tbody id="editor-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="footer-note mt-2">
+            列印版型會依你提供的每日下床名單格式排列，上方保留中英說明，下方保留查核者簽名欄。
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal fade" id="resident-import-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content border-0" style="border-radius:20px;overflow:hidden">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="fas fa-users me-2"></i>從住民資料匯入</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <input id="resident-search" class="form-control" style="max-width:300px" placeholder="搜尋：床號 / 姓名 / 英文名 / 住民編號">
+            <button id="btn-resident-select-all" type="button" class="btn btn-outline-secondary">全選</button>
+            <button id="btn-resident-clear-all" type="button" class="btn btn-outline-secondary">取消全選</button>
+            <div class="ms-auto small-muted">匯入欄位：房號、住民編號、姓名、英文名、行動方式</div>
+          </div>
+          <div class="resident-select-list" id="resident-select-list"></div>
+        </div>
+        <div class="modal-footer">
+          <div class="me-auto small-muted">勾選後按「加入清單」，可重複匯入；已存在同床號＋姓名的不重複新增。</div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="btn-import-selected-residents">加入清單</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer text-center py-3 text-muted small">© 2026 行動評估系統</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="idle-timeout.js"></script>
+  <script src="mobility-assessment.js"></script>
+</body>
+</html>
