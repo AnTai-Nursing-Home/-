@@ -532,13 +532,8 @@
         await ref.set(payload);
       }
       await loadSheets();
+      await loadCurrentSheetData(currentSheetId);
       alert('清單已儲存。');
-      if (currentSheetId){
-        const fresh = getSheetById(currentSheetId);
-        if (fresh){
-          loadSheetIntoEditor(fresh);
-        }
-      }
     }catch(err){
       console.error(err);
       alert('儲存失敗：' + (err && err.message ? err.message : err));
@@ -563,6 +558,27 @@
 
   function getSheetById(id){
     return allSheets.find(s => s.id === id) || null;
+  }
+
+
+  async function loadCurrentSheetData(sheetId){
+    if (!sheetId) return;
+    showLoading('重新載入清單資料中...');
+    try{
+      const doc = await mobilityDb.collection(COLLECTION).doc(sheetId).get();
+      if (!doc.exists) return;
+      const fresh = { id: doc.id, ...(doc.data() || {}) };
+      const idx = allSheets.findIndex(s => s.id === sheetId);
+      if (idx >= 0) allSheets[idx] = fresh;
+      else allSheets.unshift(fresh);
+      applyFilters();
+      openEditor(fresh);
+    }catch(err){
+      console.error('重新載入清單失敗', err);
+      alert('重新載入清單失敗：' + (err && err.message ? err.message : err));
+    }finally{
+      hideLoading();
+    }
   }
 
   function buildPrintHtml(sheet){
@@ -645,7 +661,7 @@
   </table>
   <div class="sign">
     <div>查核者簽名：<span class="line"></span></div>
-    <div>列印時間：${escapeHtml(formatDateTime(new Date()))}</div>
+    <div>列印人：${escapeHtml(userDisplayText(currentUser))}　列印時間：${escapeHtml(formatDateTime(new Date()))}</div>
   </div>
 </body>
 </html>
