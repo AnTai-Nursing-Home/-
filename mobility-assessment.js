@@ -570,8 +570,13 @@
       const idx = allSheets.findIndex(s => s.id === sheetId);
       if (idx >= 0) allSheets[idx] = fresh;
       else allSheets.unshift(fresh);
+      allSheets.sort((a,b) => {
+        const ad = normalizeString(a.date || a.updatedAt || a.createdAt);
+        const bd = normalizeString(b.date || b.updatedAt || b.createdAt);
+        return bd.localeCompare(ad);
+      });
       renderList();
-      openEditor(fresh);
+      editSheet(sheetId);
     }catch(err){
       console.error('重新載入清單失敗', err);
       alert('重新載入清單失敗：' + (err && err.message ? err.message : err));
