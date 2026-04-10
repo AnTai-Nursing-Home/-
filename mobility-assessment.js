@@ -1,4 +1,3 @@
-
 (function(){
   const COLLECTION = 'mobilityAssessments';
   const RESIDENTS_COLLECTION = 'residents';
@@ -571,7 +570,7 @@
       const idx = allSheets.findIndex(s => s.id === sheetId);
       if (idx >= 0) allSheets[idx] = fresh;
       else allSheets.unshift(fresh);
-      applyFilters();
+      renderList();
       openEditor(fresh);
     }catch(err){
       console.error('重新載入清單失敗', err);
