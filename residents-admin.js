@@ -52,6 +52,18 @@ document.addEventListener('residents-init', ()=>{
   const fileInput=document.getElementById('excel-file-input');
   const importStatus=document.getElementById('import-status');
   const addBtn=document.getElementById('add-resident-btn');
+  const loadingOverlay=document.getElementById('loading-overlay');
+  const loadingTextEl=document.getElementById('loading-text');
+
+  function showLoading(message='資料處理中...'){
+    try{
+      if(loadingTextEl) loadingTextEl.textContent=message;
+      if(loadingOverlay) loadingOverlay.classList.add('show');
+    }catch(_e){}
+  }
+  function hideLoading(){
+    try{ if(loadingOverlay) loadingOverlay.classList.remove('show'); }catch(_e){}
+  }
 
   const LS_KEY='FLOOR_TEMPLATE_V1';
   function getTemplateRaw(){
@@ -1893,13 +1905,19 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       const snap = await db.collection('foley_care_records').where('closingDate', '==', null).get();
       if(snap.empty) return;
 
-      const ongoingResidentIds = new Set();
+      const ongoingResidentKeys = new Set();
       snap.forEach(doc=>{
         const d = doc.data() || {};
-        if (d.residentName) ongoingResidentIds.add(String(d.residentName));
+        [d.residentName, d.residentNumber, d.residentId, d.id, d.idNumber].forEach(v=>{
+          const key = String(v || '').trim();
+          if(key) ongoingResidentKeys.add(key);
+        });
       });
 
-      const hits = hospitalized.filter(r=> ongoingResidentIds.has(String(r.id)));
+      const hits = hospitalized.filter(r=>{
+        const keys = [r.id, r.residentName, r.residentNumber, r.idNumber].map(v=>String(v || '').trim()).filter(Boolean);
+        return keys.some(k=> ongoingResidentKeys.has(k));
+      });
       if(!hits.length) return;
 
       if(hits.length === 1){
@@ -1923,7 +1941,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
 
 
   async function load(){
-    if(tbody) tbody.innerHTML='<tr><td colspan="14" class="text-center">讀取中...</td></tr>';
+    showLoading('資料讀取中...');
+    if(tbody) tbody.innerHTML='<tr><td colspan="17" class="text-center">讀取中...</td></tr>';
     try{
       const snap=await db.collection(dbCol).get();
       cache=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1933,7 +1952,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       await notifyHospitalizedOngoingFoley();
     }catch(e){
       console.error(e);
-      if(tbody) tbody.innerHTML='<tr><td colspan="14"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
+      if(tbody) tbody.innerHTML='<tr><td colspan="17"><div class="alert alert-danger m-0">讀取失敗</div></td></tr>';
+    }finally{
+      hideLoading();
     }
   }
 
@@ -1945,6 +1966,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
   async function handleExcelImport(evt){
     const file=evt.target.files[0]; if(!file) return;
+    showLoading('Excel 匯入中，請稍候...');
     if(importStatus){ importStatus.className='alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent='正在讀取檔案...'; }
     const reader=new FileReader();
     reader.onload=async (e)=>{
@@ -2016,7 +2038,10 @@ if (Array.isArray(cache) && cache.length) {
       }catch(err){
         console.error(err);
         if(importStatus){ importStatus.className='alert alert-danger'; importStatus.textContent='匯入失敗，請檢查檔案。'; }
-      }finally{ if(fileInput) fileInput.value=''; }
+      }finally{
+        hideLoading();
+        if(fileInput) fileInput.value='';
+      }
     };
     reader.readAsArrayBuffer(file);
   }
@@ -2072,9 +2097,10 @@ if (Array.isArray(cache) && cache.length) {
         residentName:name
       };
       const docId = currentEditId || name;
+      showLoading('資料儲存中...');
       await db.collection(dbCol).doc(docId).set(payload,{merge:true});
       if(modal) modal.hide();
-      load();
+      await load();
     });
   }
   if(tbody){
@@ -2107,8 +2133,9 @@ if (Array.isArray(cache) && cache.length) {
       }
       if(btn.classList.contains('btn-danger')){
         if(confirm(`確定刪除「${id}」資料？`)){
+          showLoading('資料刪除中...');
           await db.collection(dbCol).doc(id).delete();
-          load();
+          await load();
         }
       }
     });
