@@ -1878,17 +1878,13 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   function maybeShowFoleyAlertModal(hits){
     if (!foleyAlertModal || !Array.isArray(hits) || !hits.length) return;
     try {
-      const signature = hits.map(r => `${r.bedNumber || ''}|${r.residentName || r.id || ''}`).join('||');
-      const key = 'resident_foley_alert_signature';
-      const lastShown = sessionStorage.getItem(key);
-      renderFoleyAlertModal(hits);
-      if (lastShown !== signature) {
-        sessionStorage.setItem(key, signature);
-        setTimeout(() => { foleyAlertModal.show(); }, 250);
-      }
-    } catch (_e) {
       renderFoleyAlertModal(hits);
       setTimeout(() => { foleyAlertModal.show(); }, 250);
+    } catch (_e) {
+      try {
+        renderFoleyAlertModal(hits);
+        setTimeout(() => { foleyAlertModal.show(); }, 250);
+      } catch(__e) {}
     }
   }
 
