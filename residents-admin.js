@@ -122,6 +122,7 @@ document.addEventListener('residents-init', ()=>{
         <td>${r.bedNumber||''}</td>
         <td>${r.residentName||r.id||''}</td>
         <td>${r.englishName||''}</td>
+        <td>${r.checkinDate||r.admissionDate||''}</td>
         <td>${r.idNumber||''}</td>
         <td>${r.birthday||''}</td>
         <td>${r.gender||''}</td>
@@ -669,13 +670,14 @@ ${pages}
     `;
   }
   function sheetBasicHTML(){
-    const header=['護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡','地址','診斷','緊急連絡人或家屬','連絡電話','行走方式','請假 / 住院'];
+    const header=['護理站','住民編號','床號','姓名','住民英文姓名','入住日期','身份證字號','生日','性別','住民年齡','地址','診斷','緊急連絡人或家屬','連絡電話','行走方式','請假 / 住院'];
     const rows=cache.map(r=>[
       r.nursingStation||'',
       r.residentNumber||'',
       r.bedNumber||'',
       r.residentName||r.id||'',
       r.englishName||'',
+      r.checkinDate||r.admissionDate||'',
       r.idNumber||'',
       r.birthday||'',
       r.gender||'',
@@ -719,7 +721,7 @@ ${pages}
           const age=r? calcAge(r.birthday):'';
           const status=r? (isHospStatus(r)?'bg-red':(isLeaveStatus(r)?'bg-yellow':'bg-green')):'';
           row+=`<td class="cell-muted">🛏 ${key||''}</td>`;
-          row+=`<td>${r?(r.residentName||r.id||''):'🈳 空床'}</td>`;
+          row+=`<td>${r?`${r.residentName||r.id||''}${(r.mobility||'').trim()?`（${r.mobility.trim()}）`:''}`:'🈳 空床'}</td>`;
           row+=`<td class="${status}">${r?(r.gender||''):''} ${age!==''?`/ ${age}歲`:''}</td>`;
           row+=`<td></td>`;
         });
@@ -877,13 +879,14 @@ function exportStyledXls(){
   (function addBasicSheet(){
   const ws = wb.addWorksheet('基本資料', { views: [{ state: 'frozen', ySplit: 1 }] });
 
-  // 對應畫面「基本資料」頁 15 欄
+  // 對應畫面「基本資料」頁 16 欄
   ws.columns = [
     { width: 8  },  // 護理站
     { width: 14 },  // 住民編號
     { width: 10 },  // 床號
     { width: 16 },  // 姓名
     { width: 20 },  // 住民英文姓名
+    { width: 12 },  // 入住日期
     { width: 20 },  // 身份證字號
     { width: 12 },  // 生日
     { width: 6  },  // 性別
@@ -896,14 +899,14 @@ function exportStyledXls(){
     { width: 10 }   // 請假 / 住院
   ];
 
-  ws.mergeCells(1, 1, 1, 15);
+  ws.mergeCells(1, 1, 1, 16);
   const titleCell = ws.getCell('A1');
   titleCell.value = '基本資料';
   titleCell.font = fontTitle;
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
   const header = ws.addRow([
-    '護理站','住民編號','床號','姓名','住民英文姓名','身份證字號','生日','性別','住民年齡',
+    '護理站','住民編號','床號','姓名','住民英文姓名','入住日期','身份證字號','生日','性別','住民年齡',
     '地址','診斷','緊急連絡人或家屬','連絡電話','行走方式','請假 / 住院'
   ]);
   styleRow(header, { isHeader: true, center: true });
@@ -921,6 +924,7 @@ function exportStyledXls(){
       r.bedNumber || '',
       r.residentName || r.id || '',
       r.englishName || '',
+      r.checkinDate || r.admissionDate || '',
       r.idNumber || '',
       r.birthday || '',
       r.gender || '',
@@ -997,6 +1001,7 @@ function exportStyledXls(){
       r.bedNumber || '',
       r.residentName || r.id || '',
       r.englishName || '',
+      r.checkinDate || r.admissionDate || '',
       r.idNumber || '',
       r.birthday || '',
       r.gender || '',
@@ -1093,7 +1098,7 @@ function exportStyledXls(){
             if(rec) usedBeds++;
             const age = rec ? computeAge(rec.birthday) : '';
             const sexAge = rec ? ((rec.gender||'') + (age!==''?`/${age}歲`:'')) : '';
-            const nameText = rec ? (rec.id||'') : '空床';
+            const nameText = rec ? `${rec.id||''}${(rec.mobility||'').trim()?`（${rec.mobility.trim()}）`:''}` : '空床';
             rowCells.push(sub, nameText, sexAge);
           }else{
             rowCells.push('', '', '');
