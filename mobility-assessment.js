@@ -637,8 +637,8 @@
     <div>建立者：${escapeHtml((normalizeString(sheet.createdByStaffId) + ' ' + normalizeString(sheet.createdByName)).trim())}</div>
   </div>
   <div class="note">
-    這些住民星期一到星期六14:00前都要坐輪椅到 TV Room，我們都會點名。<br>
-    如果點名未到，一個人罰款新台幣100元，兩個人罰款新台幣200元，以此類推。<br>
+    這些住民星期一到星期六14:00前都要坐輪椅到 TV Room，我們都會點名。These residents must be in wheelchairs and arrive at the TV Room by 2 PM from Monday to Saturday.<br>
+    如果點名未到，一個人罰款新台幣100元，兩個人罰款新台幣200元，以此類推。We will take attendance. If someone is absent, they will be fined NT$100 per person, NT$200 for two people, and so on.<br>
     <b class="red">有復健註記 "R" 個案請推到一樓 TV ROOM 等待復健運動。</b>
     Cases with the rehabilitation mark "R" should be moved to the TV room on the first floor to wait for rehabilitation exercises.
   </div>
