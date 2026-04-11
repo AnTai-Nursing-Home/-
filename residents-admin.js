@@ -1071,7 +1071,6 @@ function exportStyledXls(){
       r.bedNumber || '',
       r.residentName || r.id || '',
       r.englishName || '',
-      r.checkinDate || r.admissionDate || '',
       r.idNumber || '',
       r.birthday || '',
       r.gender || '',
