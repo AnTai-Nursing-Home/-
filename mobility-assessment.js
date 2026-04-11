@@ -219,7 +219,10 @@
 
   function refreshEditorHeader(){
     $('row-count-display').textContent = currentRows.length;
-    $('rehab-count-display').textContent = currentRows.filter(r => !!r.rehab).length;
+    const dailyOutCount = currentRows.filter(r => !!r.dailyOut).length;
+    const rehabCount = currentRows.filter(r => !!r.rehab).length;
+    if ($('daily-out-count-display')) $('daily-out-count-display').textContent = dailyOutCount;
+    $('rehab-count-display').textContent = rehabCount;
   }
 
   function createEmptyRow(){
@@ -231,6 +234,7 @@
       residentName: '',
       englishName: '',
       mobility: '',
+      dailyOut: false,
       rehab: false,
       mon: '',
       tue: '',
@@ -251,6 +255,7 @@
       residentName: normalizeString(row && row.residentName),
       englishName: normalizeString(row && row.englishName),
       mobility: normalizeString(row && row.mobility),
+      dailyOut: !!(row && row.dailyOut),
       rehab: !!(row && row.rehab),
       mon: normalizeString(row && row.mon),
       tue: normalizeString(row && row.tue),
@@ -269,7 +274,7 @@
     if (!currentRows.length){
       tbody.innerHTML = `
         <tr>
-          <td colspan="15" class="text-center text-muted py-4">
+          <td colspan="16" class="text-center text-muted py-4">
             目前沒有資料，請從住民資料匯入，或手動新增空白列。
           </td>
         </tr>`;
@@ -285,6 +290,7 @@
         <td><input class="form-control form-control-sm row-input" data-field="residentName" value="${escapeHtml(row.residentName)}"></td>
         <td><input class="form-control form-control-sm row-input" data-field="englishName" value="${escapeHtml(row.englishName)}"></td>
         <td><input class="form-control form-control-sm row-input" data-field="mobility" value="${escapeHtml(row.mobility)}"></td>
+        <td class="text-center"><input type="checkbox" class="form-check-input row-check" data-field="dailyOut" ${row.dailyOut ? 'checked' : ''}></td>
         <td class="text-center"><input type="checkbox" class="form-check-input row-check" data-field="rehab" ${row.rehab ? 'checked' : ''}></td>
         <td><input class="form-control form-control-sm row-input text-center" data-field="mon" value="${escapeHtml(row.mon)}"></td>
         <td><input class="form-control form-control-sm row-input text-center" data-field="tue" value="${escapeHtml(row.tue)}"></td>
@@ -312,7 +318,7 @@
       const field = target.getAttribute('data-field');
       if (!currentRows[idx] || !field) return;
       currentRows[idx][field] = target.type === 'checkbox' ? !!target.checked : target.value;
-      if (field === 'rehab') refreshEditorHeader();
+      if (field === 'dailyOut' || field === 'rehab') refreshEditorHeader();
     });
     tbody.addEventListener('change', function(e){
       const target = e.target;
@@ -367,6 +373,7 @@
     const rows = Array.isArray(sheet && sheet.rows) ? sheet.rows : [];
     return {
       total: rows.length,
+      dailyOut: rows.filter(r => !!r.dailyOut).length,
       rehab: rows.filter(r => !!r.rehab).length
     };
   }
@@ -527,6 +534,7 @@
         residentName: r.residentName,
         englishName: r.englishName,
         mobility: r.mobility,
+        dailyOut: false,
         rehab: false
       }, currentRows.length));
       existingKeys.add(key);
@@ -646,7 +654,7 @@
   function buildPrintHtml(sheet){
     const title = escapeHtml(sheet.title || '');
     const date = escapeHtml(sheet.date || '');
-    const rows = sortResidents((sheet.rows || []).map((r, idx) => normalizeRow(r, idx)));
+    const rows = sortResidents((sheet.rows || []).map((r, idx) => normalizeRow(r, idx)).filter(r => r.dailyOut || r.rehab));
     const bodyRows = rows.map((row, idx) => `
       <tr>
         <td class="center">${idx+1}</td>
@@ -654,6 +662,7 @@
         <td class="center">${escapeHtml(row.residentName)}</td>
         <td>${escapeHtml(row.englishName)}</td>
         <td class="center">${escapeHtml(row.mobility)}</td>
+        <td class="center dailyout-cell">${row.dailyOut ? '✓' : ''}</td>
         <td class="center rehab-cell">${row.rehab ? 'R' : ''}</td>
         <td>${escapeHtml(row.mon)}</td>
         <td>${escapeHtml(row.tue)}</td>
@@ -683,6 +692,7 @@
   thead th{ text-align:center; font-weight:900; }
   tbody td{ height:21px; }
   .center{text-align:center;}
+  .dailyout-head, .dailyout-cell{ background:#e8f6ff; font-weight:900; }
   .rehab-head, .rehab-cell{ background:#fff48a; font-weight:900; }
   .sign{ margin-top:6px; font-size:10px; display:flex; justify-content:space-between; align-items:flex-end; }
   .line{ display:inline-block; border-bottom:1px solid #000; min-width:140px; height:1.1em; vertical-align:bottom; }
@@ -708,13 +718,14 @@
         <th style="width:8.5%">名字</th>
         <th style="width:15%">NAME</th>
         <th style="width:8.5%">行動方式</th>
+        <th style="width:6%" class="dailyout-head">每日下床</th>
         <th style="width:6%" class="rehab-head">復健<br>Rehabilitation</th>
-        <th style="width:8.3%">星期一</th>
-        <th style="width:8.3%">星期二</th>
-        <th style="width:8.3%">星期三</th>
-        <th style="width:8.3%">星期四</th>
-        <th style="width:8.3%">星期五</th>
-        <th style="width:8.3%">星期六</th>
+        <th style="width:7.7%">星期一</th>
+        <th style="width:7.7%">星期二</th>
+        <th style="width:7.7%">星期三</th>
+        <th style="width:7.7%">星期四</th>
+        <th style="width:7.7%">星期五</th>
+        <th style="width:7.7%">星期六</th>
       </tr>
     </thead>
     <tbody>
@@ -752,7 +763,7 @@
       return;
     }
 
-    const rows = sortResidents((sheet.rows || []).map((r, idx) => normalizeRow(r, idx)));
+    const rows = sortResidents((sheet.rows || []).map((r, idx) => normalizeRow(r, idx)).filter(r => r.dailyOut || r.rehab));
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('行動評估名單', {
       views:[{ state:'frozen', ySplit:4 }]
@@ -768,31 +779,34 @@
       margins: { left:0.2, right:0.2, top:0.3, bottom:0.45, header:0.1, footer:0.1 }
     };
 
-    ws.mergeCells('A1:L1');
+    ws.mergeCells('A1:M1');
     ws.getCell('A1').value = sheet.title || '行動評估名單';
     ws.getCell('A1').font = { name:'標楷體', size:16, bold:true };
     ws.getCell('A1').alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(1).height = 24;
 
-    ws.mergeCells('A2:L2');
+    ws.mergeCells('A2:M2');
     ws.getCell('A2').value = `日期：${sheet.date || ''}　建立者：${(normalizeString(sheet.createdByStaffId) + ' ' + normalizeString(sheet.createdByName)).trim()}`;
     ws.getCell('A2').font = { name:'標楷體', size:10, bold:true };
     ws.getCell('A2').alignment = { horizontal:'left', vertical:'middle' };
     ws.getRow(2).height = 18;
 
-    ws.mergeCells('A3:L3');
+    ws.mergeCells('A3:M3');
     ws.getCell('A3').value = '有復健註記 "R" 個案請推到一樓 TV ROOM 等待復健運動。Cases with the rehabilitation mark "R" should be moved to the TV room on the first floor to wait for rehabilitation exercises.';
     ws.getCell('A3').font = { name:'標楷體', size:9, color:{ argb:'FFC00000' }, bold:true };
     ws.getCell('A3').alignment = { wrapText:true, vertical:'middle' };
     ws.getRow(3).height = 28;
 
-    const header = ws.addRow(['編號','房號','名字','NAME','行動方式','復健','星期一','星期二','星期三','星期四','星期五','星期六']);
+    const header = ws.addRow(['編號','房號','名字','NAME','行動方式','每日下床','復健','星期一','星期二','星期三','星期四','星期五','星期六']);
     header.height = 22;
     header.eachCell((cell, idx) => {
       cell.font = { name:'標楷體', size:10, bold:true };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
       cell.border = fullBorder();
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: idx===6 ? 'FFFFF38A' : 'FFF3F6FA' } };
+      let color = 'FFF3F6FA';
+      if (idx === 6) color = 'FFE8F6FF';
+      if (idx === 7) color = 'FFFFF38A';
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: color } };
     });
 
     rows.forEach((row, idx) => {
@@ -802,6 +816,7 @@
         row.residentName,
         row.englishName,
         row.mobility,
+        row.dailyOut ? '✓' : '',
         row.rehab ? 'R' : '',
         row.mon,
         row.tue,
@@ -812,10 +827,12 @@
       ]);
       excelRow.height = 20;
       excelRow.eachCell((cell, col) => {
-        cell.font = { name:'標楷體', size:10, bold: col===6 && row.rehab };
+        cell.font = { name:'標楷體', size:10, bold: (col===6 && row.dailyOut) || (col===7 && row.rehab) };
         cell.alignment = { horizontal: (col===4 ? 'left' : 'center'), vertical:'middle', wrapText:true };
         cell.border = fullBorder();
         if (col === 6){
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFE8F6FF' } };
+        } else if (col === 7){
           cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFF38A' } };
         }
       });
@@ -824,19 +841,19 @@
     ws.addRow([]);
     const footerRow = ws.addRow([
       `匯出人：${userDisplayText(currentUser)}`,
-      '', '', '', '', '',
+      '', '', '', '', '', '',
       `匯出時間：${formatDateTime(new Date())}`
     ]);
-    ws.mergeCells(`A${footerRow.number}:F${footerRow.number}`);
-    ws.mergeCells(`G${footerRow.number}:L${footerRow.number}`);
+    ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
+    ws.mergeCells(`H${footerRow.number}:M${footerRow.number}`);
     footerRow.height = 18;
     footerRow.getCell(1).font = { name:'標楷體', size:10, bold:true };
-    footerRow.getCell(7).font = { name:'標楷體', size:10, bold:true };
+    footerRow.getCell(8).font = { name:'標楷體', size:10, bold:true };
     footerRow.getCell(1).alignment = { horizontal:'left', vertical:'middle' };
-    footerRow.getCell(7).alignment = { horizontal:'right', vertical:'middle' };
+    footerRow.getCell(8).alignment = { horizontal:'right', vertical:'middle' };
 
     ws.columns = [
-      { width:8 }, { width:12 }, { width:14 }, { width:25 }, { width:12 }, { width:8 },
+      { width:8 }, { width:12 }, { width:14 }, { width:25 }, { width:12 }, { width:10 }, { width:8 },
       { width:11 }, { width:11 }, { width:11 }, { width:11 }, { width:11 }, { width:11 }
     ];
 
