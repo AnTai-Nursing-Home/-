@@ -289,7 +289,14 @@
         <td><input class="form-control form-control-sm row-input" data-field="residentNumber" value="${escapeHtml(row.residentNumber)}"></td>
         <td><input class="form-control form-control-sm row-input" data-field="residentName" value="${escapeHtml(row.residentName)}"></td>
         <td><input class="form-control form-control-sm row-input" data-field="englishName" value="${escapeHtml(row.englishName)}"></td>
-        <td><input class="form-control form-control-sm row-input" data-field="mobility" value="${escapeHtml(row.mobility)}"></td>
+        <td>
+          <select class="form-select form-select-sm row-input" data-field="mobility">
+            <option value="">請選擇</option>
+            <option value="步行" ${row.mobility === '步行' ? 'selected' : ''}>步行</option>
+            <option value="輪椅" ${row.mobility === '輪椅' ? 'selected' : ''}>輪椅</option>
+            <option value="推床" ${row.mobility === '推床' ? 'selected' : ''}>推床</option>
+          </select>
+        </td>
         <td class="text-center"><input type="checkbox" class="form-check-input row-check" data-field="dailyOut" ${row.dailyOut ? 'checked' : ''}></td>
         <td class="text-center"><input type="checkbox" class="form-check-input row-check" data-field="rehab" ${row.rehab ? 'checked' : ''}></td>
         <td><input class="form-control form-control-sm row-input text-center" data-field="mon" value="${escapeHtml(row.mon)}"></td>
