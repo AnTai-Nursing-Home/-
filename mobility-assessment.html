@@ -233,6 +233,7 @@
             <div>
               <h2 class="title">案件清單</h2>
               <div class="sub">預設顯示今年，可切換其他年份查看既有清單</div>
+              <div id="resident-link-status" class="d-flex flex-wrap gap-2 align-items-center mt-2"></div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <select id="year-filter" class="form-select" style="width:120px"></select>
@@ -333,7 +334,6 @@
         <div class="editor-actions">
           <div class="d-flex flex-wrap gap-2 align-items-center">
             <span class="badge-soft"><i class="fas fa-table me-1"></i>目前列數：<span id="row-count-display">0</span></span>
-            <span class="badge-soft"><i class="fas fa-bed-pulse me-1"></i>每日下床數：<span id="daily-out-count-display">0</span></span>
             <span class="badge-soft"><i class="fas fa-dumbbell me-1"></i>復健數：<span id="rehab-count-display">0</span></span>
           </div>
           <div class="d-flex flex-wrap gap-2">
@@ -347,7 +347,7 @@
           <div class="card-lite">
             <div class="head">
               <div><i class="fas fa-clipboard-list me-2"></i>評估名單內容</div>
-              <div class="small-muted">只有勾選每日下床或復健者，才會出現在列印與 Excel 中</div>
+              <div class="small-muted">復健勾選後，列印與 Excel 會自動顯示 R</div>
             </div>
             <div class="table-wrap">
               <table class="table table-bordered align-middle mb-0 assessment-table">
@@ -359,7 +359,6 @@
                     <th style="width:140px">姓名</th>
                     <th style="width:220px">英文名</th>
                     <th style="width:140px">行動方式</th>
-                    <th style="width:90px">每日下床</th>
                     <th style="width:90px">復健</th>
                     <th style="width:92px">星期一</th>
                     <th style="width:92px">星期二</th>
