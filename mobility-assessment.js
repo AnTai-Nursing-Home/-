@@ -162,7 +162,7 @@
     if (!el) return;
     const latestSheet = getLatestSheetFromList(allSheets);
     if (!residentLinkInfo || !residentLinkInfo.linkedSheetId){
-      el.innerHTML = '<span class="badge-soft"><i class="fas fa-link-slash me-1"></i>目前尚未與住民系統建立連結</span>';
+      el.innerHTML = '<span class="badge-soft"><i class="fas fa-link-slash me-1"></i>目前住民系統尚未連結任何案件</span>';
       return;
     }
     const linkedId = normalizeString(residentLinkInfo.linkedSheetId);
@@ -170,9 +170,10 @@
     const linkedDate = normalizeString(residentLinkInfo.linkedSheetDate);
     const linkedAt = residentLinkInfo.linkedAt ? formatDateTime(residentLinkInfo.linkedAt) : '';
     const isLatest = latestSheet && normalizeString(latestSheet.id) === linkedId;
+    const linkedText = linkedTitle || linkedDate || linkedId;
     el.innerHTML = `
-      <span class="badge-soft"><i class="fas fa-link me-1"></i>住民系統目前連結：${escapeHtml(linkedTitle || linkedDate || linkedId)}</span>
-      <span class="badge-soft">${isLatest ? '目前已連結最新資料' : '目前連結的不是最新資料'}</span>
+      <span class="badge-soft"><i class="fas fa-link me-1"></i>目前住民系統連結案件：${escapeHtml(linkedText)}</span>
+      <span class="badge-soft">${isLatest ? '目前連結的是最新案件' : '目前連結的不是最新案件'}</span>
       ${linkedAt ? `<span class="small-muted">最後同步：${escapeHtml(linkedAt)}</span>` : ''}
     `;
   }
@@ -410,8 +411,8 @@
         <tr>
           <td>${escapeHtml(sheet.date || '')}</td>
           <td>
-            <div class="fw-bold">${escapeHtml(sheet.title || '')} ${isLinked ? '<span class="badge-soft ms-2">住民系統連結中</span>' : ''}</div>
-            <div class="small text-muted text-truncate-2">${escapeHtml(sheet.note || '') || (isLinked ? '目前住民系統的行走方式以此張最新連結資料為主' : '')}</div>
+            <div class="fw-bold">${escapeHtml(sheet.title || '')} ${isLinked ? '<span class="badge-soft ms-2"><i class="fas fa-link me-1"></i>目前住民系統連結案件</span>' : ''}</div>
+            <div class="small text-muted text-truncate-2">${escapeHtml(sheet.note || '') || (isLinked ? '住民系統目前就是連結這一筆案件' : '')}</div>
           </td>
           <td class="text-center fw-bold">${stats.total}</td>
           <td class="text-center fw-bold">${stats.rehab}</td>
@@ -957,8 +958,10 @@
     residentModal = window.bootstrap ? new bootstrap.Modal($('resident-import-modal')) : null;
     bindEvents();
     toggleView('list');
-    await Promise.all([loadSheets(), loadResidents(), loadResidentLinkInfo()]);
+    await loadResidentLinkInfo();
+    await Promise.all([loadSheets(), loadResidents()]);
     renderResidentLinkStatus();
+    renderList();
   }
 
   function canStart(){
