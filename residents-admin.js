@@ -2020,38 +2020,55 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
   function pick(row, aliases){ const map={}; Object.keys(row).forEach(k=>{ map[String(k).replace(/\s+/g,'').trim()] = row[k]; }); for(const a of aliases){ const kk=String(a).replace(/\s+/g,'').trim(); if(Object.prototype.hasOwnProperty.call(map,kk)) return map[kk]; } return ''; }
   async function handleExcelImport(evt){
     const file=evt.target.files[0]; if(!file) return;
-    showLoading('Excel 匯入中，請稍候...');
-    if(importStatus){ importStatus.className='alert alert-info'; importStatus.classList.remove('d-none'); importStatus.textContent='正在讀取檔案...'; }
+    const setImportMessage = (message, statusClass='alert alert-info')=>{
+      showLoading(message);
+      if(importStatus){
+        importStatus.className=statusClass;
+        importStatus.classList.remove('d-none');
+        importStatus.textContent=String(message || '').replace(/\n+/g,' ');
+      }
+    };
+
+    setImportMessage(`正在讀取 Excel 檔案...\n檔名：${file.name}`);
     const reader=new FileReader();
     reader.onload=async (e)=>{
       try{
+        setImportMessage('正在解析 Excel 資料...\n準備建立住民清單');
         const data=new Uint8Array(e.target.result);
         const wb=XLSX.read(data,{type:'array',cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+
+        setImportMessage('正在讀取評估系統最新資料...\n準備比對行走方式');
         const latestMobilitySheet = await getLatestMobilitySheet();
         const mobilityMap = buildMobilityMapFromSheet(latestMobilitySheet);
+
         const batch=db.batch(); let count=0;
+        let linkedOverrideCount = 0;
+        let deleteCount = 0;
         const excelNames = new Set();
+
+        setImportMessage(`正在整理 Excel 內容...\n共讀到 ${rows.length} 列資料`);
         rows.forEach(r=>{
           const name = norm(pick(r, ['姓名','住民姓名','Name']));
-          if (!name) return;                      // 沒名字就略過（維持原本）
-        
-          // 先抓床號，過濾掉「@@護理站」「2共：40人」「總計：…」這種列
+          if (!name) return;
+
           const bedRaw  = norm(pick(r, ['床號','床位','Bed']));
           const bedNorm = normalizeToken(bedRaw);
-          if (!bedNorm) return;                   // 床號不是 3 碼房號-子床號 的就跳過
-        
+          if (!bedNorm) return;
+
           const birthdayRaw = pick(r, ['生日','出生日期','出生年月日','Birth','BirthDate']);
           const checkinRaw  = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
-        
+
           const residentNo = norm(pick(r, ['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code']));
           const excelMobility = norm(pick(r, ['行動方式','行動','Mobility']));
           const linkedMobility = residentNo ? norm(mobilityMap.get(residentNo) || '') : '';
           const finalMobility = linkedMobility || excelMobility;
+          if (linkedMobility && linkedMobility !== excelMobility) linkedOverrideCount++;
+
           const payload = {
             nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
-            bedNumber:      bedNorm,              // 用整理後的床號
+            bedNumber:      bedNorm,
             residentNumber: residentNo,
             residentName:   name,
             gender:         norm(pick(r, ['性別','Gender'])),
@@ -2069,42 +2086,45 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
             mobilityLinkedSheetTitle: linkedMobility && latestMobilitySheet ? norm(latestMobilitySheet.title) : '',
             leaveStatus:      norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
           };
-        
-          // 以住民編號為主鍵：如果住民編號跟舊資料一樣，就更新舊的那一筆
+
           let docId = name;
           if (residentNo && Array.isArray(cache)) {
             const found = cache.find(o => o && o.residentNumber === residentNo && o.id);
-            if (found && found.id) {
-              docId = found.id;
-            }
+            if (found && found.id) docId = found.id;
           }
-        
+
           excelNames.add(docId);
           batch.set(db.collection(dbCol).doc(docId), payload, { merge:true });
           count++;
         });
 
-// 匯入後以本次 Excel 為主：
-// 若現有住民沒有出現在這次匯入的 Excel 名單中，就一併刪除
-if (Array.isArray(cache) && cache.length) {
-  cache.forEach(old => {
-    if (old && old.id && !excelNames.has(old.id)) {
-      batch.delete(db.collection(dbCol).doc(old.id));
-    }
-  });
-}
+        if (Array.isArray(cache) && cache.length) {
+          cache.forEach(old => {
+            if (old && old.id && !excelNames.has(old.id)) {
+              batch.delete(db.collection(dbCol).doc(old.id));
+              deleteCount++;
+            }
+          });
+        }
 
+        setImportMessage(`正在寫入住民資料...\n新增 / 更新 ${count} 筆，刪除 ${deleteCount} 筆`);
         await batch.commit();
+
+        setImportMessage('正在更新住民系統與評估系統連結...\n請勿關閉頁面');
         await updateResidentMobilityLinkDoc(latestMobilitySheet);
+
+        const linkedLabel = latestMobilitySheet
+          ? `已套用評估系統最新資料：${norm(latestMobilitySheet.title) || norm(latestMobilitySheet.date) || latestMobilitySheet.id}`
+          : '未找到評估系統資料，行走方式維持 Excel 內容';
+
+        setImportMessage(`匯入完成，正在重新整理頁面...\n成功 ${count} 筆，行走方式覆蓋 ${linkedOverrideCount} 筆`, 'alert alert-success');
         if(importStatus){
-          const linkedLabel = latestMobilitySheet ? `，行走方式已套用評估系統最新資料：${norm(latestMobilitySheet.title) || norm(latestMobilitySheet.date) || latestMobilitySheet.id}` : '，未找到評估系統資料，行走方式維持 Excel 內容';
-          importStatus.className='alert alert-success';
-          importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...${linkedLabel}`;
+          importStatus.textContent=`成功匯入 ${count} 筆資料，刪除 ${deleteCount} 筆；行走方式以評估系統覆蓋 ${linkedOverrideCount} 筆。${linkedLabel}`;
         }
         setTimeout(()=>location.reload(),1000);
       }catch(err){
         console.error(err);
-        if(importStatus){ importStatus.className='alert alert-danger'; importStatus.textContent='匯入失敗，請檢查檔案。'; }
+        setImportMessage('匯入失敗，請檢查 Excel 格式或稍後再試。', 'alert alert-danger');
       }finally{
         hideLoading();
         if(fileInput) fileInput.value='';
