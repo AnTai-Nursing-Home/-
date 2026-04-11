@@ -42,6 +42,9 @@
 
 document.addEventListener('residents-init', ()=>{
   const dbCol='residents';
+  const MOBILITY_COLLECTION='mobilityAssessments';
+  const LINK_COLLECTION='systemSettings';
+  const LINK_DOC='residentMobilityLink';
   const tbody=document.getElementById('residents-table-body');
   const floor1Grid=document.getElementById('floor1-grid');
   const floor2Grid=document.getElementById('floor2-grid');
@@ -112,6 +115,61 @@ document.addEventListener('residents-init', ()=>{
   }
 
   const norm=v=>(v==null?'':String(v).trim());
+
+  function firestoreDateToIso(value){
+    try{ if(value && typeof value.toDate==='function') return value.toDate().toISOString(); }catch(_e){}
+    if(!value) return '';
+    try{
+      const d = new Date(value);
+      return isNaN(d) ? '' : d.toISOString();
+    }catch(_e){ return ''; }
+  }
+  function pickLatestMobilitySheet(items){
+    return (items || []).slice().sort((a,b)=>{
+      const aUpdated = firestoreDateToIso(a && a.updatedAt) || '';
+      const bUpdated = firestoreDateToIso(b && b.updatedAt) || '';
+      if (aUpdated !== bUpdated) return bUpdated.localeCompare(aUpdated);
+      const aDate = norm(a && a.date);
+      const bDate = norm(b && b.date);
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      return norm(b && b.id).localeCompare(norm(a && a.id));
+    })[0] || null;
+  }
+  function buildMobilityMapFromSheet(sheet){
+    const map = new Map();
+    const rows = Array.isArray(sheet && sheet.rows) ? sheet.rows : [];
+    rows.forEach(row=>{
+      const residentNo = norm(row && row.residentNumber);
+      if (!residentNo) return;
+      const mobility = norm(row && row.mobility);
+      if (!mobility) return;
+      map.set(residentNo, mobility);
+    });
+    return map;
+  }
+  async function getLatestMobilitySheet(){
+    try{
+      const snap = await db.collection(MOBILITY_COLLECTION).get();
+      const sheets = snap.docs.map(doc=>({ id:doc.id, ...doc.data() }));
+      return pickLatestMobilitySheet(sheets);
+    }catch(err){
+      console.warn('讀取評估系統最新資料失敗：', err);
+      return null;
+    }
+  }
+  async function updateResidentMobilityLinkDoc(sheet){
+    const payload = {
+      linkedSheetId: sheet ? norm(sheet.id) : '',
+      linkedSheetTitle: sheet ? norm(sheet.title) : '',
+      linkedSheetDate: sheet ? norm(sheet.date) : '',
+      linkedSheetYear: sheet && sheet.year ? Number(sheet.year) : null,
+      linkedSheetUpdatedAt: sheet ? (firestoreDateToIso(sheet.updatedAt) || '') : '',
+      linkedResidentCount: Array.isArray(sheet && sheet.rows) ? sheet.rows.length : 0,
+      linkedAt: new Date().toISOString(),
+      source: 'residents-admin-import'
+    };
+    await db.collection(LINK_COLLECTION).doc(LINK_DOC).set(payload, { merge:true });
+  }
   function bedToSortValue(bed){ if(!bed) return 0; const m=String(bed).match(/^(\d+)(?:[-_]?([A-Za-z0-9]+))?/); if(!m) return 0; const base=parseInt(m[1],10); const sub=m[2]?parseInt(String(m[2]).replace(/\D/g,''),10)||0:0; return base+sub/100; }
   function calcAge(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); let a=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) a--; return a; }
   function parseDateSmart(v){
@@ -1971,6 +2029,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
         const wb=XLSX.read(data,{type:'array',cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+        const latestMobilitySheet = await getLatestMobilitySheet();
+        const mobilityMap = buildMobilityMapFromSheet(latestMobilitySheet);
         const batch=db.batch(); let count=0;
         const excelNames = new Set();
         rows.forEach(r=>{
@@ -1986,6 +2046,9 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
           const checkinRaw  = pick(r, ['入住日期','入住日','入院日期','Checkin','Admission']);
         
           const residentNo = norm(pick(r, ['住民編號','住民代碼','住民代號','編號','代碼','ResidentNo','ResidentID','Code']));
+          const excelMobility = norm(pick(r, ['行動方式','行動','Mobility']));
+          const linkedMobility = residentNo ? norm(mobilityMap.get(residentNo) || '') : '';
+          const finalMobility = linkedMobility || excelMobility;
           const payload = {
             nursingStation: norm(pick(r, ['護理站','站別','樓層','Floor'])),
             bedNumber:      bedNorm,              // 用整理後的床號
@@ -2000,7 +2063,10 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
             diagnosis:      norm(pick(r, ['診斷','診斷名稱','Diagnosis','Dx'])),
             emergencyContact: norm(pick(r, ['緊急連絡人或家屬','緊急聯絡人','家屬','EmergencyContact'])),
             emergencyPhone:   norm(pick(r, ['連絡電話','聯絡電話','電話','Phone'])),
-            mobility:         norm(pick(r, ['行動方式','行動','Mobility'])),
+            mobility:         finalMobility,
+            mobilitySource:   linkedMobility ? 'mobility-assessment' : 'excel-import',
+            mobilityLinkedSheetId: linkedMobility && latestMobilitySheet ? norm(latestMobilitySheet.id) : '',
+            mobilityLinkedSheetTitle: linkedMobility && latestMobilitySheet ? norm(latestMobilitySheet.title) : '',
             leaveStatus:      norm(pick(r, ['住民請假','請假','住院','LeaveHosp','Leave/Hosp']))
           };
         
@@ -2029,7 +2095,12 @@ if (Array.isArray(cache) && cache.length) {
 }
 
         await batch.commit();
-        if(importStatus){ importStatus.className='alert alert-success'; importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...`; }
+        await updateResidentMobilityLinkDoc(latestMobilitySheet);
+        if(importStatus){
+          const linkedLabel = latestMobilitySheet ? `，行走方式已套用評估系統最新資料：${norm(latestMobilitySheet.title) || norm(latestMobilitySheet.date) || latestMobilitySheet.id}` : '，未找到評估系統資料，行走方式維持 Excel 內容';
+          importStatus.className='alert alert-success';
+          importStatus.textContent=`成功匯入 ${count} 筆資料！重新載入中...${linkedLabel}`;
+        }
         setTimeout(()=>location.reload(),1000);
       }catch(err){
         console.error(err);
