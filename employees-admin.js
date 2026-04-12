@@ -395,6 +395,11 @@ document.addEventListener('firebase-ready', () => {
   }
 
 
+  function getEmployeeNationalityForExport(e = {}) {
+    return pick(e, ['nationality', 'country', 'nation'], '');
+  }
+
+
   const CERTIFICATE_TYPE_OPTIONS = [
     { value: '01:護理師執照', label: '01:護理師執照' },
     { value: '02:護理師證書', label: '02:護理師證書' },
@@ -1935,8 +1940,9 @@ async function generateReportHTML() {
         { header: '證書摘要', key: 'licenseType', width: 30 },
         { header: '學歷', key: 'education', width: 12 },
         { header: '畢業學校', key: 'school', width: 26 },
-        { header: '畢業證書', key: 'graduationCertificate', width: 12 },
-      ];
+        { header: '畢業證書', key: 'graduationCertificate', width: 12 },,
+      { header:'國籍', key:'nationality', width: 12 }
+    ];
 
       const getVal = (obj, keys) => {
         for (const k of keys) {
