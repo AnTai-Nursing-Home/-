@@ -1656,6 +1656,8 @@ window.addEventListener('beforeunload', (e) => {
             console.warn('[foley-care] no session user');
         }
 
+        // 先載入補登設定，避免頁面初次渲染時仍用到預設值，導致指定可補登日期無法操作
+        await loadBackfillConfig();
         await loadResidentsDropdowns();
         await loadCareFormList();
         updateRoleUI();
