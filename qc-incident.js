@@ -106,6 +106,27 @@ function formatDateDisplay(value, withTime=false){
   return `${y}/${m}/${day} ${hh}:${mm}`;
 }
 
+function toDateObject(value){
+  if (!value) return null;
+  if (value && typeof value.toDate === "function") return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function formatDateTimeLocalValue(value){
+  const d = toDateObject(value);
+  if (!d) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function getNowDateTimeLocalValue(){
+  return formatDateTimeLocalValue(new Date());
+}
+
 function escapeHtml(str){
   return String(str ?? "")
     .replace(/&/g, "&amp;")
@@ -611,6 +632,8 @@ function resetIncidentForm(){
   $("editingIncidentId").value = "";
   $("modalTitle").textContent = "新增意外事件";
   $("btnSave").textContent = "儲存";
+  $("occurredAt").value = "";
+  $("formCreatedAt").value = getNowDateTimeLocalValue();
   $("residentSelect").value = "";
   $("residentGender").value = "";
   $("residentAge").value = "";
@@ -652,6 +675,8 @@ async function openEditModal(docId){
   $("incidentType").dispatchEvent(new Event("change"));
   $("incidentTypeOtherText").value = d.incidentTypeOtherText || "";
   $("injuryLevel").value = d.injuryLevel || "";
+  $("occurredAt").value = formatDateTimeLocalValue(d.occurredAt);
+  $("formCreatedAt").value = formatDateTimeLocalValue(d.formCreatedAt || d.createdAt) || getNowDateTimeLocalValue();
   if (isIncidentReviewed(d)) {
     const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
     const reviewedAt = formatDateDisplay(d.review?.reviewedAt, true);
@@ -750,8 +775,9 @@ async function renderIncidents(){
     const type = d.incidentType || "";
     const injury = d.injuryLevel || "";
     const creator = d.createdBy?.name || d.createdBy?.uid || "";
-    const createdAtText = formatDateDisplay(d.createdAt) || "";
-    const reviewerName = getReviewerDisplay(d);
+    const reporterDateText = formatDateDisplay(d.formCreatedAt || d.createdAt, true) || "";
+    const occurrenceText = formatDateDisplay(d.occurredAt, true) || "";
+    const reportedLine = reporterDateText ? `填報日期：${escapeHtml(reporterDateText)}` : "";
     const reviewed = isIncidentReviewed(d);
     const canReview = canCurrentUserReview(d);
     const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
@@ -761,8 +787,11 @@ async function renderIncidents(){
     const fallTag = (type === "跌倒" && d.fallAnalysis) ? `原因分析已填` : "";
 
     const el = document.createElement("div");
-    el.className = "item";
+    el.className = `item ${!reviewed ? "item-unreviewed" : ""}`;
     const typeLabel = type ? `${escapeHtml(type)}${other}` : "";
+    const reviewMetaText = reviewed
+      ? `審核者：${escapeHtml(reviewedBy || "已覆核")}${reviewedAtText ? `<br>審核日期：${escapeHtml(reviewedAtText)}` : ""}`
+      : `審核者：待覆核<br>審核日期：待覆核`;
     el.innerHTML = `
       <div class="row">
         <div class="nameWrap">
@@ -772,10 +801,10 @@ async function renderIncidents(){
             ${!reviewed ? `<span class="reviewBadge">未覆核</span>` : `<span class="reviewedBadge">已覆核</span>`}
           </div>
           <div class="subLine muted">${gender ? `${escapeHtml(gender)}`:""}${(gender && age) ? "｜":""}${age ? `${escapeHtml(age)}`:""}</div>
+          ${reportedLine ? `<div class="subLine muted">${reportedLine}</div>` : ``}
         </div>
-        <div class="row" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
-          ${createdAtText ? `<div class="muted">建立：${escapeHtml(createdAtText)}</div>` : ``}
-          <div class="muted">${creator ? `填報：${escapeHtml(creator)}`:""}</div>
+        <div class="row incidentActionRow" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+          <div class="reviewInfoBox ${reviewed ? "reviewed" : "pending"}">${reviewMetaText}</div>
           <button class="btn" data-edit="${doc.id}" type="button">查看／編輯</button>
           ${canReview ? `<button class="btn" data-review="${doc.id}" type="button">覆核案件</button>` : ``}
           <button class="btn" data-del="${doc.id}" type="button" style="background:rgba(220,38,38,.10);border-color:rgba(220,38,38,.35);color:#7f1d1d;">刪除</button>
@@ -795,12 +824,16 @@ async function renderIncidents(){
             <div><span class="tag">${escapeHtml(injury)}</span></div>
         </div>`:""}
         <div class="metaBlock">
-            <div class="metaTitle">覆核欄</div>
+            <div class="metaTitle">填報人</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              ${reviewed ? `<span class="tag">覆核者：${escapeHtml(reviewerName || reviewedBy || '已覆核')}</span>` : `<span class="tag">覆核者：待覆核</span>`}
-              ${reviewed ? `<span class="reviewedBadge">${escapeHtml(reviewedBy || '已覆核')}${reviewedAtText ? `｜${escapeHtml(reviewedAtText)}` : ''}</span>` : `<span class="reviewBadge">待覆核</span>`}
+              <span class="tag">${escapeHtml(creator || '未填')}</span>
+              ${reporterDateText ? `<span class="tag">填報日期：${escapeHtml(reporterDateText)}</span>` : ``}
             </div>
         </div>
+        ${occurrenceText ? `<div class="metaBlock">
+            <div class="metaTitle">發生時間</div>
+            <div><span class="tag">${escapeHtml(occurrenceText)}</span></div>
+        </div>`:""}
         ${fallTag ? `<div class="metaBlock">
             <div class="metaTitle">原因分析</div>
             <div><span class="tag">${escapeHtml(fallTag)}</span></div>
@@ -871,6 +904,8 @@ function validateForm(){
   const injury = $("injuryLevel").value;
   if (!injury){ showHint("hintInjury"); ok = false; }
 
+  const occurredAt = ($("occurredAt").value || "").trim();
+  if (!occurredAt){ showHint("hintOccurredAt"); ok = false; }
 
   if (!ok) $("saveHint").textContent = "請先完成必填欄位。";
   return ok;
@@ -899,6 +934,8 @@ async function saveIncident(){
     incidentType,
     incidentTypeOtherText: incidentType === "其他" ? ($("incidentTypeOtherText").value || "").trim() : "",
     injuryLevel: $("injuryLevel").value,
+    occurredAt: $("occurredAt").value ? new Date($("occurredAt").value) : null,
+    formCreatedAt: $("formCreatedAt").value ? new Date($("formCreatedAt").value) : new Date(),
 
     fallAnalysis: null,
 
