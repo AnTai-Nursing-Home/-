@@ -39,6 +39,20 @@ document.addEventListener('firebase-ready', () => {
     const loginRoleStatus = document.getElementById('login-role-status');
 
     const auditBtn = document.getElementById('audit-btn');
+    const backfillSettingsBtn = document.getElementById('backfill-settings-btn');
+    const backfillEnabledInput = document.getElementById('backfill-enabled');
+    const backfillOpenStartInput = document.getElementById('backfill-open-start');
+    const backfillOpenEndInput = document.getElementById('backfill-open-end');
+    const backfillAllowRangeInput = document.getElementById('backfill-allow-range');
+    const backfillRangeStartInput = document.getElementById('backfill-range-start');
+    const backfillRangeEndInput = document.getElementById('backfill-range-end');
+    const backfillAllowSpecificInput = document.getElementById('backfill-allow-specific');
+    const backfillSpecificDateInput = document.getElementById('backfill-specific-date-input');
+    const backfillAddSpecificDateBtn = document.getElementById('backfill-add-specific-date');
+    const backfillClearSpecificDatesBtn = document.getElementById('backfill-clear-specific-dates');
+    const backfillSpecificDatesList = document.getElementById('backfill-specific-dates-list');
+    const backfillCurrentStatus = document.getElementById('backfill-current-status');
+    const backfillSaveBtn = document.getElementById('backfill-save-btn');
     const auditStartInput = document.getElementById('audit-start-date');
     const auditEndInput = document.getElementById('audit-end-date');
     const auditRunBtn = document.getElementById('audit-run-btn');
@@ -46,6 +60,7 @@ document.addEventListener('firebase-ready', () => {
     const auditSummary = document.getElementById('audit-summary');
     const auditOnlyIssuesBtn = document.getElementById('audit-only-issues-btn');
     let auditModal = null;
+    let backfillModal = null;
     let auditShowOnlyIssues = false;
     let pendingAuditScrollDate = null;
 
@@ -56,6 +71,22 @@ document.addEventListener('firebase-ready', () => {
     const careFormsCollection = 'foley_care_records';
 
     let currentCareFormId = null;
+    let currentLoadedDailyData = {};
+
+    const backfillSettingsCollection = 'foley_care_backfill_settings';
+    const backfillSettingsDocId = 'global';
+    let currentBackfillConfig = {
+        enabled: false,
+        openStart: '',
+        openEnd: '',
+        allowRange: false,
+        rangeStart: '',
+        rangeEnd: '',
+        allowSpecific: false,
+        specificDates: [],
+        updatedAt: null,
+        updatedBy: ''
+    };
 
 // --- 未儲存變更偵測（Dirty Check） ---
 let isDirty = false;
@@ -238,6 +269,151 @@ async function guardUnsavedChanges(nextAction) {
     let currentUserDisplay = '';
 
 
+
+    function normalizeBackfillConfig(data = {}) {
+        return {
+            enabled: data.enabled === true,
+            openStart: data.openStart || '',
+            openEnd: data.openEnd || '',
+            allowRange: data.allowRange === true,
+            rangeStart: data.rangeStart || '',
+            rangeEnd: data.rangeEnd || '',
+            allowSpecific: data.allowSpecific === true,
+            specificDates: Array.isArray(data.specificDates) ? Array.from(new Set(data.specificDates.filter(Boolean))).sort() : [],
+            updatedAt: data.updatedAt || null,
+            updatedBy: data.updatedBy || ''
+        };
+    }
+
+    function parseDateTimeLocalValue(value) {
+        if (!value) return null;
+        const dt = new Date(value);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function isCurrentWithinBackfillWindow(config = currentBackfillConfig) {
+        if (!config || !config.enabled) return false;
+        const now = new Date();
+        const start = parseDateTimeLocalValue(config.openStart);
+        const end = parseDateTimeLocalValue(config.openEnd);
+        if (!start || !end) return false;
+        return now >= start && now <= end;
+    }
+
+    function isDateAllowedByBackfill(dateStr, config = currentBackfillConfig) {
+        if (!config || !config.enabled || !dateStr) return false;
+        if (!isCurrentWithinBackfillWindow(config)) return false;
+
+        let matched = false;
+        if (config.allowRange && config.rangeStart && config.rangeEnd) {
+            matched = matched || (dateStr >= config.rangeStart && dateStr <= config.rangeEnd);
+        }
+        if (config.allowSpecific && Array.isArray(config.specificDates)) {
+            matched = matched || config.specificDates.includes(dateStr);
+        }
+        return matched;
+    }
+
+    function caregiverCanEditDate(dateStr) {
+        if (isNurse) return true;
+        if (isCurrentFormClosed) return false;
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour + currentMinute / 60;
+        const withinDailyWindow = (currentTime >= 8 && currentTime < 24);
+        if (!withinDailyWindow) return false;
+
+        const today = toISODate(new Date());
+        if (dateStr === today) return true;
+        return isDateAllowedByBackfill(dateStr);
+    }
+
+    async function loadBackfillConfig() {
+        try {
+            const doc = await db.collection(backfillSettingsCollection).doc(backfillSettingsDocId).get();
+            currentBackfillConfig = normalizeBackfillConfig(doc.exists ? doc.data() : {});
+        } catch (error) {
+            console.error('讀取補登設定失敗：', error);
+            currentBackfillConfig = normalizeBackfillConfig({});
+        }
+        renderBackfillSpecificDates();
+        updateBackfillStatusText();
+    }
+
+    function renderBackfillSpecificDates() {
+        if (!backfillSpecificDatesList) return;
+        const dates = Array.isArray(currentBackfillConfig.specificDates) ? currentBackfillConfig.specificDates : [];
+        if (!dates.length) {
+            backfillSpecificDatesList.innerHTML = '<span class="text-muted small">目前尚未加入指定日期</span>';
+            return;
+        }
+        backfillSpecificDatesList.innerHTML = dates.map(date => `
+            <span class="badge rounded-pill text-bg-light border">
+                ${date}
+                <button type="button" class="btn btn-sm p-0 ms-1 border-0 bg-transparent text-danger backfill-remove-specific-date" data-date="${date}" aria-label="移除 ${date}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        `).join('');
+    }
+
+    function fillBackfillModalFromConfig() {
+        if (backfillEnabledInput) backfillEnabledInput.checked = currentBackfillConfig.enabled === true;
+        if (backfillOpenStartInput) backfillOpenStartInput.value = currentBackfillConfig.openStart || '';
+        if (backfillOpenEndInput) backfillOpenEndInput.value = currentBackfillConfig.openEnd || '';
+        if (backfillAllowRangeInput) backfillAllowRangeInput.checked = currentBackfillConfig.allowRange === true;
+        if (backfillRangeStartInput) backfillRangeStartInput.value = currentBackfillConfig.rangeStart || '';
+        if (backfillRangeEndInput) backfillRangeEndInput.value = currentBackfillConfig.rangeEnd || '';
+        if (backfillAllowSpecificInput) backfillAllowSpecificInput.checked = currentBackfillConfig.allowSpecific === true;
+        if (backfillSpecificDateInput) backfillSpecificDateInput.value = '';
+        renderBackfillSpecificDates();
+        updateBackfillModalFieldStates();
+        updateBackfillStatusText();
+    }
+
+    function updateBackfillModalFieldStates() {
+        const enabled = backfillEnabledInput?.checked === true;
+        const allowRange = enabled && backfillAllowRangeInput?.checked === true;
+        const allowSpecific = enabled && backfillAllowSpecificInput?.checked === true;
+        [backfillOpenStartInput, backfillOpenEndInput, backfillAllowRangeInput, backfillAllowSpecificInput].forEach(el => {
+            if (el) el.disabled = !enabled;
+        });
+        [backfillRangeStartInput, backfillRangeEndInput].forEach(el => {
+            if (el) el.disabled = !allowRange;
+        });
+        [backfillSpecificDateInput, backfillAddSpecificDateBtn, backfillClearSpecificDatesBtn].forEach(el => {
+            if (el) el.disabled = !allowSpecific;
+        });
+        if (backfillSpecificDatesList) {
+            backfillSpecificDatesList.querySelectorAll('.backfill-remove-specific-date').forEach(btn => {
+                btn.disabled = !allowSpecific;
+            });
+        }
+    }
+
+    function updateBackfillStatusText() {
+        if (!backfillCurrentStatus) return;
+        const cfg = currentBackfillConfig || {};
+        if (!cfg.enabled) {
+            backfillCurrentStatus.textContent = '目前未開啟照服員補登功能。';
+            return;
+        }
+        const parts = [];
+        parts.push(`開放時段：${cfg.openStart || '未設定'} ~ ${cfg.openEnd || '未設定'}`);
+        if (cfg.allowRange && cfg.rangeStart && cfg.rangeEnd) {
+            parts.push(`區間：${cfg.rangeStart} ~ ${cfg.rangeEnd}`);
+        }
+        if (cfg.allowSpecific && Array.isArray(cfg.specificDates) && cfg.specificDates.length) {
+            parts.push(`指定日期：${cfg.specificDates.join('、')}`);
+        }
+        if (cfg.updatedBy) {
+            parts.push(`最後更新：${cfg.updatedBy}`);
+        }
+        backfillCurrentStatus.textContent = parts.join('｜');
+    }
+
     function updateRoleUI() {
         // 顯示目前登入身分（由 session 判斷）
         if (loginRoleStatus) {
@@ -247,8 +423,9 @@ async function guardUnsavedChanges(nextAction) {
             loginRoleStatus.classList.toggle('text-danger', !currentUserDisplay);
             loginRoleStatus.classList.toggle('text-success', !!currentUserDisplay);
         }
-        // 一鍵查核按鈕：僅護理師顯示
+        // 一鍵查核 / 補登設定按鈕：僅護理師顯示
         if (auditBtn) auditBtn.classList.toggle('d-none', !isNurse);
+        if (backfillSettingsBtn) backfillSettingsBtn.classList.toggle('d-none', !isNurse);
 
         // 批次刪除按鈕：僅「結案」視圖顯示（實際權限在點擊時再檢查）
         if (batchDeleteBtn) {
@@ -639,61 +816,33 @@ if (filteredDocs.length === 0) {
 }
 
     function checkTimePermissions() {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTime = currentHour + currentMinute / 60;
-
-        // 🕒 時間範圍：
-        // 一般：照服員 08:00~22:00 可以操作；護理師登入不受時間限制
-        // 已結案單：僅護理師登入才可操作，照服員一律鎖定
-        let caregiverEnabled;
-
-        if (isCurrentFormClosed) {
-            caregiverEnabled = isNurse;
-        } else {
-            caregiverEnabled = (currentTime >= 8 && currentTime < 24) || isNurse;
-        }
-
-        // radio（先依時間 / 身份開關）
-        document.querySelectorAll('#form-view .form-check-input').forEach(el => {
-            el.disabled = !caregiverEnabled;
-        });
-
-        // 簽名欄位：可填時允許輸入；一旦已加上時間戳（含 " @ "）就改成唯讀，避免被改時間
-        document.querySelectorAll('#form-view [data-signature="caregiver"]').forEach(el => {
-            el.disabled = !caregiverEnabled;
-            if (!caregiverEnabled) return;
-
-            const v = (el.value || '').trim();
-            // 只有「已簽名（含時間戳）」才鎖唯讀；空白仍可簽名
-            el.readOnly = (!isNurse && v && v.includes(' @ '));
-        });
-// 一鍵全Yes按鈕
-        careTableBody.querySelectorAll('.fill-yes-btn').forEach(btn => { btn.disabled = !caregiverEnabled; });
-
-        console.log(`目前時間：${now.toLocaleTimeString('zh-TW')} | 已結案:${isCurrentFormClosed} | 可填寫:${caregiverEnabled}`);
-
-        // 🔒 日期限制：照服員僅能操作「今天」；護理師不限（可補登/追補）
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
         document.querySelectorAll('#care-table-body tr[data-date]').forEach(row => {
             const dateStr = row.dataset.date;
-            const rowDate = new Date(dateStr + 'T00:00:00');
-            const isToday = (rowDate.getTime() === today.getTime());
+            const canEditThisRow = caregiverCanEditDate(dateStr);
 
-            if (!isNurse && !isToday) {
-                // 不是今天：全部鎖住（Yes/No + 簽名 + 一鍵全 Yes）
-                row.querySelectorAll('input, .fill-yes-btn').forEach(el => {
-                    el.disabled = true;
-                });
-            }
+            row.querySelectorAll('input[type="radio"]').forEach(el => {
+                el.disabled = !canEditThisRow;
+            });
+
+            row.querySelectorAll('[data-signature="caregiver"]').forEach(el => {
+                el.disabled = !canEditThisRow;
+                if (!canEditThisRow) {
+                    el.readOnly = true;
+                    return;
+                }
+                const v = (el.value || '').trim();
+                el.readOnly = (!isNurse && v && v.includes(' @ '));
+            });
+
+            row.querySelectorAll('.fill-yes-btn').forEach(btn => {
+                btn.disabled = !canEditThisRow;
+            });
         });
-}
+
+        console.log(`已結案:${isCurrentFormClosed} | 護理師:${isNurse} | 補登視窗有效:${isCurrentWithinBackfillWindow()}`);
+    }
 
 
-    
     // --- 一鍵查核（未結案） ---
     function toISODate(d) {
         const y = d.getFullYear();
@@ -954,6 +1103,7 @@ function generateReportHTML() {
         residentNameSelectForm.disabled = !isNew;
 
         isCurrentFormClosed = false;
+        currentLoadedDailyData = {};
         if (isNew) {
             residentNameSelectForm.value = '';
             bedNumberInput.value = '';
@@ -1001,6 +1151,7 @@ function generateReportHTML() {
             if (closedByInput) {
                 closedByInput.value = docData.closedByNurse || '';
             }
+            currentLoadedDailyData = JSON.parse(JSON.stringify(docData.dailyData || {}));
             renderCareTable(docData.placementDate, docData.closingDate, docData.dailyData || {});
             deleteCareFormBtn.classList.remove('d-none');
         
@@ -1024,7 +1175,7 @@ function generateReportHTML() {
         if (!validateClosingFieldsOrAlert()) {
             return;
         }
-const dailyData = {};
+let dailyData = {};
         careTableBody.querySelectorAll('tr[data-date]').forEach(row => {
             const date = row.dataset.date;
             const record = {};
@@ -1037,6 +1188,23 @@ const dailyData = {};
             if (caregiverSignInput && caregiverSignInput.value) { record.caregiverSign = caregiverSignInput.value; hasData = true; }
             if (hasData) { dailyData[date] = record; }
         });
+
+        if (!isNurse) {
+            const mergedDailyData = JSON.parse(JSON.stringify(currentLoadedDailyData || {}));
+            Object.keys(dailyData).forEach(date => {
+                if (caregiverCanEditDate(date)) {
+                    mergedDailyData[date] = dailyData[date];
+                }
+            });
+            careTableBody.querySelectorAll('tr[data-date]').forEach(row => {
+                const date = row.dataset.date;
+                if (!caregiverCanEditDate(date)) return;
+                if (!dailyData[date] && mergedDailyData[date]) {
+                    delete mergedDailyData[date];
+                }
+            });
+            dailyData = mergedDailyData;
+        }
         const closingDateValue = closingDateInput.value || null;
         const closingReasonValue = closingReasonSelect.value || '';
         let closedByValue = closedByInput ? (closedByInput.value || '') : '';
@@ -1072,6 +1240,7 @@ const dailyData = {};
                 currentCareFormId = docRef.id;
                 deleteCareFormBtn.classList.remove('d-none');
             }
+            currentLoadedDailyData = JSON.parse(JSON.stringify(dailyData || {}));
             alert(getText('care_form_saved'));
             // 儲存成功後，更新快照
             markClean();
@@ -1163,6 +1332,138 @@ const dailyData = {};
                 return;
             }
             await guardUnsavedChanges(async () => { switchToFormView(true); });
+        });
+    }
+
+    if (backfillSettingsBtn) {
+        backfillSettingsBtn.addEventListener('click', async () => {
+            if (!isNurse) {
+                alert('僅限護理師登入後才能設定補登功能');
+                return;
+            }
+            const modalEl = document.getElementById('backfillSettingsModal');
+            if (!backfillModal && modalEl && window.bootstrap) {
+                backfillModal = new bootstrap.Modal(modalEl);
+            }
+            await loadBackfillConfig();
+            fillBackfillModalFromConfig();
+            backfillModal?.show();
+        });
+    }
+
+    if (backfillEnabledInput) backfillEnabledInput.addEventListener('change', updateBackfillModalFieldStates);
+    if (backfillAllowRangeInput) backfillAllowRangeInput.addEventListener('change', updateBackfillModalFieldStates);
+    if (backfillAllowSpecificInput) backfillAllowSpecificInput.addEventListener('change', updateBackfillModalFieldStates);
+
+    if (backfillAddSpecificDateBtn) {
+        backfillAddSpecificDateBtn.addEventListener('click', () => {
+            const value = backfillSpecificDateInput?.value || '';
+            if (!value) {
+                alert('請先選擇要加入的日期');
+                return;
+            }
+            const dates = new Set(currentBackfillConfig.specificDates || []);
+            dates.add(value);
+            currentBackfillConfig.specificDates = Array.from(dates).sort();
+            if (backfillSpecificDateInput) backfillSpecificDateInput.value = '';
+            renderBackfillSpecificDates();
+            updateBackfillModalFieldStates();
+        });
+    }
+
+    if (backfillClearSpecificDatesBtn) {
+        backfillClearSpecificDatesBtn.addEventListener('click', () => {
+            currentBackfillConfig.specificDates = [];
+            renderBackfillSpecificDates();
+            updateBackfillModalFieldStates();
+        });
+    }
+
+    if (backfillSpecificDatesList) {
+        backfillSpecificDatesList.addEventListener('click', (e) => {
+            const btn = e.target.closest('.backfill-remove-specific-date');
+            if (!btn) return;
+            const date = btn.getAttribute('data-date');
+            currentBackfillConfig.specificDates = (currentBackfillConfig.specificDates || []).filter(item => item !== date);
+            renderBackfillSpecificDates();
+            updateBackfillModalFieldStates();
+        });
+    }
+
+    if (backfillSaveBtn) {
+        backfillSaveBtn.addEventListener('click', async () => {
+            if (!isNurse) {
+                alert('僅限護理師登入後才能設定補登功能');
+                return;
+            }
+
+            const enabled = backfillEnabledInput?.checked === true;
+            const openStart = backfillOpenStartInput?.value || '';
+            const openEnd = backfillOpenEndInput?.value || '';
+            const allowRange = backfillAllowRangeInput?.checked === true;
+            const rangeStart = backfillRangeStartInput?.value || '';
+            const rangeEnd = backfillRangeEndInput?.value || '';
+            const allowSpecific = backfillAllowSpecificInput?.checked === true;
+            const specificDates = Array.from(new Set(currentBackfillConfig.specificDates || [])).sort();
+
+            if (enabled) {
+                if (!openStart || !openEnd) {
+                    alert('開啟補登功能時，請設定開放時間與結束時間');
+                    return;
+                }
+                const startDt = parseDateTimeLocalValue(openStart);
+                const endDt = parseDateTimeLocalValue(openEnd);
+                if (!startDt || !endDt || startDt >= endDt) {
+                    alert('補登開放時間設定不正確，請重新確認');
+                    return;
+                }
+                if (!allowRange && !allowSpecific) {
+                    alert('請至少選擇一種可補登日期方式（區間或指定日期）');
+                    return;
+                }
+                if (allowRange) {
+                    if (!rangeStart || !rangeEnd) {
+                        alert('已勾選日期區間，請完整設定區間起日與迄日');
+                        return;
+                    }
+                    if (rangeStart > rangeEnd) {
+                        alert('補登區間起日不可晚於迄日');
+                        return;
+                    }
+                }
+                if (allowSpecific && specificDates.length === 0) {
+                    alert('已勾選指定日期，請至少加入一天');
+                    return;
+                }
+            }
+
+            const dataToSave = {
+                enabled,
+                openStart,
+                openEnd,
+                allowRange,
+                rangeStart,
+                rangeEnd,
+                allowSpecific,
+                specificDates,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: currentUserDisplay || ''
+            };
+
+            backfillSaveBtn.disabled = true;
+            try {
+                await db.collection(backfillSettingsCollection).doc(backfillSettingsDocId).set(dataToSave, { merge: true });
+                await loadBackfillConfig();
+                fillBackfillModalFromConfig();
+                checkTimePermissions();
+                alert('補登設定已儲存');
+                backfillModal?.hide();
+            } catch (error) {
+                console.error('儲存補登設定失敗：', error);
+                alert('儲存補登設定失敗，請稍後再試');
+            } finally {
+                backfillSaveBtn.disabled = false;
+            }
         });
     }
 
