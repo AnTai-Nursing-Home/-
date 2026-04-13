@@ -775,9 +775,7 @@ async function renderIncidents(){
     const type = d.incidentType || "";
     const injury = d.injuryLevel || "";
     const creator = d.createdBy?.name || d.createdBy?.uid || "";
-    const reporterDateText = formatDateDisplay(d.formCreatedAt || d.createdAt, true) || "";
     const occurrenceText = formatDateDisplay(d.occurredAt, true) || "";
-    const reportedLine = reporterDateText ? `填報日期：${escapeHtml(reporterDateText)}` : "";
     const reviewed = isIncidentReviewed(d);
     const canReview = canCurrentUserReview(d);
     const reviewedBy = d.review?.reviewedBy?.name || d.review?.reviewedBy?.uid || "";
@@ -801,7 +799,6 @@ async function renderIncidents(){
             ${!reviewed ? `<span class="reviewBadge">未覆核</span>` : `<span class="reviewedBadge">已覆核</span>`}
           </div>
           <div class="subLine muted">${gender ? `${escapeHtml(gender)}`:""}${(gender && age) ? "｜":""}${age ? `${escapeHtml(age)}`:""}</div>
-          ${reportedLine ? `<div class="subLine muted">${reportedLine}</div>` : ``}
         </div>
         <div class="row incidentActionRow" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
           <div class="reviewInfoBox ${reviewed ? "reviewed" : "pending"}">${reviewMetaText}</div>
@@ -825,15 +822,11 @@ async function renderIncidents(){
         </div>`:""}
         <div class="metaBlock">
             <div class="metaTitle">填報人</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
               <span class="tag">${escapeHtml(creator || '未填')}</span>
-              ${reporterDateText ? `<span class="tag">填報日期：${escapeHtml(reporterDateText)}</span>` : ``}
+              ${occurrenceText ? `<span class="tag">發生時間：${escapeHtml(occurrenceText)}</span>` : ``}
             </div>
         </div>
-        ${occurrenceText ? `<div class="metaBlock">
-            <div class="metaTitle">發生時間</div>
-            <div><span class="tag">${escapeHtml(occurrenceText)}</span></div>
-        </div>`:""}
         ${fallTag ? `<div class="metaBlock">
             <div class="metaTitle">原因分析</div>
             <div><span class="tag">${escapeHtml(fallTag)}</span></div>
