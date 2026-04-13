@@ -64,6 +64,9 @@
 <button class="btn btn-outline-primary d-none" id="audit-btn" type="button">
   <i class="fas fa-clipboard-check me-1"></i> 一鍵查核
 </button>
+<button class="btn btn-outline-warning d-none" id="backfill-settings-btn" type="button">
+  <i class="fas fa-user-clock me-1"></i> 補登功能
+</button>
 <button class="btn btn-success" id="add-new-form-btn">
 <i class="fas fa-plus me-2"></i><span data-i18n="add_new_form"></span>
 </button>
@@ -160,6 +163,78 @@
 <script src="i18n.js"></script>
 <script src="main.js"></script>
 <script src="foley-care.js"></script>
+
+<div class="modal fade" id="backfillSettingsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">照服員補登設定</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="backfill-enabled">
+          <label class="form-check-label" for="backfill-enabled">開啟照服員補登功能</label>
+        </div>
+        <div class="alert alert-warning py-2 small mb-3">
+          只有在開放時段內，且日期符合你設定的「區間」或「指定日期」時，照服員才可以補登今天以前的資料。
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">開放時間</label>
+            <input type="datetime-local" class="form-control" id="backfill-open-start">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">結束時間</label>
+            <input type="datetime-local" class="form-control" id="backfill-open-end">
+          </div>
+        </div>
+        <hr>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="backfill-allow-range">
+          <label class="form-check-label" for="backfill-allow-range">允許補登某個日期區間</label>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">區間起日</label>
+            <input type="date" class="form-control" id="backfill-range-start">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">區間迄日</label>
+            <input type="date" class="form-control" id="backfill-range-end">
+          </div>
+        </div>
+        <hr>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="backfill-allow-specific">
+          <label class="form-check-label" for="backfill-allow-specific">允許指定日期補登</label>
+        </div>
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-md-6">
+            <label class="form-label">指定日期</label>
+            <input type="date" class="form-control" id="backfill-specific-date-input">
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-outline-primary w-100" type="button" id="backfill-add-specific-date">
+              <i class="fas fa-plus me-1"></i>加入日期
+            </button>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-outline-danger w-100" type="button" id="backfill-clear-specific-dates">
+              清空日期
+            </button>
+          </div>
+        </div>
+        <div id="backfill-specific-dates-list" class="d-flex flex-wrap gap-2"></div>
+        <div class="small text-muted mt-3" id="backfill-current-status"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" id="backfill-save-btn">儲存補登設定</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
