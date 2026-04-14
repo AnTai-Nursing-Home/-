@@ -10,6 +10,30 @@ document.addEventListener("firebase-ready", async () => {
   const statusColorMap = {};
   let allRequests = [];
 
+  const globalLoadingEl = document.getElementById("globalLoading");
+  const globalLoadingTextEl = document.getElementById("globalLoadingText");
+  const statTotalCountEl = document.getElementById("stat-total-count");
+  const statOpenCountEl = document.getElementById("stat-open-count");
+  const statUserNameEl = document.getElementById("stat-user-name");
+
+  function showLoading(message = "請稍候...") {
+    if (globalLoadingTextEl) globalLoadingTextEl.textContent = message;
+    if (globalLoadingEl) globalLoadingEl.classList.add("show");
+  }
+
+  function hideLoading() {
+    if (globalLoadingEl) globalLoadingEl.classList.remove("show");
+  }
+
+  function updateQuickStats() {
+    if (statTotalCountEl) statTotalCountEl.textContent = String(allRequests.length || 0);
+    const openCount = (allRequests || []).filter(req => {
+      const v = String(req?.status || "").trim();
+      return v && v !== "已完成" && v !== "紀錄";
+    }).length;
+    if (statOpenCountEl) statOpenCountEl.textContent = String(openCount);
+  }
+
   // 暫存未送出的輸入
   const tempInputs = new Map();
 
@@ -91,7 +115,9 @@ document.addEventListener("firebase-ready", async () => {
   if (loginUserInfoEl) {
     loginUserInfoEl.textContent = `登入者：${getLoggedUserLabel()}`;
   }
-
+  if (statUserNameEl) {
+    statUserNameEl.textContent = getLoggedUserLabel();
+  }
 
 
   // === 新版新增報修單：分類/位置/物品下拉 ===
@@ -99,13 +125,18 @@ document.addEventListener("firebase-ready", async () => {
   const locationSel = document.getElementById("location");
   const itemSel = document.getElementById("item");
 
-  // 從住民系統抓床號，建立每樓層床號清單（供「房間」使用）
+  // 從住民系統床位模板抓完整床號（含空床）
   const bedsByFloor = { "1F": [], "2F": [], "3F": [] };
   let bedsLoaded = false;
 
+  const DEFAULT_FLOOR_TEMPLATE = {
+    "1": ["101-1", "101-2", "102-1", "102-2", "103-1", "103-2", "105-1", "105-2", "106-1", "106-2", "107-1", "107-2", "108-1", "108-2", "109-1", "109-2", "110-1", "110-2", "111-1", "111-2", "112-1", "112-2", "113-1", "115-1", "115-2", "116-1", "116-2"],
+    "2": ["201-1", "202-1", "202-2", "203-1", "203-2", "205-1", "205-2", "206-1", "206-2", "207-1", "207-2", "208-1", "208-2", "208-5", "209-1", "209-2", "209-3", "209-5", "210-1", "210-2", "210-3", "210-5", "211-1", "211-2", "212-1", "212-2", "213-1", "213-2", "215-1", "215-2", "216-1", "216-2", "217-1", "217-3", "217-5", "218-1", "218-2", "218-3", "218-5", "219-1", "219-2", "219-3", "219-5", "219-6", "220-1", "220-2", "220-3", "220-5", "221-1", "221-2", "221-3", "221-5"],
+    "3": ["301-1", "301-2", "301-3", "301-5", "302-1", "302-2", "302-3", "302-5", "303-2", "303-3", "303-5", "305-1", "306-1", "306-2", "307-1", "307-2", "308-1", "308-2", "309-1", "309-2", "310-1", "310-2", "311-1", "311-2", "311-3", "311-5", "312-1", "312-2", "312-3", "312-5", "312-6", "313-1", "313-2", "313-3", "313-5", "313-6", "315-1", "315-2", "316-1", "316-2", "317-1", "317-2", "318-1", "318-2", "319-1", "319-2", "320-1", "320-2", "320-3", "320-5", "321-1", "321-2", "321-3", "321-5"]
+  };
+
   function normalizeBedToken(v) {
     const s = String(v || "").trim().replace(/_/g, "-");
-    // 接受 3 碼房號 + 子床號，例如 101-1
     const m = s.match(/^(\d{3})-(\w+)$/);
     return m ? `${m[1]}-${m[2]}` : null;
   }
@@ -116,26 +147,54 @@ document.addEventListener("firebase-ready", async () => {
     return uniq;
   }
 
+  function readFloorTemplateFromStorage() {
+    const keys = ["FLOOR_TEMPLATE_V1", "res_floor_template_v1"];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") return parsed;
+      } catch (e) {
+        console.warn("readFloorTemplateFromStorage failed:", key, e);
+      }
+    }
+    return null;
+  }
+
+  function normalizeTemplateFloor(source, floorNo) {
+    const floorKey = String(floorNo);
+    const candidates = [
+      source?.[floorKey],
+      source?.[`${floorNo}F`],
+      source?.[`floor${floorNo}`],
+      source?.[Number(floorNo)]
+    ];
+    const found = candidates.find(v => Array.isArray(v));
+    return uniqSortBeds((found || []).map(normalizeBedToken));
+  }
+
   async function loadBedsOnce() {
     if (bedsLoaded) return;
     try {
-      const snap = await db.collection("residents").get();
-      const f1 = [], f2 = [], f3 = [];
-      snap.forEach(doc => {
-        const data = doc.data() || {};
-        const bed = normalizeBedToken(data.bedNumber);
-        if (!bed) return;
-        if (bed.startsWith("1")) f1.push(bed);
-        else if (bed.startsWith("2")) f2.push(bed);
-        else if (bed.startsWith("3")) f3.push(bed);
-      });
-      bedsByFloor["1F"] = uniqSortBeds(f1);
-      bedsByFloor["2F"] = uniqSortBeds(f2);
-      bedsByFloor["3F"] = uniqSortBeds(f3);
+      let template = readFloorTemplateFromStorage();
+      if (!template) {
+        template = DEFAULT_FLOOR_TEMPLATE;
+        try {
+          localStorage.setItem("FLOOR_TEMPLATE_V1", JSON.stringify(template));
+        } catch (_) {}
+      }
+
+      bedsByFloor["1F"] = normalizeTemplateFloor(template, 1);
+      bedsByFloor["2F"] = normalizeTemplateFloor(template, 2);
+      bedsByFloor["3F"] = normalizeTemplateFloor(template, 3);
       bedsLoaded = true;
     } catch (e) {
       console.warn("loadBedsOnce failed:", e);
-      bedsLoaded = true; // 避免一直重試卡住
+      bedsByFloor["1F"] = normalizeTemplateFloor(DEFAULT_FLOOR_TEMPLATE, 1);
+      bedsByFloor["2F"] = normalizeTemplateFloor(DEFAULT_FLOOR_TEMPLATE, 2);
+      bedsByFloor["3F"] = normalizeTemplateFloor(DEFAULT_FLOOR_TEMPLATE, 3);
+      bedsLoaded = true;
     }
   }
 
@@ -296,8 +355,10 @@ document.addEventListener("firebase-ready", async () => {
   function renderRequests() {
     tbody.innerHTML = "";
 
+    updateQuickStats();
+
     if (allRequests.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">目前沒有報修單</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-5">目前沒有報修單</td></tr>`;
       return;
     }
 
@@ -333,9 +394,9 @@ document.addEventListener("firebase-ready", async () => {
         <td>${req.category || ""}</td>
         <td>${req.location || ""}</td>
         <td>${req.item || ""}</td>
-        <td>${req.detail || ""}</td>
+        <td><div class="detail-text">${req.detail || ""}</div></td>
         <td>${req.reporter || ""}</td>
-        <td><span class="badge" style="background:${color}">${req.status || "—"}</span></td>
+        <td><span class="badge-status" style="background:${color}">${req.status || "—"}</span></td>
         <td>${fmt(req.createdAt)}</td>
         <td style="min-width:260px;">
 
@@ -378,7 +439,9 @@ document.addEventListener("firebase-ready", async () => {
 
     tempInputs.delete(id+"-msg");
 
-    await colReq.doc(id).collection("comments").add({
+    showLoading("正在新增註解...");
+    try {
+      await colReq.doc(id).collection("comments").add({
       author,
       message,
       role: "nurse",
@@ -386,8 +449,11 @@ document.addEventListener("firebase-ready", async () => {
       time: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    alert("註解新增成功 ✅");
-    await loadRequests();
+      alert("註解新增成功 ✅");
+      await loadRequests();
+    } finally {
+      hideLoading();
+    }
   });
 
   // 刪除註解（僅刪自己新增的：UI 已限制，這裡直接刪）
@@ -400,13 +466,20 @@ document.addEventListener("firebase-ready", async () => {
     const cid = e.target.dataset.cid;
     if (!cid) return;
 
-    await colReq.doc(id).collection("comments").doc(cid).delete();
-    alert("已刪除 ✅");
-    await loadRequests();
+    showLoading("正在刪除註解...");
+    try {
+      await colReq.doc(id).collection("comments").doc(cid).delete();
+      alert("已刪除 ✅");
+      await loadRequests();
+    } finally {
+      hideLoading();
+    }
   });
 
   // 原本新增報修單功能保持不變
   addRequestBtn.onclick = async () => {
+    showLoading("正在準備表單...");
+    try {
     // 重置欄位
     document.getElementById("detail").value = "";
     // 報修人：自動帶入登入者（姓名為主）
@@ -416,10 +489,16 @@ document.addEventListener("firebase-ready", async () => {
     setSelectOptions(locationSel, [], "請先選擇分類");
     setSelectOptions(itemSel, [], "請先選擇位置");
 
-    addModal.show();
+      await loadBedsOnce();
+      addModal.show();
+    } finally {
+      hideLoading();
+    }
   };
 
   saveRequestBtn.onclick = async () => {
+    showLoading("正在儲存報修單...");
+    try {
     const category = (categorySel?.value || "").trim();
     const location = (locationSel?.value || "").trim();
     const item = (itemSel?.value || "").trim();
@@ -487,8 +566,17 @@ document.addEventListener("firebase-ready", async () => {
 
     addModal.hide();
     await loadRequests();
+    } finally {
+      hideLoading();
+    }
   };
 
-  await loadStatusColors();
-  await loadRequests();
+  showLoading("正在載入器材報修資料...");
+  try {
+    await loadBedsOnce();
+    await loadStatusColors();
+    await loadRequests();
+  } finally {
+    hideLoading();
+  }
 });
