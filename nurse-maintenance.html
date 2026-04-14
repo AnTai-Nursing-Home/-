@@ -84,6 +84,22 @@
       overflow:hidden;
       background:#fff;
     }
+    .table-window{
+      max-height:min(68vh, 620px);
+      overflow:auto;
+      overscroll-behavior:contain;
+      scrollbar-gutter:stable both-edges;
+    }
+    .table-window .table{
+      min-width:1280px;
+    }
+    .table-window thead th{
+      position:sticky;
+      top:0;
+      z-index:5;
+      background:#f6f8fc;
+      box-shadow:inset 0 -1px 0 #e6ebf2;
+    }
     .table thead th{
       background:#f6f8fc;
       border-bottom:1px solid #e6ebf2;
@@ -182,6 +198,7 @@
       .maintenance-header{ padding:1rem; }
       .maintenance-card{ border-radius:20px; }
       .table-shell{ border-radius:18px; }
+      .table-window{ max-height:min(72vh, 560px); }
       .detail-text{ max-width:unset; }
     }
   </style>
@@ -232,7 +249,7 @@
         </div>
 
         <div class="table-shell">
-          <div class="table-responsive">
+          <div class="table-responsive table-window">
             <table class="table table-hover align-middle mb-0">
               <thead>
                 <tr>
