@@ -339,9 +339,9 @@ function renderStats(){
       +   '<td class="text-end text-success">' + x.fPresent + '</td>'
       +   '<td class="text-end text-warning">' + x.fLeave + '</td>'
       +   '<td class="text-end text-danger">' + x.fHosp + '</td>'
+      +   '<td class="text-end">' + x.fWalk + '</td>'
       +   '<td class="text-end">' + x.fWheel + '</td>'
       +   '<td class="text-end">' + x.fTrolley + '</td>'
-      +   '<td class="text-end">' + x.fWalk + '</td>'
       + '</tr>';
   }
 
@@ -395,9 +395,9 @@ function renderStats(){
     +                 '<th class="text-end">實到</th>'
     +                 '<th class="text-end">請假</th>'
     +                 '<th class="text-end">住院</th>'
+    +                 '<th class="text-end">步行</th>'
     +                 '<th class="text-end">輪椅</th>'
     +                 '<th class="text-end">推床</th>'
-    +                 '<th class="text-end">步行</th>'
     +               '</tr>'
     +             '</thead>'
     +             '<tbody>' + rows + '</tbody>'
@@ -405,9 +405,9 @@ function renderStats(){
     +         '</div>'
     +         '<div class="small text-muted mt-2">'
     +           '<span class="me-3">行動方式總計：</span>'
+    +           '<span class="me-2">步行 ' + mWalk + '</span>'
     +           '<span class="me-2">輪椅 ' + mWheel + '</span>'
-    +           '<span class="me-2">推床 ' + mTrolley + '</span>'
-    +           '<span>步行 ' + mWalk + '</span>'
+    +           '<span>推床 ' + mTrolley + '</span>'
     +         '</div>'
     +       '</div>'
     +     '</div>'
@@ -1585,7 +1585,7 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       const leaveCombined = acc.leave + acc.hosp; // Excel 欄位：請假=請假+住院
       sumLeave += leaveCombined; sumPresent += (acc.total - leaveCombined);
       sumTotal += acc.total;
-      const abilityText = `輪椅：${ab.wheel} 人　推：${ab.push} 人　步行：${ab.walk} 人`;
+      const abilityText = `步行：${ab.walk} 人　輪椅：${ab.wheel} 人　推床：${ab.push} 人`;
       abilityStrings.push(abilityText);
       const row = ws.addRow([`${fl}樓`, abilityText, leaveCombined, (acc.total - leaveCombined), acc.total, '', '']);
       styleRow(row,{center:true,height:54});
@@ -1594,7 +1594,8 @@ const __RECALL_ROSTER = {"護理師": [{"序": "1", "職稱": "主任", "姓名"
       });
     });
 
-    const totalRow = ws.addRow(['總計','', sumLeave, sumPresent, sumTotal, '', '']);
+    const totalAbilityText = `步行：${abilityCountExcludeLeave(cache).walk} 人　輪椅：${abilityCountExcludeLeave(cache).wheel} 人　推床：${abilityCountExcludeLeave(cache).push} 人`;
+    const totalRow = ws.addRow(['總計', totalAbilityText, sumLeave, sumPresent, sumTotal, '', '']);
     styleRow(totalRow,{isHeader:true,center:true});
     ws.getRow(totalRow.number).height = 54;
     totalRow.eachCell(cell => {
