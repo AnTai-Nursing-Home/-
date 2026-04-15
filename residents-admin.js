@@ -844,6 +844,13 @@ ${pages}
 
   async function isHospExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');return v.includes('住院');}
 function isLeaveOnlyExport(r){const v=(r&&r.leaveStatus?String(r.leaveStatus):'').replace(/\s/g,'');if(!v)return false;return !v.includes('住院');}
+
+function applyActivityStatsCellStyle(cell){
+  if(!cell) return;
+  cell.font = { name:'Microsoft JhengHei', size:10 };
+  cell.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+}
+
 function exportStyledXls(){
   if (window.__exportingXls) return;
   window.__exportingXls = true;
@@ -900,7 +907,7 @@ function exportStyledXls(){
   // ===== 共用樣式 =====
   const fontTitle  = { name:'Microsoft JhengHei', bold:true, size:16 };
   const fontHeader = { name:'Microsoft JhengHei', bold:true, size:12 };
-  const fontCell   = { name:'Microsoft JhengHei', size:11 };
+  const fontCell   = { name:'Microsoft JhengHei', size:10 };
   const fillHeader = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF1F3F5'} };
   const fillAlt    = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
   const borderThin = { top:{style:'thin',color:{argb:'FF9E9E9E'}},
