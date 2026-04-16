@@ -378,14 +378,27 @@ async function validateBusinessRulesForNewApplication(data) {
         throw new Error(getTextSafe('stay_error_need_3days_advance', '外宿需提前三天申請，起始日期須在三天後'));
     }
 
-    const days = enumerateDates(data.startDateTime, data.endDateTime);
+    const limitCheck = await checkMaxConcurrentLimitDetailed(data.startDateTime, data.endDateTime);
+    if (limitCheck && limitCheck.overLimit) {
+        const detail = (limitCheck.conflicts || []).map(c => {
+            const apps = (c.apps || []).map(a => {
+                const s = a.start ? formatDateTime(a.start) : '—';
+                const e = a.end ? formatDateTime(a.end) : '—';
+                const st = statusMap[a.statusId]?.name || a.statusId || '—';
+                return `- ${a.applicantName || '(未填姓名)'}（${st}）｜${s} ～ ${e}`;
+            }).join('\n');
+            const at = c.at ? `（${c.at}）` : '';
+            return `【${c.date}${at}】\n${apps}`;
+        }).join('\n\n');
 
-    const overLimit = await checkTwoPerDayLimit(days);
-    if (overLimit) {
-        throw new Error(getTextSafe('stay_error_two_per_day_limit', '同一天外宿人數已達兩人上限，無法再申請'));
+        throw new Error(
+            detail
+                ? `同一時間外宿人數已達兩人上限，無法再申請。\n\n原因：\n${detail}`
+                : getTextSafe('stay_error_two_per_day_limit', '同一時間外宿人數已達兩人上限，無法再申請')
+        );
     }
 
-    const conflictMsg = await checkConflictRules(data.applicantId, days);
+    const conflictMsg = await checkConflictRules(data.applicantId, data.startDateTime, data.endDateTime);
     if (conflictMsg) {
         throw new Error(conflictMsg);
     }
@@ -402,46 +415,105 @@ function enumerateDates(start, end) {
     return dates;
 }
 
-// Firestore 限制：同一個 query 不能對兩個不同欄位做不等式
-// 所以這裡改成：只用 startDateTime 落在當天來判斷「同日」
-// 代表規則是：「同一天起始的外宿申請不得超過兩人」
-async function checkTwoPerDayLimit(days) {
-    // 規則：同一天（以日曆日計）外宿人數上限 = 2 人
-    // Firestore 查詢限制：同一 query 不能同時對 startDateTime 與 endDateTime 做不等式
-    // 作法：用「startDateTime 在 (dayStart-30d) ~ dayEnd」先抓候選，再用程式判斷區間是否與當天重疊
-    const MAX_LOOKBACK_DAYS = 30;
-
-    for (const d of days) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-
-        const lookbackStart = new Date(dayStart);
-        lookbackStart.setDate(lookbackStart.getDate() - MAX_LOOKBACK_DAYS);
-
-        const snap = await db.collection('stayApplications')
-            .where('startDateTime', '>=', lookbackStart)
-            .where('startDateTime', '<=', dayEnd)
-            .get();
-
-        let count = 0;
-        snap.forEach(doc => {
-            const app = doc.data() || {};
-            // 不計入被退回/取消者（只要不是 rejected 就算佔用）
-            if (app.statusId === 'rejected' || app.statusId === 'canceled' || app.statusId === 'cancelled') return;
-
-            const s = app.startDateTime?.toDate?.() || new Date(app.startDateTime);
-            const e = app.endDateTime?.toDate?.() || new Date(app.endDateTime);
-
-            // 重疊判斷：區間 [s,e] 與 [dayStart,dayEnd] 有交集就算當天外宿
-            if (s <= dayEnd && e >= dayStart) count += 1;
-        });
-
-        if (count >= 2) return true;
-    }
-    return false;
+function isInactiveStayStatus(statusId) {
+    const raw = String(statusId || '').toLowerCase();
+    const def = statusMap[statusId] || {};
+    const name = String(def.name || '').toLowerCase();
+    return (
+        raw.includes('reject') || raw.includes('cancel') ||
+        name.includes('退回') || name.includes('拒絕') || name.includes('取消')
+    );
 }
 
-async function checkConflictRules(applicantId, days) {
+// 與辦公室端一致：限制的是「同一時間同時外宿不得超過 2 人」，不是「同一天」
+async function checkMaxConcurrentLimitDetailed(newStart, newEnd, limit = 2) {
+    const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const fmtDay = (d) => `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+    const fmtHM = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+    const days = enumerateDates(newStart, newEnd);
+    const conflicts = [];
+    const newStartDate = toDate(newStart);
+    const newEndDate = toDate(newEnd);
+
+    for (const d of days) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const nextDayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+
+        const ns = new Date(Math.max(newStartDate.getTime(), dayStart.getTime()));
+        const ne = new Date(Math.min(newEndDate.getTime(), nextDayStart.getTime()));
+        if (ne.getTime() <= ns.getTime()) continue;
+
+        const snap = await db.collection('stayApplications')
+            .where('startDateTime', '<', firebase.firestore.Timestamp.fromDate(nextDayStart))
+            .orderBy('startDateTime', 'asc')
+            .get();
+
+        const candidates = [];
+        snap.forEach(doc => {
+            const app = doc.data() || {};
+            if (isInactiveStayStatus(app.statusId)) return;
+
+            const s = toDate(app.startDateTime);
+            const e = toDate(app.endDateTime);
+            if (!s || !e) return;
+
+            const overlapStart = Math.max(s.getTime(), ns.getTime());
+            const overlapEnd = Math.min(e.getTime(), ne.getTime());
+
+            // 半開區間 [start, end)；邊界接續不算重疊
+            if (overlapEnd > overlapStart) {
+                candidates.push({
+                    id: doc.id,
+                    applicantId: app.applicantId || '',
+                    applicantName: app.applicantName || '',
+                    statusId: app.statusId || '',
+                    start: s,
+                    end: e
+                });
+            }
+        });
+
+        const points = [ns.getTime(), ne.getTime()];
+        candidates.forEach(app => {
+            points.push(Math.max(app.start.getTime(), ns.getTime()));
+            points.push(Math.min(app.end.getTime(), ne.getTime()));
+        });
+
+        const uniq = Array.from(new Set(points)).sort((a, b) => a - b);
+        let foundConflictAt = null;
+        let foundApps = null;
+
+        for (const t of uniq) {
+            if (t < ns.getTime() || t >= ne.getTime()) continue;
+
+            const activeApps = candidates.filter(app => app.start.getTime() <= t && app.end.getTime() > t);
+            const concurrent = activeApps.length + 1; // +1 新申請
+
+            if (concurrent > limit) {
+                foundConflictAt = t;
+                foundApps = activeApps;
+                break;
+            }
+        }
+
+        if (foundConflictAt !== null) {
+            conflicts.push({
+                date: fmtDay(d),
+                at: fmtHM(new Date(foundConflictAt)),
+                apps: foundApps || []
+            });
+        }
+    }
+
+    return {
+        overLimit: conflicts.length > 0,
+        conflicts
+    };
+}
+
+async function checkConflictRules(applicantId, newStart, newEnd) {
     const rulesSnap = await db.collection('stayConflictRules')
         .where('employeeIds', 'array-contains', applicantId)
         .get();
@@ -449,39 +521,50 @@ async function checkConflictRules(applicantId, days) {
     if (rulesSnap.empty) return null;
 
     for (const ruleDoc of rulesSnap.docs) {
-        const rule = ruleDoc.data();
+        const rule = ruleDoc.data() || {};
         const memberIds = Array.isArray(rule.employeeIds) ? rule.employeeIds : [];
         const others = memberIds.filter(id => id !== applicantId);
         if (!others.length) continue;
 
-        const hasConflict = await checkOthersStayOnDays(others, days);
+        const hasConflict = await checkOthersStayDuringPeriod(others, newStart, newEnd);
         if (hasConflict) {
             const ruleName = rule.ruleName || getTextSafe('stay_conflict_default_group_name', '同組員工');
-            return getTextSafe('stay_conflict_rule_msg', `${ruleName} 已設定不可同日外宿，請與主管討論後再安排。`).replace('{ruleName}', ruleName);
+            return getTextSafe('stay_conflict_rule_msg', `${ruleName} 已設定不可同時外宿，請與主管討論後再安排。`).replace('{ruleName}', ruleName);
         }
     }
     return null;
 }
 
-async function checkOthersStayOnDays(others, days) {
+async function checkOthersStayDuringPeriod(others, newStart, newEnd) {
+    const toDate = (v) => (v?.toDate ? v.toDate() : (v instanceof Date ? v : (v ? new Date(v) : null)));
     const chunks = [];
     for (let i = 0; i < others.length; i += 10) {
         chunks.push(others.slice(i, i + 10));
     }
 
-    for (const d of days) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+    for (const group of chunks) {
+        const snap = await db.collection('stayApplications')
+            .where('applicantId', 'in', group)
+            .where('startDateTime', '<', firebase.firestore.Timestamp.fromDate(newEnd))
+            .orderBy('startDateTime', 'asc')
+            .get();
 
-        for (const group of chunks) {
-            const snap = await db.collection('stayApplications')
-                .where('applicantId', 'in', group)
-                .where('startDateTime', '>=', dayStart)
-                .where('startDateTime', '<=', dayEnd)
-                .get();
+        let found = false;
+        snap.forEach(doc => {
+            if (found) return;
+            const app = doc.data() || {};
+            if (isInactiveStayStatus(app.statusId)) return;
 
-            if (!snap.empty) return true;
-        }
+            const s = toDate(app.startDateTime);
+            const e = toDate(app.endDateTime);
+            if (!s || !e) return;
+
+            if (e.getTime() > newStart.getTime() && s.getTime() < newEnd.getTime()) {
+                found = true;
+            }
+        });
+
+        if (found) return true;
     }
     return false;
 }
