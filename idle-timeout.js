@@ -25,8 +25,8 @@
       refreshMinutes: 5,
     },
     unauthenticatedRedirectUrl: 'index.html',
-    unauthenticatedAlertText: '您已閒置一段時間，系統已自動登出以保護資料安全。',
-    unauthenticatedAlertTitle: '你已閒置一段時間，系統已將您自動登出',
+    unauthenticatedAlertText: '尚未登入，系統將返回登入頁。',
+    unauthenticatedAlertTitle: '尚未登入',
     publicPageNames: ['index.html', '']
   };
 
