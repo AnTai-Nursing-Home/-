@@ -36,8 +36,20 @@
     return list.map((v) => String(v || '').toLowerCase()).includes(page);
   }
 
+  function hasLoginForm() {
+    try {
+      return !!document.querySelector('#loginButton, #usernameInput, #passwordInput, #password-section, form[data-login-form]');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function shouldTreatAsPublicPage() {
+    return isPublicPage() || hasLoginForm();
+  }
+
   function redirectUnauthenticated() {
-    if (!cfg || isPublicPage()) return;
+    if (!cfg || shouldTreatAsPublicPage()) return;
     const message = String(cfg.unauthenticatedAlertText || '尚未登入，系統將返回登入頁。');
     const title = String(cfg.unauthenticatedAlertTitle || '尚未登入');
     try { alert(`${title}\n\n${message}`); } catch (_) {}
@@ -724,7 +736,7 @@
 
     if (!cfg.isLoggedInFn()) {
       removeShell();
-      if (!isPublicPage()) redirectUnauthenticated();
+      if (!shouldTreatAsPublicPage()) redirectUnauthenticated();
       return;
     }
 
