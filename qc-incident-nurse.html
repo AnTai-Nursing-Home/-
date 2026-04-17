@@ -574,6 +574,13 @@
 
   <!-- 意外事件系統 -->
   <script src="idle-timeout.js"></script>
+  <script src="access-control.js"></script>
+  <script>
+    (async () => {
+      await AccessControl.init();
+      AccessControl.guardInsideOnly();
+    })();
+  </script>
   <script src="qc-incident-nurse.js"></script>
 
 </body>
