@@ -23,8 +23,28 @@
       longitude: null,
       locationLabel: '定位中',
       refreshMinutes: 5,
-    }
+    },
+    unauthenticatedRedirectUrl: 'index.html',
+    unauthenticatedAlertText: '您已閒置一段時間，系統已自動登出以保護資料安全。',
+    unauthenticatedAlertTitle: '你已閒置一段時間，系統已將您自動登出',
+    publicPageNames: ['index.html', '']
   };
+
+  function isPublicPage() {
+    const page = pageName();
+    const list = Array.isArray(cfg?.publicPageNames) ? cfg.publicPageNames : ['index.html', ''];
+    return list.map((v) => String(v || '').toLowerCase()).includes(page);
+  }
+
+  function redirectUnauthenticated() {
+    if (!cfg || isPublicPage()) return;
+    const message = String(cfg.unauthenticatedAlertText || '尚未登入，系統將返回登入頁。');
+    const title = String(cfg.unauthenticatedAlertTitle || '尚未登入');
+    try { alert(`${title}\n\n${message}`); } catch (_) {}
+    const target = cfg.unauthenticatedRedirectUrl || cfg.redirectUrl || 'index.html';
+    const joiner = String(target).includes('?') ? '&' : '?';
+    location.replace(`${target}${joiner}reason=not_logged_in`);
+  }
 
   const PAGE_GROUPS = {
     nurse: {
@@ -161,6 +181,7 @@
     if (cfg.isLoggedInFn && !cfg.isLoggedInFn()) {
       if (isWarningShown) hideWarning();
       removeShell();
+      redirectUnauthenticated();
       return;
     }
     if (!document.getElementById('antai-shell-root')) mountShell();
@@ -700,10 +721,16 @@
     cfg.isLoggedInFn = typeof cfg.isLoggedInFn === 'function' ? cfg.isLoggedInFn : defaultIsLoggedIn;
     cfg.signOutFn = typeof cfg.signOutFn === 'function' ? cfg.signOutFn : defaultSignOut;
     lastActivityAt = now();
+
+    if (!cfg.isLoggedInFn()) {
+      removeShell();
+      if (!isPublicPage()) redirectUnauthenticated();
+      return;
+    }
+
     addListeners();
     resetIdleCheck();
-    if (cfg.isLoggedInFn()) mountShell();
-    else removeShell();
+    mountShell();
   }
 
   function destroy() {
