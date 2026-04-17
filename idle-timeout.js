@@ -1,3 +1,4 @@
+/* idle-timeout.js (patched weather fix) */
 /* idle-timeout.js
  * 安泰系統通用插件
  * - 閒置過久自動登出
@@ -502,23 +503,41 @@
 
   async function fetchWeather() {
     const pos = await resolveWeatherPosition();
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(pos.lat)}&longitude=${encodeURIComponent(pos.lon)}&current=temperature_2m,weather_code&timezone=Asia%2FTaipei`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(pos.lat)}&longitude=${encodeURIComponent(pos.lon)}&current=temperature_2m,weather_code,is_day,cloud_cover&timezone=Asia%2FTaipei&_t=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
+
     const temp = data?.current?.temperature_2m;
     const code = data?.current?.weather_code;
-    const text = weatherCodeText(code);
+    const isDay = Number(data?.current?.is_day || 0) === 1;
+    const cloudCover = Number(data?.current?.cloud_cover ?? 0);
+
+    const text = weatherCodeText(code, { isDay, cloudCover });
     return { temp, text, label: pos.label };
   }
-  function weatherCodeText(code) {
-    if (code === 0) return '晴';
-    if ([1,2].includes(code)) return '局部多雲';
+  function weatherCodeText(code, extra = {}) {
+    const isDay = !!extra.isDay;
+    const cloudCover = Number(extra.cloudCover ?? 0);
+
+    if (code === 0) return isDay ? '晴' : '夜間晴朗';
+
+    if (code === 1) {
+      if (cloudCover <= 20) return isDay ? '晴' : '夜間晴朗';
+      return isDay ? '晴時多雲' : '夜間少雲';
+    }
+
+    if (code === 2) {
+      if (cloudCover <= 35) return isDay ? '晴時多雲' : '夜間少雲';
+      return '局部多雲';
+    }
+
     if (code === 3) return '陰';
-    if ([45,48].includes(code)) return '霧';
-    if ([51,53,55,56,57].includes(code)) return '毛毛雨';
-    if ([61,63,65,66,67,80,81,82].includes(code)) return '下雨';
-    if ([71,73,75,77,85,86].includes(code)) return '下雪';
-    if ([95,96,99].includes(code)) return '雷雨';
+    if ([45, 48].includes(code)) return '霧';
+    if ([51, 53, 55, 56, 57].includes(code)) return '毛毛雨';
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '下雨';
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return '下雪';
+    if ([95, 96, 99].includes(code)) return '雷雨';
+
     return '多雲';
   }
 
